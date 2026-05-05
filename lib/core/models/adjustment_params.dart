@@ -13,6 +13,7 @@ class AdjustmentParams {
   final double blacks;
   final double saturation;
   final double vibrance;
+  final double lutIntensity; 
   final HslBands hsl;
 
   const AdjustmentParams({
@@ -26,6 +27,7 @@ class AdjustmentParams {
     this.blacks     = 0.0,
     this.saturation = 0.0,
     this.vibrance   = 0.0,
+    this.lutIntensity = 1.0,
     this.hsl        = HslBands.neutral,
   });
 
@@ -36,7 +38,7 @@ class AdjustmentParams {
     double? contrast, double? highlights, double? shadows,
     double? whites, double? blacks,
     double? saturation, double? vibrance,
-    HslBands? hsl,
+    double? lutIntensity, HslBands? hsl,
   }) =>
       AdjustmentParams(
         exposure:   exposure   ?? this.exposure,
@@ -49,6 +51,7 @@ class AdjustmentParams {
         blacks:     blacks     ?? this.blacks,
         saturation: saturation ?? this.saturation,
         vibrance:   vibrance   ?? this.vibrance,
+        lutIntensity: lutIntensity ?? this.lutIntensity,
         hsl:          hsl          ?? this.hsl,
       );
 
@@ -66,12 +69,13 @@ class AdjustmentParams {
           blacks == other.blacks &&
           saturation == other.saturation &&
           vibrance == other.vibrance &&
+          lutIntensity == other.lutIntensity &&
           hsl == other.hsl;
 
   @override
   int get hashCode => Object.hash(
         exposure, temperature, tint, contrast,
         highlights, shadows, whites, blacks,
-        saturation, vibrance, hsl,
+        saturation, vibrance, lutIntensity, hsl,
       );
 }

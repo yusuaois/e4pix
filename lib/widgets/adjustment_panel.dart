@@ -5,10 +5,22 @@ import '../core/models/hsl_bands.dart';
 class AdjustmentPanel extends StatelessWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
+  // LUT 相关
+  final String? lutName;
+  final VoidCallback? onPickLut;
+  final VoidCallback? onLoadTestLut;
+  final VoidCallback? onLoadIdentity;
+  final VoidCallback? onClearLut;
+
   const AdjustmentPanel({
     super.key,
     required this.params,
     required this.onChanged,
+    this.lutName,
+    this.onPickLut,
+    this.onLoadTestLut,
+    this.onLoadIdentity,
+    this.onClearLut,
   });
 
   @override
@@ -110,6 +122,19 @@ class AdjustmentPanel extends StatelessWidget {
                   bands: params.hsl,
                   onChanged: (b) => onChanged(params.copyWith(hsl: b)),
                 ),
+
+                const SizedBox(height: 8),
+                _LutSection(
+                  lutName: lutName,
+                  intensity: params.lutIntensity,
+                  onIntensityChanged: (v) =>
+                      onChanged(params.copyWith(lutIntensity: v)),
+                  onPick: onPickLut,
+                  onLoadTest: onLoadTestLut,
+                  onLoadIdentity: onLoadIdentity,
+                  onClear: onClearLut,
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -268,18 +293,34 @@ class _HslSectionState extends State<_HslSection> {
   int _mode = 0; // 0=Hue, 1=Sat, 2=Lum
 
   static const _bandColors = [
-    Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFFFDD835), Color(0xFF43A047),
-    Color(0xFF00ACC1), Color(0xFF1E88E5), Color(0xFF8E24AA), Color(0xFFD81B60),
+    Color(0xFFE53935),
+    Color(0xFFFB8C00),
+    Color(0xFFFDD835),
+    Color(0xFF43A047),
+    Color(0xFF00ACC1),
+    Color(0xFF1E88E5),
+    Color(0xFF8E24AA),
+    Color(0xFFD81B60),
   ];
   static const _bandLabels = [
-    'Red', 'Orange', 'Yellow', 'Green', 'Aqua', 'Blue', 'Purple', 'Magenta',
+    'Red',
+    'Orange',
+    'Yellow',
+    'Green',
+    'Aqua',
+    'Blue',
+    'Purple',
+    'Magenta',
   ];
 
   List<double> _values() {
     switch (_mode) {
-      case 0: return widget.bands.hues;
-      case 1: return widget.bands.sats;
-      default: return widget.bands.lums;
+      case 0:
+        return widget.bands.hues;
+      case 1:
+        return widget.bands.sats;
+      default:
+        return widget.bands.lums;
     }
   }
 
@@ -306,7 +347,8 @@ class _HslSectionState extends State<_HslSection> {
               Text(
                 'HSL / COLOR',
                 style: TextStyle(
-                  fontSize: 10, letterSpacing: 1.4,
+                  fontSize: 10,
+                  letterSpacing: 1.4,
                   fontWeight: FontWeight.w600,
                   color: Colors.white.withOpacity(0.4),
                 ),
@@ -343,12 +385,15 @@ class _HslSectionState extends State<_HslSection> {
           ),
         ),
         const SizedBox(height: 8),
-        ...List.generate(8, (index) => _BandSlider(
-          color: _bandColors[index],
-          label: _bandLabels[index],
-          value: values[index],
-          onChanged: (v) => _setValue(index, v),
-        )),
+        ...List.generate(
+          8,
+          (index) => _BandSlider(
+            color: _bandColors[index],
+            label: _bandLabels[index],
+            value: values[index],
+            onChanged: (v) => _setValue(index, v),
+          ),
+        ),
       ],
     );
   }
@@ -360,8 +405,10 @@ class _BandSlider extends StatelessWidget {
   final double value;
   final ValueChanged<double> onChanged;
   const _BandSlider({
-    required this.color, required this.label,
-    required this.value, required this.onChanged,
+    required this.color,
+    required this.label,
+    required this.value,
+    required this.onChanged,
   });
 
   @override
@@ -373,7 +420,8 @@ class _BandSlider extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 14, height: 14,
+            width: 14,
+            height: 14,
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(3),
@@ -393,7 +441,8 @@ class _BandSlider extends StatelessWidget {
               ),
               child: Slider(
                 value: value.clamp(-100.0, 100.0),
-                min: -100, max: 100,
+                min: -100,
+                max: 100,
                 onChanged: onChanged,
               ),
             ),
@@ -417,6 +466,151 @@ class _BandSlider extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _LutSection extends StatelessWidget {
+  final String? lutName;
+  final double intensity;
+  final ValueChanged<double> onIntensityChanged;
+  final VoidCallback? onPick, onLoadTest, onLoadIdentity, onClear;
+
+  const _LutSection({
+    required this.lutName,
+    required this.intensity,
+    required this.onIntensityChanged,
+    this.onPick, this.onLoadTest, this.onLoadIdentity, this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final loaded = lutName != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+          child: Text(
+            'LUT',
+            style: TextStyle(
+              fontSize: 10, letterSpacing: 1.4,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withOpacity(0.4),
+            ),
+          ),
+        ),
+        if (loaded) ...[
+          // 已加载：显示名称 + 强度滑块
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 16, 4),
+            child: Row(
+              children: [
+                Icon(Icons.gradient,
+                    size: 14, color: Colors.greenAccent.withOpacity(0.7)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    lutName!,
+                    style: const TextStyle(fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 16),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Remove',
+                  onPressed: onClear,
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                const SizedBox(
+                    width: 64,
+                    child: Text('Intensity', style: TextStyle(fontSize: 11.5))),
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 2,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                    ),
+                    child: Slider(
+                      value: intensity.clamp(0.0, 1.0),
+                      onChanged: onIntensityChanged,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 36,
+                  child: Text(
+                    '${(intensity * 100).round()}',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontFamily: 'monospace',
+                      color: Colors.greenAccent.withOpacity(0.85),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          // 未加载：显示加载按钮
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 16, 4),
+            child: Text(
+              '未加载',
+              style: TextStyle(
+                  fontSize: 11.5, color: Colors.white.withOpacity(0.4)),
+            ),
+          ),
+        ],
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onPick,
+                  icon: const Icon(Icons.folder_open, size: 14),
+                  label: const Text('.cube',
+                      style: TextStyle(fontSize: 11)),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onLoadTest,
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('Test', style: TextStyle(fontSize: 11)),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onLoadIdentity,
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('Ident', style: TextStyle(fontSize: 11)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -5,7 +5,16 @@ import '../core/models/adjustment_params.dart';
 class PreviewRenderer extends StatefulWidget {
   final ui.Image image;
   final AdjustmentParams params;
-  const PreviewRenderer({super.key, required this.image, required this.params});
+  final ui.Image? lutTexture; // ← 新增
+  final int lutSize; // ← 新增（0 表示无 LUT）
+
+  const PreviewRenderer({
+    super.key,
+    required this.image,
+    required this.params,
+    this.lutTexture,
+    this.lutSize = 0,
+  });
 
   @override
   State<PreviewRenderer> createState() => _PreviewRendererState();
@@ -65,6 +74,8 @@ class _PreviewRendererState extends State<PreviewRenderer> {
                 shader: _shader!,
                 image: widget.image,
                 params: widget.params,
+                lut: widget.lutTexture,
+                lutSize: widget.lutSize,
               ),
             ),
           ),
@@ -78,10 +89,15 @@ class _DevelopPainter extends CustomPainter {
   final ui.FragmentShader shader;
   final ui.Image image;
   final AdjustmentParams params;
+  final ui.Image? lut;
+  final int lutSize;
+
   _DevelopPainter({
     required this.shader,
     required this.image,
     required this.params,
+    this.lut,
+    this.lutSize = 0,
   });
 
   @override
@@ -102,23 +118,31 @@ class _DevelopPainter extends CustomPainter {
     shader.setFloat(i++, p.saturation / 100.0);
     shader.setFloat(i++, p.vibrance / 100.0);
 
-    // ---- HSL 8 段：每个 vec4 是 4 个 float，按顺序 push ----
-    // uHueROYG (R, O, Y, G)
+    // HSL 24
     for (int k = 0; k < 4; k++) shader.setFloat(i++, h.hues[k] / 100.0);
-    // uHueCBPM (C, B, P, M)
     for (int k = 4; k < 8; k++) shader.setFloat(i++, h.hues[k] / 100.0);
-    // uSatROYG / uSatCBPM
     for (int k = 0; k < 4; k++) shader.setFloat(i++, h.sats[k] / 100.0);
     for (int k = 4; k < 8; k++) shader.setFloat(i++, h.sats[k] / 100.0);
-    // uLumROYG / uLumCBPM
     for (int k = 0; k < 4; k++) shader.setFloat(i++, h.lums[k] / 100.0);
     for (int k = 4; k < 8; k++) shader.setFloat(i++, h.lums[k] / 100.0);
 
+    // ---- LUT (36-38) ----
+    final hasLut = lut != null && lutSize > 0;
+    shader.setFloat(i++, hasLut ? p.lutIntensity : 0.0);
+    shader.setFloat(i++, lutSize.toDouble());
+    shader.setFloat(i++, hasLut ? 1.0 : 0.0);
+
     shader.setImageSampler(0, image);
+    // sampler 1：LUT 必须始终绑一个图（即便不用），否则 shader 会崩
+    shader.setImageSampler(1, lut ?? image);
+
     canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
   }
 
   @override
   bool shouldRepaint(_DevelopPainter old) =>
-      old.image != image || old.params != params;
+      old.image != image ||
+      old.params != params ||
+      old.lut != lut ||
+      old.lutSize != lutSize;
 }

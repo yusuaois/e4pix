@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../core/lut/cube_lut.dart';
 import '../core/models/adjustment_params.dart';
 import '../render/preview_renderer.dart';
 import '../widgets/adjustment_panel.dart';
@@ -31,6 +32,9 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   String? _errorMessage;
   bool _busy = false;
   AdjustmentParams _params = AdjustmentParams.neutral;
+  ui.Image? _lutTexture;
+  int _lutSize = 0;
+  String? _lutName;
 
   static late final Uint8List _srgbLut = _buildSrgbLut();
 
@@ -160,6 +164,48 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     return lut;
   }
 
+  Future<void> _loadLutFromFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['cube'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.single.path;
+    if (path == null) return;
+    await _applyLut(() => CubeLut.fromFile(path));
+  }
+
+  Future<void> _loadLutBuiltin(CubeLut Function() factory) async {
+    await _applyLut(() async => factory());
+  }
+
+  Future<void> _applyLut(Future<CubeLut> Function() loader) async {
+    try {
+      final lut = await loader();
+      final tex = await lut.toHaldStrip();
+      if (!mounted) return;
+      setState(() {
+        _lutTexture = tex;
+        _lutSize = lut.size;
+        _lutName = lut.name;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('LUT 加载失败: $e')));
+    }
+  }
+
+  void _clearLut() {
+    setState(() {
+      _lutTexture?.dispose();
+      _lutTexture = null;
+      _lutSize = 0;
+      _lutName = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -174,6 +220,11 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
                   AdjustmentPanel(
                     params: _params,
                     onChanged: (p) => setState(() => _params = p),
+                    lutName: _lutName,
+                    onPickLut: _loadLutFromFile,
+                    onLoadTestLut: () => _loadLutBuiltin(CubeLut.testCinematic),
+                    onLoadIdentity: () => _loadLutBuiltin(CubeLut.identity),
+                    onClearLut: _clearLut,
                   ),
               ],
             ),
@@ -278,7 +329,12 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     }
     return Container(
       color: Colors.black,
-      child: PreviewRenderer(image: _uiImage!, params: _params),
+      child: PreviewRenderer(
+        image: _uiImage!,
+        params: _params,
+        lutTexture: _lutTexture,
+        lutSize: _lutSize,
+      ),
     );
   }
 

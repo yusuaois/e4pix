@@ -24,7 +24,13 @@ uniform vec4  uSatCBPM;     // 24-27
 uniform vec4  uLumROYG;     // 28-31
 uniform vec4  uLumCBPM;     // 32-35
 
-uniform sampler2D uImage;
+// ---- LUT (36-38) ----
+uniform float uLutIntensity;     // 36  [0, 1]，0 = 禁用
+uniform float uLutSize;          // 37  立方体边长（如 33）
+uniform float uHasLut;           // 38  >0.5 表示已加载
+
+uniform sampler2D uImage;        // sampler 0
+uniform sampler2D uLut;          // sampler 1  ← 新增
 
 out vec4 fragColor;
 
@@ -159,13 +165,47 @@ vec3 applyVibrance(vec3 c, float v) {
 }
 
 // ============================================================================
+// 3D LUT (HALD-strip 布局：N×N tile 横向排列，宽 N², 高 N)
+// 用 NEAREST 行为（手工对齐到 texel 中心）+ 手动 trilinear 插值
+// ============================================================================
+vec3 sampleLutCell(float r, float g, float b, float N) {
+    vec2 cellPos = vec2(b * N + r, g);
+    vec2 texSize = vec2(N * N, N);
+    return texture(uLut, (cellPos + 0.5) / texSize).rgb;
+}
+
+vec3 sampleLut3D(vec3 c, float N) {
+    c = clamp(c, 0.0, 1.0);
+    vec3 idx = c * (N - 1.0);
+    vec3 i0 = floor(idx);
+    vec3 i1 = min(i0 + 1.0, vec3(N - 1.0));
+    vec3 f  = idx - i0;
+
+    vec3 c000 = sampleLutCell(i0.r, i0.g, i0.b, N);
+    vec3 c100 = sampleLutCell(i1.r, i0.g, i0.b, N);
+    vec3 c010 = sampleLutCell(i0.r, i1.g, i0.b, N);
+    vec3 c110 = sampleLutCell(i1.r, i1.g, i0.b, N);
+    vec3 c001 = sampleLutCell(i0.r, i0.g, i1.b, N);
+    vec3 c101 = sampleLutCell(i1.r, i0.g, i1.b, N);
+    vec3 c011 = sampleLutCell(i0.r, i1.g, i1.b, N);
+    vec3 c111 = sampleLutCell(i1.r, i1.g, i1.b, N);
+
+    vec3 c00 = mix(c000, c100, f.r);
+    vec3 c10 = mix(c010, c110, f.r);
+    vec3 c01 = mix(c001, c101, f.r);
+    vec3 c11 = mix(c011, c111, f.r);
+    vec3 c0  = mix(c00, c10, f.g);
+    vec3 c1  = mix(c01, c11, f.g);
+    return mix(c0, c1, f.b);
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 void main() {
     vec2 uv = FlutterFragCoord().xy / uSize;
     vec3 src = texture(uImage, uv).rgb;
 
-    // Linear 空间：tone 操作
     vec3 c = srgbToLinear(src);
     c = applyWB(c, uTempScale, uTint);
     c = applyExposure(c, uExposure);
@@ -173,11 +213,16 @@ void main() {
     c = applyToneRegions(c, uHighlights, uShadows);
     c = applyContrast(c, uContrast);
 
-    // Display 空间：色彩调整
     vec3 disp = linearToSrgb(c);
     disp = applyHsl8(disp);
     disp = applySaturation(disp, uSaturation);
     disp = applyVibrance(disp, uVibrance);
+
+    // ---- LUT 在 display-referred sRGB 上应用（业界惯例）----
+    if (uHasLut > 0.5 && uLutIntensity > 0.001) {
+        vec3 graded = sampleLut3D(disp, uLutSize);
+        disp = mix(disp, graded, uLutIntensity);
+    }
 
     fragColor = vec4(clamp(disp, 0.0, 1.0), 1.0);
 }
