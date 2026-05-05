@@ -1,3 +1,4 @@
+import 'package:e4pix/core/models/hsl_bands.dart';
 import 'package:flutter/foundation.dart';
 
 @immutable
@@ -12,6 +13,7 @@ class AdjustmentParams {
   final double blacks;
   final double saturation;
   final double vibrance;
+  final HslBands hsl;
 
   const AdjustmentParams({
     this.exposure   = 0.0,
@@ -24,6 +26,7 @@ class AdjustmentParams {
     this.blacks     = 0.0,
     this.saturation = 0.0,
     this.vibrance   = 0.0,
+    this.hsl        = HslBands.neutral,
   });
 
   static const neutral = AdjustmentParams();
@@ -33,6 +36,7 @@ class AdjustmentParams {
     double? contrast, double? highlights, double? shadows,
     double? whites, double? blacks,
     double? saturation, double? vibrance,
+    HslBands? hsl,
   }) =>
       AdjustmentParams(
         exposure:   exposure   ?? this.exposure,
@@ -45,6 +49,7 @@ class AdjustmentParams {
         blacks:     blacks     ?? this.blacks,
         saturation: saturation ?? this.saturation,
         vibrance:   vibrance   ?? this.vibrance,
+        hsl:          hsl          ?? this.hsl,
       );
 
   @override
@@ -60,12 +65,13 @@ class AdjustmentParams {
           whites == other.whites &&
           blacks == other.blacks &&
           saturation == other.saturation &&
-          vibrance == other.vibrance;
+          vibrance == other.vibrance &&
+          hsl == other.hsl;
 
   @override
   int get hashCode => Object.hash(
         exposure, temperature, tint, contrast,
         highlights, shadows, whites, blacks,
-        saturation, vibrance,
+        saturation, vibrance, hsl,
       );
 }
