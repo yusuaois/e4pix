@@ -6,6 +6,9 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../core/models/adjustment_params.dart';
+import '../render/preview_renderer.dart';
+import '../widgets/adjustment_panel.dart';
 import '../native/raw_bridge.dart';
 
 class RawSmokeTestScreen extends StatefulWidget {
@@ -27,6 +30,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   Duration? _convertTime;
   String? _errorMessage;
   bool _busy = false;
+  AdjustmentParams _params = AdjustmentParams.neutral;
 
   static late final Uint8List _srgbLut = _buildSrgbLut();
 
@@ -162,7 +166,18 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
       body: Column(
         children: [
           _buildTopBar(),
-          Expanded(child: _buildPreviewArea()),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(child: _buildPreviewArea()),
+                if (_uiImage != null)
+                  AdjustmentPanel(
+                    params: _params,
+                    onChanged: (p) => setState(() => _params = p),
+                  ),
+              ],
+            ),
+          ),
           _buildBottomPanel(),
         ],
       ),
@@ -263,9 +278,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     }
     return Container(
       color: Colors.black,
-      child: Center(
-        child: RawImage(image: _uiImage, fit: BoxFit.contain),
-      ),
+      child: PreviewRenderer(image: _uiImage!, params: _params),
     );
   }
 
