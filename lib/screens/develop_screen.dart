@@ -11,6 +11,9 @@ import '../core/models/adjustment_params.dart';
 import '../render/preview_renderer.dart';
 import '../widgets/adjustment_panel.dart';
 import '../native/raw_bridge.dart';
+import '../render/render_engine.dart';
+import '../render/exporter.dart';
+import '../widgets/histogram_panel.dart';
 
 class RawSmokeTestScreen extends StatefulWidget {
   const RawSmokeTestScreen({super.key});
@@ -35,6 +38,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   ui.Image? _lutTexture;
   int _lutSize = 0;
   String? _lutName;
+  ui.FragmentProgram? _developProgram;
 
   static late final Uint8List _srgbLut = _buildSrgbLut();
 
@@ -42,6 +46,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   void initState() {
     super.initState();
     _probeFfi();
+    _loadProgram();
   }
 
   void _probeFfi() {
@@ -54,6 +59,11 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
         _libRawError = e.toString();
       });
     }
+  }
+
+  Future<void> _loadProgram() async {
+    final p = await ui.FragmentProgram.fromAsset('shaders/develop.frag');
+    if (mounted) setState(() => _developProgram = p);
   }
 
   Future<void> _pickAndDecode() async {
@@ -197,6 +207,135 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     }
   }
 
+  Future<void> _showExportDialog() async {
+    if (_filePath == null || _developProgram == null) return;
+
+    ExportFormat format = ExportFormat.png;
+    int quality = 95;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('导出图像'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('格式', style: TextStyle(fontSize: 12)),
+              const SizedBox(height: 8),
+              SegmentedButton<ExportFormat>(
+                segments: const [
+                  ButtonSegment(value: ExportFormat.png, label: Text('PNG')),
+                  ButtonSegment(value: ExportFormat.jpeg, label: Text('JPEG')),
+                ],
+                selected: {format},
+                onSelectionChanged: (s) => setS(() => format = s.first),
+              ),
+              if (format == ExportFormat.jpeg) ...[
+                const SizedBox(height: 14),
+                Text('质量: $quality', style: const TextStyle(fontSize: 12)),
+                Slider(
+                  value: quality.toDouble(),
+                  min: 50,
+                  max: 100,
+                  onChanged: (v) => setS(() => quality = v.round()),
+                ),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                '将以全分辨率渲染并保存。可能耗时 10-30 秒。',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('导出'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok != true) return;
+
+    final defaultName = _filePath!
+        .split(RegExp(r'[\\/]'))
+        .last
+        .replaceAll(RegExp(r'\.[^.]+$'), '_edited.${format.extension}');
+    final saveResult = await FilePicker.platform.saveFile(
+      dialogTitle: '保存到...',
+      fileName: defaultName,
+      type: FileType.custom,
+      allowedExtensions: [format.extension],
+    );
+    if (saveResult == null) return;
+
+    await _runExport(saveResult, format, quality);
+  }
+
+  Future<void> _runExport(String outPath, ExportFormat fmt, int quality) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final progressNotifier = ValueNotifier<(double, String)>((0, '准备...'));
+
+    // 显示一个进度对话框
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        content: ValueListenableBuilder(
+          valueListenable: progressNotifier,
+          builder: (ctx, value, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              LinearProgressIndicator(value: value.$1),
+              const SizedBox(height: 12),
+              Text(value.$2, style: const TextStyle(fontSize: 12)),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final stopwatch = Stopwatch()..start();
+      await Exporter.exportFullRes(
+        inputRawPath: _filePath!,
+        outputPath: outPath,
+        format: fmt,
+        shaderProgram: _developProgram!,
+        params: _params,
+        lutTexture: _lutTexture,
+        lutSize: _lutSize,
+        jpegQuality: quality,
+        onProgress: (f, s) => progressNotifier.value = (f, s),
+      );
+      stopwatch.stop();
+      if (mounted) Navigator.pop(context); // 关 progress dialog
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('导出完成 · ${stopwatch.elapsed.inSeconds}s · $outPath'),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } catch (e, st) {
+      if (mounted) Navigator.pop(context);
+      debugPrint('Export error: $e\n$st');
+      messenger.showSnackBar(SnackBar(content: Text('导出失败: $e')));
+    } finally {
+      progressNotifier.dispose();
+    }
+  }
+
   void _clearLut() {
     setState(() {
       _lutTexture?.dispose();
@@ -225,6 +364,15 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
                     onLoadTestLut: () => _loadLutBuiltin(CubeLut.testCinematic),
                     onLoadIdentity: () => _loadLutBuiltin(CubeLut.identity),
                     onClearLut: _clearLut,
+                    histogram: _developProgram == null
+                        ? null
+                        : LiveHistogramPanel(
+                            program: _developProgram!,
+                            sourceImage: _uiImage,
+                            params: _params,
+                            lutTexture: _lutTexture,
+                            lutSize: _lutSize,
+                          ),
                   ),
               ],
             ),
@@ -247,6 +395,14 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
       ),
       child: Row(
         children: [
+          if (_uiImage != null && _developProgram != null) ...[
+            IconButton(
+              icon: const Icon(Icons.ios_share_rounded, size: 18),
+              tooltip: '导出',
+              onPressed: _showExportDialog,
+            ),
+            const SizedBox(width: 8),
+          ],
           Icon(
             Icons.camera_outlined,
             color: Colors.white.withOpacity(0.85),

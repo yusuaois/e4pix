@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import '../render/develop_uniforms.dart';
 import '../core/models/adjustment_params.dart';
 
 class PreviewRenderer extends StatefulWidget {
@@ -102,40 +103,14 @@ class _DevelopPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final p = params;
-    final h = p.hsl;
-    int i = 0;
-    shader.setFloat(i++, size.width);
-    shader.setFloat(i++, size.height);
-    shader.setFloat(i++, p.exposure);
-    shader.setFloat(i++, ((p.temperature - 5500) / 4500).clamp(-1.0, 1.0));
-    shader.setFloat(i++, p.tint / 100.0);
-    shader.setFloat(i++, p.contrast / 100.0);
-    shader.setFloat(i++, p.highlights / 100.0);
-    shader.setFloat(i++, p.shadows / 100.0);
-    shader.setFloat(i++, p.whites / 100.0);
-    shader.setFloat(i++, p.blacks / 100.0);
-    shader.setFloat(i++, p.saturation / 100.0);
-    shader.setFloat(i++, p.vibrance / 100.0);
-
-    // HSL 24
-    for (int k = 0; k < 4; k++) shader.setFloat(i++, h.hues[k] / 100.0);
-    for (int k = 4; k < 8; k++) shader.setFloat(i++, h.hues[k] / 100.0);
-    for (int k = 0; k < 4; k++) shader.setFloat(i++, h.sats[k] / 100.0);
-    for (int k = 4; k < 8; k++) shader.setFloat(i++, h.sats[k] / 100.0);
-    for (int k = 0; k < 4; k++) shader.setFloat(i++, h.lums[k] / 100.0);
-    for (int k = 4; k < 8; k++) shader.setFloat(i++, h.lums[k] / 100.0);
-
-    // ---- LUT (36-38) ----
-    final hasLut = lut != null && lutSize > 0;
-    shader.setFloat(i++, hasLut ? p.lutIntensity : 0.0);
-    shader.setFloat(i++, lutSize.toDouble());
-    shader.setFloat(i++, hasLut ? 1.0 : 0.0);
-
-    shader.setImageSampler(0, image);
-    // sampler 1：LUT 必须始终绑一个图（即便不用），否则 shader 会崩
-    shader.setImageSampler(1, lut ?? image);
-
+    applyDevelopUniforms(
+      shader: shader,
+      renderSize: size,
+      params: params,
+      image: image,
+      lutTexture: lut,
+      lutSize: lutSize,
+    );
     canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
   }
 

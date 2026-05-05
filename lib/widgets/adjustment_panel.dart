@@ -11,6 +11,7 @@ class AdjustmentPanel extends StatelessWidget {
   final VoidCallback? onLoadTestLut;
   final VoidCallback? onLoadIdentity;
   final VoidCallback? onClearLut;
+  final Widget? histogram;
 
   const AdjustmentPanel({
     super.key,
@@ -21,6 +22,7 @@ class AdjustmentPanel extends StatelessWidget {
     this.onLoadTestLut,
     this.onLoadIdentity,
     this.onClearLut,
+    this.histogram,
   });
 
   @override
@@ -34,6 +36,7 @@ class AdjustmentPanel extends StatelessWidget {
       child: Column(
         children: [
           _Header(onReset: () => onChanged(AdjustmentParams.neutral)),
+          if (histogram != null) histogram!,
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
