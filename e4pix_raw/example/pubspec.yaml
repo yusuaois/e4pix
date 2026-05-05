@@ -1,5 +1,5 @@
-name: e4pix
-description: "A new Flutter project."
+name: e4pix_raw_example
+description: "Demonstrates how to use the e4pix_raw plugin."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -31,11 +31,17 @@ dependencies:
   flutter:
     sdk: flutter
 
+  e4pix_raw:
+    # When depending on this package from a real application you should use:
+    #   e4pix_raw: ^x.y.z
+    # See https://dart.dev/tools/pub/dependencies#version-constraints
+    # The example app is bundled with the plugin so we use a path dependency on
+    # the parent directory to use the current plugin's version.
+    path: ../
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  ffi: ^2.1.0
-  file_picker: ^8.1.2
 
 dev_dependencies:
   flutter_test:
