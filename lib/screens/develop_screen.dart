@@ -1,19 +1,23 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 import '../core/lut/cube_lut.dart';
 import '../core/models/adjustment_params.dart';
 import '../render/preview_renderer.dart';
 import '../widgets/adjustment_panel.dart';
 import '../native/raw_bridge.dart';
-import '../render/render_engine.dart';
 import '../render/exporter.dart';
 import '../widgets/histogram_panel.dart';
+import '../services/tether_watcher.dart';
+import '../services/tethered_shot.dart';
+import '../widgets/tether_widgets.dart';
 
 class RawSmokeTestScreen extends StatefulWidget {
   const RawSmokeTestScreen({super.key});
@@ -34,11 +38,20 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   Duration? _convertTime;
   String? _errorMessage;
   bool _busy = false;
+
+  // State
   AdjustmentParams _params = AdjustmentParams.neutral;
   ui.Image? _lutTexture;
   int _lutSize = 0;
   String? _lutName;
   ui.FragmentProgram? _developProgram;
+  TetherWatcher? _tether;
+  final List<TetheredShot> _shots = [];
+  TetheredShot? _activeShot;
+  DateTime? _lastShotAt;
+  StreamSubscription<File>? _shotSub;
+  Timer? _statusTicker; // 让 "last 3s ago" 自动刷新
+  bool _preserveParams = true;
 
   static late final Uint8List _srgbLut = _buildSrgbLut();
 
@@ -67,64 +80,10 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   }
 
   Future<void> _pickAndDecode() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const [
-        'arw',
-        'cr2',
-        'cr3',
-        'nef',
-        'nrw',
-        'raf',
-        'dng',
-        'orf',
-        'rw2',
-        'pef',
-        'srw',
-        'rwl',
-      ],
-    );
+    final result = await FilePicker.platform.pickFiles(/* ... */);
     if (result == null || result.files.isEmpty) return;
     final path = result.files.single.path;
-    if (path == null) return;
-
-    setState(() {
-      _busy = true;
-      _filePath = path;
-      _decoded = null;
-      _uiImage = null;
-      _decodeTime = null;
-      _convertTime = null;
-      _errorMessage = null;
-    });
-
-    try {
-      // 1. 解码
-      final sw1 = Stopwatch()..start();
-      final img = await RawBridge.decodePreview(path);
-      sw1.stop();
-
-      // 2. 转 ui.Image（含 sRGB encode）
-      final sw2 = Stopwatch()..start();
-      final uiImg = await _toUiImage(img);
-      sw2.stop();
-
-      if (!mounted) return;
-      setState(() {
-        _decoded = img;
-        _uiImage = uiImg;
-        _decodeTime = sw1.elapsed;
-        _convertTime = sw2.elapsed;
-        _busy = false;
-      });
-    } catch (e, st) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = '$e';
-        _busy = false;
-      });
-      debugPrint('Decode error: $e\n$st');
-    }
+    if (path != null) await _decodeFromPath(path);
   }
 
   /// 把 16-bit linear RGB 转成 sRGB-encoded RGBA8 给 Flutter 显示
@@ -336,6 +295,128 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     }
   }
 
+  Future<void> _startTether() async {
+    // 用系统对话框选文件夹
+    final folder = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择监控文件夹',
+    );
+    if (folder == null) return;
+
+    final watcher = TetherWatcher(folder);
+    try {
+      await watcher.start();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法监控: $e')));
+      return;
+    }
+
+    setState(() {
+      _tether = watcher;
+      _shots.clear();
+      _activeShot = null;
+      _lastShotAt = null;
+    });
+
+    // 监听新 shot
+    _shotSub = watcher.onShot.listen(_onNewShot);
+    // 每秒刷新一次 "Xs ago"
+    _statusTicker = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => mounted ? setState(() {}) : null,
+    );
+  }
+
+  Future<void> _stopTether() async {
+    await _shotSub?.cancel();
+    _statusTicker?.cancel();
+    await _tether?.dispose();
+    for (final s in _shots) {
+      s.dispose();
+    }
+    if (!mounted) return;
+    setState(() {
+      _tether = null;
+      _shots.clear();
+      _activeShot = null;
+      _lastShotAt = null;
+      _shotSub = null;
+      _statusTicker = null;
+    });
+  }
+
+  Future<void> _onNewShot(File file) async {
+    final shot = TetheredShot(
+      path: file.path,
+      filename: p.basename(file.path),
+      detectedAt: DateTime.now(),
+      params: _preserveParams ? _params : AdjustmentParams.neutral,
+    );
+    setState(() {
+      _shots.add(shot);
+      _lastShotAt = shot.detectedAt;
+    });
+
+    unawaited(
+      shot.loadThumbnail().then((_) {
+        if (mounted) setState(() {});
+      }),
+    );
+
+    await _selectShot(shot);
+  }
+
+  Future<void> _selectShot(TetheredShot shot) async {
+    setState(() {
+      _activeShot = shot;
+      _params = shot.params;
+    });
+    await _decodeFromPath(shot.path);
+  }
+
+  /// 把原来 `_pickAndDecode` 里 path 之后的逻辑抽出来作为独立方法
+  Future<void> _decodeFromPath(String path) async {
+    setState(() {
+      _busy = true;
+      _filePath = path;
+      _decoded = null;
+      _uiImage = null;
+      _decodeTime = null;
+      _convertTime = null;
+      _errorMessage = null;
+    });
+    try {
+      final sw1 = Stopwatch()..start();
+      final img = await RawBridge.decodePreview(path);
+      sw1.stop();
+      final sw2 = Stopwatch()..start();
+      final uiImg = await _toUiImage(img);
+      sw2.stop();
+      if (!mounted) return;
+      setState(() {
+        _decoded = img;
+        _uiImage = uiImg;
+        _decodeTime = sw1.elapsed;
+        _convertTime = sw2.elapsed;
+        _busy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = '$e';
+        _busy = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopTether();
+    super.dispose();
+  }
+
   void _clearLut() {
     setState(() {
       _lutTexture?.dispose();
@@ -345,12 +426,50 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     });
   }
 
+  void _onParamsChanged(AdjustmentParams p) {
+    setState(() {
+      _params = p;
+      if (_preserveParams) {
+        // 同步到所有 shot
+        for (final s in _shots) {
+          s.params = p;
+        }
+      } else {
+        // 仅写到当前 shot
+        _activeShot?.params = p;
+      }
+    });
+  }
+
+  void _togglePreserve(bool value) {
+    setState(() {
+      _preserveParams = value;
+      if (value) {
+        // 刚切到 Preserved：把当前参数同步到所有 shot
+        for (final s in _shots) {
+          s.params = _params;
+        }
+      }
+      // 切到 Isolated：什么都不做，各 shot 保留各自参数
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Column(
         children: [
           _buildTopBar(),
+          // 联机状态条（仅在启动时显示）
+          if (_tether != null)
+            TetherStatusBar(
+              watchPath: _tether!.watchPath,
+              shotCount: _shots.length,
+              lastShotAt: _lastShotAt,
+              onStop: _stopTether,
+              preserveParams: _preserveParams,
+              onPreserveChanged: _togglePreserve,
+            ),
           Expanded(
             child: Row(
               children: [
@@ -358,7 +477,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
                 if (_uiImage != null)
                   AdjustmentPanel(
                     params: _params,
-                    onChanged: (p) => setState(() => _params = p),
+                    onChanged: _onParamsChanged,
                     lutName: _lutName,
                     onPickLut: _loadLutFromFile,
                     onLoadTestLut: () => _loadLutBuiltin(CubeLut.testCinematic),
@@ -377,6 +496,13 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
               ],
             ),
           ),
+          // 缩略图条（仅在有 shot 时显示）
+          if (_tether != null && _shots.isNotEmpty)
+            TetherThumbStrip(
+              shots: _shots,
+              activeShot: _activeShot,
+              onSelect: _selectShot,
+            ),
           _buildBottomPanel(),
         ],
       ),
@@ -395,6 +521,23 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
       ),
       child: Row(
         children: [
+          if (_tether == null)
+            IconButton(
+              icon: const Icon(Icons.cable_rounded, size: 18),
+              tooltip: '开始联机拍摄',
+              onPressed: _startTether,
+            )
+          else
+            IconButton(
+              icon: Icon(
+                Icons.cable_rounded,
+                size: 18,
+                color: Colors.greenAccent.withOpacity(0.9),
+              ),
+              tooltip: '联机中（点击停止）',
+              onPressed: _stopTether,
+            ),
+          const SizedBox(width: 4),
           if (_uiImage != null && _developProgram != null) ...[
             IconButton(
               icon: const Icon(Icons.ios_share_rounded, size: 18),
