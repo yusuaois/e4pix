@@ -21,6 +21,7 @@ import '../widgets/histogram_panel.dart';
 import '../services/tether_watcher.dart';
 import '../services/tethered_shot.dart';
 import '../widgets/tether_widgets.dart';
+import '../widgets/develop_sections.dart';
 
 class RawSmokeTestScreen extends StatefulWidget {
   const RawSmokeTestScreen({super.key});
@@ -53,7 +54,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   TetheredShot? _activeShot;
   DateTime? _lastShotAt;
   StreamSubscription<File>? _shotSub;
-  Timer? _statusTicker; // 让 "last 3s ago" 自动刷新
+  Timer? _statusTicker;
   bool _preserveParams = true;
 
   // 联机拍摄
@@ -129,7 +130,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     return completer.future;
   }
 
-  /// 16-bit linear → 8-bit sRGB 查找表（启动一次，~256KB 内存）
+  /// 16-bit linear → 8-bit sRGB
   static Uint8List _buildSrgbLut() {
     final lut = Uint8List(65536);
     for (int i = 0; i < 65536; i++) {
@@ -144,12 +145,24 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
 
   Future<void> _loadLutFromFile() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['cube'],
+      type: Platform.isAndroid ? FileType.any : FileType.custom,
+      allowedExtensions: Platform.isAndroid ? null : const ['cube'],
     );
+
     if (result == null || result.files.isEmpty) return;
     final path = result.files.single.path;
     if (path == null) return;
+
+    if (Platform.isAndroid) {
+      if (!path.toLowerCase().endsWith('.cube')) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('请选择有效的 .cube 格式文件')));
+        return;
+      }
+    }
+
     await _applyLut(() => CubeLut.fromFile(path));
   }
 
@@ -212,7 +225,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
               ],
               const SizedBox(height: 8),
               Text(
-                '将以全分辨率渲染并保存。可能耗时 10-30 秒。',
+                '将以全分辨率渲染并保存。可能耗时较久。',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.white.withOpacity(0.6),
@@ -255,7 +268,6 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final progressNotifier = ValueNotifier<(double, String)>((0, '准备...'));
 
-    // 显示一个进度对话框
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -350,8 +362,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     });
     await _decodeFromPath(shot.path);
   }
-
-  /// 把原来 `_pickAndDecode` 里 path 之后的逻辑抽出来作为独立方法
+  
   Future<void> _decodeFromPath(String path) async {
     setState(() {
       _busy = true;
@@ -394,11 +405,11 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     );
     if (pick == null) return;
 
-    // 1. 用同样的文件夹启动文件夹监控（复用 4-1）
+    // 启动文件夹监控
     await _startWatcher(pick.saveFolder);
     if (_tether == null) return; // watcher 启动失败
 
-    // 2. 同时启动 gphoto2 进程
+    // 2. 启动 gphoto2 进程
     setState(() {
       _camera = controller;
       _cameraModel = pick.camera.model;
@@ -415,7 +426,6 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
         // 已经在 _startCameraTether 中显示
         break;
       case CameraTakingShot():
-        // 按了快门，闪一下绿点
         setState(() => _shutterFlash = true);
         Future.delayed(
           const Duration(milliseconds: 200),
@@ -423,8 +433,6 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
         );
         break;
       case CameraShotSaved():
-        // gphoto2 已保存到磁盘——watcher 几乎立刻就会触发
-        // 这里不需要做事
         break;
       case CameraError(:final message):
         if (!mounted) return;
@@ -448,13 +456,9 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
         _cameraSub = null;
       });
     }
-    // 同时停掉文件夹 watcher
     await _stopTether();
   }
 
-  // 把现有的 _startTether 拆成两个：
-  // _startTether() = 用户主动选文件夹（手动模式）
-  // _startWatcher(folder) = 内部公共方法（被 camera 路径复用）
   Future<void> _startTether() async {
     final folder = await FilePicker.platform.getDirectoryPath(
       dialogTitle: '选择监控文件夹',
@@ -521,69 +525,251 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     setState(() {
       _preserveParams = value;
       if (value) {
-        // 刚切到 Preserved：把当前参数同步到所有 shot
         for (final s in _shots) {
           s.params = _params;
         }
       }
-      // 切到 Isolated：什么都不做，各 shot 保留各自参数
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
     return Scaffold(
-      body: Column(
-        children: [
-          _buildTopBar(),
-          // 联机状态条（仅在启动时显示）
-          if (_tether != null)
-            TetherStatusBar(
-              watchPath: _cameraModel != null
-                  ? '${_cameraModel} → ${_tether!.watchPath}'
-                  : _tether!.watchPath,
-              shotCount: _shots.length,
-              lastShotAt: _lastShotAt,
-              onStop: _stopTether,
-              preserveParams: _preserveParams,
-              onPreserveChanged: _togglePreserve,
-            ),
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(child: _buildPreviewArea()),
-                if (_uiImage != null)
-                  AdjustmentPanel(
-                    params: _params,
-                    onChanged: _onParamsChanged,
-                    lutName: _lutName,
-                    onPickLut: _loadLutFromFile,
-                    onLoadTestLut: () => _loadLutBuiltin(CubeLut.testCinematic),
-                    onLoadIdentity: () => _loadLutBuiltin(CubeLut.identity),
-                    onClearLut: _clearLut,
-                    histogram: _developProgram == null
-                        ? null
-                        : LiveHistogramPanel(
-                            program: _developProgram!,
-                            sourceImage: _uiImage,
-                            params: _params,
-                            lutTexture: _lutTexture,
-                            lutSize: _lutSize,
-                          ),
+      body: SafeArea(
+        child: isPhone ? _buildPhoneLayout() : _buildDesktopLayout(),
+      ),
+    );
+  }
+
+  Widget _buildPhoneLayout() {
+    final hasImage = _uiImage != null && _developProgram != null;
+
+    return Column(
+      children: [
+        _buildTopBar(),
+        if (_tether != null)
+          TetherStatusBar(
+            watchPath: _cameraModel != null
+                ? '${_cameraModel} → ${_tether!.watchPath}'
+                : _tether!.watchPath,
+            shotCount: _shots.length,
+            lastShotAt: _lastShotAt,
+            onStop: _camera != null ? _stopCameraTether : _stopTether,
+            preserveParams: _preserveParams,
+            onPreserveChanged: _togglePreserve,
+          ),
+        Expanded(
+          child: Stack(
+            children: [
+              Positioned.fill(child: _buildPreviewArea()),
+              if (hasImage)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  width: 140,
+                  height: 70,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Opacity(
+                      opacity: 0.9,
+                      child: LiveHistogramPanel(
+                        program: _developProgram!,
+                        sourceImage: _uiImage,
+                        params: _params,
+                        lutTexture: _lutTexture,
+                        lutSize: _lutSize,
+                      ),
+                    ),
                   ),
-              ],
+                ),
+            ],
+          ),
+        ),
+        // Tether thumb strip
+        if (_tether != null && _shots.isNotEmpty)
+          TetherThumbStrip(
+            shots: _shots,
+            activeShot: _activeShot,
+            onSelect: _selectShot,
+          ),
+        _buildPhoneInfoBar(),
+        if (hasImage) _buildPhoneToolPanel(),
+      ],
+    );
+  }
+
+  Widget _buildPhoneInfoBar() {
+    final m = _decoded?.metadata;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14141A),
+        border: Border(
+          top: BorderSide(color: Colors.white.withOpacity(0.05)),
+          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              m == null
+                  ? (_filePath ?? '尚未选择文件')
+                  : '${m.cameraModel} · ISO ${m.iso} · ${m.shutterDisplay} · f/${m.aperture}',
+              style: const TextStyle(fontSize: 11),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          // 缩略图条（仅在有 shot 时显示）
-          if (_tether != null && _shots.isNotEmpty)
-            TetherThumbStrip(
-              shots: _shots,
-              activeShot: _activeShot,
-              onSelect: _selectShot,
+          if (_decoded != null)
+            Text(
+              '${_decoded!.width}×${_decoded!.height}',
+              style: TextStyle(
+                fontSize: 10,
+                fontFamily: 'monospace',
+                color: Colors.greenAccent.withOpacity(0.8),
+              ),
             ),
-          _buildBottomPanel(),
         ],
       ),
+    );
+  }
+
+  Widget _buildPhoneToolPanel() {
+    return SizedBox(
+      height: 320,
+      child: DefaultTabController(
+        length: 4,
+        child: Container(
+          color: const Color(0xFF14141A),
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TabBar(
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        labelStyle: const TextStyle(fontSize: 12),
+                        tabs: const [
+                          Tab(text: 'Light', height: 36),
+                          Tab(text: 'Color', height: 36),
+                          Tab(text: 'HSL', height: 36),
+                          Tab(text: 'LUT', height: 36),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh, size: 18),
+                      tooltip: 'Reset all',
+                      onPressed: () =>
+                          _onParamsChanged(AdjustmentParams.neutral),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    SingleChildScrollView(
+                      child: LightSection(
+                        params: _params,
+                        onChanged: _onParamsChanged,
+                      ),
+                    ),
+                    SingleChildScrollView(
+                      child: WhiteBalanceColorSection(
+                        params: _params,
+                        onChanged: _onParamsChanged,
+                      ),
+                    ),
+                    SingleChildScrollView(
+                      child: HslSection(
+                        bands: _params.hsl,
+                        onChanged: (b) =>
+                            _onParamsChanged(_params.copyWith(hsl: b)),
+                      ),
+                    ),
+                    SingleChildScrollView(
+                      child: LutSection(
+                        lutName: _lutName,
+                        intensity: _params.lutIntensity,
+                        onIntensityChanged: (v) =>
+                            _onParamsChanged(_params.copyWith(lutIntensity: v)),
+                        onPick: _loadLutFromFile,
+                        onLoadTest: () =>
+                            _loadLutBuiltin(CubeLut.testCinematic),
+                        onLoadIdentity: () => _loadLutBuiltin(CubeLut.identity),
+                        onClear: _clearLut,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return Column(
+      children: [
+        _buildTopBar(),
+        // 联机状态条
+        if (_tether != null)
+          TetherStatusBar(
+            watchPath: _cameraModel != null
+                ? '${_cameraModel} → ${_tether!.watchPath}'
+                : _tether!.watchPath,
+            shotCount: _shots.length,
+            lastShotAt: _lastShotAt,
+            onStop: _stopTether,
+            preserveParams: _preserveParams,
+            onPreserveChanged: _togglePreserve,
+          ),
+        Expanded(
+          child: Row(
+            children: [
+              Expanded(child: _buildPreviewArea()),
+              if (_uiImage != null)
+                AdjustmentPanel(
+                  params: _params,
+                  onChanged: _onParamsChanged,
+                  lutName: _lutName,
+                  onPickLut: _loadLutFromFile,
+                  onLoadTestLut: () => _loadLutBuiltin(CubeLut.testCinematic),
+                  onLoadIdentity: () => _loadLutBuiltin(CubeLut.identity),
+                  onClearLut: _clearLut,
+                  histogram: _developProgram == null
+                      ? null
+                      : LiveHistogramPanel(
+                          program: _developProgram!,
+                          sourceImage: _uiImage,
+                          params: _params,
+                          lutTexture: _lutTexture,
+                          lutSize: _lutSize,
+                        ),
+                ),
+            ],
+          ),
+        ),
+        // 缩略图条
+        if (_tether != null && _shots.isNotEmpty)
+          TetherThumbStrip(
+            shots: _shots,
+            activeShot: _activeShot,
+            onSelect: _selectShot,
+          ),
+        _buildBottomPanel(),
+      ],
     );
   }
 
@@ -599,14 +785,12 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
       ),
       child: Row(
         children: [
-          // cable 按钮（已有，文件夹监控模式）
           if (_tether == null)
             IconButton(
               icon: const Icon(Icons.cable_rounded, size: 18),
               tooltip: '文件夹监控',
               onPressed: _startTether,
             ),
-          // 新增：相机按钮
           if (_camera == null && _tether == null)
             IconButton(
               icon: const Icon(Icons.photo_camera_outlined, size: 18),

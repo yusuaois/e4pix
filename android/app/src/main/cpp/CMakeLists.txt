@@ -18,5 +18,3 @@ add_subdirectory(
     ${E4PIX_ROOT}/native/raw_bridge
     ${CMAKE_BINARY_DIR}/raw_bridge
 )
-
-# 这里的 e4pix_raw 是 raw_bridge 那边定义的 SHARED 库目标

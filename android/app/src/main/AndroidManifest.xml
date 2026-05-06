@@ -44,8 +44,8 @@
     </queries>
 
     <!-- 读取用户手机里的 RAW 文件 -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-                    android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
     <!-- USB Host -->
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
