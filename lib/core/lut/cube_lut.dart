@@ -80,7 +80,7 @@ class CubeLut {
     return CubeLut(name: 'Identity', size: size, rgbTriplets: values);
   }
 
-  /// 简单的"暖色电影"测试 LUT（暖调 + 提暗部）
+  /// 简单LUT（暖调 + 提暗部）
   factory CubeLut.testCinematic({int size = 33}) {
     final values = Float32List(size * size * size * 3);
     int idx = 0;

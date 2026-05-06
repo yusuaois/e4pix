@@ -11,9 +11,12 @@ import 'package:path/path.dart' as p;
 import '../core/lut/cube_lut.dart';
 import '../core/models/adjustment_params.dart';
 import '../render/preview_renderer.dart';
+import '../services/camera/camera_controller.dart';
+import '../services/camera/gphoto2_camera_controller.dart';
 import '../widgets/adjustment_panel.dart';
 import '../native/raw_bridge.dart';
 import '../render/exporter.dart';
+import '../widgets/camera_picker_dialog.dart';
 import '../widgets/histogram_panel.dart';
 import '../services/tether_watcher.dart';
 import '../services/tethered_shot.dart';
@@ -52,6 +55,12 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   StreamSubscription<File>? _shotSub;
   Timer? _statusTicker; // 让 "last 3s ago" 自动刷新
   bool _preserveParams = true;
+
+  // 联机拍摄
+  CameraController? _camera;
+  StreamSubscription<CameraEvent>? _cameraSub;
+  String? _cameraModel;
+  bool _shutterFlash = false;
 
   static late final Uint8List _srgbLut = _buildSrgbLut();
 
@@ -295,40 +304,6 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     }
   }
 
-  Future<void> _startTether() async {
-    // 用系统对话框选文件夹
-    final folder = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择监控文件夹',
-    );
-    if (folder == null) return;
-
-    final watcher = TetherWatcher(folder);
-    try {
-      await watcher.start();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('无法监控: $e')));
-      return;
-    }
-
-    setState(() {
-      _tether = watcher;
-      _shots.clear();
-      _activeShot = null;
-      _lastShotAt = null;
-    });
-
-    // 监听新 shot
-    _shotSub = watcher.onShot.listen(_onNewShot);
-    // 每秒刷新一次 "Xs ago"
-    _statusTicker = Timer.periodic(
-      const Duration(seconds: 1),
-      (_) => mounted ? setState(() {}) : null,
-    );
-  }
-
   Future<void> _stopTether() async {
     await _shotSub?.cancel();
     _statusTicker?.cancel();
@@ -411,6 +386,107 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     }
   }
 
+  Future<void> _startCameraTether() async {
+    final controller = Gphoto2CameraController();
+    final pick = await showDialog<CameraPickResult>(
+      context: context,
+      builder: (_) => CameraPickerDialog(controller: controller),
+    );
+    if (pick == null) return;
+
+    // 1. 用同样的文件夹启动文件夹监控（复用 4-1）
+    await _startWatcher(pick.saveFolder);
+    if (_tether == null) return; // watcher 启动失败
+
+    // 2. 同时启动 gphoto2 进程
+    setState(() {
+      _camera = controller;
+      _cameraModel = pick.camera.model;
+    });
+
+    _cameraSub = controller
+        .startTether(camera: pick.camera, saveFolder: pick.saveFolder)
+        .listen(_onCameraEvent);
+  }
+
+  void _onCameraEvent(CameraEvent ev) {
+    switch (ev) {
+      case CameraConnected():
+        // 已经在 _startCameraTether 中显示
+        break;
+      case CameraTakingShot():
+        // 按了快门，闪一下绿点
+        setState(() => _shutterFlash = true);
+        Future.delayed(
+          const Duration(milliseconds: 200),
+          () => mounted ? setState(() => _shutterFlash = false) : null,
+        );
+        break;
+      case CameraShotSaved():
+        // gphoto2 已保存到磁盘——watcher 几乎立刻就会触发
+        // 这里不需要做事
+        break;
+      case CameraError(:final message):
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('相机错误: $message')));
+        break;
+      case CameraDisconnected():
+        if (mounted) _stopCameraTether();
+        break;
+    }
+  }
+
+  Future<void> _stopCameraTether() async {
+    await _cameraSub?.cancel();
+    await _camera?.stopTether();
+    if (mounted) {
+      setState(() {
+        _camera = null;
+        _cameraModel = null;
+        _cameraSub = null;
+      });
+    }
+    // 同时停掉文件夹 watcher
+    await _stopTether();
+  }
+
+  // 把现有的 _startTether 拆成两个：
+  // _startTether() = 用户主动选文件夹（手动模式）
+  // _startWatcher(folder) = 内部公共方法（被 camera 路径复用）
+  Future<void> _startTether() async {
+    final folder = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择监控文件夹',
+    );
+    if (folder == null) return;
+    await _startWatcher(folder);
+  }
+
+  Future<void> _startWatcher(String folder) async {
+    final watcher = TetherWatcher(folder);
+    try {
+      await watcher.start();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法监控: $e')));
+      return;
+    }
+    setState(() {
+      _tether = watcher;
+      _shots.clear();
+      _activeShot = null;
+      _lastShotAt = null;
+    });
+    _shotSub = watcher.onShot.listen(_onNewShot);
+    _statusTicker = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => mounted ? setState(() {}) : null,
+    );
+  }
+
   @override
   void dispose() {
     _stopTether();
@@ -463,7 +539,9 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
           // 联机状态条（仅在启动时显示）
           if (_tether != null)
             TetherStatusBar(
-              watchPath: _tether!.watchPath,
+              watchPath: _cameraModel != null
+                  ? '${_cameraModel} → ${_tether!.watchPath}'
+                  : _tether!.watchPath,
               shotCount: _shots.length,
               lastShotAt: _lastShotAt,
               onStop: _stopTether,
@@ -521,21 +599,31 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
       ),
       child: Row(
         children: [
+          // cable 按钮（已有，文件夹监控模式）
           if (_tether == null)
             IconButton(
               icon: const Icon(Icons.cable_rounded, size: 18),
-              tooltip: '开始联机拍摄',
+              tooltip: '文件夹监控',
               onPressed: _startTether,
+            ),
+          // 新增：相机按钮
+          if (_camera == null && _tether == null)
+            IconButton(
+              icon: const Icon(Icons.photo_camera_outlined, size: 18),
+              tooltip: '联机拍摄（USB / WSL）',
+              onPressed: _startCameraTether,
             )
-          else
+          else if (_camera != null)
             IconButton(
               icon: Icon(
-                Icons.cable_rounded,
+                Icons.photo_camera,
                 size: 18,
-                color: Colors.greenAccent.withOpacity(0.9),
+                color: _shutterFlash
+                    ? Colors.greenAccent
+                    : Colors.greenAccent.withOpacity(0.85),
               ),
-              tooltip: '联机中（点击停止）',
-              onPressed: _stopTether,
+              tooltip: '${_cameraModel ?? '相机'} 已联机（点击断开）',
+              onPressed: _stopCameraTether,
             ),
           const SizedBox(width: 4),
           if (_uiImage != null && _developProgram != null) ...[
