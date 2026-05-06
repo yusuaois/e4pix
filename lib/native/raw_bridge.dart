@@ -101,17 +101,16 @@ class RawBridge {
   }
 
   static DynamicLibrary _openLibrary() {
-    if (Platform.isWindows) {
-      return DynamicLibrary.open('e4pix_raw.dll');
-    } else if (Platform.isMacOS) {
-      // Flutter 的 macOS bundle 自动将 dylib 放到 @executable_path/../Frameworks
-      return DynamicLibrary.open('e4pix_raw.framework/e4pix_raw');
-    } else if (Platform.isLinux) {
-      return DynamicLibrary.open('libe4pix_raw.so');
-    }
-    throw UnsupportedError(
-      'Platform ${Platform.operatingSystem} not supported',
-    );
+if (Platform.isWindows) {
+    return DynamicLibrary.open('e4pix_raw.dll');
+  } else if (Platform.isMacOS) {
+    return DynamicLibrary.open('e4pix_raw.framework/e4pix_raw');
+  } else if (Platform.isLinux) {
+    return DynamicLibrary.open('libe4pix_raw.so');
+  } else if (Platform.isAndroid) {
+    return DynamicLibrary.open('libe4pix_raw.so');
+  }
+  throw UnsupportedError('Platform ${Platform.operatingSystem} not supported');
   }
 
   /// LibRaw 版本号，用于 About 页面。

@@ -11,7 +11,39 @@ message(STATUS "  CMAKE_SOURCE_DIR         = ${CMAKE_SOURCE_DIR}")
 message(STATUS "  CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(LIBRAW_TARGET_FOUND FALSE)
+# ============================================================================
+# Windows 上探测 vcpkg（Android/Linux/macOS 跳过）
+# ============================================================================
+if(WIN32 AND NOT ANDROID AND NOT LIBRAW_TARGET_FOUND)
+    set(_VCPKG_CANDIDATES "")
+    if(DEFINED ENV{VCPKG_ROOT})
+        list(APPEND _VCPKG_CANDIDATES "$ENV{VCPKG_ROOT}/installed/x64-windows")
+    endif()
+    list(APPEND _VCPKG_CANDIDATES
+        "C:/vcpkg/installed/x64-windows"
+        "C:/dev/vcpkg/installed/x64-windows"
+    )
+    foreach(_vcp ${_VCPKG_CANDIDATES})
+        if(EXISTS "${_vcp}/include/libraw/libraw.h" AND EXISTS "${_vcp}/lib/raw.lib")
+            message(STATUS "  ✅ Found LibRaw via vcpkg: ${_vcp}")
+            set(LIBRAW_VCPKG_ROOT "${_vcp}")
+            set(LIBRAW_TARGET_FOUND TRUE)
+            break()
+        endif()
+    endforeach()
 
+    if(LIBRAW_TARGET_FOUND)
+        add_library(libraw_imported STATIC IMPORTED GLOBAL)
+        set_target_properties(libraw_imported PROPERTIES
+            IMPORTED_LOCATION "${LIBRAW_VCPKG_ROOT}/lib/raw.lib"
+            INTERFACE_INCLUDE_DIRECTORIES "${LIBRAW_VCPKG_ROOT}/include"
+        )
+        set(LIBRAW_LIB libraw_imported)
+        set(LIBRAW_RUNTIME_DLLS
+            "${LIBRAW_VCPKG_ROOT}/bin/raw.dll"
+        )
+    endif()
+endif()
 # ============================================================================
 # 从 third_party/libraw 源码构建（不依赖 vcpkg）
 # ============================================================================
@@ -31,31 +63,24 @@ if(NOT LIBRAW_TARGET_FOUND)
 
     message(STATUS "  ✅ Building LibRaw from source: ${LIBRAW_PATH}")
 
-    file(GLOB_RECURSE LIBRAW_SOURCES
-        "${LIBRAW_PATH}/src/*.cpp"
-    )
-    file(GLOB LIBRAW_INTERNAL_SOURCES
-        "${LIBRAW_PATH}/internal/*.cpp"
-    )
+    file(GLOB_RECURSE LIBRAW_SOURCES "${LIBRAW_PATH}/src/*.cpp")
+    file(GLOB LIBRAW_INTERNAL_SOURCES "${LIBRAW_PATH}/internal/*.cpp")
     list(APPEND LIBRAW_SOURCES ${LIBRAW_INTERNAL_SOURCES})
-
-    # ⭐ 排除"伞状编译单元"，它们 include 了同目录的其他 .cpp，
-    #   和我们逐个编译的 .cpp 重复定义符号
     list(FILTER LIBRAW_SOURCES EXCLUDE REGEX ".*_ph\\.cpp$")
 
-    # 调试用：打印实际参与编译的文件数（建议保留几次构建确认无误）
     list(LENGTH LIBRAW_SOURCES _libraw_src_count)
     message(STATUS "  LibRaw source files to compile: ${_libraw_src_count}")
 
     add_library(libraw_static STATIC ${LIBRAW_SOURCES})
     target_include_directories(libraw_static PUBLIC ${LIBRAW_PATH})
 
-    # ⭐ 关键：LIBRAW_NODLL 让 LibRaw 头文件不再使用 dllimport/dllexport
-    # 必须用 PUBLIC，因为 e4pix_raw.cpp 也 #include <libraw/libraw.h>
     target_compile_definitions(libraw_static PUBLIC
-        LIBRAW_NODLL          # ← 这个就是修复
+        LIBRAW_NODLL
         LIBRAW_NODNG
         LIBRAW_NOTHREADS
+        NO_JPEG
+        NO_LCMS
+        NO_JASPER
     )
 
     if(MSVC)
@@ -68,9 +93,19 @@ if(NOT LIBRAW_TARGET_FOUND)
             /utf-8                                    # 处理 LibRaw 的 UTF-8 源码
             /wd4267 /wd4244 /wd4018 /wd4146           # size_t/int 转换警告
             /wd4819 /wd4251 /wd4273 /wd4996           # UTF-8/dll接口/链接不一致/POSIX 弃用
-            /bigobj                                   # LibRaw 模板膨胀，需要大对象文件
-            /wd4005                                     # 顺带屏蔽 ZERO 宏重定义警告（LibRaw 头里的）
+            /bigobj                                   # LibRaw 模板膨胀
+            /wd4005                                   # ZERO 宏重定义警告
         )
+    else()
+        target_compile_options(libraw_static PRIVATE
+            -Wno-narrowing
+            -Wno-implicit-function-declaration
+            -Wno-unused-result
+            -Wno-format-security
+            -Wno-attributes
+            -Wno-deprecated-declarations
+        )
+        set_target_properties(libraw_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
     endif()
 
     set(LIBRAW_LIB libraw_static)
@@ -90,40 +125,23 @@ target_include_directories(e4pix_raw PUBLIC
 )
 
 if(MSVC)
-    target_compile_definitions(e4pix_raw PRIVATE
-        _CRT_SECURE_NO_WARNINGS
-    )
-    target_compile_options(e4pix_raw PRIVATE
-        /utf-8
-        /wd4005     # 顺带屏蔽 ZERO 宏重定义警告（LibRaw 头里的）
-    )
+    target_compile_definitions(e4pix_raw PRIVATE _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(e4pix_raw PRIVATE /utf-8 /wd4005)
 endif()
 
 target_link_libraries(e4pix_raw PRIVATE ${LIBRAW_LIB})
 
-set_target_properties(e4pix_raw PROPERTIES
-    OUTPUT_NAME "e4pix_raw"
-)
+# logcat
+if(ANDROID)
+    target_link_libraries(e4pix_raw PRIVATE log)
+endif()
 
-# 把要 bundle 的所有 DLL 暴露给上层
-set(e4pix_raw_bundled_libraries
-    $<TARGET_FILE:e4pix_raw>
-    ${LIBRAW_RUNTIME_DLLS}
-    PARENT_SCOPE
-)
+set_target_properties(e4pix_raw PROPERTIES OUTPUT_NAME "e4pix_raw")
 
-set_target_properties(e4pix_raw PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runner"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runner"
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/runner"
-)
-
-# 针对多配置生成器（如 Visual Studio），确保 Debug/Release 路径正确
-foreach(OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
-    string(TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG_UPPER)
-    set_target_properties(e4pix_raw PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG_UPPER} "${CMAKE_BINARY_DIR}/runner/${OUTPUTCONFIG}"
-        LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG_UPPER} "${CMAKE_BINARY_DIR}/runner/${OUTPUTCONFIG}"
-        ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG_UPPER} "${CMAKE_BINARY_DIR}/runner/${OUTPUTCONFIG}"
+if(WIN32 AND NOT ANDROID)
+    set(e4pix_raw_bundled_libraries
+        $<TARGET_FILE:e4pix_raw>
+        ${LIBRAW_RUNTIME_DLLS}
+        PARENT_SCOPE
     )
-endforeach()
+endif()
