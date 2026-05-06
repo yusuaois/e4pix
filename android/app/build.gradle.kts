@@ -30,7 +30,7 @@ android {
         versionName = flutter.versionName
 
         ndk {
-            abiFilters.addAll(listOf("arm64-v8a", "x86_64"))
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
         }
 
         externalNativeBuild {
@@ -40,6 +40,7 @@ android {
                     "-DANDROID_STL=c++_shared"
                 ))
                 cppFlags.addAll(listOf("-std=c++17"))
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a")
             }
         }
     }
@@ -56,6 +57,16 @@ android {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
             version = "3.22.1"
+        }
+    }
+
+    packaging {
+        jniLibs {
+            pickFirsts.add("**/libc++_shared.so")
+            pickFirsts.add("**/libjsc.so")
+            keepDebugSymbols.add("**/libgphoto2*.so")
+            keepDebugSymbols.add("**/libusb*.so")
+            keepDebugSymbols.add("**/libltdl.so")
         }
     }
 }
