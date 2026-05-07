@@ -7,9 +7,6 @@ import 'package:flutter/material.dart';
 import '../core/models/adjustment_params.dart';
 import '../render/render_engine.dart';
 
-// ============================================================================
-// Histogram 数据
-// ============================================================================
 class Histogram {
   final Int32List red, green, blue, luma;
   final int totalPixels;
@@ -41,9 +38,7 @@ class Histogram {
   static final _zero = Int32List(256);
 }
 
-// ============================================================================
-// Histogram 面板（自动响应 params 变化，节流到 ~30Hz）
-// ============================================================================
+// Histogram
 class LiveHistogramPanel extends StatefulWidget {
   final ui.FragmentProgram program;
   final ui.Image? sourceImage;
@@ -161,15 +156,12 @@ class _HistogramPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (h.totalPixels == 0) return;
 
-    // 关键改动 1：用 luma 中间段（跳过 0/255 两端削波 bin）求归一化
-    // 这样削波再严重也不会把整个直方图压扁
     int peak = 1;
     for (int i = 1; i < 255; i++) {
       if (h.luma[i] > peak) peak = h.luma[i];
     }
     final norm = (peak * 1.15).toDouble();
 
-    // 关键改动 2：用「luma 灰色填充 + RGB 描边」的组合，不用 BlendMode.plus
     canvas.drawPath(
       _fillPath(h.luma, size, norm),
       Paint()..color = Colors.white.withOpacity(0.18),
@@ -190,7 +182,7 @@ class _HistogramPainter extends CustomPainter {
     line(h.green, const Color(0xFF60E060).withOpacity(0.9));
     line(h.blue, const Color(0xFF6088FF).withOpacity(0.9));
 
-    // 削波警示（保持 3px 宽，区别于直方图本身的脊线）
+    // 削波警示
     final clip = Paint()..color = Colors.redAccent.withOpacity(0.65);
     final th = h.totalPixels * 0.01;
     if (h.red[0] > th || h.green[0] > th || h.blue[0] > th) {

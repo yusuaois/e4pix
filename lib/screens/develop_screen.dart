@@ -45,7 +45,10 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   String? _errorMessage;
   bool _busy = false;
 
-  // State
+  // State+
+  Offset _histogramPosition = const Offset(8, 8);
+  final panelWidth = 140.0;
+  final panelHeight = 70.0;
   AdjustmentParams _params = AdjustmentParams.neutral;
   ui.Image? _lutTexture;
   int _lutSize = 0;
@@ -444,7 +447,6 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   void _onCameraEvent(CameraEvent ev) {
     switch (ev) {
       case CameraConnected():
-        // 已经在 _startCameraTether 中显示
         break;
       case CameraTakingShot():
         setState(() => _shutterFlash = true);
@@ -579,7 +581,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
         if (_tether != null)
           TetherStatusBar(
             watchPath: _cameraModel != null
-                ? '${_cameraModel} → ${_tether!.watchPath}'
+                ? '$_cameraModel → ${_tether!.watchPath}'
                 : _tether!.watchPath,
             shotCount: _shots.length,
             lastShotAt: _lastShotAt,
@@ -588,30 +590,55 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
             onPreserveChanged: _togglePreserve,
           ),
         Expanded(
-          child: Stack(
-            children: [
-              Positioned.fill(child: _buildPreviewArea()),
-              if (hasImage)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  width: 140,
-                  height: 70,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: Opacity(
-                      opacity: 0.9,
-                      child: LiveHistogramPanel(
-                        program: _developProgram!,
-                        sourceImage: _uiImage,
-                        params: _params,
-                        lutTexture: _lutTexture,
-                        lutSize: _lutSize,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final previewSize = Size(
+                constraints.maxWidth,
+                constraints.maxHeight,
+              );
+
+              return Stack(
+                children: [
+                  Positioned.fill(child: _buildPreviewArea()),
+                  if (hasImage)
+                    Positioned(
+                      left: _histogramPosition.dx,
+                      top: _histogramPosition.dy,
+                      width: 140,
+                      height: 70,
+                      child: GestureDetector(
+                        onPanUpdate: (details) {
+                          setState(() {
+                            _histogramPosition = Offset(
+                              (_histogramPosition.dx + details.delta.dx).clamp(
+                                0.0,
+                                previewSize.width - panelWidth,
+                              ),
+                              (_histogramPosition.dy + details.delta.dy).clamp(
+                                0.0,
+                                previewSize.height - panelHeight,
+                              ),
+                            );
+                          });
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Opacity(
+                            opacity: 0.9,
+                            child: LiveHistogramPanel(
+                              program: _developProgram!,
+                              sourceImage: _uiImage,
+                              params: _params,
+                              lutTexture: _lutTexture,
+                              lutSize: _lutSize,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-            ],
+                ],
+              );
+            },
           ),
         ),
         // Tether thumb strip
