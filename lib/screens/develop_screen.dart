@@ -644,7 +644,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
             child: Text(
               m == null
                   ? (_filePath ?? '尚未选择文件')
-                  : '${m.cameraModel} · ISO ${m.iso} · ${m.shutterDisplay} · f/${m.aperture}',
+                  : '${m.cameraModel} · ISO ${m.iso} · ${m.shutterDisplay} · f/${m.aperture.toStringAsFixed(1)}',
               style: const TextStyle(fontSize: 11),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

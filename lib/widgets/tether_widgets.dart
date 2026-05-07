@@ -47,7 +47,7 @@ class TetherStatusBar extends StatelessWidget {
           _PulsingDot(color: Colors.greenAccent),
           const SizedBox(width: 10),
           Text(
-            'Tether ·',
+            'Tether',
             style: TextStyle(
               fontSize: 11.5,
               color: Colors.greenAccent.withOpacity(0.85),
@@ -77,7 +77,6 @@ class TetherStatusBar extends StatelessWidget {
           ),
           const SizedBox(width: 14),
 
-          // ---- 新增：Preserve / Isolate 切换 ----
           _PreserveToggle(
             preserved: preserveParams,
             onChanged: onPreserveChanged,
