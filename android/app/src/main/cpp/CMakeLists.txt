@@ -27,6 +27,11 @@ add_library(libusb1.0 SHARED IMPORTED)
 set_target_properties(libusb1.0 PROPERTIES
     IMPORTED_LOCATION "${JNI_LIBS_DIR}/libusb-1.0.so")
 
+# libltdl
+add_library(ltdl SHARED IMPORTED)
+set_target_properties(ltdl PROPERTIES
+    IMPORTED_LOCATION "${JNI_LIBS_DIR}/libltdl.so")
+
 # libgphoto2_port
 add_library(libgphoto2_port SHARED IMPORTED)
 set_target_properties(libgphoto2_port PROPERTIES
@@ -50,6 +55,7 @@ target_link_libraries(e4pix_jni
     libgphoto2
     libgphoto2_port
     libusb1.0
+    ltdl
     log
     android
 )

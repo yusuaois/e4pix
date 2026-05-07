@@ -54,6 +54,11 @@ add_subdirectory("runner")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_subdirectory("${CMAKE_SOURCE_DIR}/../native/raw_bridge" "${CMAKE_BINARY_DIR}/e4pix_raw")
+set_target_properties(e4pix_raw PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/runner/Debug"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/runner/Release"
+    RUNTIME_OUTPUT_DIRECTORY_PROFILE "${CMAKE_BINARY_DIR}/runner/Profile"
+)
 list(APPEND PLUGIN_BUNDLED_LIBRARIES ${e4pix_raw_bundled_libraries})
 
 # Generated plugin build rules, which manage building the plugins and adding

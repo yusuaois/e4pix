@@ -7,12 +7,14 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../core/lut/cube_lut.dart';
 import '../core/models/adjustment_params.dart';
 import '../render/preview_renderer.dart';
 import '../services/camera/camera_controller.dart';
 import '../services/camera/gphoto2_camera_controller.dart';
+import '../services/camera/libgphoto2_android_controller.dart';
 import '../widgets/adjustment_panel.dart';
 import '../native/raw_bridge.dart';
 import '../render/exporter.dart';
@@ -362,7 +364,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     });
     await _decodeFromPath(shot.path);
   }
-  
+
   Future<void> _decodeFromPath(String path) async {
     setState(() {
       _busy = true;
@@ -397,8 +399,27 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     }
   }
 
+  CameraController _createCameraController() {
+    if (Platform.isAndroid) {
+      return LibGphoto2AndroidController();
+    }
+    return Gphoto2CameraController(); // Windows/Linux/macOS
+  }
+
+  Future<String> _getDefaultTetherPath() async {
+    if (Platform.isAndroid) {
+      final dir =
+          await getExternalStorageDirectory(); // /storage/emulated/0/Android/data/com.yusuaois.e4pix/files
+      final tetherDir = Directory('${dir!.path}/tether');
+      if (!await tetherDir.exists()) await tetherDir.create(recursive: true);
+      return tetherDir.path;
+    }
+    // 桌面端走原有的 picker 逻辑
+    return '';
+  }
+
   Future<void> _startCameraTether() async {
-    final controller = Gphoto2CameraController();
+    final controller = _createCameraController();
     final pick = await showDialog<CameraPickResult>(
       context: context,
       builder: (_) => CameraPickerDialog(controller: controller),
@@ -460,10 +481,17 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   }
 
   Future<void> _startTether() async {
-    final folder = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择监控文件夹',
-    );
-    if (folder == null) return;
+    String? folder;
+
+    if (Platform.isAndroid) {
+      folder = await _getDefaultTetherPath();
+    } else {
+      folder = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: '选择监控文件夹',
+      );
+    }
+
+    if (folder == null || folder.isEmpty) return;
     await _startWatcher(folder);
   }
 

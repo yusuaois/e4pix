@@ -69,6 +69,11 @@ android {
             keepDebugSymbols.add("**/libltdl.so")
         }
     }
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDirs("src/main/jniLibs")
+        }
+    }
 }
 
 flutter {
