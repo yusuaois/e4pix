@@ -776,7 +776,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
                 : _tether!.watchPath,
             shotCount: _shots.length,
             lastShotAt: _lastShotAt,
-            onStop: _stopTether,
+            onStop: _camera != null ? _stopCameraTether : _stopTether,
             preserveParams: _preserveParams,
             onPreserveChanged: _togglePreserve,
           ),
