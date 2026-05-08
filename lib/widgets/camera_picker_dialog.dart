@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -100,15 +102,30 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                           style: const TextStyle(
                               fontSize: 11, color: Colors.redAccent))
                       : _cameras.isEmpty
-                          ? Text(
-                              '未发现相机。\n'
-                              '· Windows: 检查 usbipd attach 是否已挂载\n'
-                              // usbipd list  
-                              // usbipd attach --wsl --busid <busid>
-                              '· Linux/macOS: 检查 USB 线 + 相机是否处于 Tether 模式',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white.withOpacity(0.6)))
+                          ? 
+                          Platform.isAndroid?Text(
+                                                  '未发现相机。\n'
+                                                  '· Android: 检查 USB 线 + 相机是否处于 Tether 模式',
+                                                  style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.white.withOpacity(0.6))
+                                                  )
+                          :(Platform.isWindows?Text(
+                                                  '未发现相机。\n'
+                                                  '· Windows: 检查 usbipd attach 是否已挂载\n'
+                                                  '   - usbipd list\n'
+                                                  '   - usbipd attach --wsl --busid <busid>\n',
+                                                  style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.white.withOpacity(0.6))
+                                                  )
+                                              :Text(
+                                                  '未发现相机。\n'
+                                                  '· Linux/macOS: 检查 USB 线 + 相机是否处于 Tether 模式',
+                                                  style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.white.withOpacity(0.6))
+                          ))
                           : Column(
                               children: _cameras.map((c) {
                                 final isSel = c == _selected;
