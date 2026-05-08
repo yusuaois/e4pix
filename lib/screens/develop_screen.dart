@@ -409,18 +409,6 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     return Gphoto2CameraController(); // Windows/Linux/macOS
   }
 
-  Future<String> _getDefaultTetherPath() async {
-    if (Platform.isAndroid) {
-      final dir =
-          await getExternalStorageDirectory(); // /storage/emulated/0/Android/data/com.yusuaois.e4pix/files
-      final tetherDir = Directory('${dir!.path}/tether');
-      if (!await tetherDir.exists()) await tetherDir.create(recursive: true);
-      return tetherDir.path;
-    }
-    // 桌面端走原有的 picker 逻辑
-    return '';
-  }
-
   Future<void> _startCameraTether() async {
     final controller = _createCameraController();
     final pick = await showDialog<CameraPickResult>(
@@ -484,15 +472,9 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
 
   Future<void> _startTether() async {
     String? folder;
-
-    if (Platform.isAndroid) {
-      folder = await _getDefaultTetherPath();
-    } else {
-      folder = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: '选择监控文件夹',
-      );
-    }
-
+    folder = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择监控文件夹',
+    );
     if (folder == null || folder.isEmpty) return;
     await _startWatcher(folder);
   }

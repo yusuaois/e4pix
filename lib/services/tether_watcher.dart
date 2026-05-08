@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart' as p;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:watcher/watcher.dart';
 
 /// 监控指定文件夹中新出现的 RAW 文件。
@@ -25,6 +26,14 @@ class TetherWatcher {
 
   Future<void> start() async {
     if (_isRunning) return;
+
+    if (Platform.isAndroid) {
+      bool granted = await _requestAndroidPermission();
+      if (!granted) {
+        throw Exception('Android 端需要“所有文件访问权限”才能监听其他 App 的照片。');
+      }
+    }
+
     final dir = Directory(watchPath);
     if (!await dir.exists()) {
       throw Exception('文件夹不存在: $watchPath');
@@ -41,6 +50,19 @@ class TetherWatcher {
     final watcher = DirectoryWatcher(watchPath);
     _sub = watcher.events.listen(_onEvent);
     _isRunning = true;
+  }
+
+  Future<bool> _requestAndroidPermission() async {
+    // 检查是否已经授权
+    var status = await Permission.manageExternalStorage.status;
+    if (status.isGranted) return true;
+    // 如果没授权，尝试请求
+    status = await Permission.manageExternalStorage.request();
+    if (!status.isGranted) {
+      // TODO 如果用户在设置里拒绝了，引导用户去设置页
+      return false;
+    }
+    return true;
   }
 
   Future<void> _onEvent(WatchEvent ev) async {
