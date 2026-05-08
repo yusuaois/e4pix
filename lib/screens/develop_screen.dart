@@ -322,16 +322,24 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   }
 
   Future<void> _stopTether() async {
+    // 停止文件监听
     await _shotSub?.cancel();
     _statusTicker?.cancel();
     await _tether?.dispose();
     for (final s in _shots) {
       s.dispose();
     }
+
+    // 停止相机传输
+    if(_camera != null && _camera!.isActive){
+      await _camera!.stopTether();
+    }
+
     if (!mounted) return;
     setState(() {
       _tether = null;
       _shots.clear();
+      _camera = null;
       _activeShot = null;
       _lastShotAt = null;
       _shotSub = null;

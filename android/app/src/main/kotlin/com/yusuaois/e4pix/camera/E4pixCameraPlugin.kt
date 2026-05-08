@@ -159,7 +159,16 @@ class E4pixCameraPlugin(
                     val type = ev["type"] ?: continue
 
                     when (type) {
-                        "timeout" -> {}
+                        "timeout" -> { /* 正常超时，继续下一次等待 */ }
+
+                        "error" -> {
+                            val code = ev["code"] ?: ""
+                            Log.e(TAG, "Native Error in event loop: $code")
+                            if (code == "-52" || code == "-1") {
+                                emit(mapOf("type" to "disconnected"))
+                                break 
+                            }
+                        }
 
                         "fileAdded" -> {
                             val folder = ev["folder"] ?: continue

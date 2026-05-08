@@ -194,21 +194,9 @@ JNI_FN(jobject, nativeWaitForEvent)(JNIEnv *env, jclass, jint timeoutMs)
         ctx = g_session.ctx;
     }
 
-    CameraEventType type = GP_EVENT_UNKNOWN;
-    void *data = nullptr;
-    int ret = gp_camera_wait_for_event(cam, timeoutMs, &type, &data, ctx);
-    if (ret < GP_OK)
-    {
-        log_err("gp_camera_wait_for_event", ret);
-        if (data)
-            free(data);
-        return nullptr;
-    }
-
     jclass mapCls = env->FindClass("java/util/HashMap");
     jmethodID init = env->GetMethodID(mapCls, "<init>", "()V");
-    jmethodID put = env->GetMethodID(mapCls, "put",
-                                     "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+    jmethodID put = env->GetMethodID(mapCls, "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
     jobject map = env->NewObject(mapCls, init);
 
     auto putKV = [&](const char *k, const char *v)
@@ -219,6 +207,20 @@ JNI_FN(jobject, nativeWaitForEvent)(JNIEnv *env, jclass, jint timeoutMs)
         env->DeleteLocalRef(jk);
         env->DeleteLocalRef(jv);
     };
+
+    CameraEventType type = GP_EVENT_UNKNOWN;
+    void *data = nullptr;
+    int ret = gp_camera_wait_for_event(cam, timeoutMs, &type, &data, ctx);
+
+    if (ret < GP_OK)
+    {
+        if (data)
+            free(data);
+        putKV("type", "error");
+        putKV("code", std::to_string(ret).c_str());
+        putKV("message", "Camera connection lost or I/O error");
+        return map;
+    }
 
     switch (type)
     {
