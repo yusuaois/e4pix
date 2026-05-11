@@ -24,6 +24,11 @@ import '../services/tether_watcher.dart';
 import '../services/tethered_shot.dart';
 import '../widgets/tether_widgets.dart';
 import '../widgets/develop_sections.dart';
+import '../services/ai/ai_color_service.dart';
+import '../services/ai/ai_input_renderer.dart';
+import '../services/ai/ai_settings.dart';
+import '../widgets/ai_settings_dialog.dart';
+import '../widgets/ai_suggestion_dialog.dart';
 
 class RawSmokeTestScreen extends StatefulWidget {
   const RawSmokeTestScreen({super.key});
@@ -331,7 +336,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     }
 
     // 停止相机传输
-    if(_camera != null && _camera!.isActive){
+    if (_camera != null && _camera!.isActive) {
       await _camera!.stopTether();
     }
 
@@ -480,9 +485,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
 
   Future<void> _startTether() async {
     String? folder;
-    folder = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择监控文件夹',
-    );
+    folder = await FilePicker.platform.getDirectoryPath(dialogTitle: '选择监控文件夹');
     if (folder == null || folder.isEmpty) return;
     await _startWatcher(folder);
   }
@@ -830,6 +833,17 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
       ),
       child: Row(
         children: [
+          if (_uiImage != null && _developProgram != null)
+            IconButton(
+              icon: const Icon(
+                Icons.auto_awesome,
+                size: 18,
+                color: Color(0xFF6B5BFF),
+              ),
+              tooltip: 'AI 配色建议（长按设置）',
+              onPressed: _uiImage == null ? null : _showAISuggestion,
+              onLongPress: _showAISettings,
+            ),
           if (_tether == null)
             IconButton(
               icon: const Icon(Icons.cable_rounded, size: 18),
@@ -855,14 +869,13 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
               onPressed: _stopCameraTether,
             ),
           const SizedBox(width: 4),
-          if (_uiImage != null && _developProgram != null) ...[
+          if (_uiImage != null && _developProgram != null)
             IconButton(
               icon: const Icon(Icons.ios_share_rounded, size: 18),
               tooltip: '导出',
               onPressed: _showExportDialog,
             ),
-            const SizedBox(width: 8),
-          ],
+          const SizedBox(width: 8),
           Icon(
             Icons.camera_outlined,
             color: Colors.white.withOpacity(0.85),
@@ -892,6 +905,56 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showAISettings() async {
+    await showDialog<bool>(
+      context: context,
+      builder: (_) => const AISettingsDialog(),
+    );
+  }
+
+  Future<void> _showAISuggestion() async {
+    final hasKey = (await AISettings.getApiKey())?.isNotEmpty ?? false;
+    if (!hasKey) {
+      if (!mounted) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => const AISettingsDialog(),
+      );
+      if (ok != true) return;
+      final nowHasKey = (await AISettings.getApiKey())?.isNotEmpty ?? false;
+      if (!nowHasKey) return;
+    }
+
+    if (!mounted) return;
+    final result = await showDialog<AIColorSuggestion>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AISuggestionDialog(
+        currentParams: _params,
+        renderPreviewToFile: () async => AIInputRenderer.renderToTempFile(
+          program: _developProgram!,
+          sourceImage: _uiImage!,
+          params: _params,
+          lutTexture: _lutTexture,
+          lutSize: _lutSize,
+          maxEdge: await AISettings.getMaxEdge(),
+        ),
+      ),
+    );
+
+    if (result != null && mounted) {
+      final newParams = result.applyTo(_params);
+      _onParamsChanged(newParams);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('已应用：${result.mood}'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Widget _buildPreviewArea() {
