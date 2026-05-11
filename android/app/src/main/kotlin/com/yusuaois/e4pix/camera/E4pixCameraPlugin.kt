@@ -155,7 +155,7 @@ class E4pixCameraPlugin(
             captureJob = scope.launch(Dispatchers.IO) {
                 Log.i(TAG, "Capture loop START → $saveFolder")
                 while (isActive) {
-                    val ev = GPhoto2Native.nativeWaitForEvent(2000) ?: continue
+                    val ev = GPhoto2Native.nativeWaitForEvent(10000) ?: continue
                     val type = ev["type"] ?: continue
 
                     when (type) {

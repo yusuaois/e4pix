@@ -34,6 +34,75 @@ class TetherStatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
+    return isPhone ? _buildPhone(context) : _buildDesktop(context);
+  }
+
+  Widget _buildPhone(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A2A1A),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
+      ),
+      child: Row(
+        children: [
+          const _PulsingDot(color: Colors.greenAccent),
+          const SizedBox(width: 8),
+          Text(
+            'Tether',
+            style: TextStyle(
+              fontSize: 11.5,
+              color: Colors.greenAccent.withOpacity(0.85),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$shotCount${shotCount == 1 ? ' shot' : ' shots'}'
+              '${lastShotAt == null ? '' : ' · ${_ago(lastShotAt!)}'}',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white.withOpacity(0.6),
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          IconButton(
+            iconSize: 18,
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            tooltip: preserveParams ? '同步模式' : '隔离模式',
+            onPressed: () => onPreserveChanged(!preserveParams),
+            icon: Icon(
+              preserveParams ? Icons.link_rounded : Icons.link_off_rounded,
+              color: preserveParams
+                  ? Colors.greenAccent.withOpacity(0.85)
+                  : Colors.orangeAccent.withOpacity(0.85),
+            ),
+          ),
+          IconButton(
+            iconSize: 18,
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            tooltip: '停止联机',
+            onPressed: onStop,
+            icon: const Icon(
+              Icons.stop_circle_outlined,
+              color: Colors.redAccent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktop(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       decoration: BoxDecoration(
