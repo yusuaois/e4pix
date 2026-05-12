@@ -7,7 +7,6 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../core/lut/cube_lut.dart';
 import '../core/models/adjustment_params.dart';
@@ -263,12 +262,10 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
         .split(RegExp(r'[\\/]'))
         .last
         .replaceAll(RegExp(r'\.[^.]+$'), '_edited.${format.extension}');
-    final saveResult = await FilePicker.platform.saveFile(
+
+    final saveResult = await FilePicker.platform.getDirectoryPath(
       dialogTitle: '保存到...',
-      fileName: defaultName,
-      type: FileType.custom,
-      allowedExtensions: [format.extension],
-    );
+    ).then((folder) => folder != null ? p.join(folder, defaultName) : null);
     if (saveResult == null) return;
 
     await _runExport(saveResult, format, quality);
