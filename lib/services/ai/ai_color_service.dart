@@ -74,6 +74,7 @@ class AIColorService {
           },
           body: jsonEncode({
             'model': model,
+            "thinking": {"type": "disabled"},
             'max_tokens': 1024,
             'messages': [
               {
@@ -89,7 +90,7 @@ class AIColorService {
                   },
                   {'type': 'text', 'text': prompt},
                 ],
-              }
+              },
             ],
           }),
         )
@@ -107,9 +108,9 @@ class AIColorService {
     final json = jsonDecode(utf8.decode(response.bodyBytes));
     final blocks = json['content'] as List;
     final textBlock = blocks.cast<Map>().firstWhere(
-          (b) => b['type'] == 'text',
-          orElse: () => throw AIException('API 响应为空'),
-        );
+      (b) => b['type'] == 'text',
+      orElse: () => throw AIException('API 响应为空'),
+    );
     return _parseResponse(textBlock['text'] as String);
   }
 
@@ -133,10 +134,12 @@ class AIColorService {
       reasoning: (obj['reasoning'] as String?) ?? '',
       mood: (obj['mood'] as String?) ?? '',
       raw: Map<String, num?>.fromEntries(
-        adjMap.entries.map((e) => MapEntry(
-              e.key.toString(),
-              e.value is num ? e.value as num : null,
-            )),
+        adjMap.entries.map(
+          (e) => MapEntry(
+            e.key.toString(),
+            e.value is num ? e.value as num : null,
+          ),
+        ),
       ),
     );
   }

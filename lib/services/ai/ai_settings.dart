@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AISettings {
-  static const _kApiKey = 'ai_anthropic_key';
+  static const _kApiKey = 'ai_key';
   static const _kModel = 'ai_model';
   static const _kMaxEdge = 'ai_max_edge';
 

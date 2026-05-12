@@ -81,6 +81,12 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     _loadProgram();
   }
 
+  @override
+  void dispose() {
+    _stopTether();
+    super.dispose();
+  }
+
   void _probeFfi() {
     try {
       final v = RawBridge.libRawVersion();
@@ -263,9 +269,9 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
         .last
         .replaceAll(RegExp(r'\.[^.]+$'), '_edited.${format.extension}');
 
-    final saveResult = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '保存到...',
-    ).then((folder) => folder != null ? p.join(folder, defaultName) : null);
+    final saveResult = await FilePicker.platform
+        .getDirectoryPath(dialogTitle: '保存到...')
+        .then((folder) => folder != null ? p.join(folder, defaultName) : null);
     if (saveResult == null) return;
 
     await _runExport(saveResult, format, quality);
@@ -509,12 +515,6 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
       const Duration(seconds: 1),
       (_) => mounted ? setState(() {}) : null,
     );
-  }
-
-  @override
-  void dispose() {
-    _stopTether();
-    super.dispose();
   }
 
   void _clearLut() {
