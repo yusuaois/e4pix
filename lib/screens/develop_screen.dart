@@ -72,7 +72,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
   String? _cameraModel;
   bool _shutterFlash = false;
 
-  // ===== Auto-AI state =====
+  // Auto-AI
   bool _autoAIEnabled = false;
   bool _aiInProgress = false;
   AIColorSuggestion? _pendingAI;
@@ -120,7 +120,6 @@ class _DevelopScreenState extends State<DevelopScreen> {
     if (path != null) await _decodeFromPath(path);
   }
 
-  /// 把 16-bit linear RGB 转成 sRGB-encoded RGBA8 给 Flutter 显示
   Future<ui.Image> _toUiImage(RawDecodedImage img) async {
     final src = img.pixels;
     final w = img.width, h = img.height;
@@ -486,7 +485,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
   }
 
   Future<void> _scheduleAutoAI() async {
-    if (_aiInProgress) return; // 上一个还在跑就跳过
+    if (_aiInProgress) return; // 跳过
     if (_uiImage == null || _developProgram == null) return;
 
     setState(() => _aiInProgress = true);
@@ -518,7 +517,6 @@ class _DevelopScreenState extends State<DevelopScreen> {
       });
     } catch (e) {
       debugPrint('Auto-AI 失败: $e');
-      // 静默失败 —— 不打扰用户
     } finally {
       if (mounted) setState(() => _aiInProgress = false);
     }
@@ -722,7 +720,6 @@ class _DevelopScreenState extends State<DevelopScreen> {
             },
           ),
         ),
-        // Tether thumb strip
         if (_tether != null && _shots.isNotEmpty)
           TetherThumbStrip(
             shots: _shots,
@@ -791,12 +788,13 @@ class _DevelopScreenState extends State<DevelopScreen> {
                   children: [
                     Expanded(
                       child: TabBar(
+                        labelPadding: EdgeInsets.zero,
                         indicatorSize: TabBarIndicatorSize.tab,
                         labelStyle: const TextStyle(fontSize: 12),
                         tabs: const [
-                          Tab(text: 'Light', height: 36),
-                          Tab(text: 'Color', height: 36),
-                          Tab(text: 'HSL', height: 36),
+                          Tab(text: '光照', height: 36),
+                          Tab(text: '色度', height: 36),
+                          Tab(text: '色彩空间', height: 36),
                           Tab(text: 'LUT', height: 36),
                         ],
                       ),
@@ -911,7 +909,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
   }
 
   Widget _buildTopBar() {
-    final ok = _libRawError == null;
+    // final ok = _libRawError == null;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
       decoration: BoxDecoration(
@@ -970,27 +968,23 @@ class _DevelopScreenState extends State<DevelopScreen> {
             color: Colors.white.withOpacity(0.85),
             size: 20,
           ),
-          const SizedBox(width: 10),
-          const Text(
-            'e4pix · stage 1 smoke test',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: ok ? const Color(0xFF1F3A2A) : const Color(0xFF3A1F1F),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              ok ? 'LibRaw $_libRawVersion' : 'LibRaw FAILED',
-              style: TextStyle(
-                fontSize: 12,
-                fontFamily: 'monospace',
-                color: ok ? Colors.greenAccent : Colors.redAccent,
-              ),
-            ),
-          ),
+          // LibRaw 版号
+          // const Spacer(),
+          // Container(
+          //   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          //   decoration: BoxDecoration(
+          //     color: ok ? const Color(0xFF1F3A2A) : const Color(0xFF3A1F1F),
+          //     borderRadius: BorderRadius.circular(4),
+          //   ),
+          //   child: Text(
+          //     ok ? 'LibRaw $_libRawVersion' : 'LibRaw FAILED',
+          //     style: TextStyle(
+          //       fontSize: 12,
+          //       fontFamily: 'monospace',
+          //       color: ok ? Colors.greenAccent : Colors.redAccent,
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );

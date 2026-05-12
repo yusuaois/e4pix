@@ -12,15 +12,12 @@ class Gphoto2CameraController implements CameraController {
   @override
   bool get isActive => _active;
 
-  // ----- 平台适配 -----
-  // Windows 走 WSL：'wsl' + ['gphoto2', ...args]
-  // Linux/macOS 直接：'gphoto2' + args
+  // Windows WSL：'wsl' + ['gphoto2', ...args]
+  // Linux/macOS ：'gphoto2' + args
   String get _exe => Platform.isWindows ? 'wsl' : 'gphoto2';
   List<String> _gpArgs(List<String> args) =>
       Platform.isWindows ? ['gphoto2', ...args] : args;
 
-  /// Windows 路径 → WSL 路径：C:\foo\bar  →  /mnt/c/foo/bar
-  /// 其他平台原样返回
   String _toShellPath(String path) {
     if (!Platform.isWindows) return path;
     if (path.length < 2 || path[1] != ':') return path;
@@ -29,9 +26,7 @@ class Gphoto2CameraController implements CameraController {
     return '/mnt/$drive$rest';
   }
 
-  // ============================================================================
   // 探测相机
-  // ============================================================================
   @override
   Future<List<DetectedCamera>> detectCameras() async {
     late final ProcessResult res;
@@ -73,9 +68,7 @@ class Gphoto2CameraController implements CameraController {
     return cameras;
   }
 
-  // ============================================================================
   // 启动 tether
-  // ============================================================================
   @override
   Stream<CameraEvent> startTether({
     required DetectedCamera camera,
@@ -86,17 +79,17 @@ class Gphoto2CameraController implements CameraController {
     }
     _active = true;
     _events = StreamController<CameraEvent>.broadcast();
-    _spawn(camera, saveFolder);   // 异步启动
+    _spawn(camera, saveFolder);
     return _events!.stream;
   }
 
   Future<void> _spawn(DetectedCamera camera, String saveFolder) async {
     try {
       final shellPath = _toShellPath(saveFolder);
-      // 关键参数：
-      //   --port            指定相机（万一接多台）
+
+      //   --port            指定相机
       //   --capture-tethered 阻塞监听快门事件
-      //   --filename %f.%C  保留相机原始命名（PANA7947.RW2）
+      //   --filename %f.%C  保留相机原始命名
       final args = [
         '--port', camera.port,
         '--capture-tethered',
@@ -111,7 +104,7 @@ class Gphoto2CameraController implements CameraController {
 
       _events?.add(CameraConnected(camera.model));
 
-      // stdout：解析 "Saving file as XXX" 等状态
+      // stdout：状态信息
       _process!.stdout
           .transform(utf8.decoder)
           .transform(const LineSplitter())
@@ -123,8 +116,6 @@ class Gphoto2CameraController implements CameraController {
           .transform(const LineSplitter())
           .listen((line) {
         if (line.trim().isEmpty) return;
-        // gphoto2 把很多正常状态也写进 stderr，不能一律当错误
-        // 真正的错误一般含 "ERROR" 或 "*** Error"
         if (line.contains('ERROR') || line.contains('*** Error')) {
           _events?.add(CameraError(line.trim()));
         }
@@ -155,27 +146,22 @@ class Gphoto2CameraController implements CameraController {
       final filename = t.substring('Saving file as '.length);
       _events!.add(CameraShotSaved(filename));
     } else if (t.contains('UNKNOWN PTP Event c107')) {
-      // c107 是 ObjectAdded 之前的预备事件——表示快门已按
+      // 快门已按
       _events!.add(const CameraTakingShot());
     }
   }
 
-  // ============================================================================
   // 停止
-  // ============================================================================
   @override
   Future<void> stopTether() async {
     if (!_active) return;
     final p = _process;
     if (p != null) {
-      // SIGINT 让 gphoto2 优雅退出（它有 Ctrl-C handler）
-      // Windows 上 ProcessSignal.sigint 不可用，直接 kill
       if (Platform.isWindows) {
         p.kill(ProcessSignal.sigterm);
       } else {
         p.kill(ProcessSignal.sigint);
       }
-      // 给 1 秒优雅退出，否则强杀
       try {
         await p.exitCode.timeout(const Duration(seconds: 2));
       } on TimeoutException {

@@ -4,8 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:watcher/watcher.dart';
 
-/// 监控指定文件夹中新出现的 RAW 文件。
-/// 关键点：等待文件写入稳定再上报（避免读到半截文件）。
+// 监听文件夹
 class TetherWatcher {
   static const _rawExtensions = {
     '.arw', '.cr2', '.cr3', '.nef', '.nrw', '.raf',
@@ -20,7 +19,6 @@ class TetherWatcher {
 
   TetherWatcher(this.watchPath);
 
-  /// 已经稳定写入的新 RAW 文件流。
   Stream<File> get onShot => _controller.stream;
   bool get isRunning => _isRunning;
 
@@ -39,7 +37,7 @@ class TetherWatcher {
       throw Exception('文件夹不存在: $watchPath');
     }
 
-    // 启动时先把已有文件标记为"已见"，避免误触发
+    // 标记已有RAW
     await for (final entity in dir.list(recursive: false)) {
       if (entity is File && _isRaw(entity.path)) {
         _seen.add(entity.path);
@@ -56,7 +54,7 @@ class TetherWatcher {
     // 检查是否已经授权
     var status = await Permission.manageExternalStorage.status;
     if (status.isGranted) return true;
-    // 如果没授权，尝试请求
+    // 尝试请求
     status = await Permission.manageExternalStorage.request();
     if (!status.isGranted) {
       // TODO 如果用户在设置里拒绝了，引导用户去设置页
@@ -96,7 +94,6 @@ class TetherWatcher {
         }
         lastSize = size;
       } catch (_) {
-        // 可能被独占写，下次重试
       }
       await Future.delayed(const Duration(milliseconds: 200));
     }

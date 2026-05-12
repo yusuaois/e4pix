@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'camera_controller.dart';
 
-/// Android 端 USB 联机：libgphoto2 (JNI) + Android USB Host API
+/// Android 端 USB 联机
 class LibGphoto2AndroidController implements CameraController {
   static const _channel = MethodChannel('e4pix/camera');
   static const _eventChannel = EventChannel('e4pix/camera/events');
@@ -17,9 +17,7 @@ class LibGphoto2AndroidController implements CameraController {
   @override
   bool get isActive => _active;
 
-  // ============================================================================
   // 探测相机
-  // ============================================================================
   @override
   Future<List<DetectedCamera>> detectCameras() async {
     if (!Platform.isAndroid) {
@@ -44,9 +42,7 @@ class LibGphoto2AndroidController implements CameraController {
     }
   }
 
-  // ============================================================================
   // 启动 tether
-  // ============================================================================
   @override
   Stream<CameraEvent> startTether({
     required DetectedCamera camera,
@@ -57,8 +53,6 @@ class LibGphoto2AndroidController implements CameraController {
     }
     _active = true;
     _events = StreamController<CameraEvent>.broadcast();
-
-    // 1. 先订阅 EventChannel —— 必须早于 startTether RPC，否则 connected 事件会丢
     _eventSub = _eventChannel.receiveBroadcastStream().listen(
       _onNativeEvent,
       onError: (Object err, StackTrace _) {
@@ -66,7 +60,6 @@ class LibGphoto2AndroidController implements CameraController {
       },
     );
 
-    // 2. 异步触发 startTether（不 await，让 stream 先返回给调用方）
     _channel.invokeMethod<void>('startTether', {
       'port': camera.port,
       'saveFolder': saveFolder,
@@ -92,8 +85,6 @@ class LibGphoto2AndroidController implements CameraController {
     if (ev == null) return;
 
     _events?.add(ev);
-
-    // disconnected 事件投递后清理（异步，避免在 listener 内 close stream）
     if (ev is CameraDisconnected) {
       scheduleMicrotask(_cleanup);
     }
@@ -115,15 +106,12 @@ class LibGphoto2AndroidController implements CameraController {
     return null;
   }
 
-  // ============================================================================
   // 停止
-  // ============================================================================
   @override
   Future<void> stopTether() async {
     if (!_active) return;
     try {
       await _channel.invokeMethod('stopTether');
-      // Kotlin 端会发 'disconnected' → _onNativeEvent → scheduleMicrotask(_cleanup)
     } on PlatformException catch (e) {
       _events?.add(CameraError('停止失败: ${e.message ?? e.code}'));
       _events?.add(const CameraDisconnected());
@@ -142,16 +130,12 @@ class LibGphoto2AndroidController implements CameraController {
     _active = false;
   }
 
-  // ============================================================================
-  // 接口外的扩展（仅 Android 有意义）
-  // ============================================================================
-
-  /// 远程触发快门（不通过相机按钮）
+  /// 远程触发快门
   Future<void> triggerCapture() async {
     await _channel.invokeMethod('triggerCapture');
   }
 
-  /// 诊断：libgphoto2 版本字符串
+  /// libgphoto2 版本字符串
   Future<String> getLibraryVersion() async {
     return (await _channel.invokeMethod<String>('getLibraryVersion')) ?? '';
   }

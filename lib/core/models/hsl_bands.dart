@@ -5,8 +5,7 @@ enum HslBand { red, orange, yellow, green, cyan, blue, purple, magenta }
 
 @immutable
 class HslBands {
-  /// 每段 hue/sat/lum 调整值，范围 [-100, +100]
-  /// 索引顺序与 HslBand 一致
+  /// hue/sat/lum [-100, +100]
   final List<double> hues;
   final List<double> sats;
   final List<double> lums;

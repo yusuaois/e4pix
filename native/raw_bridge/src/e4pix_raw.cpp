@@ -53,24 +53,24 @@ namespace
     }
 
     // ---------- 预设处理参数 ----------
-    // 关键：始终输出 LINEAR 光，gamma=1。色彩管理交给 shader 端做。
+    // 输出 LINEAR 光，gamma=1
     void configure_for_develop(LibRaw &raw, bool half_size, int output_bps)
     {
         auto &p = raw.imgdata.params;
 
-        p.half_size = half_size ? 1 : 0; // half size 加快速度（每个 Bayer cell 取一个像素）
-        p.use_camera_wb = 1;             // 用相机白平衡（用户可后期再调）
+        p.half_size = half_size ? 1 : 0; // half size
+        p.use_camera_wb = 1;             // 相机白平衡
         p.use_auto_wb = 0;
-        p.output_bps = output_bps; // 8 或 16
+        p.output_bps = output_bps;
         p.output_color = 1;        // sRGB 色彩矩阵
-        p.no_auto_bright = 1;      // 不自动拉伸亮度（破坏摄影意图）
-        p.gamm[0] = 1.0;           // gamma_power = 1（线性）
+        p.no_auto_bright = 1;      // 不自动拉伸亮度
+        p.gamm[0] = 1.0;           // gamma_power = 1
         p.gamm[1] = 1.0;           // gamma_slope
         p.user_qual = 3;           // 0=linear, 1=VNG, 2=PPG, 3=AHD（质量最好）
         p.no_interpolation = 0;
     }
 
-    // ---------- 核心解码流程 ----------
+    // 解码
     E4pixDecodeResult *decode_internal(const char *path, bool half_size, int output_bps)
     {
         auto *result = alloc_result();
@@ -123,7 +123,7 @@ namespace
             return result;
         }
 
-        // 拷贝像素数据：必须拷贝出来，因为 LibRaw::dcraw_clear_mem 会释放原始 buffer
+        // 拷贝像素数据
         result->width = img->width;
         result->height = img->height;
         result->channels = img->colors;
@@ -149,10 +149,6 @@ namespace
     }
 
 } // namespace
-
-// ============================================================================
-// 公开 API
-// ============================================================================
 
 extern "C" E4pixDecodeResult *e4pix_extract_thumb(const char *path)
 {

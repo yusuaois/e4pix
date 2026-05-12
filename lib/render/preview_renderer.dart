@@ -6,8 +6,8 @@ import '../core/models/adjustment_params.dart';
 class PreviewRenderer extends StatefulWidget {
   final ui.Image image;
   final AdjustmentParams params;
-  final ui.Image? lutTexture; // ← 新增
-  final int lutSize; // ← 新增（0 表示无 LUT）
+  final ui.Image? lutTexture;
+  final int lutSize;
 
   const PreviewRenderer({
     super.key,
@@ -59,7 +59,7 @@ class _PreviewRendererState extends State<PreviewRenderer> {
     }
     return LayoutBuilder(
       builder: (ctx, constraints) {
-        // 保持原图比例缩放到容器内
+        // 保持原图比例缩放
         final imgW = widget.image.width.toDouble();
         final imgH = widget.image.height.toDouble();
         final fit = applyBoxFit(

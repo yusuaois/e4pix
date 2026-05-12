@@ -5,7 +5,7 @@ import 'dart:ui' as ui;
 import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
 
-/// 一次拍摄的简单元数据 + 嵌入缩略图。
+/// 元数据 + 缩略图。
 class TetheredShot {
   final String path;
   final String filename;
@@ -22,8 +22,7 @@ class TetheredShot {
     this.params = AdjustmentParams.neutral,
   });
 
-  /// 提取相机内嵌 JPEG 缩略图（极快，<200ms）。
-  /// 失败时把错误存到 error 字段，不抛异常。
+  /// 提取相机内嵌缩略图
   Future<void> loadThumbnail() async {
     try {
       final raw = await RawBridge.extractThumbnail(path);
@@ -32,7 +31,6 @@ class TetheredShot {
         final frame = await codec.getNextFrame();
         thumbnail = frame.image;
       } else if (raw.pixels is Uint8List) {
-        // 罕见：RGB 而非 JPEG 缩略图
         final px = raw.pixels as Uint8List;
         final rgba = Uint8List(raw.width * raw.height * 4);
         for (int i = 0, j = 0; i < px.length; i += 3, j += 4) {

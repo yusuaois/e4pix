@@ -5,8 +5,7 @@ import '../core/models/adjustment_params.dart';
 import 'develop_uniforms.dart';
 
 class RenderEngine {
-  /// 把 shader 渲染结果输出为一个新的 ui.Image。
-  /// 调用方需自行 dispose 返回的 Image。
+  // 渲染输出
   static Future<ui.Image> renderToImage({
     required ui.FragmentProgram program,
     required ui.Image sourceImage,

@@ -28,7 +28,7 @@ class Histogram {
       r[ri]++;
       g[gi]++;
       b[bi]++;
-      // Rec.709 luma 近似（×256 化整）
+      // Rec.709 
       l[((ri * 54 + gi * 183 + bi * 19) >> 8).clamp(0, 255)]++;
     }
     return Histogram._(r, g, b, l, n);
@@ -145,9 +145,7 @@ class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
   }
 }
 
-// ============================================================================
 // Histogram Painter
-// ============================================================================
 class _HistogramPainter extends CustomPainter {
   final Histogram h;
   _HistogramPainter(this.h);

@@ -2,8 +2,6 @@ import 'dart:ui' as ui;
 import 'dart:ui';
 import '../core/models/adjustment_params.dart';
 
-/// 把 AdjustmentParams 写入 shader uniforms。
-/// PreviewRenderer / RenderEngine / LiveHistogram 共用这个函数。
 void applyDevelopUniforms({
   required ui.FragmentShader shader,
   required Size renderSize,

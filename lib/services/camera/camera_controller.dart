@@ -29,8 +29,8 @@ abstract class CameraController {
   /// 探测当前可用相机
   Future<List<DetectedCamera>> detectCameras();
 
-  /// 启动 tether 捕获。文件落到 [saveFolder]。
-  /// 返回的 stream 反映相机事件，用于状态显示。
+  /// 启动 tether 捕获
+  /// 返回的 stream 反映相机事件
   Stream<CameraEvent> startTether({
     required DetectedCamera camera,
     required String saveFolder,

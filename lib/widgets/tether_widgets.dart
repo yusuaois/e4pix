@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/tethered_shot.dart';
 
-// ============================================================================
-// 顶部状态条（仅在 tether 启动后显示）
-// ============================================================================
+// 顶部状态条
 class TetherStatusBar extends StatelessWidget {
   final String watchPath;
   final int shotCount;
@@ -243,9 +241,7 @@ class _PulsingDotState extends State<_PulsingDot>
   }
 }
 
-// ============================================================================
 // 底部缩略图条
-// ============================================================================
 class TetherThumbStrip extends StatelessWidget {
   final List<TetheredShot> shots;
   final TetheredShot? activeShot;

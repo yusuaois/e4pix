@@ -6,26 +6,18 @@ import 'package:ffi/ffi.dart';
 
 import 'raw_bridge_bindings.dart';
 
-// ============================================================================
-// 数据模型
-// ============================================================================
-
-/// 解码后的图像（可被 GPU 直接消费）
+/// 解码后图像
 class RawDecodedImage {
   final int width;
   final int height;
   final int channels;
   final int bitsPerChannel;
 
-  /// 像素数据（线性 RGB）。
-  /// 16-bit 时为 Uint16List；8-bit 时为 Uint8List。
-  /// 注意：消费者拿到的是已经从 native 拷贝出来的独立内存。
+  /// 像素数据
   final TypedData pixels;
 
   final RawMetadata metadata;
 
-  /// 仅在 [extractThumb] 返回 JPEG 时为 true。
-  /// 此时 pixels 是 JPEG 编码字节，需 `ui.instantiateImageCodec` 解码。
   final bool isJpegEncoded;
 
   const RawDecodedImage({
@@ -85,10 +77,6 @@ class RawDecodeException implements Exception {
   String toString() => 'RawDecodeException($code): $message';
 }
 
-// ============================================================================
-// 主入口
-// ============================================================================
-
 class RawBridge {
   RawBridge._();
 
@@ -113,39 +101,33 @@ if (Platform.isWindows) {
   throw UnsupportedError('Platform ${Platform.operatingSystem} not supported');
   }
 
-  /// LibRaw 版本号，用于 About 页面。
   static String libRawVersion() {
     final b = _ensureLoaded();
     return b.version().toDartString();
   }
 
-  // ---------------- 公开异步 API（自动跑 Isolate） ----------------
-
-  /// 提取相机内嵌缩略图（最快，<100ms）。
-  /// 返回的图像可能是 JPEG 编码（[isJpegEncoded] = true）。
+  /// 提取内嵌缩略图
   static Future<RawDecodedImage> extractThumbnail(String path) {
     return Isolate.run(() => _extractThumbSync(path));
   }
 
-  /// 解码预览（half-size + 16-bit linear，~300ms）。
+  /// 解码预览
   static Future<RawDecodedImage> decodePreview(String path) {
     return Isolate.run(() => _decodeSync(path, _DecodeMode.preview));
   }
 
-  /// 解码全分辨率（用于导出，~2-5s）。
+  /// 解码全分辨率
   static Future<RawDecodedImage> decodeFull(String path) {
     return Isolate.run(() => _decodeSync(path, _DecodeMode.full));
   }
 
-  /// 仅读元数据（<10ms）。
+  /// 仅元数据
   static Future<RawMetadata> readMetadata(String path) async {
     final image = await Isolate.run(
       () => _decodeSync(path, _DecodeMode.metadata),
     );
     return image.metadata;
   }
-
-  // ---------------- Isolate 内同步实现 ----------------
 
   static RawDecodedImage _extractThumbSync(String path) {
     final b = _ensureLoaded();
@@ -180,8 +162,6 @@ if (Platform.isWindows) {
     }
   }
 
-  // ---------------- 结构体 → Dart 对象 ----------------
-
   static RawDecodedImage _convertResult(
     E4pixDecodeResult r, {
     bool isThumb = false,
@@ -198,12 +178,12 @@ if (Platform.isWindows) {
     if (isMetadataOnly) {
       pixels = Uint8List(0);
     } else if (r.bitsPerChannel == 16) {
-      // 16-bit: 拷贝出独立 Uint16List
+      // 拷贝Uint16List
       final ptr16 = r.pixels.cast<Uint16>();
       final count = r.pixelsSize ~/ 2;
       pixels = Uint16List.fromList(ptr16.asTypedList(count));
     } else {
-      // 8-bit 或 JPEG-encoded thumb
+      // 拷贝Uint8List
       pixels = Uint8List.fromList(r.pixels.asTypedList(r.pixelsSize));
     }
 

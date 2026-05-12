@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/hsl_bands.dart';
 
-// ============================================================================
 // 通用滑块 tile
-// ============================================================================
 class DevelopSliderTile extends StatelessWidget {
   final String label;
   final double value, min, max;
@@ -72,9 +70,7 @@ class DevelopSliderTile extends StatelessWidget {
   }
 }
 
-// ============================================================================
 // Section 标签
-// ============================================================================
 class SectionLabel extends StatelessWidget {
   final String title;
   final Widget? trailing;
@@ -102,9 +98,7 @@ class SectionLabel extends StatelessWidget {
   }
 }
 
-// ============================================================================
 // Light Section
-// ============================================================================
 class LightSection extends StatelessWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
@@ -118,28 +112,28 @@ class LightSection extends StatelessWidget {
       children: [
         const SectionLabel(title: 'Light'),
         DevelopSliderTile(
-          label: 'Exposure', value: p.exposure, min: -5, max: 5,
+          label: '曝光', value: p.exposure, min: -5, max: 5,
           onChanged: (v) => onChanged(p.copyWith(exposure: v)),
           suffix: ' EV', precision: 2,
         ),
         DevelopSliderTile(
-          label: 'Contrast', value: p.contrast, min: -100, max: 100,
+          label: '对比度', value: p.contrast, min: -100, max: 100,
           onChanged: (v) => onChanged(p.copyWith(contrast: v)),
         ),
         DevelopSliderTile(
-          label: 'Highlights', value: p.highlights, min: -100, max: 100,
+          label: '高光', value: p.highlights, min: -100, max: 100,
           onChanged: (v) => onChanged(p.copyWith(highlights: v)),
         ),
         DevelopSliderTile(
-          label: 'Shadows', value: p.shadows, min: -100, max: 100,
+          label: '阴影', value: p.shadows, min: -100, max: 100,
           onChanged: (v) => onChanged(p.copyWith(shadows: v)),
         ),
         DevelopSliderTile(
-          label: 'Whites', value: p.whites, min: -100, max: 100,
+          label: '白场', value: p.whites, min: -100, max: 100,
           onChanged: (v) => onChanged(p.copyWith(whites: v)),
         ),
         DevelopSliderTile(
-          label: 'Blacks', value: p.blacks, min: -100, max: 100,
+          label: '黑场', value: p.blacks, min: -100, max: 100,
           onChanged: (v) => onChanged(p.copyWith(blacks: v)),
         ),
       ],
@@ -147,9 +141,7 @@ class LightSection extends StatelessWidget {
   }
 }
 
-// ============================================================================
 // White Balance + Color Section
-// ============================================================================
 class WhiteBalanceColorSection extends StatelessWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
@@ -163,23 +155,23 @@ class WhiteBalanceColorSection extends StatelessWidget {
       children: [
         const SectionLabel(title: 'White Balance'),
         DevelopSliderTile(
-          label: 'Temp',
+          label: '白平衡',
           value: p.temperature.toDouble(),
           min: 2000, max: 12000,
           onChanged: (v) => onChanged(p.copyWith(temperature: v.round())),
           suffix: ' K',
         ),
         DevelopSliderTile(
-          label: 'Tint', value: p.tint, min: -100, max: 100,
+          label: '色调', value: p.tint, min: -100, max: 100,
           onChanged: (v) => onChanged(p.copyWith(tint: v)),
         ),
         const SectionLabel(title: 'Color'),
         DevelopSliderTile(
-          label: 'Saturation', value: p.saturation, min: -100, max: 100,
+          label: '饱和度', value: p.saturation, min: -100, max: 100,
           onChanged: (v) => onChanged(p.copyWith(saturation: v)),
         ),
         DevelopSliderTile(
-          label: 'Vibrance', value: p.vibrance, min: -100, max: 100,
+          label: '自然饱和度', value: p.vibrance, min: -100, max: 100,
           onChanged: (v) => onChanged(p.copyWith(vibrance: v)),
         ),
       ],
@@ -187,9 +179,7 @@ class WhiteBalanceColorSection extends StatelessWidget {
   }
 }
 
-// ============================================================================
 // HSL Section
-// ============================================================================
 class HslSection extends StatefulWidget {
   final HslBands bands;
   final ValueChanged<HslBands> onChanged;
@@ -207,7 +197,7 @@ class _HslSectionState extends State<HslSection> {
     Color(0xFF00ACC1), Color(0xFF1E88E5), Color(0xFF8E24AA), Color(0xFFD81B60),
   ];
   static const _bandLabels = [
-    'Red', 'Orange', 'Yellow', 'Green', 'Aqua', 'Blue', 'Purple', 'Magenta',
+    '红色', '橙色', '黄色', '绿色', '青色', '蓝色', '紫色', '品红色',
   ];
 
   List<double> _values() => switch (_mode) {
@@ -254,9 +244,9 @@ class _HslSectionState extends State<HslSection> {
               textStyle: const TextStyle(fontSize: 11),
             ),
             segments: const [
-              ButtonSegment(value: 0, label: Text('Hue')),
-              ButtonSegment(value: 1, label: Text('Sat')),
-              ButtonSegment(value: 2, label: Text('Lum')),
+              ButtonSegment(value: 0, label: Text('色相')),
+              ButtonSegment(value: 1, label: Text('饱和度')),
+              ButtonSegment(value: 2, label: Text('明度')),
             ],
             selected: {_mode},
             onSelectionChanged: (s) => setState(() => _mode = s.first),
@@ -336,9 +326,7 @@ class _BandRow extends StatelessWidget {
   }
 }
 
-// ============================================================================
 // LUT Section
-// ============================================================================
 class LutSection extends StatelessWidget {
   final String? lutName;
   final double intensity;

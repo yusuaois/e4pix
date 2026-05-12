@@ -23,8 +23,8 @@ extension ExportFormatExt on ExportFormat {
 typedef ExportProgress = void Function(double fraction, String stage);
 
 class Exporter {
-  /// 全分辨率导出。
-  /// 流程：解码全分辨率 RAW → 转 sRGB-encoded ui.Image → shader 渲染 → 编码 → 写盘
+  /// 全分辨率导出
+  /// 解码全分辨率 RAW → 转 sRGB-encoded ui.Image → shader 渲染 → 编码 → 写盘
   static Future<File> exportFullRes({
     required String inputRawPath,
     required String outputPath,
@@ -84,7 +84,7 @@ class Exporter {
     return file;
   }
 
-  // 16-bit linear RGB → sRGB-encoded ui.Image（与 PreviewRenderer 输入完全一致）
+  // 16-bit linear RGB → sRGB-encoded ui.Image
   static Future<ui.Image> _rawToUiImage(RawDecodedImage raw) async {
     final bytes = await Isolate.run(() {
       final lut = _buildSrgbLut();
