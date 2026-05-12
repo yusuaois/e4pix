@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -54,7 +55,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
 
   Future<void> _pickFolder() async {
     final folder = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择保存文件夹',
+      dialogTitle: tr("saveFolderChoose"),
     );
     if (folder != null) setState(() => _folder = folder);
   }
@@ -62,7 +63,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('联机拍摄'),
+      title: Text(tr("tetherCamera")),
       content: SizedBox(
         width: 480,
         child: Column(
@@ -71,13 +72,15 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
           children: [
             Row(
               children: [
-                const Text('已检测到的相机',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                Text(
+                  tr("detectedCameras"),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.refresh, size: 16),
                   visualDensity: VisualDensity.compact,
-                  tooltip: '重新探测',
+                  tooltip: tr("reDetect"),
                   onPressed: _detecting ? null : _detect,
                 ),
               ],
@@ -94,97 +97,108 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
               child: _detecting
                   ? const Center(
                       child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2)))
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
                   : _error != null
-                      ? Text(_error!,
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.redAccent))
-                      : _cameras.isEmpty
-                          ? 
-                          Platform.isAndroid?Text(
-                                                  '未发现相机。\n'
-                                                  '· Android: 检查 USB 线 + 相机是否处于 Tether 模式',
-                                                  style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.white.withOpacity(0.6))
-                                                  )
-                          :(Platform.isWindows?Text(
-                                                  '未发现相机。\n'
-                                                  '· Windows: 检查 usbipd attach 是否已挂载\n'
-                                                  '   - usbipd list\n'
-                                                  '   - usbipd attach --wsl --busid <busid>\n',
-                                                  style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.white.withOpacity(0.6))
-                                                  )
-                                              :Text(
-                                                  '未发现相机。\n'
-                                                  '· Linux/macOS: 检查 USB 线 + 相机是否处于 Tether 模式',
-                                                  style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.white.withOpacity(0.6))
-                          ))
-                          : Column(
-                              children: _cameras.map((c) {
-                                final isSel = c == _selected;
-                                return InkWell(
-                                  onTap: () =>
-                                      setState(() => _selected = c),
-                                  child: Padding(
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 4),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          isSel
-                                              ? Icons.radio_button_checked
-                                              : Icons.radio_button_off,
-                                          size: 14,
-                                          color: isSel
-                                              ? const Color(0xFF6B5BFF)
-                                              : Colors.white.withOpacity(0.4),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            c.model,
-                                            style: const TextStyle(fontSize: 12),
-                                          ),
-                                        ),
-                                        Text(
-                                          c.port,
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontFamily: 'monospace',
-                                            color:
-                                                Colors.white.withOpacity(0.5),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
+                  ? Text(
+                      _error!,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.redAccent,
+                      ),
+                    )
+                  : _cameras.isEmpty
+                  ? Platform.isAndroid
+                        ? Text(
+                            '${tr("noCamerasFound")}\n· Android: ${tr("tetherOtherModeHint")}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.white.withOpacity(0.6),
                             ),
+                          )
+                        : (Platform.isWindows
+                              ? Text(
+                                  '${tr("noCamerasFound")}\n'
+                                  '· Windows: ${tr("tetherWindowsModeHint")}\n'
+                                  '   - usbipd list\n'
+                                  '   - usbipd attach --wsl --busid <busid>\n',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white.withOpacity(0.6),
+                                  ),
+                                )
+                              : Text(
+                                  '${tr("noCamerasFound")}\n'
+                                  '· Linux/macOS: ${tr("tetherOtherModeHint")}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white.withOpacity(0.6),
+                                  ),
+                                ))
+                  : Column(
+                      children: _cameras.map((c) {
+                        final isSel = c == _selected;
+                        return InkWell(
+                          onTap: () => setState(() => _selected = c),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isSel
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_off,
+                                  size: 14,
+                                  color: isSel
+                                      ? const Color(0xFF6B5BFF)
+                                      : Colors.white.withOpacity(0.4),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    c.model,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                Text(
+                                  c.port,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontFamily: 'monospace',
+                                    color: Colors.white.withOpacity(0.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
             ),
             const SizedBox(height: 14),
-            const Text('保存到',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            Text(
+              tr("saveTo"),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 6),
             Row(
               children: [
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0E0E14),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(color: Colors.white.withOpacity(0.06)),
                     ),
                     child: Text(
-                      _folder ?? '未选择',
+                      _folder ?? tr("notChosen"),
                       style: TextStyle(
                         fontSize: 11.5,
                         fontFamily: 'monospace',
@@ -198,10 +212,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: _pickFolder,
-                  child: const Text('浏览'),
-                ),
+                OutlinedButton(onPressed: _pickFolder, child: Text(tr("browse"))),
               ],
             ),
           ],
@@ -210,16 +221,16 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, null),
-          child: const Text('取消'),
+          child: Text(tr("cancel")),
         ),
         FilledButton(
           onPressed: (_selected != null && _folder != null)
               ? () => Navigator.pop(
-                    context,
-                    CameraPickResult(_selected!, _folder!),
-                  )
+                  context,
+                  CameraPickResult(_selected!, _folder!),
+                )
               : null,
-          child: const Text('开始联机'),
+          child: Text(tr("startCameraTether")),
         ),
       ],
     );

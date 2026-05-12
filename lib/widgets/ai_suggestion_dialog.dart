@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../core/models/adjustment_params.dart';
@@ -80,11 +81,11 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Row(
+      title: Row(
         children: [
           Icon(Icons.auto_awesome, size: 18, color: Color(0xFF6B5BFF)),
           SizedBox(width: 8),
-          Text('AI 配色建议'),
+          Text(tr("aiColorSuggestion")),
         ],
       ),
       content: SizedBox(
@@ -96,12 +97,12 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
             TextField(
               controller: _intentController,
               enabled: !_loading,
-              decoration: const InputDecoration(
-                hintText: '可选：风格意图（如"电影感暖调"、"清新日常"）',
-                hintStyle: TextStyle(fontSize: 11.5),
+              decoration: InputDecoration(
+                hintText: tr("aiColorSuggestionPrompt"),
+                hintStyle: const TextStyle(fontSize: 11.5),
                 isDense: true,
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 10,
                 ),
@@ -111,7 +112,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
             ),
             const SizedBox(height: 14),
             if (_loading)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Column(
@@ -122,7 +123,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                       SizedBox(height: 10),
-                      Text('AI 分析中…', style: TextStyle(fontSize: 11.5)),
+                      Text(tr("aiColorInProgress"), style: TextStyle(fontSize: 11.5)),
                     ],
                   ),
                 ),
@@ -146,7 +147,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Text(
-                  '点击「请求建议」让 AI 看一眼当前画面并给出配色方向。',
+                  tr("aiColorSuggestionDescription"),
                   style: TextStyle(
                     fontSize: 11.5,
                     color: Colors.white.withOpacity(0.6),
@@ -159,13 +160,13 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
       actions: [
         TextButton(
           onPressed: _loading ? null : () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(tr("cancel")),
         ),
         if (_suggestion == null)
           FilledButton.icon(
             onPressed: _loading ? null : _runSuggestion,
             icon: const Icon(Icons.auto_awesome, size: 14),
-            label: const Text('请求建议'),
+            label: Text(tr("aiColorSuggestionRequest")),
           )
         else ...[
           TextButton(
@@ -173,11 +174,11 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
               _suggestion = null;
               _error = null;
             }),
-            child: const Text('重新生成'),
+            child: Text(tr("aiColorSuggestionRegenerate")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, _suggestion),
-            child: const Text('应用'),
+            child: Text(tr("aiColorSuggestionApply")),
           ),
         ],
       ],
@@ -335,8 +336,8 @@ class _SuggestionView extends StatelessWidget {
         ],
 
         if (basic.isEmpty && hslRows.isEmpty)
-          const Text(
-            'AI 认为当前状态已经很好，无需调整。',
+          Text(
+            tr("aiColorSuggestionNone"),
             style: TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic),
           ),
       ],
@@ -344,4 +345,13 @@ class _SuggestionView extends StatelessWidget {
   }
 }
 
-const _hslBandNames = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
+const _hslBandNames = [
+  'red',
+  'orange',
+  'yellow',
+  'green',
+  'aqua',
+  'blue',
+  'purple',
+  'magenta',
+];

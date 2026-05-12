@@ -1,8 +1,21 @@
 import 'package:flutter/material.dart';
 import 'screens/develop_screen.dart';
+import 'package:easy_localization/easy_localization.dart';
 
-void main() {
-  runApp(const E4pixApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await EasyLocalization.ensureInitialized();
+
+  runApp(
+    EasyLocalization(
+      // en-US.json, zh-CN.json
+      supportedLocales: [Locale('en', 'US'), Locale('zh', 'CN')],
+      path: 'assets/translations',
+      fallbackLocale: Locale('en', 'US'),
+      child: E4pixApp(),
+    ),
+  );
 }
 
 class E4pixApp extends StatelessWidget {
@@ -21,6 +34,9 @@ class E4pixApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: const Color(0xFF0E0E12),
       ),
+      localizationsDelegates: context.localizationDelegates,
+      supportedLocales: context.supportedLocales,
+      locale: context.locale,
       home: const DevelopScreen(),
     );
   }

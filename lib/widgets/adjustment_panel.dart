@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../core/models/adjustment_params.dart';
 import 'develop_sections.dart';
@@ -80,7 +81,7 @@ class _Header extends StatelessWidget {
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.refresh, size: 18),
-            tooltip: 'Reset all',
+            tooltip: tr("reset"),
             onPressed: onReset,
           ),
         ],

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../services/ai/ai_providers.dart';
 import '../services/ai/ai_settings.dart';
@@ -60,14 +61,14 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
 
   String _keyHintFor(AIProviderId id) => switch (id) {
     AIProviderId.anthropic => 'sk-ant-api03-...',
-    AIProviderId.openai => 'sk-proj-... 或 sk-...',
+    AIProviderId.openai => 'sk-proj-... / sk-...',
     AIProviderId.deepseek => 'sk-...',
   };
 
   String _keyOriginFor(AIProviderId id) => switch (id) {
-    AIProviderId.anthropic => '从 console.anthropic.com 获取',
-    AIProviderId.openai => '从 platform.openai.com/api-keys 获取',
-    AIProviderId.deepseek => '从 platform.deepseek.com 获取',
+    AIProviderId.anthropic => tr("getAnthropicKeyFromPlatform"),
+    AIProviderId.openai => tr("getOpenaiKeyFromPlatform"),
+    AIProviderId.deepseek => tr("getDeepseekKeyFromPlatform"),
   };
 
   @override
@@ -82,7 +83,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
     final effectiveModelId = modelInList ? _modelId : provider.defaultModelId;
 
     return AlertDialog(
-      title: const Text('AI 设置'),
+      title: Text(tr("aiColorSettings")),
       content: SizedBox(
         width: 460,
         child: Column(
@@ -90,7 +91,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // —— 1. Provider —— //
-            const Text('AI 服务商',
+            Text(tr("aiProvider"),
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             DropdownButtonFormField<AIProviderId>(
@@ -111,7 +112,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
             const SizedBox(height: 14),
 
             // —— 2. Model —— //
-            const Text('Model',
+            Text(tr("model"),
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
@@ -133,7 +134,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
             const SizedBox(height: 14),
 
             // —— 3. API Key —— //
-            Text('${provider.displayName} API Key',
+            Text('${provider.displayName} ${tr("apiKey")}',
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             TextField(
@@ -172,15 +173,15 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                       onChanged: (v) => setState(() => _autoAI = v ?? false),
                       visualDensity: VisualDensity.compact,
                     ),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('联机自动建议',
+                          Text(tr("aiColorSuggestionTetherAuto"),
                               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                           SizedBox(height: 2),
                           Text(
-                            '新照片自动调用 AI 给出配色建议，你只需要确认是否应用',
+                            tr("aiColorSuggestionTetherAutoDescription"),
                             style: TextStyle(fontSize: 10.5, color: Colors.white60),
                           ),
                         ],
@@ -194,8 +195,8 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
-        FilledButton(onPressed: _save, child: const Text('保存')),
+        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr("cancel"))),
+        FilledButton(onPressed: _save, child: Text(tr("save"))),
       ],
     );
   }

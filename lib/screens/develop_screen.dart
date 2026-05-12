@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -37,7 +38,7 @@ class DevelopScreen extends StatefulWidget {
 
 class _DevelopScreenState extends State<DevelopScreen> {
   // FFI 状态
-  String _libRawVersion = 'loading...';
+  String _libRawVersion = tr('loading');
   String? _libRawError;
 
   // 解码状态
@@ -102,7 +103,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
       setState(() => _libRawVersion = v);
     } catch (e) {
       setState(() {
-        _libRawVersion = 'FFI 加载失败';
+        _libRawVersion = tr('FFIFailed');
         _libRawError = e.toString();
       });
     }
@@ -181,7 +182,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('请选择有效的 .cube 格式文件')));
+        ).showSnackBar(SnackBar(content: Text(tr("cubeFailed"))));
         return;
       }
     }
@@ -207,7 +208,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('LUT 加载失败: $e')));
+      ).showSnackBar(SnackBar(content: Text(tr('LUTFailed'))));
     }
   }
 
@@ -221,12 +222,12 @@ class _DevelopScreenState extends State<DevelopScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          title: const Text('导出图像'),
+          title: Text(tr('exportImage')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('格式', style: TextStyle(fontSize: 12)),
+              Text(tr('format'), style: TextStyle(fontSize: 12)),
               const SizedBox(height: 8),
               SegmentedButton<ExportFormat>(
                 segments: const [
@@ -238,7 +239,10 @@ class _DevelopScreenState extends State<DevelopScreen> {
               ),
               if (format == ExportFormat.jpeg) ...[
                 const SizedBox(height: 14),
-                Text('质量: $quality', style: const TextStyle(fontSize: 12)),
+                Text(
+                  '${tr('quality')}: $quality',
+                  style: const TextStyle(fontSize: 12),
+                ),
                 Slider(
                   value: quality.toDouble(),
                   min: 50,
@@ -246,9 +250,9 @@ class _DevelopScreenState extends State<DevelopScreen> {
                   onChanged: (v) => setS(() => quality = v.round()),
                 ),
               ],
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(
-                '将以全分辨率渲染并保存。可能耗时较久。',
+                tr('exportDescription'),
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.white.withOpacity(0.6),
@@ -259,11 +263,11 @@ class _DevelopScreenState extends State<DevelopScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消'),
+              child: Text(tr('cancel')),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('导出'),
+              child: Text(tr('export')),
             ),
           ],
         ),
@@ -278,7 +282,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
         .replaceAll(RegExp(r'\.[^.]+$'), '_edited.${format.extension}');
 
     final saveResult = await FilePicker.platform
-        .getDirectoryPath(dialogTitle: '保存到...')
+        .getDirectoryPath(dialogTitle: tr('saveTo'))
         .then((folder) => folder != null ? p.join(folder, defaultName) : null);
     if (saveResult == null) return;
 
@@ -287,7 +291,10 @@ class _DevelopScreenState extends State<DevelopScreen> {
 
   Future<void> _runExport(String outPath, ExportFormat fmt, int quality) async {
     final messenger = ScaffoldMessenger.of(context);
-    final progressNotifier = ValueNotifier<(double, String)>((0, '准备...'));
+    final progressNotifier = ValueNotifier<(double, String)>((
+      0,
+      tr("progressNotifier"),
+    ));
 
     showDialog(
       context: context,
@@ -324,14 +331,18 @@ class _DevelopScreenState extends State<DevelopScreen> {
       if (mounted) Navigator.pop(context); // 关 progress dialog
       messenger.showSnackBar(
         SnackBar(
-          content: Text('导出完成 · ${stopwatch.elapsed.inSeconds}s · $outPath'),
+          content: Text(
+            '${tr('exportCompleted')} · ${stopwatch.elapsed.inSeconds}s · $outPath',
+          ),
           duration: const Duration(seconds: 5),
         ),
       );
     } catch (e, st) {
       if (mounted) Navigator.pop(context);
       debugPrint('Export error: $e\n$st');
-      messenger.showSnackBar(SnackBar(content: Text('导出失败: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('${tr('exportFailed')}: $e')),
+      );
     } finally {
       progressNotifier.dispose();
     }
@@ -474,9 +485,9 @@ class _DevelopScreenState extends State<DevelopScreen> {
         break;
       case CameraError(:final message):
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('相机错误: $message')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('cameraError', args: [message]))),
+        );
         break;
       case CameraDisconnected():
         if (mounted) _stopCameraTether();
@@ -576,7 +587,9 @@ class _DevelopScreenState extends State<DevelopScreen> {
 
   Future<void> _startTether() async {
     String? folder;
-    folder = await FilePicker.platform.getDirectoryPath(dialogTitle: '选择监控文件夹');
+    folder = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: tr('tetherFolderChoose'),
+    );
     if (folder == null || folder.isEmpty) return;
     await _startWatcher(folder);
   }
@@ -587,9 +600,9 @@ class _DevelopScreenState extends State<DevelopScreen> {
       await watcher.start();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('无法监控: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('tetherFailed', args: [e.toString()]))),
+      );
       return;
     }
     setState(() {
@@ -748,7 +761,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
           Expanded(
             child: Text(
               m == null
-                  ? (_filePath ?? '尚未选择文件')
+                  ? (_filePath ?? tr('imageNotChosen'))
                   : '${m.cameraModel} · ISO ${m.iso} · ${m.shutterDisplay} · f/${m.aperture.toStringAsFixed(1)}',
               style: const TextStyle(fontSize: 11),
               maxLines: 1,
@@ -791,17 +804,17 @@ class _DevelopScreenState extends State<DevelopScreen> {
                         labelPadding: EdgeInsets.zero,
                         indicatorSize: TabBarIndicatorSize.tab,
                         labelStyle: const TextStyle(fontSize: 12),
-                        tabs: const [
-                          Tab(text: '光照', height: 36),
-                          Tab(text: '色度', height: 36),
-                          Tab(text: '色彩空间', height: 36),
+                        tabs: [
+                          Tab(text: tr("light"), height: 36),
+                          Tab(text: tr("color"), height: 36),
+                          Tab(text: tr("hsl"), height: 36),
                           Tab(text: 'LUT', height: 36),
                         ],
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.refresh, size: 18),
-                      tooltip: 'Reset all',
+                      tooltip: tr("reset"),
                       onPressed: () =>
                           _onParamsChanged(AdjustmentParams.neutral),
                     ),
@@ -861,7 +874,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
         if (_tether != null)
           TetherStatusBar(
             watchPath: _cameraModel != null
-                ? '${_cameraModel} → ${_tether!.watchPath}'
+                ? '$_cameraModel → ${_tether!.watchPath}'
                 : _tether!.watchPath,
             shotCount: _shots.length,
             lastShotAt: _lastShotAt,
@@ -927,20 +940,20 @@ class _DevelopScreenState extends State<DevelopScreen> {
                 size: 18,
                 color: Color(0xFF6B5BFF),
               ),
-              tooltip: 'AI 配色建议（长按设置）',
+              tooltip: tr("aiColorSuggestionHint"),
               onPressed: _uiImage == null ? null : _showAISuggestion,
               onLongPress: _showAISettings,
             ),
           if (_tether == null)
             IconButton(
               icon: const Icon(Icons.cable_rounded, size: 18),
-              tooltip: '文件夹监控',
+              tooltip: tr("tetherFolderMonitor"),
               onPressed: _startTether,
             ),
           if (_camera == null && _tether == null)
             IconButton(
               icon: const Icon(Icons.photo_camera_outlined, size: 18),
-              tooltip: '联机拍摄（USB / WSL）',
+              tooltip: tr("tetherCamera"),
               onPressed: _startCameraTether,
             )
           else if (_camera != null)
@@ -952,14 +965,14 @@ class _DevelopScreenState extends State<DevelopScreen> {
                     ? Colors.greenAccent
                     : Colors.greenAccent.withOpacity(0.85),
               ),
-              tooltip: '${_cameraModel ?? '相机'} 已联机（点击断开）',
+              tooltip: tr("cameraConnected", args: [_cameraModel ?? tr("cameraModelUnknown")]),
               onPressed: _stopCameraTether,
             ),
           const SizedBox(width: 4),
           if (_uiImage != null && _developProgram != null)
             IconButton(
               icon: const Icon(Icons.ios_share_rounded, size: 18),
-              tooltip: '导出',
+              tooltip: tr("export"),
               onPressed: _showExportDialog,
             ),
           const SizedBox(width: 8),
@@ -1007,7 +1020,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
             ),
             const SizedBox(width: 10),
             Text(
-              'AI 分析中…',
+              tr("aiColorInProgress"),
               style: TextStyle(
                 fontSize: 11,
                 color: Colors.white.withOpacity(0.7),
@@ -1037,15 +1050,15 @@ class _DevelopScreenState extends State<DevelopScreen> {
                 child: Text.rich(
                   TextSpan(
                     children: [
-                      const TextSpan(
-                        text: 'AI 建议：',
+                      TextSpan(
+                        text: tr("aiColorSuggestionLabel"),
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       TextSpan(
-                        text: s.mood.isNotEmpty ? s.mood : '已生成',
+                        text: s.mood.isNotEmpty ? s.mood : tr("aiColorSuggestionReady"),
                         style: const TextStyle(fontSize: 11.5),
                       ),
                     ],
@@ -1059,7 +1072,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                 ),
-                child: const Text('应用', style: TextStyle(fontSize: 11)),
+                child: Text(tr("apply"), style: TextStyle(fontSize: 11)),
               ),
               TextButton(
                 onPressed: _dismissPendingAI,
@@ -1068,7 +1081,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                 ),
                 child: Text(
-                  '忽略',
+                  tr("ignore"),
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.white.withOpacity(0.6),
@@ -1126,7 +1139,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
       _onParamsChanged(newParams);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('已应用：${result.mood}'),
+          content: Text(tr("aiColorSuggestionApplied", args: [result.mood])),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
         ),
@@ -1139,7 +1152,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
       return _CenterMessage(
         icon: Icons.error_outline,
         color: Colors.redAccent,
-        title: '无法加载 e4pix_raw.dll',
+        title: tr("loadFailed", args: [" e4pix_raw.dll"]),
         body: _libRawError!,
       );
     }
@@ -1150,7 +1163,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
       return _CenterMessage(
         icon: Icons.warning_amber_rounded,
         color: Colors.orangeAccent,
-        title: '解码失败',
+        title: tr("decodeFailed"),
         body: _errorMessage!,
       );
     }
@@ -1168,7 +1181,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
             FilledButton.icon(
               onPressed: _pickAndDecode,
               icon: const Icon(Icons.folder_open),
-              label: const Text('选择 RAW 文件'),
+              label: Text(tr("imageChoose")),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1210,7 +1223,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _filePath ?? '尚未选择文件',
+                  _filePath ?? tr('imageNotChosen'),
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withOpacity(0.5),
@@ -1247,7 +1260,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
           OutlinedButton.icon(
             onPressed: _busy ? null : _pickAndDecode,
             icon: const Icon(Icons.folder_open, size: 18),
-            label: const Text('Pick RAW'),
+            label: Text(tr("imageChoose")),
           ),
         ],
       ),

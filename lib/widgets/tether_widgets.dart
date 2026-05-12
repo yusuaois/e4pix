@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../services/tethered_shot.dart';
 
@@ -23,11 +24,11 @@ class TetherStatusBar extends StatelessWidget {
 
   String _ago(DateTime t) {
     final s = DateTime.now().difference(t).inSeconds;
-    if (s < 5) return '刚刚';
-    if (s < 60) return '${s}s ago';
+    if (s < 5) return tr("justNow");
+    if (s < 60) return tr("secondsAgo", args: [s.toString()]);
     final m = s ~/ 60;
-    if (m < 60) return '${m}m ago';
-    return '${m ~/ 60}h ago';
+    if (m < 60) return tr("minutesAgo", args: [m.toString()]);
+    return tr("hoursAgo", args: [(m ~/ 60).toString()]);
   }
 
   @override
@@ -60,7 +61,7 @@ class TetherStatusBar extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '$shotCount${shotCount == 1 ? ' shot' : ' shots'}'
+              '${tr("shotCount", args: [shotCount.toString()])}'
               '${lastShotAt == null ? '' : ' · ${_ago(lastShotAt!)}'}',
               style: TextStyle(
                 fontSize: 11,
@@ -74,7 +75,7 @@ class TetherStatusBar extends StatelessWidget {
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            tooltip: preserveParams ? '同步模式' : '隔离模式',
+            tooltip: preserveParams ? tr("preserveMode") : tr("isolateMode"),
             onPressed: () => onPreserveChanged(!preserveParams),
             icon: Icon(
               preserveParams ? Icons.link_rounded : Icons.link_off_rounded,
@@ -88,7 +89,7 @@ class TetherStatusBar extends StatelessWidget {
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            tooltip: '停止联机',
+            tooltip: tr("stopCameraTether"),
             onPressed: onStop,
             icon: const Icon(
               Icons.stop_circle_outlined,
@@ -135,8 +136,8 @@ class TetherStatusBar extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            '$shotCount shot${shotCount == 1 ? '' : 's'}'
-            '${lastShotAt == null ? '' : ' · last ${_ago(lastShotAt!)}'}',
+            '${tr("shotCount", args: [shotCount.toString()])}'
+            '${lastShotAt == null ? '' : ' · ${_ago(lastShotAt!)}'}',
             style: TextStyle(
               fontSize: 11.5,
               color: Colors.white.withOpacity(0.6),
@@ -153,7 +154,7 @@ class TetherStatusBar extends StatelessWidget {
           TextButton.icon(
             onPressed: onStop,
             icon: const Icon(Icons.stop_circle_outlined, size: 14),
-            label: const Text('Stop', style: TextStyle(fontSize: 11)),
+            label: Text(tr("stop"), style: TextStyle(fontSize: 11)),
             style: TextButton.styleFrom(
               foregroundColor: Colors.redAccent,
               visualDensity: VisualDensity.compact,
@@ -177,8 +178,8 @@ class _PreserveToggle extends StatelessWidget {
         : Colors.orangeAccent.withOpacity(0.85);
     return Tooltip(
       message: preserved
-          ? '参数同步：改一张 → 所有 shot 同步\n点击切换为隔离模式'
-          : '参数隔离：每张 shot 独立\n点击切换为同步模式',
+          ? tr("preserveModeDescription")
+          : tr("isolateModeDescription"),
       child: TextButton.icon(
         onPressed: () => onChanged(!preserved),
         icon: Icon(
@@ -187,7 +188,7 @@ class _PreserveToggle extends StatelessWidget {
           color: color,
         ),
         label: Text(
-          preserved ? 'Preserved' : 'Isolated',
+          preserved ? tr("preserveMode") : tr("isolateMode"),
           style: TextStyle(fontSize: 11, color: color),
         ),
         style: TextButton.styleFrom(
@@ -265,11 +266,11 @@ class TetherThumbStrip extends StatelessWidget {
       ),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        reverse: true, // 最新的在左侧
+        reverse: true,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         itemCount: shots.length,
         itemBuilder: (ctx, i) {
-          // 最新到最旧
+          // 从新到旧
           final shot = shots[shots.length - 1 - i];
           final isActive = shot == activeShot;
           return Padding(

@@ -218,7 +218,7 @@ void main() {
     disp = applySaturation(disp, uSaturation);
     disp = applyVibrance(disp, uVibrance);
 
-    // ---- LUT 在 display-referred sRGB 上应用（业界惯例）----
+    // ---- LUT 在 display-referred sRGB 上应用 ----
     if (uHasLut > 0.5 && uLutIntensity > 0.001) {
         vec3 graded = sampleLut3D(disp, uLutSize);
         disp = mix(disp, graded, uLutIntensity);
