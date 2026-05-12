@@ -21,7 +21,7 @@ class E4pixApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: const Color(0xFF0E0E12),
       ),
-      home: const RawSmokeTestScreen(),
+      home: const DevelopScreen(),
     );
   }
 }

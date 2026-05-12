@@ -7,13 +7,14 @@ import '../services/ai/ai_color_service.dart';
 
 class AISuggestionDialog extends StatefulWidget {
   final AdjustmentParams currentParams;
-
   final Future<String> Function() renderPreviewToFile;
+  final AIColorSuggestion? initialSuggestion;
 
   const AISuggestionDialog({
     super.key,
     required this.currentParams,
     required this.renderPreviewToFile,
+    this.initialSuggestion,
   });
 
   @override
@@ -26,6 +27,14 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
   AIColorSuggestion? _suggestion;
   String? _error;
   String? _tempPath;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialSuggestion != null) {
+      _suggestion = widget.initialSuggestion;
+    }
+  }
 
   @override
   void dispose() {
@@ -92,7 +101,10 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                 hintStyle: TextStyle(fontSize: 11.5),
                 isDense: true,
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
               ),
               style: const TextStyle(fontSize: 12),
               maxLines: 2,
@@ -102,11 +114,17 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
-                  child: Column(children: [
-                    SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
-                    SizedBox(height: 10),
-                    Text('AI 分析中…', style: TextStyle(fontSize: 11.5)),
-                  ]),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(height: 10),
+                      Text('AI 分析中…', style: TextStyle(fontSize: 11.5)),
+                    ],
+                  ),
                 ),
               )
             else if (_error != null)
@@ -117,8 +135,10 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
                 ),
-                child: Text(_error!,
-                    style: const TextStyle(fontSize: 11, color: Colors.redAccent)),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(fontSize: 11, color: Colors.redAccent),
+                ),
               )
             else if (_suggestion != null)
               _SuggestionView(suggestion: _suggestion!)
@@ -127,7 +147,10 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Text(
                   '点击「请求建议」让 AI 看一眼当前画面并给出配色方向。',
-                  style: TextStyle(fontSize: 11.5, color: Colors.white.withOpacity(0.6)),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Colors.white.withOpacity(0.6),
+                  ),
                 ),
               ),
           ],
@@ -179,7 +202,45 @@ class _SuggestionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final changed = suggestion.raw.entries.where((e) => e.value != null).toList();
+    final basic = suggestion.raw.entries.where((e) => e.value != null).toList();
+    final hslRaw = suggestion.hslRaw;
+
+    final hslRows = <Widget>[];
+    if (hslRaw != null) {
+      for (final band in _hslBandNames) {
+        final m = hslRaw[band];
+        if (m is! Map) continue;
+        final parts = <String>[];
+        for (final field in ['h', 's', 'l']) {
+          final v = m[field];
+          if (v is num) {
+            parts.add('${field.toUpperCase()} ${v > 0 ? '+' : ''}${v.toInt()}');
+          }
+        }
+        if (parts.isEmpty) continue;
+        hslRows.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 1.5),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(band, style: const TextStyle(fontSize: 11)),
+                ),
+                Text(
+                  parts.join('  '),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontFamily: 'monospace',
+                    color: Colors.greenAccent.withOpacity(0.85),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -202,12 +263,14 @@ class _SuggestionView extends StatelessWidget {
           ),
         const SizedBox(height: 8),
         if (suggestion.reasoning.isNotEmpty)
-          Text(suggestion.reasoning, style: const TextStyle(fontSize: 12, height: 1.4)),
+          Text(
+            suggestion.reasoning,
+            style: const TextStyle(fontSize: 12, height: 1.4),
+          ),
         const SizedBox(height: 12),
-        if (changed.isEmpty)
-          const Text('AI 认为当前状态已经很好，无需调整。',
-              style: TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic))
-        else
+
+        // —— 基础滑块 ——
+        if (basic.isNotEmpty)
           Container(
             decoration: BoxDecoration(
               color: const Color(0xFF0E0E14),
@@ -215,25 +278,70 @@ class _SuggestionView extends StatelessWidget {
             ),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Column(
-              children: changed.map((e) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  children: [
-                    Expanded(child: Text(e.key, style: const TextStyle(fontSize: 11))),
-                    Text(
-                      _fmt(e.key, e.value!),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontFamily: 'monospace',
-                        color: Colors.greenAccent.withOpacity(0.85),
+              children: basic
+                  .map(
+                    (e) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              e.key,
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ),
+                          Text(
+                            _fmt(e.key, e.value!),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                              color: Colors.greenAccent.withOpacity(0.85),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              )).toList(),
+                  )
+                  .toList(),
             ),
+          ),
+
+        // —— HSL ——
+        if (hslRows.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E0E14),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'HSL',
+                  style: TextStyle(
+                    fontSize: 10,
+                    letterSpacing: 1.2,
+                    color: Colors.white.withOpacity(0.5),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ...hslRows,
+              ],
+            ),
+          ),
+        ],
+
+        if (basic.isEmpty && hslRows.isEmpty)
+          const Text(
+            'AI 认为当前状态已经很好，无需调整。',
+            style: TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic),
           ),
       ],
     );
   }
 }
+
+const _hslBandNames = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];

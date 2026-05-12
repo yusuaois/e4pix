@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/ai/ai_providers.dart';
 import '../services/ai/ai_settings.dart';
 
 class AISettingsDialog extends StatefulWidget {
@@ -10,7 +11,9 @@ class AISettingsDialog extends StatefulWidget {
 class _AISettingsDialogState extends State<AISettingsDialog> {
   final _keyController = TextEditingController();
   bool _obscure = true;
-  String _model = AISettings.defaultModel;
+  AIProviderId _providerId = AISettings.defaultProvider;
+  String _modelId = '';
+  bool _autoAI = false;
   bool _loaded = false;
 
   @override
@@ -20,28 +23,52 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
   }
 
   Future<void> _load() async {
-    final key = await AISettings.getApiKey();
-    final model = await AISettings.getModel();
+    _providerId = await AISettings.getProvider();
+    final key = await AISettings.getApiKey(_providerId);
+    _modelId = await AISettings.getModel(_providerId);
+    _autoAI = await AISettings.getAutoAI();
     if (mounted) {
       setState(() {
         _keyController.text = key ?? '';
-        _model = model;
         _loaded = true;
       });
     }
   }
 
-  @override
-  void dispose() {
-    _keyController.dispose();
-    super.dispose();
+  /// 切换 provider 时：保存当前 provider 的 key，再读新 provider 的配置
+  Future<void> _onProviderChanged(AIProviderId? id) async {
+    if (id == null || id == _providerId) return;
+    await AISettings.setApiKey(_providerId, _keyController.text.trim());
+    final newKey = await AISettings.getApiKey(id);
+    final newModel = await AISettings.getModel(id);
+    if (mounted) {
+      setState(() {
+        _providerId = id;
+        _keyController.text = newKey ?? '';
+        _modelId = newModel;
+      });
+    }
   }
 
   Future<void> _save() async {
-    await AISettings.setApiKey(_keyController.text.trim());
-    await AISettings.setModel(_model);
+    await AISettings.setProvider(_providerId);
+    await AISettings.setApiKey(_providerId, _keyController.text.trim());
+    await AISettings.setModel(_providerId, _modelId);
+    await AISettings.setAutoAI(_autoAI);
     if (mounted) Navigator.pop(context, true);
   }
+
+  String _keyHintFor(AIProviderId id) => switch (id) {
+    AIProviderId.anthropic => 'sk-ant-api03-...',
+    AIProviderId.openai => 'sk-proj-... 或 sk-...',
+    AIProviderId.deepseek => 'sk-...',
+  };
+
+  String _keyOriginFor(AIProviderId id) => switch (id) {
+    AIProviderId.anthropic => '从 console.anthropic.com 获取',
+    AIProviderId.openai => '从 platform.openai.com/api-keys 获取',
+    AIProviderId.deepseek => '从 platform.deepseek.com 获取',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -50,25 +77,74 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
         content: SizedBox(height: 60, child: Center(child: CircularProgressIndicator())),
       );
     }
+    final provider = AIProvider.byId(_providerId);
+    final modelInList = provider.models.any((m) => m.id == _modelId);
+    final effectiveModelId = modelInList ? _modelId : provider.defaultModelId;
+
     return AlertDialog(
       title: const Text('AI 设置'),
       content: SizedBox(
-        width: 420,
+        width: 460,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Anthropic API Key',
+            // —— 1. Provider —— //
+            const Text('AI 服务商',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<AIProviderId>(
+              value: _providerId,
+              isDense: true,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
+              items: AIProvider.all
+                  .map((p) => DropdownMenuItem(
+                        value: p.id,
+                        child: Text(p.displayName, style: const TextStyle(fontSize: 12)),
+                      ))
+                  .toList(),
+              onChanged: _onProviderChanged,
+            ),
+            const SizedBox(height: 14),
+
+            // —— 2. Model —— //
+            const Text('Model',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: effectiveModelId,
+              isDense: true,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
+              items: provider.models
+                  .map((m) => DropdownMenuItem(
+                        value: m.id,
+                        child: Text(m.label, style: const TextStyle(fontSize: 12)),
+                      ))
+                  .toList(),
+              onChanged: (v) =>
+                  setState(() => _modelId = v ?? provider.defaultModelId),
+            ),
+            const SizedBox(height: 14),
+
+            // —— 3. API Key —— //
+            Text('${provider.displayName} API Key',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             TextField(
               controller: _keyController,
               obscureText: _obscure,
               decoration: InputDecoration(
-                hintText: 'sk-...',
+                hintText: _keyHintFor(_providerId),
                 isDense: true,
                 border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 suffixIcon: IconButton(
                   icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off, size: 16),
                   onPressed: () => setState(() => _obscure = !_obscure),
@@ -76,29 +152,43 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
               ),
               style: const TextStyle(fontSize: 11.5, fontFamily: 'monospace'),
             ),
-            const SizedBox(height: 6),
-            Text('从 console.anthropic.com 获取',
-                style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.5))),
-            const SizedBox(height: 16),
-            const Text('Model',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
-              value: _model,
-              isDense: true,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            const SizedBox(height: 4),
+            Text(
+              _keyOriginFor(_providerId),
+              style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.5)),
+            ),
+
+            const Divider(height: 28),
+
+            // —— 联机自动建议 —— //
+            InkWell(
+              onTap: () => setState(() => _autoAI = !_autoAI),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: _autoAI,
+                      onChanged: (v) => setState(() => _autoAI = v ?? false),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('联机自动建议',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          SizedBox(height: 2),
+                          Text(
+                            '新照片自动调用 AI 给出配色建议，你只需要确认是否应用',
+                            style: TextStyle(fontSize: 10.5, color: Colors.white60),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              items: const [
-                DropdownMenuItem(
-                    value: 'deepseek-v4-flash',
-                    child: Text('DeepSeek V4 Flash  ·  推荐', style: TextStyle(fontSize: 12))),
-                DropdownMenuItem(
-                    value: 'deepseek-v4-pro',
-                    child: Text('DeepSeek V4 Pro  ·  最强', style: TextStyle(fontSize: 12))),
-              ],
-              onChanged: (v) => setState(() => _model = v ?? AISettings.defaultModel),
             ),
           ],
         ),

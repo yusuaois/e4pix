@@ -29,13 +29,13 @@ import '../services/ai/ai_settings.dart';
 import '../widgets/ai_settings_dialog.dart';
 import '../widgets/ai_suggestion_dialog.dart';
 
-class RawSmokeTestScreen extends StatefulWidget {
-  const RawSmokeTestScreen({super.key});
+class DevelopScreen extends StatefulWidget {
+  const DevelopScreen({super.key});
   @override
-  State<RawSmokeTestScreen> createState() => _RawSmokeTestScreenState();
+  State<DevelopScreen> createState() => _DevelopScreenState();
 }
 
-class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
+class _DevelopScreenState extends State<DevelopScreen> {
   // FFI 状态
   String _libRawVersion = 'loading...';
   String? _libRawError;
@@ -72,13 +72,22 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
   String? _cameraModel;
   bool _shutterFlash = false;
 
-  static late final Uint8List _srgbLut = _buildSrgbLut();
+  // ===== Auto-AI state =====
+  bool _autoAIEnabled = false;
+  bool _aiInProgress = false;
+  AIColorSuggestion? _pendingAI;
+  String? _pendingAIShotPath;
+
+  static final Uint8List _srgbLut = _buildSrgbLut();
 
   @override
   void initState() {
     super.initState();
     _probeFfi();
     _loadProgram();
+    AISettings.getAutoAI().then((v) {
+      if (mounted) setState(() => _autoAIEnabled = v);
+    });
   }
 
   @override
@@ -374,6 +383,9 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     );
 
     await _selectShot(shot);
+    if (_autoAIEnabled) {
+      _scheduleAutoAI();
+    }
   }
 
   Future<void> _selectShot(TetheredShot shot) async {
@@ -437,7 +449,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     await _startWatcher(pick.saveFolder);
     if (_tether == null) return; // watcher 启动失败
 
-    // 2. 启动 gphoto2 进程
+    // 启动 gphoto2
     setState(() {
       _camera = controller;
       _cameraModel = pick.camera.model;
@@ -470,6 +482,84 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
       case CameraDisconnected():
         if (mounted) _stopCameraTether();
         break;
+    }
+  }
+
+  Future<void> _scheduleAutoAI() async {
+    if (_aiInProgress) return; // 上一个还在跑就跳过
+    if (_uiImage == null || _developProgram == null) return;
+
+    setState(() => _aiInProgress = true);
+    final shotPath = _filePath;
+
+    try {
+      final tempPath = await AIInputRenderer.renderToTempFile(
+        program: _developProgram!,
+        sourceImage: _uiImage!,
+        params: _params,
+        lutTexture: _lutTexture,
+        lutSize: _lutSize,
+        maxEdge: await AISettings.getMaxEdge(),
+      );
+      final bytes = await File(tempPath).readAsBytes();
+      File(tempPath).delete().catchError((_) => File(tempPath));
+
+      final result = await AIColorService.suggest(
+        imageBytes: bytes,
+        currentParams: _params,
+      );
+
+      if (!mounted) return;
+      // 若用户已经切到别的 shot，丢弃
+      if (_filePath != shotPath) return;
+      setState(() {
+        _pendingAI = result;
+        _pendingAIShotPath = shotPath;
+      });
+    } catch (e) {
+      debugPrint('Auto-AI 失败: $e');
+      // 静默失败 —— 不打扰用户
+    } finally {
+      if (mounted) setState(() => _aiInProgress = false);
+    }
+  }
+
+  void _dismissPendingAI() {
+    setState(() {
+      _pendingAI = null;
+      _pendingAIShotPath = null;
+    });
+  }
+
+  void _applyPendingAI() {
+    final s = _pendingAI;
+    if (s == null) return;
+    _onParamsChanged(s.applyTo(_params));
+    _dismissPendingAI();
+  }
+
+  Future<void> _viewPendingAI() async {
+    final s = _pendingAI;
+    if (s == null) return;
+    _dismissPendingAI();
+    final result = await showDialog<AIColorSuggestion>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AISuggestionDialog(
+        currentParams: _params,
+        initialSuggestion: s,
+        renderPreviewToFile: () async => AIInputRenderer.renderToTempFile(
+          program: _developProgram!,
+          sourceImage: _uiImage!,
+          params: _params,
+          lutTexture: _lutTexture,
+          lutSize: _lutSize,
+          maxEdge: await AISettings.getMaxEdge(),
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      _onParamsChanged(result.applyTo(_params));
     }
   }
 
@@ -579,6 +669,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
             preserveParams: _preserveParams,
             onPreserveChanged: _togglePreserve,
           ),
+        _buildAIBanner(),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -780,6 +871,7 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
             preserveParams: _preserveParams,
             onPreserveChanged: _togglePreserve,
           ),
+        _buildAIBanner(),
         Expanded(
           child: Row(
             children: [
@@ -904,11 +996,105 @@ class _RawSmokeTestScreenState extends State<RawSmokeTestScreen> {
     );
   }
 
+  Widget _buildAIBanner() {
+    if (_aiInProgress && _pendingAI == null) {
+      return Container(
+        color: const Color(0xFF6B5BFF).withOpacity(0.08),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: Color(0xFF6B5BFF),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'AI 分析中…',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_pendingAI == null) return const SizedBox.shrink();
+    final s = _pendingAI!;
+    return Material(
+      color: const Color(0xFF6B5BFF).withOpacity(0.15),
+      child: InkWell(
+        onTap: _viewPendingAI,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome,
+                size: 14,
+                color: Color(0xFF6B5BFF),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(
+                        text: 'AI 建议：',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      TextSpan(
+                        text: s.mood.isNotEmpty ? s.mood : '已生成',
+                        style: const TextStyle(fontSize: 11.5),
+                      ),
+                    ],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              TextButton(
+                onPressed: _applyPendingAI,
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: const Text('应用', style: TextStyle(fontSize: 11)),
+              ),
+              TextButton(
+                onPressed: _dismissPendingAI,
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: Text(
+                  '忽略',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withOpacity(0.6),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _showAISettings() async {
     await showDialog<bool>(
       context: context,
       builder: (_) => const AISettingsDialog(),
     );
+    final auto = await AISettings.getAutoAI();
+    if (mounted) setState(() => _autoAIEnabled = auto);
   }
 
   Future<void> _showAISuggestion() async {
