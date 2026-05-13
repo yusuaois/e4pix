@@ -30,7 +30,7 @@ android {
         versionName = flutter.versionName
 
         ndk {
-            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86_64"))
         }
 
         externalNativeBuild {
@@ -40,7 +40,7 @@ android {
                     "-DANDROID_STL=c++_shared"
                 ))
                 cppFlags.addAll(listOf("-std=c++17"))
-                abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
             }
         }
     }
