@@ -61,6 +61,8 @@ class _DevelopScreenState extends State<DevelopScreen> {
   ui.FragmentProgram? _developProgram;
   TetherWatcher? _tether;
   final List<TetheredShot> _shots = [];
+  // 需要导出的图片，通过点击按钮多选添加，导出后清空
+  List<TetheredShot> exportShots = [];
   TetheredShot? _activeShot;
   DateTime? _lastShotAt;
   StreamSubscription<File>? _shotSub;
@@ -933,6 +935,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
       ),
       child: Row(
         children: [
+          // AI调色按钮
           if (_uiImage != null && _developProgram != null)
             IconButton(
               icon: const Icon(
@@ -944,12 +947,14 @@ class _DevelopScreenState extends State<DevelopScreen> {
               onPressed: _uiImage == null ? null : _showAISuggestion,
               onLongPress: _showAISettings,
             ),
+            // 文件夹监听按钮
           if (_tether == null)
             IconButton(
               icon: const Icon(Icons.cable_rounded, size: 18),
               tooltip: tr("tetherFolderMonitor"),
               onPressed: _startTether,
             ),
+            // 相机监听按钮
           if (_camera == null && _tether == null)
             IconButton(
               icon: const Icon(Icons.photo_camera_outlined, size: 18),
@@ -969,6 +974,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
               onPressed: _stopCameraTether,
             ),
           const SizedBox(width: 4),
+          // 导出按钮
           if (_uiImage != null && _developProgram != null)
             IconButton(
               icon: const Icon(Icons.ios_share_rounded, size: 18),
@@ -976,10 +982,13 @@ class _DevelopScreenState extends State<DevelopScreen> {
               onPressed: _showExportDialog,
             ),
           const SizedBox(width: 8),
-          Icon(
-            Icons.camera_outlined,
+          // TODO 相机图标，改造为多选添加导出图片的按钮，操纵exportShots
+          IconButton(
+            icon: const Icon(Icons.camera_outlined, size: 20),
             color: Colors.white.withOpacity(0.85),
-            size: 20,
+            onPressed: () {
+              // TODO: 开启多选模式，设置多选标志，为True时在缩略图上显示选中状态，点击缩略图添加到exportShots
+            },
           ),
           // LibRaw 版号
           // const Spacer(),
