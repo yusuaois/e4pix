@@ -36,6 +36,13 @@ class DevelopScreen extends StatefulWidget {
   State<DevelopScreen> createState() => _DevelopScreenState();
 }
 
+class _ExportTask {
+  final String path;
+  final AdjustmentParams params;
+  final String filename;
+  _ExportTask(this.path, this.params, this.filename);
+}
+
 class _DevelopScreenState extends State<DevelopScreen> {
   // FFI 状态
   String _libRawVersion = tr('loading');
@@ -61,8 +68,8 @@ class _DevelopScreenState extends State<DevelopScreen> {
   ui.FragmentProgram? _developProgram;
   TetherWatcher? _tether;
   final List<TetheredShot> _shots = [];
-  // 需要导出的图片，通过点击按钮多选添加，导出后清空
   List<TetheredShot> exportShots = [];
+  bool _multiSelectMode = false;
   TetheredShot? _activeShot;
   DateTime? _lastShotAt;
   StreamSubscription<File>? _shotSub;
@@ -215,21 +222,34 @@ class _DevelopScreenState extends State<DevelopScreen> {
   }
 
   Future<void> _showExportDialog() async {
-    if (_filePath == null || _developProgram == null) return;
+    if (_developProgram == null) return;
+
+    final tasks = _tasksForExport();
+    if (tasks.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(tr('noShotsSelected'))));
+      return;
+    }
 
     ExportFormat format = ExportFormat.png;
     int quality = 95;
+    final isBatch = tasks.length > 1;
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          title: Text(tr('exportImage')),
+          title: Text(
+            isBatch
+                ? '${tr('exportBatch')}  ·  ${tasks.length}'
+                : tr('exportImage'),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(tr('format'), style: TextStyle(fontSize: 12)),
+              Text(tr('format'), style: const TextStyle(fontSize: 12)),
               const SizedBox(height: 8),
               SegmentedButton<ExportFormat>(
                 segments: const [
@@ -252,7 +272,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
                   onChanged: (v) => setS(() => quality = v.round()),
                 ),
               ],
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 tr('exportDescription'),
                 style: TextStyle(
@@ -278,24 +298,24 @@ class _DevelopScreenState extends State<DevelopScreen> {
 
     if (ok != true) return;
 
-    final defaultName = _filePath!
-        .split(RegExp(r'[\\/]'))
-        .last
-        .replaceAll(RegExp(r'\.[^.]+$'), '_edited.${format.extension}');
+    final String? folder = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: tr('saveTo'),
+    );
+    if (folder == null) return;
 
-    final saveResult = await FilePicker.platform
-        .getDirectoryPath(dialogTitle: tr('saveTo'))
-        .then((folder) => folder != null ? p.join(folder, defaultName) : null);
-    if (saveResult == null) return;
-
-    await _runExport(saveResult, format, quality);
+    await _runExport(folder, format, quality, tasks);
   }
 
-  Future<void> _runExport(String outPath, ExportFormat fmt, int quality) async {
+  Future<void> _runExport(
+    String folder,
+    ExportFormat fmt,
+    int quality,
+    List<_ExportTask> tasks,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     final progressNotifier = ValueNotifier<(double, String)>((
       0,
-      tr("progressNotifier"),
+      tr('progressNotifier'),
     ));
 
     showDialog(
@@ -316,34 +336,92 @@ class _DevelopScreenState extends State<DevelopScreen> {
       ),
     );
 
+    final stopwatch = Stopwatch()..start();
+    String? lastOutPath;
+    int doneCount = 0;
+
     try {
-      final stopwatch = Stopwatch()..start();
-      await Exporter.exportFullRes(
-        inputRawPath: _filePath!,
-        outputPath: outPath,
-        format: fmt,
-        shaderProgram: _developProgram!,
-        params: _params,
-        lutTexture: _lutTexture,
-        lutSize: _lutSize,
-        jpegQuality: quality,
-        onProgress: (f, s) => progressNotifier.value = (f, s),
-      );
+      for (int i = 0; i < tasks.length; i++) {
+        final task = tasks[i];
+        final outName = task.filename.replaceAll(
+          RegExp(r'\.[^.]+$'),
+          '_edited.${fmt.extension}',
+        );
+        final outPath = p.join(folder, outName);
+        lastOutPath = outPath;
+
+        final baseFrac = i / tasks.length;
+        final span = 1 / tasks.length;
+
+        await Exporter.exportFullRes(
+          inputRawPath: task.path,
+          outputPath: outPath,
+          format: fmt,
+          shaderProgram: _developProgram!,
+          params: task.params,
+          lutTexture: _lutTexture,
+          lutSize: _lutSize,
+          jpegQuality: quality,
+          onProgress: (f, s) {
+            if (tasks.length == 1) {
+              progressNotifier.value = (f, s);
+            } else {
+              progressNotifier.value = (
+                baseFrac + f * span,
+                tr(
+                  'exportBatchProgress',
+                  args: ['${i + 1}', '${tasks.length}', s],
+                ),
+              );
+            }
+          },
+        );
+        doneCount = i + 1;
+      }
+
       stopwatch.stop();
-      if (mounted) Navigator.pop(context); // 关 progress dialog
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            '${tr('exportCompleted')} · ${stopwatch.elapsed.inSeconds}s · $outPath',
+      if (mounted) Navigator.pop(context); // 关闭进度框
+
+      if (tasks.length == 1) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              '${tr('exportCompleted')} · ${stopwatch.elapsed.inSeconds}s · $lastOutPath',
+            ),
+            duration: const Duration(seconds: 5),
           ),
-          duration: const Duration(seconds: 5),
-        ),
-      );
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              tr(
+                'exportBatchCompleted',
+                args: ['${tasks.length}', '${stopwatch.elapsed.inSeconds}'],
+              ),
+            ),
+            action: SnackBarAction(label: tr('exportBatch'), onPressed: () {}),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        if (mounted) {
+          setState(() {
+            _multiSelectMode = false;
+            exportShots.clear();
+          });
+        }
+      }
     } catch (e, st) {
       if (mounted) Navigator.pop(context);
       debugPrint('Export error: $e\n$st');
       messenger.showSnackBar(
-        SnackBar(content: Text('${tr('exportFailed')}: $e')),
+        SnackBar(
+          content: Text(
+            tasks.length == 1
+                ? '${tr('exportFailed')}: $e'
+                : '${tr('exportFailed')} ($doneCount / ${tasks.length}): $e',
+          ),
+        ),
       );
     } finally {
       progressNotifier.dispose();
@@ -368,6 +446,8 @@ class _DevelopScreenState extends State<DevelopScreen> {
     setState(() {
       _tether = null;
       _shots.clear();
+      exportShots.clear();
+      _multiSelectMode = false;
       _camera = null;
       _activeShot = null;
       _lastShotAt = null;
@@ -406,6 +486,50 @@ class _DevelopScreenState extends State<DevelopScreen> {
       _params = shot.params;
     });
     await _decodeFromPath(shot.path);
+  }
+
+  void _toggleMultiSelect() {
+    setState(() {
+      _multiSelectMode = !_multiSelectMode;
+      if (!_multiSelectMode) {
+        exportShots.clear(); // 退出多选时清空选择
+      }
+    });
+  }
+
+  void _selectAllShots() {
+    setState(() {
+      exportShots = List.of(_shots);
+    });
+  }
+
+  void _clearSelection() {
+    setState(() => exportShots.clear());
+  }
+
+  void _onThumbTap(TetheredShot shot) {
+    if (_multiSelectMode) {
+      setState(() {
+        if (exportShots.contains(shot)) {
+          exportShots.remove(shot);
+        } else {
+          exportShots.add(shot);
+        }
+      });
+    } else {
+      _selectShot(shot);
+    }
+  }
+
+  List<_ExportTask> _tasksForExport() {
+    if (_multiSelectMode && exportShots.isNotEmpty) {
+      return exportShots
+          .map((s) => _ExportTask(s.path, s.params, s.filename))
+          .toList();
+    }
+    if (_filePath == null) return const [];
+    final name = _filePath!.split(RegExp(r'[\\/]')).last;
+    return [_ExportTask(_filePath!, _params, name)];
   }
 
   Future<void> _decodeFromPath(String path) async {
@@ -610,6 +734,8 @@ class _DevelopScreenState extends State<DevelopScreen> {
     setState(() {
       _tether = watcher;
       _shots.clear();
+      exportShots.clear();
+      _multiSelectMode = false;
       _activeShot = null;
       _lastShotAt = null;
     });
@@ -739,7 +865,9 @@ class _DevelopScreenState extends State<DevelopScreen> {
           TetherThumbStrip(
             shots: _shots,
             activeShot: _activeShot,
-            onSelect: _selectShot,
+            onSelect: _onThumbTap,
+            multiSelectMode: _multiSelectMode,
+            selectedShots: exportShots,
           ),
         _buildPhoneInfoBar(),
         if (hasImage) _buildPhoneToolPanel(),
@@ -916,7 +1044,9 @@ class _DevelopScreenState extends State<DevelopScreen> {
           TetherThumbStrip(
             shots: _shots,
             activeShot: _activeShot,
-            onSelect: _selectShot,
+            onSelect: _onThumbTap,
+            multiSelectMode: _multiSelectMode,
+            selectedShots: exportShots,
           ),
         _buildBottomPanel(),
       ],
@@ -947,14 +1077,14 @@ class _DevelopScreenState extends State<DevelopScreen> {
               onPressed: _uiImage == null ? null : _showAISuggestion,
               onLongPress: _showAISettings,
             ),
-            // 文件夹监听按钮
+          // 文件夹监听按钮
           if (_tether == null)
             IconButton(
               icon: const Icon(Icons.cable_rounded, size: 18),
               tooltip: tr("tetherFolderMonitor"),
               onPressed: _startTether,
             ),
-            // 相机监听按钮
+          // 相机监听按钮
           if (_camera == null && _tether == null)
             IconButton(
               icon: const Icon(Icons.photo_camera_outlined, size: 18),
@@ -970,7 +1100,10 @@ class _DevelopScreenState extends State<DevelopScreen> {
                     ? Colors.greenAccent
                     : Colors.greenAccent.withOpacity(0.85),
               ),
-              tooltip: tr("cameraConnected", args: [_cameraModel ?? tr("cameraModelUnknown")]),
+              tooltip: tr(
+                "cameraConnected",
+                args: [_cameraModel ?? tr("cameraModelUnknown")],
+              ),
               onPressed: _stopCameraTether,
             ),
           const SizedBox(width: 4),
@@ -982,14 +1115,55 @@ class _DevelopScreenState extends State<DevelopScreen> {
               onPressed: _showExportDialog,
             ),
           const SizedBox(width: 8),
-          // TODO 相机图标，改造为多选添加导出图片的按钮，操纵exportShots
           IconButton(
-            icon: const Icon(Icons.camera_outlined, size: 20),
-            color: Colors.white.withOpacity(0.85),
-            onPressed: () {
-              // TODO: 开启多选模式，设置多选标志，为True时在缩略图上显示选中状态，点击缩略图添加到exportShots
-            },
+            icon: Icon(
+              _multiSelectMode
+                  ? Icons.checklist_rtl_rounded
+                  : Icons.checklist_rounded,
+              size: 18,
+            ),
+            color: _multiSelectMode
+                ? const Color(0xFF6B5BFF)
+                : Colors.white.withOpacity(0.85),
+            tooltip: _multiSelectMode
+                ? tr('multiSelectExit')
+                : tr('multiSelect'),
+            onPressed: _shots.isEmpty ? null : _toggleMultiSelect,
           ),
+          if (_multiSelectMode) ...[
+            if (exportShots.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6B5BFF).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  tr('selectedShots', args: ['${exportShots.length}']),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B5BFF),
+                  ),
+                ),
+              ),
+            const SizedBox(width: 4),
+            TextButton(
+              onPressed: exportShots.length == _shots.length
+                  ? _clearSelection
+                  : _selectAllShots,
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+              ),
+              child: Text(
+                exportShots.length == _shots.length
+                    ? tr('selectNone')
+                    : tr('selectAll'),
+                style: const TextStyle(fontSize: 10),
+              ),
+            ),
+          ],
           // LibRaw 版号
           // const Spacer(),
           // Container(
@@ -1067,7 +1241,9 @@ class _DevelopScreenState extends State<DevelopScreen> {
                         ),
                       ),
                       TextSpan(
-                        text: s.mood.isNotEmpty ? s.mood : tr("aiColorSuggestionReady"),
+                        text: s.mood.isNotEmpty
+                            ? s.mood
+                            : tr("aiColorSuggestionReady"),
                         style: const TextStyle(fontSize: 11.5),
                       ),
                     ],

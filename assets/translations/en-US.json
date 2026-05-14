@@ -94,5 +94,14 @@
     "preserveMode": "Sync Mode",
     "isolateMode": "Isolate Mode",
     "preserveModeDescription": "Parameter Sync: Adjust one → sync all shots. Click to switch to Isolate Mode.",
-    "isolateModeDescription": "Parameter Isolate: Each shot is independent. Click to switch to Sync Mode."
+    "isolateModeDescription": "Parameter Isolate: Each shot is independent. Click to switch to Sync Mode.",
+    "multiSelect": "Multi-select Export",
+    "multiSelectExit": "Exit Multi-select",
+    "selectedShots": "{} selected",
+    "selectAll": "Select All",
+    "selectNone": "Clear",
+    "exportBatch": "Batch Export",
+    "exportBatchProgress": "Exporting {} / {}: {}",
+    "exportBatchCompleted": "Exported {} shots · {}s",
+    "noShotsSelected": "No shots selected"
 }

@@ -94,5 +94,14 @@
   "preserveMode": "同步模式",
   "isolateMode": "隔离模式",
   "preserveModeDescription": "参数同步：改一张 → 所有 shot 同步\n点击切换为隔离模式",
-  "isolateModeDescription": "参数隔离：每张 shot 独立\n点击切换为同步模式"
+  "isolateModeDescription": "参数隔离：每张 shot 独立\n点击切换为同步模式",
+  "multiSelect": "多选导出",
+  "multiSelectExit": "退出多选",
+  "selectedShots": "已选 {} 张",
+  "selectAll": "全选",
+  "selectNone": "取消",
+  "exportBatch": "批量导出",
+  "exportBatchProgress": "导出中 {} / {}：{}",
+  "exportBatchCompleted": "已导出 {} 张 · {}s",
+  "noShotsSelected": "未选择任何照片"
 }
