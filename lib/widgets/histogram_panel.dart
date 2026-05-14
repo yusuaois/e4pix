@@ -28,7 +28,7 @@ class Histogram {
       r[ri]++;
       g[gi]++;
       b[bi]++;
-      // Rec.709 
+      // Rec.709
       l[((ri * 54 + gi * 183 + bi * 19) >> 8).clamp(0, 255)]++;
     }
     return Histogram._(r, g, b, l, n);
@@ -95,13 +95,16 @@ class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
   Future<void> _recompute() async {
     if (_computing || widget.sourceImage == null) return;
     _computing = true;
+    final captured = widget.sourceImage!;
     try {
-      final src = widget.sourceImage!;
+      final src = captured;
       // 等比缩到 256 长边
       final scale =
           _thumbDim / (src.width > src.height ? src.width : src.height);
       final w = (src.width * scale).round().clamp(16, _thumbDim);
       final h = (src.height * scale).round().clamp(16, _thumbDim);
+
+      if (!mounted || widget.sourceImage != captured) return;
 
       final rendered = await RenderEngine.renderToImage(
         program: widget.program,
@@ -113,10 +116,12 @@ class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
         targetHeight: h,
       );
       try {
+        if (!mounted || widget.sourceImage != captured) return;
         final bd = await rendered.toByteData(
           format: ui.ImageByteFormat.rawRgba,
         );
         if (bd == null) return;
+        if (!mounted || widget.sourceImage != captured) return;
         final hist = Histogram.fromRgba(bd.buffer.asUint8List());
         if (mounted) setState(() => _hist = hist);
       } finally {

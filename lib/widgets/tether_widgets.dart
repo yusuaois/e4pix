@@ -1,6 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../services/tethered_shot.dart';
+import '../core/models/tethered_shot.dart';
 
 // 顶部状态条
 class TetherStatusBar extends StatelessWidget {

@@ -88,7 +88,7 @@ class TetherWatcher {
         if (!await f.exists()) return false;
         final size = await f.length();
         if (size > 0 && lastSize == size) {
-          if (++stableCount >= 2) return true;
+          if (++stableCount >= 3) return true;
         } else {
           stableCount = 0;
         }

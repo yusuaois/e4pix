@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/develop_screen.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -8,12 +9,14 @@ void main() async {
   await EasyLocalization.ensureInitialized();
 
   runApp(
-    EasyLocalization(
-      // en-US.json, zh-CN.json
-      supportedLocales: [Locale('en', 'US'), Locale('zh', 'CN')],
-      path: 'assets/translations',
-      fallbackLocale: Locale('en', 'US'),
-      child: E4pixApp(),
+    ProviderScope(
+      child: EasyLocalization(
+        // en-US.json, zh-CN.json
+        supportedLocales: [Locale('en', 'US'), Locale('zh', 'CN')],
+        path: 'assets/translations',
+        fallbackLocale: Locale('en', 'US'),
+        child: E4pixApp(),
+      ),
     ),
   );
 }

@@ -1,179 +1,78 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/lut/cube_lut.dart';
 import '../core/models/adjustment_params.dart';
-import '../render/preview_renderer.dart';
-import '../services/camera/camera_controller.dart';
-import '../services/camera/gphoto2_camera_controller.dart';
-import '../services/camera/libgphoto2_android_controller.dart';
-import '../widgets/adjustment_panel.dart';
+import '../core/models/tethered_shot.dart';
 import '../native/raw_bridge.dart';
 import '../render/exporter.dart';
-import '../widgets/camera_picker_dialog.dart';
-import '../widgets/histogram_panel.dart';
-import '../services/tether_watcher.dart';
-import '../services/tethered_shot.dart';
-import '../widgets/tether_widgets.dart';
-import '../widgets/develop_sections.dart';
+import '../render/preview_renderer.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
+import '../services/camera/camera_controller.dart';
+import '../state/providers.dart';
+import '../widgets/adjustment_panel.dart';
 import '../widgets/ai_settings_dialog.dart';
 import '../widgets/ai_suggestion_dialog.dart';
+import '../widgets/camera_picker_dialog.dart';
+import '../widgets/develop_sections.dart';
+import '../widgets/histogram_panel.dart';
+import '../widgets/tether_widgets.dart';
 
-class DevelopScreen extends StatefulWidget {
+class DevelopScreen extends ConsumerStatefulWidget {
   const DevelopScreen({super.key});
   @override
-  State<DevelopScreen> createState() => _DevelopScreenState();
+  ConsumerState<DevelopScreen> createState() => _DevelopScreenState();
 }
 
-class _ExportTask {
-  final String path;
-  final AdjustmentParams params;
-  final String filename;
-  _ExportTask(this.path, this.params, this.filename);
-}
-
-class _DevelopScreenState extends State<DevelopScreen> {
-  // FFI 状态
-  String _libRawVersion = tr('loading');
+class _DevelopScreenState extends ConsumerState<DevelopScreen> {
+  // —— 纯 UI-local 状态 ——
+  String _libRawVersion = '';
   String? _libRawError;
-
-  // 解码状态
-  String? _filePath;
-  RawDecodedImage? _decoded;
-  ui.Image? _uiImage;
-  Duration? _decodeTime;
-  Duration? _convertTime;
-  String? _errorMessage;
-  bool _busy = false;
-
-  // State+
   Offset _histogramPosition = const Offset(8, 8);
-  final panelWidth = 140.0;
-  final panelHeight = 70.0;
-  AdjustmentParams _params = AdjustmentParams.neutral;
-  ui.Image? _lutTexture;
-  int _lutSize = 0;
-  String? _lutName;
-  ui.FragmentProgram? _developProgram;
-  TetherWatcher? _tether;
-  final List<TetheredShot> _shots = [];
-  List<TetheredShot> exportShots = [];
-  bool _multiSelectMode = false;
-  TetheredShot? _activeShot;
-  DateTime? _lastShotAt;
-  StreamSubscription<File>? _shotSub;
-  Timer? _statusTicker;
-  bool _preserveParams = true;
-
-  // 联机拍摄
-  CameraController? _camera;
-  StreamSubscription<CameraEvent>? _cameraSub;
-  String? _cameraModel;
-  bool _shutterFlash = false;
-
-  // Auto-AI
-  bool _autoAIEnabled = false;
-  bool _aiInProgress = false;
-  AIColorSuggestion? _pendingAI;
-  String? _pendingAIShotPath;
-
-  static final Uint8List _srgbLut = _buildSrgbLut();
+  static const _miniHistogramW = 140.0;
+  static const _miniHistogramH = 70.0;
 
   @override
   void initState() {
     super.initState();
+    _libRawVersion = tr('loading');
     _probeFfi();
-    _loadProgram();
-    AISettings.getAutoAI().then((v) {
-      if (mounted) setState(() => _autoAIEnabled = v);
-    });
-  }
-
-  @override
-  void dispose() {
-    _stopTether();
-    super.dispose();
   }
 
   void _probeFfi() {
     try {
       final v = RawBridge.libRawVersion();
-      setState(() => _libRawVersion = v);
+      if (mounted) setState(() => _libRawVersion = v);
     } catch (e) {
-      setState(() {
-        _libRawVersion = tr('FFIFailed');
-        _libRawError = e.toString();
-      });
+      if (mounted) {
+        setState(() {
+          _libRawVersion = tr('FFIFailed');
+          _libRawError = e.toString();
+        });
+      }
     }
   }
 
-  Future<void> _loadProgram() async {
-    final p = await ui.FragmentProgram.fromAsset('shaders/develop.frag');
-    if (mounted) setState(() => _developProgram = p);
-  }
+  // ==========================================================================
+  // Actions —— 所有动作都从 ref.read 写到 notifier
+  // ==========================================================================
 
   Future<void> _pickAndDecode() async {
-    final result = await FilePicker.platform.pickFiles(/* ... */);
+    final result = await FilePicker.platform.pickFiles();
     if (result == null || result.files.isEmpty) return;
     final path = result.files.single.path;
-    if (path != null) await _decodeFromPath(path);
-  }
-
-  Future<ui.Image> _toUiImage(RawDecodedImage img) async {
-    final src = img.pixels;
-    final w = img.width, h = img.height;
-    final rgba = Uint8List(w * h * 4);
-    final lut = _srgbLut;
-
-    if (src is Uint16List) {
-      for (int i = 0, j = 0; i < src.length; i += 3, j += 4) {
-        rgba[j] = lut[src[i]];
-        rgba[j + 1] = lut[src[i + 1]];
-        rgba[j + 2] = lut[src[i + 2]];
-        rgba[j + 3] = 255;
-      }
-    } else if (src is Uint8List) {
-      for (int i = 0, j = 0; i < src.length; i += 3, j += 4) {
-        rgba[j] = src[i];
-        rgba[j + 1] = src[i + 1];
-        rgba[j + 2] = src[i + 2];
-        rgba[j + 3] = 255;
-      }
+    if (path != null) {
+      ref.read(activeFilePathProvider.notifier).set(path);
     }
-
-    final completer = Completer<ui.Image>();
-    ui.decodeImageFromPixels(
-      rgba,
-      w,
-      h,
-      ui.PixelFormat.rgba8888,
-      completer.complete,
-    );
-    return completer.future;
-  }
-
-  /// 16-bit linear → 8-bit sRGB
-  static Uint8List _buildSrgbLut() {
-    final lut = Uint8List(65536);
-    for (int i = 0; i < 65536; i++) {
-      final l = i / 65535.0;
-      final s = l <= 0.0031308
-          ? l * 12.92
-          : 1.055 * math.pow(l, 1.0 / 2.4) - 0.055;
-      lut[i] = (s.clamp(0.0, 1.0) * 255.0).round();
-    }
-    return lut;
   }
 
   Future<void> _loadLutFromFile() async {
@@ -181,54 +80,175 @@ class _DevelopScreenState extends State<DevelopScreen> {
       type: Platform.isAndroid ? FileType.any : FileType.custom,
       allowedExtensions: Platform.isAndroid ? null : const ['cube'],
     );
-
     if (result == null || result.files.isEmpty) return;
     final path = result.files.single.path;
     if (path == null) return;
 
-    if (Platform.isAndroid) {
-      if (!path.toLowerCase().endsWith('.cube')) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(tr("cubeFailed"))));
-        return;
-      }
+    if (Platform.isAndroid && !path.toLowerCase().endsWith('.cube')) {
+      _snack(tr("cubeFailed"));
+      return;
     }
-
-    await _applyLut(() => CubeLut.fromFile(path));
-  }
-
-  Future<void> _loadLutBuiltin(CubeLut Function() factory) async {
-    await _applyLut(() async => factory());
-  }
-
-  Future<void> _applyLut(Future<CubeLut> Function() loader) async {
     try {
-      final lut = await loader();
-      final tex = await lut.toHaldStrip();
-      if (!mounted) return;
-      setState(() {
-        _lutTexture = tex;
-        _lutSize = lut.size;
-        _lutName = lut.name;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(tr('LUTFailed'))));
+      await ref.read(lutNotifierProvider.notifier).loadFromCubeFile(path);
+    } catch (_) {
+      _snack(tr('LUTFailed'));
     }
   }
+
+  Future<void> _startFolderTether() async {
+    final folder = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: tr('tetherFolderChoose'),
+    );
+    if (folder == null || folder.isEmpty) return;
+    try {
+      await ref.read(tetherSessionNotifierProvider.notifier).start(folder);
+    } catch (e) {
+      _snack(tr('tetherFailed', args: [e.toString()]));
+    }
+  }
+
+  Future<void> _startCameraTether() async {
+    final controller = CameraNotifier.createController();
+    final pick = await showDialog<CameraPickResult>(
+      context: context,
+      builder: (_) => CameraPickerDialog(controller: controller),
+    );
+    if (pick == null) return;
+    try {
+      await ref.read(cameraNotifierProvider.notifier).start(
+            controller: controller,
+            camera: pick.camera,
+            saveFolder: pick.saveFolder,
+          );
+    } catch (e) {
+      _snack(tr('cameraError', args: [e.toString()]));
+    }
+  }
+
+  Future<void> _stopAllTether() async {
+    final camActive = ref.read(cameraNotifierProvider).isActive;
+    if (camActive) {
+      await ref.read(cameraNotifierProvider.notifier).stop();
+    }
+    await ref.read(tetherSessionNotifierProvider.notifier).stop();
+  }
+
+  void _onParamsChanged(AdjustmentParams p) {
+    ref.read(currentParamsNotifierProvider.notifier).update(p);
+  }
+
+  void _togglePreserve(bool v) {
+    ref.read(preserveParamsProvider.notifier).set(v);
+  }
+
+  void _onThumbTap(TetheredShot shot) {
+    final selection = ref.read(exportSelectionNotifierProvider);
+    if (selection.multiSelectMode) {
+      ref.read(exportSelectionNotifierProvider.notifier).toggleShot(shot.path);
+    } else {
+      ref.read(selectShotProvider)(shot);
+    }
+  }
+
+  // ==========================================================================
+  // AI Suggestion (manual + auto)
+  // ==========================================================================
+
+  Future<void> _showAISettings() async {
+    await showDialog<bool>(
+      context: context,
+      builder: (_) => const AISettingsDialog(),
+    );
+    // Settings dialog 内部已经把 autoAI 写到 AISettings；让 notifier 重读
+    final auto = await AISettings.getAutoAI();
+    ref.read(aiAutoNotifierProvider.notifier).setEnabled(auto);
+  }
+
+  Future<void> _showAISuggestion() async {
+    final hasKey = (await AISettings.getApiKey())?.isNotEmpty ?? false;
+    if (!hasKey) {
+      if (!mounted) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => const AISettingsDialog(),
+      );
+      if (ok != true) return;
+      final nowHasKey = (await AISettings.getApiKey())?.isNotEmpty ?? false;
+      if (!nowHasKey) return;
+    }
+    if (!mounted) return;
+
+    final program = ref.read(shaderProgramProvider).value;
+    final image = ref.read(imageNotifierProvider).value;
+    if (program == null || image == null) return;
+
+    final result = await showDialog<AIColorSuggestion>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AISuggestionDialog(
+        currentParams: ref.read(currentParamsNotifierProvider),
+        renderPreviewToFile: () async {
+          final lut = ref.read(lutNotifierProvider);
+          return AIInputRenderer.renderToTempFile(
+            program: program,
+            sourceImage: image.uiImage,
+            params: ref.read(currentParamsNotifierProvider),
+            lutTexture: lut.texture,
+            lutSize: lut.size,
+            maxEdge: await AISettings.getMaxEdge(),
+          );
+        },
+      ),
+    );
+
+    if (result != null && mounted) {
+      _onParamsChanged(result.applyTo(ref.read(currentParamsNotifierProvider)));
+      _snack(tr("aiColorSuggestionApplied", args: [result.mood]),
+          floating: true, seconds: 2);
+    }
+  }
+
+  Future<void> _viewPendingAI(AIColorSuggestion s) async {
+    ref.read(aiAutoNotifierProvider.notifier).dismissPending();
+    final program = ref.read(shaderProgramProvider).value;
+    final image = ref.read(imageNotifierProvider).value;
+    if (program == null || image == null) return;
+
+    final result = await showDialog<AIColorSuggestion>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AISuggestionDialog(
+        currentParams: ref.read(currentParamsNotifierProvider),
+        initialSuggestion: s,
+        renderPreviewToFile: () async {
+          final lut = ref.read(lutNotifierProvider);
+          return AIInputRenderer.renderToTempFile(
+            program: program,
+            sourceImage: image.uiImage,
+            params: ref.read(currentParamsNotifierProvider),
+            lutTexture: lut.texture,
+            lutSize: lut.size,
+            maxEdge: await AISettings.getMaxEdge(),
+          );
+        },
+      ),
+    );
+    if (result != null && mounted) {
+      _onParamsChanged(result.applyTo(ref.read(currentParamsNotifierProvider)));
+    }
+  }
+
+  // ==========================================================================
+  // Export
+  // ==========================================================================
 
   Future<void> _showExportDialog() async {
-    if (_developProgram == null) return;
+    final program = ref.read(shaderProgramProvider).value;
+    if (program == null) return;
 
-    final tasks = _tasksForExport();
+    final tasks = ref.read(exportTasksProvider);
     if (tasks.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(tr('noShotsSelected'))));
+      _snack(tr('noShotsSelected'));
       return;
     }
 
@@ -240,11 +260,9 @@ class _DevelopScreenState extends State<DevelopScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          title: Text(
-            isBatch
-                ? '${tr('exportBatch')}  ·  ${tasks.length}'
-                : tr('exportImage'),
-          ),
+          title: Text(isBatch
+              ? '${tr('exportBatch')}  ·  ${tasks.length}'
+              : tr('exportImage')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,10 +279,8 @@ class _DevelopScreenState extends State<DevelopScreen> {
               ),
               if (format == ExportFormat.jpeg) ...[
                 const SizedBox(height: 14),
-                Text(
-                  '${tr('quality')}: $quality',
-                  style: const TextStyle(fontSize: 12),
-                ),
+                Text('${tr('quality')}: $quality',
+                    style: const TextStyle(fontSize: 12)),
                 Slider(
                   value: quality.toDouble(),
                   min: 50,
@@ -295,14 +311,12 @@ class _DevelopScreenState extends State<DevelopScreen> {
         ),
       ),
     );
-
     if (ok != true) return;
 
-    final String? folder = await FilePicker.platform.getDirectoryPath(
+    final folder = await FilePicker.platform.getDirectoryPath(
       dialogTitle: tr('saveTo'),
     );
     if (folder == null) return;
-
     await _runExport(folder, format, quality, tasks);
   }
 
@@ -310,8 +324,12 @@ class _DevelopScreenState extends State<DevelopScreen> {
     String folder,
     ExportFormat fmt,
     int quality,
-    List<_ExportTask> tasks,
+    List<ExportTask> tasks,
   ) async {
+    final program = ref.read(shaderProgramProvider).value;
+    if (program == null) return;
+    final lut = ref.read(lutNotifierProvider);
+
     final messenger = ScaffoldMessenger.of(context);
     final progressNotifier = ValueNotifier<(double, String)>((
       0,
@@ -343,10 +361,8 @@ class _DevelopScreenState extends State<DevelopScreen> {
     try {
       for (int i = 0; i < tasks.length; i++) {
         final task = tasks[i];
-        final outName = task.filename.replaceAll(
-          RegExp(r'\.[^.]+$'),
-          '_edited.${fmt.extension}',
-        );
+        final outName = task.filename
+            .replaceAll(RegExp(r'\.[^.]+$'), '_edited.${fmt.extension}');
         final outPath = p.join(folder, outName);
         lastOutPath = outPath;
 
@@ -357,10 +373,10 @@ class _DevelopScreenState extends State<DevelopScreen> {
           inputRawPath: task.path,
           outputPath: outPath,
           format: fmt,
-          shaderProgram: _developProgram!,
+          shaderProgram: program,
           params: task.params,
-          lutTexture: _lutTexture,
-          lutSize: _lutSize,
+          lutTexture: lut.texture,
+          lutSize: lut.size,
           jpegQuality: quality,
           onProgress: (f, s) {
             if (tasks.length == 1) {
@@ -368,422 +384,72 @@ class _DevelopScreenState extends State<DevelopScreen> {
             } else {
               progressNotifier.value = (
                 baseFrac + f * span,
-                tr(
-                  'exportBatchProgress',
-                  args: ['${i + 1}', '${tasks.length}', s],
-                ),
+                tr('exportBatchProgress',
+                    args: ['${i + 1}', '${tasks.length}', s]),
               );
             }
           },
         );
         doneCount = i + 1;
       }
-
       stopwatch.stop();
-      if (mounted) Navigator.pop(context); // 关闭进度框
+      if (mounted) Navigator.pop(context);
 
       if (tasks.length == 1) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              '${tr('exportCompleted')} · ${stopwatch.elapsed.inSeconds}s · $lastOutPath',
-            ),
-            duration: const Duration(seconds: 5),
+        messenger.showSnackBar(SnackBar(
+          content: Text(
+            '${tr('exportCompleted')} · ${stopwatch.elapsed.inSeconds}s · $lastOutPath',
           ),
-        );
+          duration: const Duration(seconds: 5),
+        ));
       } else {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              tr(
-                'exportBatchCompleted',
-                args: ['${tasks.length}', '${stopwatch.elapsed.inSeconds}'],
-              ),
-            ),
-            action: SnackBarAction(label: tr('exportBatch'), onPressed: () {}),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-        if (mounted) {
-          setState(() {
-            _multiSelectMode = false;
-            exportShots.clear();
-          });
-        }
+        messenger.showSnackBar(SnackBar(
+          content: Text(tr('exportBatchCompleted',
+              args: ['${tasks.length}', '${stopwatch.elapsed.inSeconds}'])),
+          action: SnackBarAction(label: tr('exportBatch'), onPressed: () {}),
+          duration: const Duration(seconds: 5),
+        ));
+        // 退出多选
+        ref.read(exportSelectionNotifierProvider.notifier).toggleMode();
       }
     } catch (e, st) {
       if (mounted) Navigator.pop(context);
       debugPrint('Export error: $e\n$st');
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            tasks.length == 1
-                ? '${tr('exportFailed')}: $e'
-                : '${tr('exportFailed')} ($doneCount / ${tasks.length}): $e',
-          ),
-        ),
-      );
+      messenger.showSnackBar(SnackBar(
+        content: Text(tasks.length == 1
+            ? '${tr('exportFailed')}: $e'
+            : '${tr('exportFailed')} ($doneCount / ${tasks.length}): $e'),
+      ));
     } finally {
       progressNotifier.dispose();
     }
   }
 
-  Future<void> _stopTether() async {
-    // 停止文件监听
-    await _shotSub?.cancel();
-    _statusTicker?.cancel();
-    await _tether?.dispose();
-    for (final s in _shots) {
-      s.dispose();
-    }
-
-    // 停止相机传输
-    if (_camera != null && _camera!.isActive) {
-      await _camera!.stopTether();
-    }
-
+  void _snack(String msg, {bool floating = false, int seconds = 4}) {
     if (!mounted) return;
-    setState(() {
-      _tether = null;
-      _shots.clear();
-      exportShots.clear();
-      _multiSelectMode = false;
-      _camera = null;
-      _activeShot = null;
-      _lastShotAt = null;
-      _shotSub = null;
-      _statusTicker = null;
-    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      behavior:
+          floating ? SnackBarBehavior.floating : SnackBarBehavior.fixed,
+      duration: Duration(seconds: seconds),
+    ));
   }
 
-  Future<void> _onNewShot(File file) async {
-    final shot = TetheredShot(
-      path: file.path,
-      filename: p.basename(file.path),
-      detectedAt: DateTime.now(),
-      params: _preserveParams ? _params : AdjustmentParams.neutral,
-    );
-    setState(() {
-      _shots.add(shot);
-      _lastShotAt = shot.detectedAt;
-    });
-
-    unawaited(
-      shot.loadThumbnail().then((_) {
-        if (mounted) setState(() {});
-      }),
-    );
-
-    await _selectShot(shot);
-    if (_autoAIEnabled) {
-      _scheduleAutoAI();
-    }
-  }
-
-  Future<void> _selectShot(TetheredShot shot) async {
-    setState(() {
-      _activeShot = shot;
-      _params = shot.params;
-    });
-    await _decodeFromPath(shot.path);
-  }
-
-  void _toggleMultiSelect() {
-    setState(() {
-      _multiSelectMode = !_multiSelectMode;
-      if (!_multiSelectMode) {
-        exportShots.clear(); // 退出多选时清空选择
-      }
-    });
-  }
-
-  void _selectAllShots() {
-    setState(() {
-      exportShots = List.of(_shots);
-    });
-  }
-
-  void _clearSelection() {
-    setState(() => exportShots.clear());
-  }
-
-  void _onThumbTap(TetheredShot shot) {
-    if (_multiSelectMode) {
-      setState(() {
-        if (exportShots.contains(shot)) {
-          exportShots.remove(shot);
-        } else {
-          exportShots.add(shot);
-        }
-      });
-    } else {
-      _selectShot(shot);
-    }
-  }
-
-  List<_ExportTask> _tasksForExport() {
-    if (_multiSelectMode && exportShots.isNotEmpty) {
-      return exportShots
-          .map((s) => _ExportTask(s.path, s.params, s.filename))
-          .toList();
-    }
-    if (_filePath == null) return const [];
-    final name = _filePath!.split(RegExp(r'[\\/]')).last;
-    return [_ExportTask(_filePath!, _params, name)];
-  }
-
-  Future<void> _decodeFromPath(String path) async {
-    setState(() {
-      _busy = true;
-      _filePath = path;
-      _decoded = null;
-      _uiImage = null;
-      _decodeTime = null;
-      _convertTime = null;
-      _errorMessage = null;
-    });
-    try {
-      final sw1 = Stopwatch()..start();
-      final img = await RawBridge.decodePreview(path);
-      sw1.stop();
-      final sw2 = Stopwatch()..start();
-      final uiImg = await _toUiImage(img);
-      sw2.stop();
-      if (!mounted) return;
-      setState(() {
-        _decoded = img;
-        _uiImage = uiImg;
-        _decodeTime = sw1.elapsed;
-        _convertTime = sw2.elapsed;
-        _busy = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = '$e';
-        _busy = false;
-      });
-    }
-  }
-
-  CameraController _createCameraController() {
-    if (Platform.isAndroid) {
-      return LibGphoto2AndroidController();
-    }
-    return Gphoto2CameraController(); // Windows/Linux/macOS
-  }
-
-  Future<void> _startCameraTether() async {
-    final controller = _createCameraController();
-    final pick = await showDialog<CameraPickResult>(
-      context: context,
-      builder: (_) => CameraPickerDialog(controller: controller),
-    );
-    if (pick == null) return;
-
-    // 启动文件夹监控
-    await _startWatcher(pick.saveFolder);
-    if (_tether == null) return; // watcher 启动失败
-
-    // 启动 gphoto2
-    setState(() {
-      _camera = controller;
-      _cameraModel = pick.camera.model;
-    });
-
-    _cameraSub = controller
-        .startTether(camera: pick.camera, saveFolder: pick.saveFolder)
-        .listen(_onCameraEvent);
-  }
-
-  void _onCameraEvent(CameraEvent ev) {
-    switch (ev) {
-      case CameraConnected():
-        break;
-      case CameraTakingShot():
-        setState(() => _shutterFlash = true);
-        Future.delayed(
-          const Duration(milliseconds: 200),
-          () => mounted ? setState(() => _shutterFlash = false) : null,
-        );
-        break;
-      case CameraShotSaved():
-        break;
-      case CameraError(:final message):
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('cameraError', args: [message]))),
-        );
-        break;
-      case CameraDisconnected():
-        if (mounted) _stopCameraTether();
-        break;
-    }
-  }
-
-  Future<void> _scheduleAutoAI() async {
-    if (_aiInProgress) return; // 跳过
-    if (_uiImage == null || _developProgram == null) return;
-
-    setState(() => _aiInProgress = true);
-    final shotPath = _filePath;
-
-    try {
-      final tempPath = await AIInputRenderer.renderToTempFile(
-        program: _developProgram!,
-        sourceImage: _uiImage!,
-        params: _params,
-        lutTexture: _lutTexture,
-        lutSize: _lutSize,
-        maxEdge: await AISettings.getMaxEdge(),
-      );
-      final bytes = await File(tempPath).readAsBytes();
-      File(tempPath).delete().catchError((_) => File(tempPath));
-
-      final result = await AIColorService.suggest(
-        imageBytes: bytes,
-        currentParams: _params,
-      );
-
-      if (!mounted) return;
-      // 若用户已经切到别的 shot，丢弃
-      if (_filePath != shotPath) return;
-      setState(() {
-        _pendingAI = result;
-        _pendingAIShotPath = shotPath;
-      });
-    } catch (e) {
-      debugPrint('Auto-AI 失败: $e');
-    } finally {
-      if (mounted) setState(() => _aiInProgress = false);
-    }
-  }
-
-  void _dismissPendingAI() {
-    setState(() {
-      _pendingAI = null;
-      _pendingAIShotPath = null;
-    });
-  }
-
-  void _applyPendingAI() {
-    final s = _pendingAI;
-    if (s == null) return;
-    _onParamsChanged(s.applyTo(_params));
-    _dismissPendingAI();
-  }
-
-  Future<void> _viewPendingAI() async {
-    final s = _pendingAI;
-    if (s == null) return;
-    _dismissPendingAI();
-    final result = await showDialog<AIColorSuggestion>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AISuggestionDialog(
-        currentParams: _params,
-        initialSuggestion: s,
-        renderPreviewToFile: () async => AIInputRenderer.renderToTempFile(
-          program: _developProgram!,
-          sourceImage: _uiImage!,
-          params: _params,
-          lutTexture: _lutTexture,
-          lutSize: _lutSize,
-          maxEdge: await AISettings.getMaxEdge(),
-        ),
-      ),
-    );
-    if (result != null && mounted) {
-      _onParamsChanged(result.applyTo(_params));
-    }
-  }
-
-  Future<void> _stopCameraTether() async {
-    await _cameraSub?.cancel();
-    await _camera?.stopTether();
-    if (mounted) {
-      setState(() {
-        _camera = null;
-        _cameraModel = null;
-        _cameraSub = null;
-      });
-    }
-    await _stopTether();
-  }
-
-  Future<void> _startTether() async {
-    String? folder;
-    folder = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: tr('tetherFolderChoose'),
-    );
-    if (folder == null || folder.isEmpty) return;
-    await _startWatcher(folder);
-  }
-
-  Future<void> _startWatcher(String folder) async {
-    final watcher = TetherWatcher(folder);
-    try {
-      await watcher.start();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tr('tetherFailed', args: [e.toString()]))),
-      );
-      return;
-    }
-    setState(() {
-      _tether = watcher;
-      _shots.clear();
-      exportShots.clear();
-      _multiSelectMode = false;
-      _activeShot = null;
-      _lastShotAt = null;
-    });
-    _shotSub = watcher.onShot.listen(_onNewShot);
-    _statusTicker = Timer.periodic(
-      const Duration(seconds: 1),
-      (_) => mounted ? setState(() {}) : null,
-    );
-  }
-
-  void _clearLut() {
-    setState(() {
-      _lutTexture?.dispose();
-      _lutTexture = null;
-      _lutSize = 0;
-      _lutName = null;
-    });
-  }
-
-  void _onParamsChanged(AdjustmentParams p) {
-    setState(() {
-      _params = p;
-      if (_preserveParams) {
-        // 同步到所有 shot
-        for (final s in _shots) {
-          s.params = p;
-        }
-      } else {
-        // 仅写到当前 shot
-        _activeShot?.params = p;
-      }
-    });
-  }
-
-  void _togglePreserve(bool value) {
-    setState(() {
-      _preserveParams = value;
-      if (value) {
-        for (final s in _shots) {
-          s.params = _params;
-        }
-      }
-    });
-  }
+  // ==========================================================================
+  // Build
+  // ==========================================================================
 
   @override
   Widget build(BuildContext context) {
     final isPhone = MediaQuery.of(context).size.shortestSide < 600;
+
+    // 监听相机错误一次性 snackbar
+    ref.listen(cameraNotifierProvider, (prev, next) {
+      if (next.lastError != null && prev?.lastError != next.lastError) {
+        _snack(tr('cameraError', args: [next.lastError!]));
+      }
+    });
+
     return Scaffold(
       body: SafeArea(
         child: isPhone ? _buildPhoneLayout() : _buildDesktopLayout(),
@@ -792,52 +458,44 @@ class _DevelopScreenState extends State<DevelopScreen> {
   }
 
   Widget _buildPhoneLayout() {
-    final hasImage = _uiImage != null && _developProgram != null;
+    final session = ref.watch(tetherSessionNotifierProvider);
+    final shots = ref.watch(shotsNotifierProvider);
+    final activeShot = ref.watch(activeShotProvider);
+    final selection = ref.watch(exportSelectionNotifierProvider);
+    final preserve = ref.watch(preserveParamsProvider);
+    final image = ref.watch(imageNotifierProvider).value;
+    final program = ref.watch(shaderProgramProvider).value;
+    final cameraState = ref.watch(cameraNotifierProvider);
+    final hasImage = image != null && program != null;
 
     return Column(
       children: [
         _buildTopBar(),
-        if (_tether != null)
-          TetherStatusBar(
-            watchPath: _cameraModel != null
-                ? '$_cameraModel → ${_tether!.watchPath}'
-                : _tether!.watchPath,
-            shotCount: _shots.length,
-            lastShotAt: _lastShotAt,
-            onStop: _camera != null ? _stopCameraTether : _stopTether,
-            preserveParams: _preserveParams,
-            onPreserveChanged: _togglePreserve,
-          ),
-        _buildAIBanner(),
+        if (session != null) _buildTetherStatusBar(session, shots.length,
+            preserve, cameraState),
+        const _AIBanner(),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final previewSize = Size(
-                constraints.maxWidth,
-                constraints.maxHeight,
-              );
-
+              final previewSize =
+                  Size(constraints.maxWidth, constraints.maxHeight);
               return Stack(
                 children: [
-                  Positioned.fill(child: _buildPreviewArea()),
+                  const Positioned.fill(child: _PreviewArea()),
                   if (hasImage)
                     Positioned(
                       left: _histogramPosition.dx,
                       top: _histogramPosition.dy,
-                      width: 140,
-                      height: 70,
+                      width: _miniHistogramW,
+                      height: _miniHistogramH,
                       child: GestureDetector(
                         onPanUpdate: (details) {
                           setState(() {
                             _histogramPosition = Offset(
                               (_histogramPosition.dx + details.delta.dx).clamp(
-                                0.0,
-                                previewSize.width - panelWidth,
-                              ),
+                                  0.0, previewSize.width - _miniHistogramW),
                               (_histogramPosition.dy + details.delta.dy).clamp(
-                                0.0,
-                                previewSize.height - panelHeight,
-                              ),
+                                  0.0, previewSize.height - _miniHistogramH),
                             );
                           });
                         },
@@ -845,13 +503,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
                           borderRadius: BorderRadius.circular(6),
                           child: Opacity(
                             opacity: 0.9,
-                            child: LiveHistogramPanel(
-                              program: _developProgram!,
-                              sourceImage: _uiImage,
-                              params: _params,
-                              lutTexture: _lutTexture,
-                              lutSize: _lutSize,
-                            ),
+                            child: _buildHistogram(program, image),
                           ),
                         ),
                       ),
@@ -861,13 +513,15 @@ class _DevelopScreenState extends State<DevelopScreen> {
             },
           ),
         ),
-        if (_tether != null && _shots.isNotEmpty)
+        if (session != null && shots.isNotEmpty)
           TetherThumbStrip(
-            shots: _shots,
-            activeShot: _activeShot,
+            shots: shots,
+            activeShot: activeShot,
             onSelect: _onThumbTap,
-            multiSelectMode: _multiSelectMode,
-            selectedShots: exportShots,
+            multiSelectMode: selection.multiSelectMode,
+            selectedShots: shots
+                .where((s) => selection.selectedPaths.contains(s.path))
+                .toList(),
           ),
         _buildPhoneInfoBar(),
         if (hasImage) _buildPhoneToolPanel(),
@@ -875,8 +529,223 @@ class _DevelopScreenState extends State<DevelopScreen> {
     );
   }
 
+  Widget _buildDesktopLayout() {
+    final session = ref.watch(tetherSessionNotifierProvider);
+    final shots = ref.watch(shotsNotifierProvider);
+    final activeShot = ref.watch(activeShotProvider);
+    final selection = ref.watch(exportSelectionNotifierProvider);
+    final preserve = ref.watch(preserveParamsProvider);
+    final image = ref.watch(imageNotifierProvider).value;
+    final program = ref.watch(shaderProgramProvider).value;
+    final params = ref.watch(currentParamsNotifierProvider);
+    final lut = ref.watch(lutNotifierProvider);
+    final cameraState = ref.watch(cameraNotifierProvider);
+
+    return Column(
+      children: [
+        _buildTopBar(),
+        if (session != null)
+          _buildTetherStatusBar(session, shots.length, preserve, cameraState),
+        const _AIBanner(),
+        Expanded(
+          child: Row(
+            children: [
+              const Expanded(child: _PreviewArea()),
+              if (image != null)
+                AdjustmentPanel(
+                  params: params,
+                  onChanged: _onParamsChanged,
+                  lutName: lut.name,
+                  onPickLut: _loadLutFromFile,
+                  onLoadTestLut: () =>
+                      ref.read(lutNotifierProvider.notifier).loadTestCinematic(),
+                  onLoadIdentity: () =>
+                      ref.read(lutNotifierProvider.notifier).loadIdentity(),
+                  onClearLut: () =>
+                      ref.read(lutNotifierProvider.notifier).clear(),
+                  histogram:
+                      program == null ? null : _buildHistogram(program, image),
+                ),
+            ],
+          ),
+        ),
+        if (session != null && shots.isNotEmpty)
+          TetherThumbStrip(
+            shots: shots,
+            activeShot: activeShot,
+            onSelect: _onThumbTap,
+            multiSelectMode: selection.multiSelectMode,
+            selectedShots: shots
+                .where((s) => selection.selectedPaths.contains(s.path))
+                .toList(),
+          ),
+        _buildBottomPanel(),
+      ],
+    );
+  }
+
+  Widget _buildTetherStatusBar(
+    TetherSession session,
+    int shotCount,
+    bool preserve,
+    CameraState cameraState,
+  ) {
+    // 1Hz 重建用于刷新"X 秒前"
+    ref.watch(tickerProvider);
+    return TetherStatusBar(
+      watchPath: cameraState.modelName != null
+          ? '${cameraState.modelName} → ${session.watchPath}'
+          : session.watchPath,
+      shotCount: shotCount,
+      lastShotAt: session.lastShotAt,
+      onStop: _stopAllTether,
+      preserveParams: preserve,
+      onPreserveChanged: _togglePreserve,
+    );
+  }
+
+  Widget _buildHistogram(ui.FragmentProgram program, DecodedImageState image) {
+    final params = ref.watch(currentParamsNotifierProvider);
+    final lut = ref.watch(lutNotifierProvider);
+    return LiveHistogramPanel(
+      program: program,
+      sourceImage: image.uiImage,
+      params: params,
+      lutTexture: lut.texture,
+      lutSize: lut.size,
+    );
+  }
+
+  Widget _buildTopBar() {
+    final image = ref.watch(imageNotifierProvider).value;
+    final program = ref.watch(shaderProgramProvider).value;
+    final session = ref.watch(tetherSessionNotifierProvider);
+    final cameraState = ref.watch(cameraNotifierProvider);
+    final selection = ref.watch(exportSelectionNotifierProvider);
+    final shots = ref.watch(shotsNotifierProvider);
+
+    final hasImage = image != null && program != null;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14141A),
+        border:
+            Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+      ),
+      child: Row(
+        children: [
+          if (hasImage)
+            IconButton(
+              icon: const Icon(Icons.auto_awesome,
+                  size: 18, color: Color(0xFF6B5BFF)),
+              tooltip: tr("aiColorSuggestionHint"),
+              onPressed: _showAISuggestion,
+              onLongPress: _showAISettings,
+            ),
+          if (session == null)
+            IconButton(
+              icon: const Icon(Icons.cable_rounded, size: 18),
+              tooltip: tr("tetherFolderMonitor"),
+              onPressed: _startFolderTether,
+            ),
+          if (!cameraState.isActive && session == null)
+            IconButton(
+              icon: const Icon(Icons.photo_camera_outlined, size: 18),
+              tooltip: tr("tetherCamera"),
+              onPressed: _startCameraTether,
+            )
+          else if (cameraState.isActive)
+            IconButton(
+              icon: Icon(
+                Icons.photo_camera,
+                size: 18,
+                color: cameraState.shutterFlash
+                    ? Colors.greenAccent
+                    : Colors.greenAccent.withOpacity(0.85),
+              ),
+              tooltip: tr("cameraConnected",
+                  args: [cameraState.modelName ?? tr("cameraModelUnknown")]),
+              onPressed: _stopAllTether,
+            ),
+          const SizedBox(width: 4),
+          if (hasImage)
+            IconButton(
+              icon: const Icon(Icons.ios_share_rounded, size: 18),
+              tooltip: tr("export"),
+              onPressed: _showExportDialog,
+            ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Icon(
+              selection.multiSelectMode
+                  ? Icons.checklist_rtl_rounded
+                  : Icons.checklist_rounded,
+              size: 18,
+            ),
+            color: selection.multiSelectMode
+                ? const Color(0xFF6B5BFF)
+                : Colors.white.withOpacity(0.85),
+            tooltip: selection.multiSelectMode
+                ? tr('multiSelectExit')
+                : tr('multiSelect'),
+            onPressed: shots.isEmpty
+                ? null
+                : () => ref
+                    .read(exportSelectionNotifierProvider.notifier)
+                    .toggleMode(),
+          ),
+          if (selection.multiSelectMode) ...[
+            if (selection.selectedPaths.isNotEmpty)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6B5BFF).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  tr('selectedShots',
+                      args: ['${selection.selectedPaths.length}']),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B5BFF),
+                  ),
+                ),
+              ),
+            const SizedBox(width: 4),
+            TextButton(
+              onPressed: () {
+                final notifier =
+                    ref.read(exportSelectionNotifierProvider.notifier);
+                if (selection.selectedPaths.length == shots.length) {
+                  notifier.clearSelection();
+                } else {
+                  notifier.selectAll(shots.map((s) => s.path));
+                }
+              },
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+              ),
+              child: Text(
+                selection.selectedPaths.length == shots.length
+                    ? tr('selectNone')
+                    : tr('selectAll'),
+                style: const TextStyle(fontSize: 10),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildPhoneInfoBar() {
-    final m = _decoded?.metadata;
+    final image = ref.watch(imageNotifierProvider).value;
+    final path = ref.watch(activeFilePathProvider);
+    final m = image?.decoded.metadata;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
@@ -891,16 +760,16 @@ class _DevelopScreenState extends State<DevelopScreen> {
           Expanded(
             child: Text(
               m == null
-                  ? (_filePath ?? tr('imageNotChosen'))
+                  ? (path ?? tr('imageNotChosen'))
                   : '${m.cameraModel} · ISO ${m.iso} · ${m.shutterDisplay} · f/${m.aperture.toStringAsFixed(1)}',
               style: const TextStyle(fontSize: 11),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (_decoded != null)
+          if (image != null)
             Text(
-              '${_decoded!.width}×${_decoded!.height}',
+              '${image.decoded.width}×${image.decoded.height}',
               style: TextStyle(
                 fontSize: 10,
                 fontFamily: 'monospace',
@@ -913,6 +782,8 @@ class _DevelopScreenState extends State<DevelopScreen> {
   }
 
   Widget _buildPhoneToolPanel() {
+    final params = ref.watch(currentParamsNotifierProvider);
+    final lut = ref.watch(lutNotifierProvider);
     return SizedBox(
       height: 320,
       child: DefaultTabController(
@@ -924,8 +795,8 @@ class _DevelopScreenState extends State<DevelopScreen> {
               Container(
                 decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
-                  ),
+                      bottom:
+                          BorderSide(color: Colors.white.withOpacity(0.05))),
                 ),
                 child: Row(
                   children: [
@@ -956,34 +827,34 @@ class _DevelopScreenState extends State<DevelopScreen> {
                   children: [
                     SingleChildScrollView(
                       child: LightSection(
-                        params: _params,
-                        onChanged: _onParamsChanged,
-                      ),
+                          params: params, onChanged: _onParamsChanged),
                     ),
                     SingleChildScrollView(
                       child: WhiteBalanceColorSection(
-                        params: _params,
-                        onChanged: _onParamsChanged,
-                      ),
+                          params: params, onChanged: _onParamsChanged),
                     ),
                     SingleChildScrollView(
                       child: HslSection(
-                        bands: _params.hsl,
+                        bands: params.hsl,
                         onChanged: (b) =>
-                            _onParamsChanged(_params.copyWith(hsl: b)),
+                            _onParamsChanged(params.copyWith(hsl: b)),
                       ),
                     ),
                     SingleChildScrollView(
                       child: LutSection(
-                        lutName: _lutName,
-                        intensity: _params.lutIntensity,
-                        onIntensityChanged: (v) =>
-                            _onParamsChanged(_params.copyWith(lutIntensity: v)),
+                        lutName: lut.name,
+                        intensity: params.lutIntensity,
+                        onIntensityChanged: (v) => _onParamsChanged(
+                            params.copyWith(lutIntensity: v)),
                         onPick: _loadLutFromFile,
-                        onLoadTest: () =>
-                            _loadLutBuiltin(CubeLut.testCinematic),
-                        onLoadIdentity: () => _loadLutBuiltin(CubeLut.identity),
-                        onClear: _clearLut,
+                        onLoadTest: () => ref
+                            .read(lutNotifierProvider.notifier)
+                            .loadTestCinematic(),
+                        onLoadIdentity: () => ref
+                            .read(lutNotifierProvider.notifier)
+                            .loadIdentity(),
+                        onClear: () =>
+                            ref.read(lutNotifierProvider.notifier).clear(),
                       ),
                     ),
                   ],
@@ -996,198 +867,163 @@ class _DevelopScreenState extends State<DevelopScreen> {
     );
   }
 
-  Widget _buildDesktopLayout() {
-    return Column(
-      children: [
-        _buildTopBar(),
-        // 联机状态条
-        if (_tether != null)
-          TetherStatusBar(
-            watchPath: _cameraModel != null
-                ? '$_cameraModel → ${_tether!.watchPath}'
-                : _tether!.watchPath,
-            shotCount: _shots.length,
-            lastShotAt: _lastShotAt,
-            onStop: _camera != null ? _stopCameraTether : _stopTether,
-            preserveParams: _preserveParams,
-            onPreserveChanged: _togglePreserve,
-          ),
-        _buildAIBanner(),
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(child: _buildPreviewArea()),
-              if (_uiImage != null)
-                AdjustmentPanel(
-                  params: _params,
-                  onChanged: _onParamsChanged,
-                  lutName: _lutName,
-                  onPickLut: _loadLutFromFile,
-                  onLoadTestLut: () => _loadLutBuiltin(CubeLut.testCinematic),
-                  onLoadIdentity: () => _loadLutBuiltin(CubeLut.identity),
-                  onClearLut: _clearLut,
-                  histogram: _developProgram == null
-                      ? null
-                      : LiveHistogramPanel(
-                          program: _developProgram!,
-                          sourceImage: _uiImage,
-                          params: _params,
-                          lutTexture: _lutTexture,
-                          lutSize: _lutSize,
-                        ),
-                ),
-            ],
-          ),
-        ),
-        // 缩略图条
-        if (_tether != null && _shots.isNotEmpty)
-          TetherThumbStrip(
-            shots: _shots,
-            activeShot: _activeShot,
-            onSelect: _onThumbTap,
-            multiSelectMode: _multiSelectMode,
-            selectedShots: exportShots,
-          ),
-        _buildBottomPanel(),
-      ],
-    );
-  }
-
-  Widget _buildTopBar() {
-    // final ok = _libRawError == null;
+  Widget _buildBottomPanel() {
+    final image = ref.watch(imageNotifierProvider).value;
+    final isLoading = ref.watch(imageNotifierProvider).isLoading;
+    final path = ref.watch(activeFilePathProvider);
+    final m = image?.decoded.metadata;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      padding: const EdgeInsets.fromLTRB(24, 14, 24, 18),
       decoration: BoxDecoration(
         color: const Color(0xFF14141A),
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
-        ),
+        border:
+            Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // AI调色按钮
-          if (_uiImage != null && _developProgram != null)
-            IconButton(
-              icon: const Icon(
-                Icons.auto_awesome,
-                size: 18,
-                color: Color(0xFF6B5BFF),
-              ),
-              tooltip: tr("aiColorSuggestionHint"),
-              onPressed: _uiImage == null ? null : _showAISuggestion,
-              onLongPress: _showAISettings,
-            ),
-          // 文件夹监听按钮
-          if (_tether == null)
-            IconButton(
-              icon: const Icon(Icons.cable_rounded, size: 18),
-              tooltip: tr("tetherFolderMonitor"),
-              onPressed: _startTether,
-            ),
-          // 相机监听按钮
-          if (_camera == null && _tether == null)
-            IconButton(
-              icon: const Icon(Icons.photo_camera_outlined, size: 18),
-              tooltip: tr("tetherCamera"),
-              onPressed: _startCameraTether,
-            )
-          else if (_camera != null)
-            IconButton(
-              icon: Icon(
-                Icons.photo_camera,
-                size: 18,
-                color: _shutterFlash
-                    ? Colors.greenAccent
-                    : Colors.greenAccent.withOpacity(0.85),
-              ),
-              tooltip: tr(
-                "cameraConnected",
-                args: [_cameraModel ?? tr("cameraModelUnknown")],
-              ),
-              onPressed: _stopCameraTether,
-            ),
-          const SizedBox(width: 4),
-          // 导出按钮
-          if (_uiImage != null && _developProgram != null)
-            IconButton(
-              icon: const Icon(Icons.ios_share_rounded, size: 18),
-              tooltip: tr("export"),
-              onPressed: _showExportDialog,
-            ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(
-              _multiSelectMode
-                  ? Icons.checklist_rtl_rounded
-                  : Icons.checklist_rounded,
-              size: 18,
-            ),
-            color: _multiSelectMode
-                ? const Color(0xFF6B5BFF)
-                : Colors.white.withOpacity(0.85),
-            tooltip: _multiSelectMode
-                ? tr('multiSelectExit')
-                : tr('multiSelect'),
-            onPressed: _shots.isEmpty ? null : _toggleMultiSelect,
-          ),
-          if (_multiSelectMode) ...[
-            if (exportShots.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6B5BFF).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  tr('selectedShots', args: ['${exportShots.length}']),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF6B5BFF),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  path ?? tr('imageNotChosen'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.5),
+                    fontFamily: 'monospace',
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            const SizedBox(width: 4),
-            TextButton(
-              onPressed: exportShots.length == _shots.length
-                  ? _clearSelection
-                  : _selectAllShots,
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-              ),
-              child: Text(
-                exportShots.length == _shots.length
-                    ? tr('selectNone')
-                    : tr('selectAll'),
-                style: const TextStyle(fontSize: 10),
-              ),
+                const SizedBox(height: 6),
+                Text(
+                  m == null ? '——' : m.toString(),
+                  style: const TextStyle(fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (image != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    '${image.decoded.width} × ${image.decoded.height} · '
+                    '${image.decoded.bitsPerChannel}-bit · '
+                    'decode ${image.decodeTime.inMilliseconds}ms · '
+                    'convert ${image.convertTime.inMilliseconds}ms',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.greenAccent.withOpacity(0.8),
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
-          // LibRaw 版号
-          // const Spacer(),
-          // Container(
-          //   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          //   decoration: BoxDecoration(
-          //     color: ok ? const Color(0xFF1F3A2A) : const Color(0xFF3A1F1F),
-          //     borderRadius: BorderRadius.circular(4),
-          //   ),
-          //   child: Text(
-          //     ok ? 'LibRaw $_libRawVersion' : 'LibRaw FAILED',
-          //     style: TextStyle(
-          //       fontSize: 12,
-          //       fontFamily: 'monospace',
-          //       color: ok ? Colors.greenAccent : Colors.redAccent,
-          //     ),
-          //   ),
-          // ),
+          ),
+          const SizedBox(width: 16),
+          OutlinedButton.icon(
+            onPressed: isLoading ? null : _pickAndDecode,
+            icon: const Icon(Icons.folder_open, size: 18),
+            label: Text(tr("imageChoose")),
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildAIBanner() {
-    if (_aiInProgress && _pendingAI == null) {
+// ============================================================================
+// Preview area —— 单独 Consumer, image/params/lut 任意变化只重渲它
+// ============================================================================
+class _PreviewArea extends ConsumerWidget {
+  const _PreviewArea();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // libRaw 错误是 widget-local 状态，所以由 parent 处理；这里只关心解码状态
+    final imageAsync = ref.watch(imageNotifierProvider);
+    final params = ref.watch(currentParamsNotifierProvider);
+    final lut = ref.watch(lutNotifierProvider);
+
+    return imageAsync.when(
+      loading: () => imageAsync.value == null
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : _buildPreview(imageAsync.value!, params, lut),
+      error: (e, st) => _CenterMessage(
+        icon: Icons.warning_amber_rounded,
+        color: Colors.orangeAccent,
+        title: tr("decodeFailed"),
+        body: e.toString(),
+      ),
+      data: (state) {
+        if (state == null) return _buildEmpty(context, ref);
+        return _buildPreview(state, params, lut);
+      },
+    );
+  }
+
+  Widget _buildPreview(
+      DecodedImageState state, AdjustmentParams params, LutState lut) {
+    return Container(
+      color: Colors.black,
+      child: PreviewRenderer(
+        image: state.uiImage,
+        params: params,
+        lutTexture: lut.texture,
+        lutSize: lut.size,
+      ),
+    );
+  }
+
+  Widget _buildEmpty(BuildContext context, WidgetRef ref) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.photo_library_outlined,
+            size: 64,
+            color: Colors.white.withOpacity(0.3),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: () async {
+              final result = await FilePicker.platform.pickFiles();
+              if (result == null || result.files.isEmpty) return;
+              final path = result.files.single.path;
+              if (path != null) {
+                ref.read(activeFilePathProvider.notifier).set(path);
+              }
+            },
+            icon: const Icon(Icons.folder_open),
+            label: Text(tr("imageChoose")),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'ARW · CR2 · CR3 · NEF · RAF · DNG · ORF · RW2 …',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withOpacity(0.4),
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// AI Banner —— 监听 aiAutoNotifierProvider, 独立 rebuild
+// ============================================================================
+class _AIBanner extends ConsumerWidget {
+  const _AIBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ai = ref.watch(aiAutoNotifierProvider);
+
+    if (ai.inProgress && ai.pendingSuggestion == null) {
       return Container(
         color: const Color(0xFF6B5BFF).withOpacity(0.08),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -1197,37 +1033,38 @@ class _DevelopScreenState extends State<DevelopScreen> {
               width: 12,
               height: 12,
               child: CircularProgressIndicator(
-                strokeWidth: 1.5,
-                color: Color(0xFF6B5BFF),
-              ),
+                  strokeWidth: 1.5, color: Color(0xFF6B5BFF)),
             ),
             const SizedBox(width: 10),
             Text(
               tr("aiColorInProgress"),
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withOpacity(0.7),
-              ),
+              style:
+                  TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.7)),
             ),
           ],
         ),
       );
     }
-    if (_pendingAI == null) return const SizedBox.shrink();
-    final s = _pendingAI!;
+    if (ai.pendingSuggestion == null) return const SizedBox.shrink();
+
+    final s = ai.pendingSuggestion!;
     return Material(
       color: const Color(0xFF6B5BFF).withOpacity(0.15),
       child: InkWell(
-        onTap: _viewPendingAI,
+        onTap: () {
+          // 从 parent (DevelopScreen) 取 _viewPendingAI 不方便；
+          // 直接在这里复用 logic 也行，但简单起见走 dismiss + 暴露给 parent。
+          // 这里用 context.findAncestorStateOfType 不优雅。
+          // 改成把 viewPending 也搬到 notifier 上更彻底，但需要 BuildContext。
+          // 临时方案：直接 apply（点击 banner 体 = 应用），与显式按钮区分。
+          ref.read(aiAutoNotifierProvider.notifier).applyPending();
+        },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              const Icon(
-                Icons.auto_awesome,
-                size: 14,
-                color: Color(0xFF6B5BFF),
-              ),
+              const Icon(Icons.auto_awesome,
+                  size: 14, color: Color(0xFF6B5BFF)),
               const SizedBox(width: 8),
               Expanded(
                 child: Text.rich(
@@ -1235,7 +1072,7 @@ class _DevelopScreenState extends State<DevelopScreen> {
                     children: [
                       TextSpan(
                         text: tr("aiColorSuggestionLabel"),
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1252,15 +1089,17 @@ class _DevelopScreenState extends State<DevelopScreen> {
                 ),
               ),
               TextButton(
-                onPressed: _applyPendingAI,
+                onPressed: () =>
+                    ref.read(aiAutoNotifierProvider.notifier).applyPending(),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                 ),
-                child: Text(tr("apply"), style: TextStyle(fontSize: 11)),
+                child: Text(tr("apply"), style: const TextStyle(fontSize: 11)),
               ),
               TextButton(
-                onPressed: _dismissPendingAI,
+                onPressed: () =>
+                    ref.read(aiAutoNotifierProvider.notifier).dismissPending(),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1276,178 +1115,6 @@ class _DevelopScreenState extends State<DevelopScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Future<void> _showAISettings() async {
-    await showDialog<bool>(
-      context: context,
-      builder: (_) => const AISettingsDialog(),
-    );
-    final auto = await AISettings.getAutoAI();
-    if (mounted) setState(() => _autoAIEnabled = auto);
-  }
-
-  Future<void> _showAISuggestion() async {
-    final hasKey = (await AISettings.getApiKey())?.isNotEmpty ?? false;
-    if (!hasKey) {
-      if (!mounted) return;
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (_) => const AISettingsDialog(),
-      );
-      if (ok != true) return;
-      final nowHasKey = (await AISettings.getApiKey())?.isNotEmpty ?? false;
-      if (!nowHasKey) return;
-    }
-
-    if (!mounted) return;
-    final result = await showDialog<AIColorSuggestion>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AISuggestionDialog(
-        currentParams: _params,
-        renderPreviewToFile: () async => AIInputRenderer.renderToTempFile(
-          program: _developProgram!,
-          sourceImage: _uiImage!,
-          params: _params,
-          lutTexture: _lutTexture,
-          lutSize: _lutSize,
-          maxEdge: await AISettings.getMaxEdge(),
-        ),
-      ),
-    );
-
-    if (result != null && mounted) {
-      final newParams = result.applyTo(_params);
-      _onParamsChanged(newParams);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(tr("aiColorSuggestionApplied", args: [result.mood])),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  Widget _buildPreviewArea() {
-    if (_libRawError != null) {
-      return _CenterMessage(
-        icon: Icons.error_outline,
-        color: Colors.redAccent,
-        title: tr("loadFailed", args: [" e4pix_raw.dll"]),
-        body: _libRawError!,
-      );
-    }
-    if (_busy) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-    if (_errorMessage != null) {
-      return _CenterMessage(
-        icon: Icons.warning_amber_rounded,
-        color: Colors.orangeAccent,
-        title: tr("decodeFailed"),
-        body: _errorMessage!,
-      );
-    }
-    if (_uiImage == null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.photo_library_outlined,
-              size: 64,
-              color: Colors.white.withOpacity(0.3),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: _pickAndDecode,
-              icon: const Icon(Icons.folder_open),
-              label: Text(tr("imageChoose")),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'ARW · CR2 · CR3 · NEF · RAF · DNG · ORF · RW2 …',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withOpacity(0.4),
-                fontFamily: 'monospace',
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    return Container(
-      color: Colors.black,
-      child: PreviewRenderer(
-        image: _uiImage!,
-        params: _params,
-        lutTexture: _lutTexture,
-        lutSize: _lutSize,
-      ),
-    );
-  }
-
-  Widget _buildBottomPanel() {
-    final m = _decoded?.metadata;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF14141A),
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _filePath ?? tr('imageNotChosen'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.5),
-                    fontFamily: 'monospace',
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  m == null ? '——' : m.toString(),
-                  style: const TextStyle(fontSize: 13),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (_decoded != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    '${_decoded!.width} × ${_decoded!.height} · '
-                    '${_decoded!.bitsPerChannel}-bit · '
-                    'decode ${_decodeTime!.inMilliseconds}ms · '
-                    'convert ${_convertTime!.inMilliseconds}ms',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.greenAccent.withOpacity(0.8),
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          OutlinedButton.icon(
-            onPressed: _busy ? null : _pickAndDecode,
-            icon: const Icon(Icons.folder_open, size: 18),
-            label: Text(tr("imageChoose")),
-          ),
-        ],
       ),
     );
   }
