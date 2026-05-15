@@ -1,4 +1,7 @@
+import 'dart:ui';
+
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../core/models/tethered_shot.dart';
 
@@ -243,7 +246,7 @@ class _PulsingDotState extends State<_PulsingDot>
 }
 
 // 底部缩略图条
-class TetherThumbStrip extends StatelessWidget {
+class TetherThumbStrip extends StatefulWidget {
   final List<TetheredShot> shots;
   final TetheredShot? activeShot;
   final ValueChanged<TetheredShot> onSelect;
@@ -260,135 +263,182 @@ class TetherThumbStrip extends StatelessWidget {
   });
 
   @override
+  State<TetherThumbStrip> createState() => _TetherThumbStripState();
+}
+
+class _TetherThumbStripState extends State<TetherThumbStrip> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (shots.isEmpty) return const SizedBox.shrink();
+    if (widget.shots.isEmpty) return const SizedBox.shrink();
+
     return Container(
       height: 92,
       decoration: BoxDecoration(
         color: const Color(0xFF0B0B10),
         border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
       ),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        reverse: true,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        itemCount: shots.length,
-        itemBuilder: (ctx, i) {
-          final shot = shots[shots.length - 1 - i];
-          final isActive = shot == activeShot;
-          final isPicked = selectedShots.contains(shot);
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.mouse, // 鼠标左键拖拽
+            PointerDeviceKind.touch, // 触摸屏支持
+            PointerDeviceKind.trackpad, // 触控板支持
+          },
+        ),
+        // 鼠标滚轮事件映射到水平
+        child: Listener(
+          onPointerSignal: (pointerSignal) {
+            if (pointerSignal is PointerScrollEvent) {
+              // dy
+              final offset = pointerSignal.scrollDelta.dy;
+              final targetPosition = _scrollController.offset + offset;
+              _scrollController.jumpTo(
+                targetPosition.clamp(
+                  0.0,
+                  _scrollController.position.maxScrollExtent,
+                ),
+              );
+            }
+          },
+          child: ListView.builder(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            reverse: true,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            itemCount: widget.shots.length,
+            itemBuilder: (ctx, i) {
+              final shot = widget.shots[widget.shots.length - 1 - i];
+              final isActive = shot == widget.activeShot;
+              final isPicked = widget.selectedShots.contains(shot);
 
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: GestureDetector(
-              onTap: () => onSelect(shot),
-              child: Stack(
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 120),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: isPicked
-                            ? const Color(0xFF6B5BFF)
-                            : (isActive && !multiSelectMode
-                                  ? const Color(0xFF6B5BFF)
-                                  : Colors.transparent),
-                        width: 2,
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(2),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: SizedBox(
-                        width: 110,
-                        height: 70,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            if (shot.thumbnail != null)
-                              RawImage(image: shot.thumbnail, fit: BoxFit.cover)
-                            else
-                              Container(
-                                color: Colors.white.withOpacity(0.05),
-                                alignment: Alignment.center,
-                                child: shot.error != null
-                                    ? Icon(
-                                        Icons.broken_image_outlined,
-                                        size: 18,
-                                        color: Colors.redAccent.withOpacity(
-                                          0.6,
-                                        ),
-                                      )
-                                    : const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 1.5,
-                                        ),
-                                      ),
-                              ),
-                            if (multiSelectMode && !isPicked)
-                              Container(color: Colors.black.withOpacity(0.35)),
-                            if (multiSelectMode && isActive)
-                              Positioned(
-                                left: 4,
-                                bottom: 4,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 5,
-                                    vertical: 1,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.6),
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                  child: const Text(
-                                    '当前',
-                                    style: TextStyle(
-                                      fontSize: 8.5,
-                                      color: Colors.white,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (multiSelectMode)
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Container(
-                        width: 18,
-                        height: 18,
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: GestureDetector(
+                  onTap: () => widget.onSelect(shot),
+                  child: Stack(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
                         decoration: BoxDecoration(
-                          color: isPicked
-                              ? const Color(0xFF6B5BFF)
-                              : Colors.black.withOpacity(0.55),
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: Colors.white.withOpacity(isPicked ? 1 : 0.7),
-                            width: 1.5,
+                            color: isPicked
+                                ? const Color(0xFF6B5BFF)
+                                : (isActive && !widget.multiSelectMode
+                                      ? const Color(0xFF6B5BFF)
+                                      : Colors.transparent),
+                            width: 2,
                           ),
                         ),
-                        child: isPicked
-                            ? const Icon(
-                                Icons.check,
-                                size: 11,
-                                color: Colors.white,
-                              )
-                            : null,
+                        padding: const EdgeInsets.all(2),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: SizedBox(
+                            width: 110,
+                            height: 70,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                if (shot.thumbnail != null)
+                                  RawImage(
+                                    image: shot.thumbnail,
+                                    fit: BoxFit.cover,
+                                  )
+                                else
+                                  Container(
+                                    color: Colors.white.withOpacity(0.05),
+                                    alignment: Alignment.center,
+                                    child: shot.error != null
+                                        ? Icon(
+                                            Icons.broken_image_outlined,
+                                            size: 18,
+                                            color: Colors.redAccent.withOpacity(
+                                              0.6,
+                                            ),
+                                          )
+                                        : const SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 1.5,
+                                            ),
+                                          ),
+                                  ),
+                                if (widget.multiSelectMode && !isPicked)
+                                  Container(
+                                    color: Colors.black.withOpacity(0.35),
+                                  ),
+                                if (widget.multiSelectMode && isActive)
+                                  Positioned(
+                                    left: 4,
+                                    bottom: 4,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 5,
+                                        vertical: 1,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.6),
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                      child: const Text(
+                                        '当前',
+                                        style: TextStyle(
+                                          fontSize: 8.5,
+                                          color: Colors.white,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-          );
-        },
+                      if (widget.multiSelectMode)
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: isPicked
+                                  ? const Color(0xFF6B5BFF)
+                                  : Colors.black.withOpacity(0.55),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withOpacity(
+                                  isPicked ? 1 : 0.7,
+                                ),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: isPicked
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 11,
+                                    color: Colors.white,
+                                  )
+                                : null,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../core/lut/cube_lut.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/tethered_shot.dart';
 import '../native/raw_bridge.dart';
@@ -17,7 +16,6 @@ import '../render/preview_renderer.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
-import '../services/camera/camera_controller.dart';
 import '../state/providers.dart';
 import '../widgets/adjustment_panel.dart';
 import '../widgets/ai_settings_dialog.dart';
@@ -62,10 +60,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     }
   }
 
-  // ==========================================================================
-  // Actions —— 所有动作都从 ref.read 写到 notifier
-  // ==========================================================================
-
+  // 动作从 ref.read 写到 notifier
   Future<void> _pickAndDecode() async {
     final result = await FilePicker.platform.pickFiles();
     if (result == null || result.files.isEmpty) return;
@@ -150,16 +145,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     }
   }
 
-  // ==========================================================================
   // AI Suggestion (manual + auto)
-  // ==========================================================================
-
   Future<void> _showAISettings() async {
     await showDialog<bool>(
       context: context,
       builder: (_) => const AISettingsDialog(),
     );
-    // Settings dialog 内部已经把 autoAI 写到 AISettings；让 notifier 重读
     final auto = await AISettings.getAutoAI();
     ref.read(aiAutoNotifierProvider.notifier).setEnabled(auto);
   }
@@ -238,10 +229,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     }
   }
 
-  // ==========================================================================
   // Export
-  // ==========================================================================
-
   Future<void> _showExportDialog() async {
     final program = ref.read(shaderProgramProvider).value;
     if (program == null) return;
@@ -435,14 +423,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     ));
   }
 
-  // ==========================================================================
   // Build
-  // ==========================================================================
-
   @override
   Widget build(BuildContext context) {
     final isPhone = MediaQuery.of(context).size.shortestSide < 600;
-
     // 监听相机错误一次性 snackbar
     ref.listen(cameraNotifierProvider, (prev, next) {
       if (next.lastError != null && prev?.lastError != next.lastError) {
@@ -590,7 +574,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     bool preserve,
     CameraState cameraState,
   ) {
-    // 1Hz 重建用于刷新"X 秒前"
     ref.watch(tickerProvider);
     return TetherStatusBar(
       watchPath: cameraState.modelName != null
@@ -932,9 +915,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   }
 }
 
-// ============================================================================
-// Preview area —— 单独 Consumer, image/params/lut 任意变化只重渲它
-// ============================================================================
+// Preview area
 class _PreviewArea extends ConsumerWidget {
   const _PreviewArea();
 
@@ -1013,9 +994,7 @@ class _PreviewArea extends ConsumerWidget {
   }
 }
 
-// ============================================================================
-// AI Banner —— 监听 aiAutoNotifierProvider, 独立 rebuild
-// ============================================================================
+// AI Banner
 class _AIBanner extends ConsumerWidget {
   const _AIBanner();
 
@@ -1052,11 +1031,6 @@ class _AIBanner extends ConsumerWidget {
       color: const Color(0xFF6B5BFF).withOpacity(0.15),
       child: InkWell(
         onTap: () {
-          // 从 parent (DevelopScreen) 取 _viewPendingAI 不方便；
-          // 直接在这里复用 logic 也行，但简单起见走 dismiss + 暴露给 parent。
-          // 这里用 context.findAncestorStateOfType 不优雅。
-          // 改成把 viewPending 也搬到 notifier 上更彻底，但需要 BuildContext。
-          // 临时方案：直接 apply（点击 banner 体 = 应用），与显式按钮区分。
           ref.read(aiAutoNotifierProvider.notifier).applyPending();
         },
         child: Padding(

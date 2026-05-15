@@ -107,6 +107,7 @@ class CameraNotifier extends Notifier<CameraState> {
     final ctrl = state.controller;
     state = state.copyWith(clearController: true);
     await ctrl?.stopTether();
+    await ref.read(tetherSessionNotifierProvider.notifier).stop();
   }
 
   Future<void> triggerCapture() async {

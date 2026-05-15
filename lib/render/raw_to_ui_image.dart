@@ -5,14 +5,9 @@ import 'dart:ui' as ui;
 import '../core/color/srgb_lut.dart';
 import '../native/raw_bridge.dart';
 
-/// RAW 解码结果 → sRGB-encoded ui.Image（develop shader 的标准输入约定）。
-///
-/// LibRaw 在我们的 e4pix_decode_preview / e4pix_decode_full 配置中输出
+/// sRGB-encoded ui.Image
 /// 16-bit linear-light（gamma=1, no_auto_bright=1, sRGB primaries）。
-/// 这里必须把 linear → sRGB-encoded，与 Exporter 内部转换一致，才能保证
-/// 屏幕预览、AI 输入、最终导出三者颜色一致。
 Future<ui.Image> rawToUiImage(RawDecodedImage raw) async {
-  // 内嵌缩略图本身就是 sRGB JPEG，原样解
   if (raw.isJpegEncoded) {
     final codec = await ui.instantiateImageCodec(raw.pixels as Uint8List);
     final frame = await codec.getNextFrame();

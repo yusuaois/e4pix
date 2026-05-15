@@ -208,6 +208,9 @@ extern "C" E4pixDecodeResult *e4pix_extract_thumb(const char *path)
 
 extern "C" E4pixDecodeResult *e4pix_decode_preview(const char *path)
 {
+    // 邻域插值，此处可能对性能有影响。half_size为true的话在对低信噪比的区域会有影响
+    // 值为true的话会在解码阶段就降采样到一半尺寸，能提升性能但可能对某些机型的低信噪比区域有影响
+    // 经尝试在加载部分图片时时间从1.5s -> 8s
     return decode_internal(path, /*half_size=*/true, /*bps=*/16);
 }
 

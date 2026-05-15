@@ -8,11 +8,10 @@ import 'package:path/path.dart' as p;
 import '../core/models/adjustment_params.dart';
 import '../core/models/tethered_shot.dart';
 import '../services/tether_watcher.dart';
+import 'ai_auto_state.dart';
 import 'image_state.dart';
 
-// ============================================================================
-// Tether 会话（监听器 + 路径）—— 不存在则代表未联机
-// ============================================================================
+// Tether 会话
 @immutable
 class TetherSession {
   final TetherWatcher watcher;
@@ -75,9 +74,7 @@ final tetherSessionNotifierProvider =
       TetherSessionNotifier.new,
     );
 
-// ============================================================================
 // Shots list
-// ============================================================================
 class ShotsNotifier extends Notifier<List<TetheredShot>> {
   bool _isDisposed = false; // 添加一个标志位
 
@@ -127,7 +124,7 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
     ref.read(activeShotPathProvider.notifier).set(shot.path);
     ref.read(activeFilePathProvider.notifier).set(shot.path);
 
-    // 异步加载缩略图
+    // 加载缩略图
     final loaded = await TetheredShot.loadWithThumbnail(shot);
 
     if (_isDisposed) {
@@ -137,6 +134,7 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
 
     // 替换包含缩略图的实例，触发 UI 刷新
     state = [for (final s in state) s.path == shot.path ? loaded : s];
+    ref.read(aiAutoNotifierProvider.notifier).onNewShotArrived();
   }
 
   void updateParams(String shotPath, AdjustmentParams newParams) {
@@ -183,7 +181,7 @@ final activeShotProvider = Provider<TetheredShot?>((ref) {
   return null;
 });
 
-// 同时更新 activeShotPath 和 activeFilePath
+// 更新 activeShotPath 和 activeFilePath
 final selectShotProvider = Provider<void Function(TetheredShot)>((ref) {
   return (shot) {
     ref.read(activeShotPathProvider.notifier).set(shot.path);

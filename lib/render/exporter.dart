@@ -24,7 +24,6 @@ typedef ExportProgress = void Function(double fraction, String stage);
 
 class Exporter {
   /// 全分辨率导出
-  /// 解码全分辨率 RAW → 转 sRGB-encoded ui.Image → shader 渲染 → 编码 → 写盘
   static Future<File> exportFullRes({
     required String inputRawPath,
     required String outputPath,
@@ -87,9 +86,6 @@ class Exporter {
   // 16-bit linear RGB → sRGB-encoded ui.Image
   static Future<ui.Image> _rawToUiImage(RawDecodedImage raw) async {
     final bytes = await Isolate.run(() {
-      // ⚠️ Isolate 内不能直接用顶层 final（跨 isolate 不共享），
-      // 但 Uint8List 可以通过捕获在 isolate 入口时拷贝过去。
-      // 这里直接传 LUT bytes 进 isolate 更稳妥：
       final lutCopy = Uint8List.fromList(srgbLut16To8);
       return _convertWithLut(raw, lutCopy);
     });
