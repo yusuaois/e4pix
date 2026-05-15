@@ -6,7 +6,7 @@ import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:image/image.dart' as img_pkg;
-
+import '../core/color/srgb_lut.dart';
 import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
 import 'render_engine.dart';
@@ -87,26 +87,11 @@ class Exporter {
   // 16-bit linear RGB → sRGB-encoded ui.Image
   static Future<ui.Image> _rawToUiImage(RawDecodedImage raw) async {
     final bytes = await Isolate.run(() {
-      final lut = _buildSrgbLut();
-      final src = raw.pixels;
-      final w = raw.width, h = raw.height;
-      final rgba = Uint8List(w * h * 4);
-      if (src is Uint16List) {
-        for (int i = 0, j = 0; i < src.length; i += 3, j += 4) {
-          rgba[j] = lut[src[i]];
-          rgba[j + 1] = lut[src[i + 1]];
-          rgba[j + 2] = lut[src[i + 2]];
-          rgba[j + 3] = 255;
-        }
-      } else if (src is Uint8List) {
-        for (int i = 0, j = 0; i < src.length; i += 3, j += 4) {
-          rgba[j] = src[i];
-          rgba[j + 1] = src[i + 1];
-          rgba[j + 2] = src[i + 2];
-          rgba[j + 3] = 255;
-        }
-      }
-      return rgba;
+      // ⚠️ Isolate 内不能直接用顶层 final（跨 isolate 不共享），
+      // 但 Uint8List 可以通过捕获在 isolate 入口时拷贝过去。
+      // 这里直接传 LUT bytes 进 isolate 更稳妥：
+      final lutCopy = Uint8List.fromList(srgbLut16To8);
+      return _convertWithLut(raw, lutCopy);
     });
 
     final completer = Completer<ui.Image>();
@@ -120,32 +105,25 @@ class Exporter {
     return completer.future;
   }
 
-  static Uint8List _buildSrgbLut() {
-    final lut = Uint8List(65536);
-    for (int i = 0; i < 65536; i++) {
-      final l = i / 65535.0;
-      final s = l <= 0.0031308
-          ? l * 12.92
-          : 1.055 * math.pow(l, 1.0 / 2.4) - 0.055;
-      lut[i] = (s.clamp(0.0, 1.0) * 255.0).round();
+  static Uint8List _convertWithLut(RawDecodedImage raw, Uint8List lut) {
+    final src = raw.pixels;
+    final w = raw.width, h = raw.height;
+    final rgba = Uint8List(w * h * 4);
+    if (src is Uint16List) {
+      for (int i = 0, j = 0; i < src.length; i += 3, j += 4) {
+        rgba[j] = lut[src[i]];
+        rgba[j + 1] = lut[src[i + 1]];
+        rgba[j + 2] = lut[src[i + 2]];
+        rgba[j + 3] = 255;
+      }
+    } else if (src is Uint8List) {
+      for (int i = 0, j = 0; i < src.length; i += 3, j += 4) {
+        rgba[j] = src[i];
+        rgba[j + 1] = src[i + 1];
+        rgba[j + 2] = src[i + 2];
+        rgba[j + 3] = 255;
+      }
     }
-    return lut;
+    return rgba;
   }
-
-  static double _pow(double x, double e) {
-    return x <= 0 ? 0 : _expHelper(_lnHelper(x) * e);
-  }
-
-  static double _lnHelper(double x) {
-    return _natLog(x);
-  }
-
-  static double _natLog(double x) => _MathStub.log(x);
-  static double _expHelper(double x) => _MathStub.exp(x);
-}
-
-class _MathStub {
-  static double log(double x) => math.log(x);
-
-  static double exp(double x) => math.exp(x);
 }
