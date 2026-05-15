@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../native/raw_bridge.dart';
 import '../render/raw_to_ui_image.dart';
 
-// 当前正在编辑的 RAW 文件路径
 class ActiveFilePathNotifier extends Notifier<String?> {
   @override
   String? build() => null;
@@ -15,7 +14,9 @@ class ActiveFilePathNotifier extends Notifier<String?> {
 }
 
 final activeFilePathProvider =
-    NotifierProvider<ActiveFilePathNotifier, String?>(ActiveFilePathNotifier.new);
+    NotifierProvider<ActiveFilePathNotifier, String?>(
+      ActiveFilePathNotifier.new,
+    );
 
 // 解码结果
 @immutable
@@ -26,34 +27,27 @@ class DecodedImageState {
   final Duration decodeTime;
   final Duration convertTime;
 
+  final bool isPreliminary;
+
   const DecodedImageState({
     required this.path,
     required this.decoded,
     required this.uiImage,
     required this.decodeTime,
     required this.convertTime,
+    this.isPreliminary = false,
   });
 }
 
 class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
   ui.Image? _held;
-  bool _disposeRegistered = false;
-  bool _providerDisposed = false;
 
-  void _registerOnDisposeOnce() {
-    if (_disposeRegistered) return;
-    _disposeRegistered = true;
-    ref.onDispose(() {
-      _providerDisposed = true;
-      _held?.dispose();
-      _held = null;
-    });
-  }
+  /// 每次 build 增 1, 异步链判断最新请求
+  int _generation = 0;
 
   void _scheduleDispose(ui.Image old) {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_providerDisposed) return;
         try {
           old.dispose();
         } catch (e) {
@@ -63,10 +57,14 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
     });
   }
 
+  void _swapHeld(ui.Image newImage) {
+    final old = _held;
+    _held = newImage;
+    if (old != null && old != newImage) _scheduleDispose(old);
+  }
+
   @override
   Future<DecodedImageState?> build() async {
-    _registerOnDisposeOnce();
-
     final path = ref.watch(activeFilePathProvider);
     if (path == null) {
       final old = _held;
@@ -75,27 +73,78 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
       return null;
     }
 
+    final gen = ++_generation;
+
+    // half_size + PPG
     final sw1 = Stopwatch()..start();
-    final decoded = await RawBridge.decodePreview(path);
+    final fastDecoded = await RawBridge.decodePreviewFast(path);
     sw1.stop();
+    if (gen != _generation) return null;
 
     final sw2 = Stopwatch()..start();
-    final uiImage = await rawToUiImage(decoded);
+    final fastImage = await rawToUiImage(fastDecoded);
     sw2.stop();
-
-    final oldImage = _held;
-    _held = uiImage;
-    if (oldImage != null && oldImage != uiImage) {
-      _scheduleDispose(oldImage);
+    if (gen != _generation) {
+      _scheduleDispose(fastImage);
+      return null;
     }
 
-    return DecodedImageState(
+    _swapHeld(fastImage);
+    final fastState = DecodedImageState(
       path: path,
-      decoded: decoded,
-      uiImage: uiImage,
+      decoded: fastDecoded,
+      uiImage: fastImage,
       decodeTime: sw1.elapsed,
       convertTime: sw2.elapsed,
+      isPreliminary: true,
     );
+
+    // print('[Build] phase1 done, scheduling phase2 gen=$gen');
+    _runPhase2(path, gen);
+    return fastState;
+  }
+
+  Future<void> _runPhase2(String path, int gen) async {
+    // ignore: avoid_print
+    print('[Phase2] enter gen=$gen _gen=$_generation');
+
+    await Future.delayed(const Duration(milliseconds: 16));
+    if (gen != _generation) {
+      // print('[Phase2] bail: stale gen $gen != $_generation');
+      return;
+    }
+
+    // print('[Phase2] calling RawBridge.decodePreview');
+
+    try {
+      final sw1 = Stopwatch()..start();
+      final fullDecoded = await RawBridge.decodePreview(path);
+      sw1.stop();
+      if (gen != _generation) return;
+      // print('[Phase2] decode ${sw1.elapsedMilliseconds}ms');
+
+      final sw2 = Stopwatch()..start();
+      final fullImage = await rawToUiImage(fullDecoded);
+      sw2.stop();
+      if (gen != _generation) {
+        _scheduleDispose(fullImage);
+        return;
+      }
+      // print('[Phase2] convert ${sw2.elapsedMilliseconds}ms');
+
+      _swapHeld(fullImage);
+      state = AsyncData(DecodedImageState(
+        path: path,
+        decoded: fullDecoded,
+        uiImage: fullImage,
+        decodeTime: sw1.elapsed,
+        convertTime: sw2.elapsed,
+        isPreliminary: false,
+      ));
+      // print('[Phase2] HD ready');
+    } catch (e, st) {
+      // print('[Phase2] ERROR: $e\n$st');
+    }
   }
 }
 

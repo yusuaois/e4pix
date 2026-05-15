@@ -73,6 +73,8 @@ class RawBridgeBindings {
 
   late final _DecodeDart extractThumb = _lib
       .lookupFunction<_DecodeC, _DecodeDart>('e4pix_extract_thumb');
+  late final _DecodeDart decodePreviewFast = _lib
+      .lookupFunction<_DecodeC, _DecodeDart>('e4pix_decode_preview_fast');
   late final _DecodeDart decodePreview = _lib
       .lookupFunction<_DecodeC, _DecodeDart>('e4pix_decode_preview');
   late final _DecodeDart decodeFull = _lib

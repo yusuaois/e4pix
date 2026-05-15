@@ -89,16 +89,18 @@ class RawBridge {
   }
 
   static DynamicLibrary _openLibrary() {
-if (Platform.isWindows) {
-    return DynamicLibrary.open('e4pix_raw.dll');
-  } else if (Platform.isMacOS) {
-    return DynamicLibrary.open('e4pix_raw.framework/e4pix_raw');
-  } else if (Platform.isLinux) {
-    return DynamicLibrary.open('libe4pix_raw.so');
-  } else if (Platform.isAndroid) {
-    return DynamicLibrary.open('libe4pix_raw.so');
-  }
-  throw UnsupportedError('Platform ${Platform.operatingSystem} not supported');
+    if (Platform.isWindows) {
+      return DynamicLibrary.open('e4pix_raw.dll');
+    } else if (Platform.isMacOS) {
+      return DynamicLibrary.open('e4pix_raw.framework/e4pix_raw');
+    } else if (Platform.isLinux) {
+      return DynamicLibrary.open('libe4pix_raw.so');
+    } else if (Platform.isAndroid) {
+      return DynamicLibrary.open('libe4pix_raw.so');
+    }
+    throw UnsupportedError(
+      'Platform ${Platform.operatingSystem} not supported',
+    );
   }
 
   static String libRawVersion() {
@@ -109,6 +111,11 @@ if (Platform.isWindows) {
   /// 提取内嵌缩略图
   static Future<RawDecodedImage> extractThumbnail(String path) {
     return Isolate.run(() => _extractThumbSync(path));
+  }
+
+  /// 快速预览
+  static Future<RawDecodedImage> decodePreviewFast(String path) {
+    return Isolate.run(() => _decodeSync(path, _DecodeMode.previewFast));
   }
 
   /// 解码预览
@@ -148,6 +155,7 @@ if (Platform.isWindows) {
     Pointer<E4pixDecodeResult>? resultPtr;
     try {
       resultPtr = switch (mode) {
+        _DecodeMode.previewFast => b.decodePreviewFast(pathPtr),
         _DecodeMode.preview => b.decodePreview(pathPtr),
         _DecodeMode.full => b.decodeFull(pathPtr),
         _DecodeMode.metadata => b.readMetadata(pathPtr),
@@ -224,4 +232,4 @@ if (Platform.isWindows) {
   }
 }
 
-enum _DecodeMode { preview, full, metadata }
+enum _DecodeMode { previewFast, preview, full, metadata }

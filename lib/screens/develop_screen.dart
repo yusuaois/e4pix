@@ -110,7 +110,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     );
     if (pick == null) return;
     try {
-      await ref.read(cameraNotifierProvider.notifier).start(
+      await ref
+          .read(cameraNotifierProvider.notifier)
+          .start(
             controller: controller,
             camera: pick.camera,
             saveFolder: pick.saveFolder,
@@ -194,8 +196,11 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
     if (result != null && mounted) {
       _onParamsChanged(result.applyTo(ref.read(currentParamsNotifierProvider)));
-      _snack(tr("aiColorSuggestionApplied", args: [result.mood]),
-          floating: true, seconds: 2);
+      _snack(
+        tr("aiColorSuggestionApplied", args: [result.mood]),
+        floating: true,
+        seconds: 2,
+      );
     }
   }
 
@@ -248,9 +253,11 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          title: Text(isBatch
-              ? '${tr('exportBatch')}  ·  ${tasks.length}'
-              : tr('exportImage')),
+          title: Text(
+            isBatch
+                ? '${tr('exportBatch')}  ·  ${tasks.length}'
+                : tr('exportImage'),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,8 +274,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               ),
               if (format == ExportFormat.jpeg) ...[
                 const SizedBox(height: 14),
-                Text('${tr('quality')}: $quality',
-                    style: const TextStyle(fontSize: 12)),
+                Text(
+                  '${tr('quality')}: $quality',
+                  style: const TextStyle(fontSize: 12),
+                ),
                 Slider(
                   value: quality.toDouble(),
                   min: 50,
@@ -349,8 +358,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     try {
       for (int i = 0; i < tasks.length; i++) {
         final task = tasks[i];
-        final outName = task.filename
-            .replaceAll(RegExp(r'\.[^.]+$'), '_edited.${fmt.extension}');
+        final outName = task.filename.replaceAll(
+          RegExp(r'\.[^.]+$'),
+          '_edited.${fmt.extension}',
+        );
         final outPath = p.join(folder, outName);
         lastOutPath = outPath;
 
@@ -372,8 +383,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             } else {
               progressNotifier.value = (
                 baseFrac + f * span,
-                tr('exportBatchProgress',
-                    args: ['${i + 1}', '${tasks.length}', s]),
+                tr(
+                  'exportBatchProgress',
+                  args: ['${i + 1}', '${tasks.length}', s],
+                ),
               );
             }
           },
@@ -384,30 +397,42 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       if (mounted) Navigator.pop(context);
 
       if (tasks.length == 1) {
-        messenger.showSnackBar(SnackBar(
-          content: Text(
-            '${tr('exportCompleted')} · ${stopwatch.elapsed.inSeconds}s · $lastOutPath',
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              '${tr('exportCompleted')} · ${stopwatch.elapsed.inSeconds}s · $lastOutPath',
+            ),
+            duration: const Duration(seconds: 5),
           ),
-          duration: const Duration(seconds: 5),
-        ));
+        );
       } else {
-        messenger.showSnackBar(SnackBar(
-          content: Text(tr('exportBatchCompleted',
-              args: ['${tasks.length}', '${stopwatch.elapsed.inSeconds}'])),
-          action: SnackBarAction(label: tr('exportBatch'), onPressed: () {}),
-          duration: const Duration(seconds: 5),
-        ));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              tr(
+                'exportBatchCompleted',
+                args: ['${tasks.length}', '${stopwatch.elapsed.inSeconds}'],
+              ),
+            ),
+            action: SnackBarAction(label: tr('exportBatch'), onPressed: () {}),
+            duration: const Duration(seconds: 5),
+          ),
+        );
         // 退出多选
         ref.read(exportSelectionNotifierProvider.notifier).toggleMode();
       }
     } catch (e, st) {
       if (mounted) Navigator.pop(context);
       debugPrint('Export error: $e\n$st');
-      messenger.showSnackBar(SnackBar(
-        content: Text(tasks.length == 1
-            ? '${tr('exportFailed')}: $e'
-            : '${tr('exportFailed')} ($doneCount / ${tasks.length}): $e'),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            tasks.length == 1
+                ? '${tr('exportFailed')}: $e'
+                : '${tr('exportFailed')} ($doneCount / ${tasks.length}): $e',
+          ),
+        ),
+      );
     } finally {
       progressNotifier.dispose();
     }
@@ -415,12 +440,13 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
   void _snack(String msg, {bool floating = false, int seconds = 4}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      behavior:
-          floating ? SnackBarBehavior.floating : SnackBarBehavior.fixed,
-      duration: Duration(seconds: seconds),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        behavior: floating ? SnackBarBehavior.floating : SnackBarBehavior.fixed,
+        duration: Duration(seconds: seconds),
+      ),
+    );
   }
 
   // Build
@@ -455,14 +481,16 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     return Column(
       children: [
         _buildTopBar(),
-        if (session != null) _buildTetherStatusBar(session, shots.length,
-            preserve, cameraState),
+        if (session != null)
+          _buildTetherStatusBar(session, shots.length, preserve, cameraState),
         const _AIBanner(),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final previewSize =
-                  Size(constraints.maxWidth, constraints.maxHeight);
+              final previewSize = Size(
+                constraints.maxWidth,
+                constraints.maxHeight,
+              );
               return Stack(
                 children: [
                   const Positioned.fill(child: _PreviewArea()),
@@ -477,9 +505,13 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                           setState(() {
                             _histogramPosition = Offset(
                               (_histogramPosition.dx + details.delta.dx).clamp(
-                                  0.0, previewSize.width - _miniHistogramW),
+                                0.0,
+                                previewSize.width - _miniHistogramW,
+                              ),
                               (_histogramPosition.dy + details.delta.dy).clamp(
-                                  0.0, previewSize.height - _miniHistogramH),
+                                0.0,
+                                previewSize.height - _miniHistogramH,
+                              ),
                             );
                           });
                         },
@@ -541,14 +573,16 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   onChanged: _onParamsChanged,
                   lutName: lut.name,
                   onPickLut: _loadLutFromFile,
-                  onLoadTestLut: () =>
-                      ref.read(lutNotifierProvider.notifier).loadTestCinematic(),
+                  onLoadTestLut: () => ref
+                      .read(lutNotifierProvider.notifier)
+                      .loadTestCinematic(),
                   onLoadIdentity: () =>
                       ref.read(lutNotifierProvider.notifier).loadIdentity(),
                   onClearLut: () =>
                       ref.read(lutNotifierProvider.notifier).clear(),
-                  histogram:
-                      program == null ? null : _buildHistogram(program, image),
+                  histogram: program == null
+                      ? null
+                      : _buildHistogram(program, image),
                 ),
             ],
           ),
@@ -613,15 +647,19 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
       decoration: BoxDecoration(
         color: const Color(0xFF14141A),
-        border:
-            Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
       ),
       child: Row(
         children: [
           if (hasImage)
             IconButton(
-              icon: const Icon(Icons.auto_awesome,
-                  size: 18, color: Color(0xFF6B5BFF)),
+              icon: const Icon(
+                Icons.auto_awesome,
+                size: 18,
+                color: Color(0xFF6B5BFF),
+              ),
               tooltip: tr("aiColorSuggestionHint"),
               onPressed: _showAISuggestion,
               onLongPress: _showAISettings,
@@ -647,8 +685,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     ? Colors.greenAccent
                     : Colors.greenAccent.withOpacity(0.85),
               ),
-              tooltip: tr("cameraConnected",
-                  args: [cameraState.modelName ?? tr("cameraModelUnknown")]),
+              tooltip: tr(
+                "cameraConnected",
+                args: [cameraState.modelName ?? tr("cameraModelUnknown")],
+              ),
               onPressed: _stopAllTether,
             ),
           const SizedBox(width: 4),
@@ -675,21 +715,22 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             onPressed: shots.isEmpty
                 ? null
                 : () => ref
-                    .read(exportSelectionNotifierProvider.notifier)
-                    .toggleMode(),
+                      .read(exportSelectionNotifierProvider.notifier)
+                      .toggleMode(),
           ),
           if (selection.multiSelectMode) ...[
             if (selection.selectedPaths.isNotEmpty)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: const Color(0xFF6B5BFF).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  tr('selectedShots',
-                      args: ['${selection.selectedPaths.length}']),
+                  tr(
+                    'selectedShots',
+                    args: ['${selection.selectedPaths.length}'],
+                  ),
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
@@ -700,8 +741,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             const SizedBox(width: 4),
             TextButton(
               onPressed: () {
-                final notifier =
-                    ref.read(exportSelectionNotifierProvider.notifier);
+                final notifier = ref.read(
+                  exportSelectionNotifierProvider.notifier,
+                );
                 if (selection.selectedPaths.length == shots.length) {
                   notifier.clearSelection();
                 } else {
@@ -751,13 +793,37 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             ),
           ),
           if (image != null)
-            Text(
-              '${image.decoded.width}×${image.decoded.height}',
-              style: TextStyle(
-                fontSize: 10,
-                fontFamily: 'monospace',
-                color: Colors.greenAccent.withOpacity(0.8),
-              ),
+            Row(
+              children: [
+                Text(
+                  '${image.decoded.width}×${image.decoded.height}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    color: Colors.greenAccent.withOpacity(0.8),
+                  ),
+                ),
+                if (image.isPreliminary) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 9,
+                    height: 9,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.2,
+                      color: Colors.amberAccent.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'HD…',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.amberAccent.withOpacity(0.7),
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
+              ],
             ),
         ],
       ),
@@ -778,8 +844,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               Container(
                 decoration: BoxDecoration(
                   border: Border(
-                      bottom:
-                          BorderSide(color: Colors.white.withOpacity(0.05))),
+                    bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -810,11 +876,15 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   children: [
                     SingleChildScrollView(
                       child: LightSection(
-                          params: params, onChanged: _onParamsChanged),
+                        params: params,
+                        onChanged: _onParamsChanged,
+                      ),
                     ),
                     SingleChildScrollView(
                       child: WhiteBalanceColorSection(
-                          params: params, onChanged: _onParamsChanged),
+                        params: params,
+                        onChanged: _onParamsChanged,
+                      ),
                     ),
                     SingleChildScrollView(
                       child: HslSection(
@@ -827,8 +897,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       child: LutSection(
                         lutName: lut.name,
                         intensity: params.lutIntensity,
-                        onIntensityChanged: (v) => _onParamsChanged(
-                            params.copyWith(lutIntensity: v)),
+                        onIntensityChanged: (v) =>
+                            _onParamsChanged(params.copyWith(lutIntensity: v)),
                         onPick: _loadLutFromFile,
                         onLoadTest: () => ref
                             .read(lutNotifierProvider.notifier)
@@ -859,8 +929,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 18),
       decoration: BoxDecoration(
         color: const Color(0xFF14141A),
-        border:
-            Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -888,16 +957,40 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                 ),
                 if (image != null) ...[
                   const SizedBox(height: 6),
-                  Text(
-                    '${image.decoded.width} × ${image.decoded.height} · '
-                    '${image.decoded.bitsPerChannel}-bit · '
-                    'decode ${image.decodeTime.inMilliseconds}ms · '
-                    'convert ${image.convertTime.inMilliseconds}ms',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.greenAccent.withOpacity(0.8),
-                      fontFamily: 'monospace',
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        '${image.decoded.width} × ${image.decoded.height} · '
+                        '${image.decoded.bitsPerChannel}-bit · '
+                        'decode ${image.decodeTime.inMilliseconds}ms · '
+                        'convert ${image.convertTime.inMilliseconds}ms',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.greenAccent.withOpacity(0.8),
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                      if (image.isPreliminary) ...[
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 9,
+                          height: 9,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.2,
+                            color: Colors.amberAccent.withOpacity(0.7),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'HD…',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.amberAccent.withOpacity(0.7),
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ],
@@ -944,7 +1037,10 @@ class _PreviewArea extends ConsumerWidget {
   }
 
   Widget _buildPreview(
-      DecodedImageState state, AdjustmentParams params, LutState lut) {
+    DecodedImageState state,
+    AdjustmentParams params,
+    LutState lut,
+  ) {
     return Container(
       color: Colors.black,
       child: PreviewRenderer(
@@ -1012,13 +1108,17 @@ class _AIBanner extends ConsumerWidget {
               width: 12,
               height: 12,
               child: CircularProgressIndicator(
-                  strokeWidth: 1.5, color: Color(0xFF6B5BFF)),
+                strokeWidth: 1.5,
+                color: Color(0xFF6B5BFF),
+              ),
             ),
             const SizedBox(width: 10),
             Text(
               tr("aiColorInProgress"),
-              style:
-                  TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.7)),
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white.withOpacity(0.7),
+              ),
             ),
           ],
         ),
@@ -1037,8 +1137,11 @@ class _AIBanner extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              const Icon(Icons.auto_awesome,
-                  size: 14, color: Color(0xFF6B5BFF)),
+              const Icon(
+                Icons.auto_awesome,
+                size: 14,
+                color: Color(0xFF6B5BFF),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text.rich(

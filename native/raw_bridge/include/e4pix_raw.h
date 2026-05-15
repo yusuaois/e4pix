@@ -60,6 +60,7 @@ extern "C"
 
   // 解码为预览RGB
   // 实时调整面板
+  E4PIX_API E4pixDecodeResult *e4pix_decode_preview_fast(const char *path);
   E4PIX_API E4pixDecodeResult *e4pix_decode_preview(const char *path);
 
   // 解码为全分辨率RGB
