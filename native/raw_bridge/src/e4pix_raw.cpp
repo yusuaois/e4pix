@@ -54,7 +54,7 @@ namespace
 
     // ---------- 预设处理参数 ----------
     // 输出 LINEAR 光，gamma=1
-    void configure_for_develop(LibRaw &raw, bool half_size, int output_bps)
+    void configure_for_develop(LibRaw &raw, bool half_size, int output_bps, int quality)
     {
         auto &p = raw.imgdata.params;
 
@@ -66,12 +66,12 @@ namespace
         p.no_auto_bright = 1;      // 不自动拉伸亮度
         p.gamm[0] = 1.0;           // gamma_power = 1
         p.gamm[1] = 1.0;           // gamma_slope
-        p.user_qual = 3;           // 0=linear, 1=VNG, 2=PPG, 3=AHD（质量最好）
+        p.user_qual = (quality == 1) ? 3 : 2;  // 3=AHD, 2=PPG
         p.no_interpolation = 0;
     }
 
     // 解码
-    E4pixDecodeResult *decode_internal(const char *path, bool half_size, int output_bps)
+    E4pixDecodeResult *decode_internal(const char *path, bool half_size, int output_bps, int quality)
     {
         auto *result = alloc_result();
         if (!result)
@@ -87,7 +87,7 @@ namespace
             return result;
         }
 
-        configure_for_develop(raw, half_size, output_bps);
+        configure_for_develop(raw, half_size, output_bps, quality);
 
         err = raw.unpack();
         if (err != LIBRAW_SUCCESS)
@@ -211,12 +211,12 @@ extern "C" E4pixDecodeResult *e4pix_decode_preview(const char *path)
     // 邻域插值，此处可能对性能有影响。half_size为true的话在对低信噪比的区域会有影响
     // 值为true的话会在解码阶段就降采样到一半尺寸，能提升性能但可能对某些机型的低信噪比区域有影响
     // 经尝试在加载部分图片时时间从1.5s -> 8s
-    return decode_internal(path, /*half_size=*/true, /*bps=*/16);
+    return decode_internal(path, /*half_size=*/false, /*bps=*/16, /*quality=*/0);
 }
 
 extern "C" E4pixDecodeResult *e4pix_decode_full(const char *path)
 {
-    return decode_internal(path, /*half_size=*/false, /*bps=*/16);
+    return decode_internal(path, /*half_size=*/false, /*bps=*/16, /*quality=*/1);
 }
 
 extern "C" E4pixDecodeResult *e4pix_read_metadata(const char *path)
