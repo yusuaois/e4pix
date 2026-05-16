@@ -142,7 +142,7 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
         isPreliminary: false,
       ));
       // print('[Phase2] HD ready');
-    } catch (e, st) {
+    } catch (e) { //st
       // print('[Phase2] ERROR: $e\n$st');
     }
   }

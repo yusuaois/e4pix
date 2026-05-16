@@ -31,7 +31,9 @@ class AdjustmentPanel extends StatelessWidget {
       width: 340,
       decoration: BoxDecoration(
         color: const Color(0xFF14141A),
-        border: Border(left: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(
+          left: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
       ),
       child: Column(
         children: [
@@ -40,7 +42,7 @@ class AdjustmentPanel extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
-                if (histogram != null) histogram!,
+                ?histogram,
                 LightSection(params: params, onChanged: onChanged),
                 WhiteBalanceColorSection(params: params, onChanged: onChanged),
                 HslSection(
@@ -51,7 +53,8 @@ class AdjustmentPanel extends StatelessWidget {
                 LutSection(
                   lutName: lutName,
                   intensity: params.lutIntensity,
-                  onIntensityChanged: (v) => onChanged(params.copyWith(lutIntensity: v)),
+                  onIntensityChanged: (v) =>
+                      onChanged(params.copyWith(lutIntensity: v)),
                   onPick: onPickLut,
                   onLoadTest: onLoadTestLut,
                   onLoadIdentity: onLoadIdentity,
@@ -77,7 +80,10 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 14, 12, 10),
       child: Row(
         children: [
-          const Text('Develop', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          const Text(
+            'Develop',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.refresh, size: 18),

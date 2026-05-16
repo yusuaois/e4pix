@@ -37,7 +37,9 @@ class DevelopSliderTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Text(label, style: const TextStyle(fontSize: 12.5))),
+              Expanded(
+                child: Text(label, style: const TextStyle(fontSize: 12.5)),
+              ),
               GestureDetector(
                 onDoubleTap: () => onChanged(zeroValue),
                 child: Text(
@@ -46,8 +48,8 @@ class DevelopSliderTile extends StatelessWidget {
                     fontSize: 11.5,
                     fontFamily: 'monospace',
                     color: isNeutral
-                        ? Colors.white.withOpacity(0.4)
-                        : Colors.greenAccent.withOpacity(0.85),
+                        ? Colors.white.withValues(alpha: 0.4)
+                        : Colors.greenAccent.withValues(alpha: 0.85),
                   ),
                 ),
               ),
@@ -61,7 +63,8 @@ class DevelopSliderTile extends StatelessWidget {
             ),
             child: Slider(
               value: value.clamp(min, max),
-              min: min, max: max,
+              min: min,
+              max: max,
               onChanged: onChanged,
             ),
           ),
@@ -88,7 +91,7 @@ class SectionLabel extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               letterSpacing: 1.4,
-              color: Colors.white.withOpacity(0.4),
+              color: Colors.white.withValues(alpha: 0.4),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -103,7 +106,11 @@ class SectionLabel extends StatelessWidget {
 class LightSection extends StatelessWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
-  const LightSection({super.key, required this.params, required this.onChanged});
+  const LightSection({
+    super.key,
+    required this.params,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -113,28 +120,47 @@ class LightSection extends StatelessWidget {
       children: [
         const SectionLabel(title: 'Light'),
         DevelopSliderTile(
-          label: tr("exposure"), value: p.exposure, min: -5, max: 5,
+          label: tr("exposure"),
+          value: p.exposure,
+          min: -5,
+          max: 5,
           onChanged: (v) => onChanged(p.copyWith(exposure: v)),
-          suffix: ' EV', precision: 2,
+          suffix: ' EV',
+          precision: 2,
         ),
         DevelopSliderTile(
-          label: tr("contrast"), value: p.contrast, min: -100, max: 100,
+          label: tr("contrast"),
+          value: p.contrast,
+          min: -100,
+          max: 100,
           onChanged: (v) => onChanged(p.copyWith(contrast: v)),
         ),
         DevelopSliderTile(
-          label: tr("highlight"), value: p.highlights, min: -100, max: 100,
+          label: tr("highlight"),
+          value: p.highlights,
+          min: -100,
+          max: 100,
           onChanged: (v) => onChanged(p.copyWith(highlights: v)),
         ),
         DevelopSliderTile(
-          label: tr("shadow"), value: p.shadows, min: -100, max: 100,
+          label: tr("shadow"),
+          value: p.shadows,
+          min: -100,
+          max: 100,
           onChanged: (v) => onChanged(p.copyWith(shadows: v)),
         ),
         DevelopSliderTile(
-          label: tr("white"), value: p.whites, min: -100, max: 100,
+          label: tr("white"),
+          value: p.whites,
+          min: -100,
+          max: 100,
           onChanged: (v) => onChanged(p.copyWith(whites: v)),
         ),
         DevelopSliderTile(
-          label: tr("black"), value: p.blacks, min: -100, max: 100,
+          label: tr("black"),
+          value: p.blacks,
+          min: -100,
+          max: 100,
           onChanged: (v) => onChanged(p.copyWith(blacks: v)),
         ),
       ],
@@ -146,7 +172,11 @@ class LightSection extends StatelessWidget {
 class WhiteBalanceColorSection extends StatelessWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
-  const WhiteBalanceColorSection({super.key, required this.params, required this.onChanged});
+  const WhiteBalanceColorSection({
+    super.key,
+    required this.params,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -158,21 +188,31 @@ class WhiteBalanceColorSection extends StatelessWidget {
         DevelopSliderTile(
           label: tr("whiteBalance"),
           value: p.temperature.toDouble(),
-          min: 2000, max: 12000,
+          min: 2000,
+          max: 12000,
           onChanged: (v) => onChanged(p.copyWith(temperature: v.round())),
           suffix: ' K',
         ),
         DevelopSliderTile(
-          label: tr("tint"), value: p.tint, min: -100, max: 100,
+          label: tr("tint"),
+          value: p.tint,
+          min: -100,
+          max: 100,
           onChanged: (v) => onChanged(p.copyWith(tint: v)),
         ),
         const SectionLabel(title: 'Color'),
         DevelopSliderTile(
-          label: tr("saturation"), value: p.saturation, min: -100, max: 100,
+          label: tr("saturation"),
+          value: p.saturation,
+          min: -100,
+          max: 100,
           onChanged: (v) => onChanged(p.copyWith(saturation: v)),
         ),
         DevelopSliderTile(
-          label: tr("vibrance"), value: p.vibrance, min: -100, max: 100,
+          label: tr("vibrance"),
+          value: p.vibrance,
+          min: -100,
+          max: 100,
           onChanged: (v) => onChanged(p.copyWith(vibrance: v)),
         ),
       ],
@@ -194,18 +234,31 @@ class _HslSectionState extends State<HslSection> {
   int _mode = 0; // 0=Hue, 1=Sat, 2=Lum
 
   static const _bandColors = [
-    Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFFFDD835), Color(0xFF43A047),
-    Color(0xFF00ACC1), Color(0xFF1E88E5), Color(0xFF8E24AA), Color(0xFFD81B60),
+    Color(0xFFE53935),
+    Color(0xFFFB8C00),
+    Color(0xFFFDD835),
+    Color(0xFF43A047),
+    Color(0xFF00ACC1),
+    Color(0xFF1E88E5),
+    Color(0xFF8E24AA),
+    Color(0xFFD81B60),
   ];
   final _bandLabels = [
-    tr("red"), tr("orange"), tr("yellow"), tr("green"), tr("cyan"), tr("blue"), tr("purple"), tr("magenta"),
+    tr("red"),
+    tr("orange"),
+    tr("yellow"),
+    tr("green"),
+    tr("cyan"),
+    tr("blue"),
+    tr("purple"),
+    tr("magenta"),
   ];
 
   List<double> _values() => switch (_mode) {
-        0 => widget.bands.hues,
-        1 => widget.bands.sats,
-        _ => widget.bands.lums,
-      };
+    0 => widget.bands.hues,
+    1 => widget.bands.sats,
+    _ => widget.bands.lums,
+  };
 
   void _setValue(int index, double v) {
     final updated = switch (_mode) {
@@ -231,7 +284,7 @@ class _HslSectionState extends State<HslSection> {
                     'reset',
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                     ),
                   ),
                 )
@@ -244,7 +297,7 @@ class _HslSectionState extends State<HslSection> {
               visualDensity: VisualDensity.compact,
               textStyle: const TextStyle(fontSize: 11),
             ),
-            segments:  [
+            segments: [
               ButtonSegment(value: 0, label: Text(tr("hue"))),
               ButtonSegment(value: 1, label: Text(tr("sat"))),
               ButtonSegment(value: 2, label: Text(tr("lum"))),
@@ -254,12 +307,15 @@ class _HslSectionState extends State<HslSection> {
           ),
         ),
         const SizedBox(height: 8),
-        ...List.generate(8, (i) => _BandRow(
-              color: _bandColors[i],
-              label: _bandLabels[i],
-              value: values[i],
-              onChanged: (v) => _setValue(i, v),
-            )),
+        ...List.generate(
+          8,
+          (i) => _BandRow(
+            color: _bandColors[i],
+            label: _bandLabels[i],
+            value: values[i],
+            onChanged: (v) => _setValue(i, v),
+          ),
+        ),
       ],
     );
   }
@@ -271,8 +327,10 @@ class _BandRow extends StatelessWidget {
   final double value;
   final ValueChanged<double> onChanged;
   const _BandRow({
-    required this.color, required this.label,
-    required this.value, required this.onChanged,
+    required this.color,
+    required this.label,
+    required this.value,
+    required this.onChanged,
   });
 
   @override
@@ -284,12 +342,18 @@ class _BandRow extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 14, height: 14,
+            width: 14,
+            height: 14,
             decoration: BoxDecoration(
-                color: color, borderRadius: BorderRadius.circular(3)),
+              color: color,
+              borderRadius: BorderRadius.circular(3),
+            ),
           ),
           const SizedBox(width: 8),
-          SizedBox(width: 56, child: Text(label, style: const TextStyle(fontSize: 11.5))),
+          SizedBox(
+            width: 56,
+            child: Text(label, style: const TextStyle(fontSize: 11.5)),
+          ),
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
@@ -299,7 +363,8 @@ class _BandRow extends StatelessWidget {
               ),
               child: Slider(
                 value: value.clamp(-100.0, 100.0),
-                min: -100, max: 100,
+                min: -100,
+                max: 100,
                 onChanged: onChanged,
               ),
             ),
@@ -315,8 +380,8 @@ class _BandRow extends StatelessWidget {
                   fontSize: 10.5,
                   fontFamily: 'monospace',
                   color: isNeutral
-                      ? Colors.white.withOpacity(0.4)
-                      : Colors.greenAccent.withOpacity(0.85),
+                      ? Colors.white.withValues(alpha: 0.4)
+                      : Colors.greenAccent.withValues(alpha: 0.85),
                 ),
               ),
             ),
@@ -339,7 +404,10 @@ class LutSection extends StatelessWidget {
     required this.lutName,
     required this.intensity,
     required this.onIntensityChanged,
-    this.onPick, this.onLoadTest, this.onLoadIdentity, this.onClear,
+    this.onPick,
+    this.onLoadTest,
+    this.onLoadIdentity,
+    this.onClear,
   });
 
   @override
@@ -354,13 +422,19 @@ class LutSection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 0, 16, 4),
             child: Row(
               children: [
-                Icon(Icons.gradient,
-                    size: 14, color: Colors.greenAccent.withOpacity(0.7)),
+                Icon(
+                  Icons.gradient,
+                  size: 14,
+                  color: Colors.greenAccent.withValues(alpha: 0.7),
+                ),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(lutName!,
-                      style: const TextStyle(fontSize: 12),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    lutName!,
+                    style: const TextStyle(fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 16),
@@ -376,13 +450,16 @@ class LutSection extends StatelessWidget {
             child: Row(
               children: [
                 const SizedBox(
-                    width: 64,
-                    child: Text('Intensity', style: TextStyle(fontSize: 11.5))),
+                  width: 64,
+                  child: Text('Intensity', style: TextStyle(fontSize: 11.5)),
+                ),
                 Expanded(
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 3,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 7,
+                      ),
                     ),
                     child: Slider(
                       value: intensity.clamp(0.0, 1.0),
@@ -398,7 +475,7 @@ class LutSection extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10.5,
                       fontFamily: 'monospace',
-                      color: Colors.greenAccent.withOpacity(0.85),
+                      color: Colors.greenAccent.withValues(alpha: 0.85),
                     ),
                   ),
                 ),
@@ -408,8 +485,13 @@ class LutSection extends StatelessWidget {
         ] else
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 16, 4),
-            child: Text(tr("unload"),
-                style: TextStyle(fontSize: 11.5, color: Colors.white.withOpacity(0.4))),
+            child: Text(
+              tr("unload"),
+              style: TextStyle(
+                fontSize: 11.5,
+                color: Colors.white.withValues(alpha: 0.4),
+              ),
+            ),
           ),
         const SizedBox(height: 8),
         Padding(
@@ -422,14 +504,17 @@ class LutSection extends StatelessWidget {
                   icon: const Icon(Icons.folder_open, size: 14),
                   label: const Text('.cube', style: TextStyle(fontSize: 11)),
                   style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: OutlinedButton(
                   onPressed: onLoadTest,
-                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
                   child: const Text('Test', style: TextStyle(fontSize: 11)),
                 ),
               ),
@@ -437,7 +522,9 @@ class LutSection extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   onPressed: onLoadIdentity,
-                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
                   child: const Text('Ident', style: TextStyle(fontSize: 11)),
                 ),
               ),

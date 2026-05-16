@@ -75,7 +75,10 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
   Widget build(BuildContext context) {
     if (!_loaded) {
       return const AlertDialog(
-        content: SizedBox(height: 60, child: Center(child: CircularProgressIndicator())),
+        content: SizedBox(
+          height: 60,
+          child: Center(child: CircularProgressIndicator()),
+        ),
       );
     }
     final provider = AIProvider.byId(_providerId);
@@ -91,42 +94,62 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // —— 1. Provider —— //
-            Text(tr("aiProvider"),
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            Text(
+              tr("aiProvider"),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 6),
             DropdownButtonFormField<AIProviderId>(
-              value: _providerId,
+              initialValue: _providerId,
               isDense: true,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
               ),
               items: AIProvider.all
-                  .map((p) => DropdownMenuItem(
-                        value: p.id,
-                        child: Text(p.displayName, style: const TextStyle(fontSize: 12)),
-                      ))
+                  .map(
+                    (p) => DropdownMenuItem(
+                      value: p.id,
+                      child: Text(
+                        p.displayName,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  )
                   .toList(),
               onChanged: _onProviderChanged,
             ),
             const SizedBox(height: 14),
 
             // —— 2. Model —— //
-            Text(tr("model"),
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            Text(
+              tr("model"),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
-              value: effectiveModelId,
+              initialValue: effectiveModelId,
               isDense: true,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
               ),
               items: provider.models
-                  .map((m) => DropdownMenuItem(
-                        value: m.id,
-                        child: Text(m.label, style: const TextStyle(fontSize: 12)),
-                      ))
+                  .map(
+                    (m) => DropdownMenuItem(
+                      value: m.id,
+                      child: Text(
+                        m.label,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  )
                   .toList(),
               onChanged: (v) =>
                   setState(() => _modelId = v ?? provider.defaultModelId),
@@ -134,8 +157,10 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
             const SizedBox(height: 14),
 
             // —— 3. API Key —— //
-            Text('${provider.displayName} ${tr("apiKey")}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            Text(
+              '${provider.displayName} ${tr("apiKey")}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 6),
             TextField(
               controller: _keyController,
@@ -144,10 +169,15 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                 hintText: _keyHintFor(_providerId),
                 isDense: true,
                 border: const OutlineInputBorder(),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off, size: 16),
+                  icon: Icon(
+                    _obscure ? Icons.visibility : Icons.visibility_off,
+                    size: 16,
+                  ),
                   onPressed: () => setState(() => _obscure = !_obscure),
                 ),
               ),
@@ -156,7 +186,10 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
             const SizedBox(height: 4),
             Text(
               _keyOriginFor(_providerId),
-              style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.5)),
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
             ),
 
             const Divider(height: 28),
@@ -177,12 +210,20 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(tr("aiColorSuggestionTetherAuto"),
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text(
+                            tr("aiColorSuggestionTetherAuto"),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                           SizedBox(height: 2),
                           Text(
                             tr("aiColorSuggestionTetherAutoDescription"),
-                            style: TextStyle(fontSize: 10.5, color: Colors.white60),
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: Colors.white60,
+                            ),
                           ),
                         ],
                       ),
@@ -195,7 +236,10 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr("cancel"))),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(tr("cancel")),
+        ),
         FilledButton(onPressed: _save, child: Text(tr("save"))),
       ],
     );

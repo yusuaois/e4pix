@@ -90,7 +90,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
               decoration: BoxDecoration(
                 color: const Color(0xFF0E0E14),
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.white.withOpacity(0.06)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
               ),
               padding: const EdgeInsets.all(8),
               constraints: const BoxConstraints(minHeight: 70),
@@ -116,7 +116,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                             '${tr("noCamerasFound")}\n· Android: ${tr("tetherOtherModeHint")}',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                             ),
                           )
                         : (Platform.isWindows
@@ -127,7 +127,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                                   '   - usbipd attach --wsl --busid <busid>\n',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.white.withOpacity(0.6),
+                                    color: Colors.white.withValues(alpha: 0.6),
                                   ),
                                 )
                               : Text(
@@ -135,7 +135,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                                   '· Linux/macOS: ${tr("tetherOtherModeHint")}',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.white.withOpacity(0.6),
+                                    color: Colors.white.withValues(alpha: 0.6),
                                   ),
                                 ))
                   : Column(
@@ -154,7 +154,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                                   size: 14,
                                   color: isSel
                                       ? const Color(0xFF6B5BFF)
-                                      : Colors.white.withOpacity(0.4),
+                                      : Colors.white.withValues(alpha: 0.4),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
@@ -168,7 +168,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontFamily: 'monospace',
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: Colors.white.withValues(alpha: 0.5),
                                   ),
                                 ),
                               ],
@@ -195,7 +195,9 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                     decoration: BoxDecoration(
                       color: const Color(0xFF0E0E14),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.white.withOpacity(0.06)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.06),
+                      ),
                     ),
                     child: Text(
                       _folder ?? tr("notChosen"),
@@ -203,7 +205,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                         fontSize: 11.5,
                         fontFamily: 'monospace',
                         color: _folder == null
-                            ? Colors.white.withOpacity(0.4)
+                            ? Colors.white.withValues(alpha: 0.4)
                             : null,
                       ),
                       maxLines: 1,
@@ -212,7 +214,10 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                OutlinedButton(onPressed: _pickFolder, child: Text(tr("browse"))),
+                OutlinedButton(
+                  onPressed: _pickFolder,
+                  child: Text(tr("browse")),
+                ),
               ],
             ),
           ],

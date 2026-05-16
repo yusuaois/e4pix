@@ -60,7 +60,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     }
   }
 
-  // 动作从 ref.read 写到 notifier
+  // 动作写 notifier
   Future<void> _pickAndDecode() async {
     final result = await FilePicker.platform.pickFiles();
     if (result == null || result.files.isEmpty) return;
@@ -204,36 +204,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     }
   }
 
-  Future<void> _viewPendingAI(AIColorSuggestion s) async {
-    ref.read(aiAutoNotifierProvider.notifier).dismissPending();
-    final program = ref.read(shaderProgramProvider).value;
-    final image = ref.read(imageNotifierProvider).value;
-    if (program == null || image == null) return;
-
-    final result = await showDialog<AIColorSuggestion>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AISuggestionDialog(
-        currentParams: ref.read(currentParamsNotifierProvider),
-        initialSuggestion: s,
-        renderPreviewToFile: () async {
-          final lut = ref.read(lutNotifierProvider);
-          return AIInputRenderer.renderToTempFile(
-            program: program,
-            sourceImage: image.uiImage,
-            params: ref.read(currentParamsNotifierProvider),
-            lutTexture: lut.texture,
-            lutSize: lut.size,
-            maxEdge: await AISettings.getMaxEdge(),
-          );
-        },
-      ),
-    );
-    if (result != null && mounted) {
-      _onParamsChanged(result.applyTo(ref.read(currentParamsNotifierProvider)));
-    }
-  }
-
   // Export
   Future<void> _showExportDialog() async {
     final program = ref.read(shaderProgramProvider).value;
@@ -290,7 +260,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                 tr('exportDescription'),
                 style: TextStyle(
                   fontSize: 11,
-                  color: Colors.white.withOpacity(0.6),
+                  color: Colors.white.withValues(alpha: 0.6),
                 ),
               ),
             ],
@@ -648,7 +618,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF14141A),
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       child: Row(
@@ -683,7 +653,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                 size: 18,
                 color: cameraState.shutterFlash
                     ? Colors.greenAccent
-                    : Colors.greenAccent.withOpacity(0.85),
+                    : Colors.greenAccent.withValues(alpha: 0.85),
               ),
               tooltip: tr(
                 "cameraConnected",
@@ -708,7 +678,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             ),
             color: selection.multiSelectMode
                 ? const Color(0xFF6B5BFF)
-                : Colors.white.withOpacity(0.85),
+                : Colors.white.withValues(alpha: 0.85),
             tooltip: selection.multiSelectMode
                 ? tr('multiSelectExit')
                 : tr('multiSelect'),
@@ -723,7 +693,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6B5BFF).withOpacity(0.2),
+                  color: const Color(0xFF6B5BFF).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -776,8 +746,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF14141A),
         border: Border(
-          top: BorderSide(color: Colors.white.withOpacity(0.05)),
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       child: Row(
@@ -800,7 +770,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   style: TextStyle(
                     fontSize: 10,
                     fontFamily: 'monospace',
-                    color: Colors.greenAccent.withOpacity(0.8),
+                    color: Colors.greenAccent.withValues(alpha: 0.8),
                   ),
                 ),
                 if (image.isPreliminary) ...[
@@ -810,7 +780,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     height: 9,
                     child: CircularProgressIndicator(
                       strokeWidth: 1.2,
-                      color: Colors.amberAccent.withOpacity(0.7),
+                      color: Colors.amberAccent.withValues(alpha: 0.7),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -818,7 +788,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     'HD…',
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.amberAccent.withOpacity(0.7),
+                      color: Colors.amberAccent.withValues(alpha: 0.7),
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -844,7 +814,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               Container(
                 decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                    bottom: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.05),
+                    ),
                   ),
                 ),
                 child: Row(
@@ -929,7 +901,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 18),
       decoration: BoxDecoration(
         color: const Color(0xFF14141A),
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -942,7 +916,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   path ?? tr('imageNotChosen'),
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha: 0.5),
                     fontFamily: 'monospace',
                   ),
                   maxLines: 1,
@@ -966,7 +940,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                         'convert ${image.convertTime.inMilliseconds}ms',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.greenAccent.withOpacity(0.8),
+                          color: Colors.greenAccent.withValues(alpha: 0.8),
                           fontFamily: 'monospace',
                         ),
                       ),
@@ -977,7 +951,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                           height: 9,
                           child: CircularProgressIndicator(
                             strokeWidth: 1.2,
-                            color: Colors.amberAccent.withOpacity(0.7),
+                            color: Colors.amberAccent.withValues(alpha: 0.7),
                           ),
                         ),
                         const SizedBox(width: 4),
@@ -985,7 +959,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                           'HD…',
                           style: TextStyle(
                             fontSize: 10,
-                            color: Colors.amberAccent.withOpacity(0.7),
+                            color: Colors.amberAccent.withValues(alpha: 0.7),
                             fontFamily: 'monospace',
                           ),
                         ),
@@ -1060,7 +1034,7 @@ class _PreviewArea extends ConsumerWidget {
           Icon(
             Icons.photo_library_outlined,
             size: 64,
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
@@ -1080,7 +1054,7 @@ class _PreviewArea extends ConsumerWidget {
             'ARW · CR2 · CR3 · NEF · RAF · DNG · ORF · RW2 …',
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withOpacity(0.4),
+              color: Colors.white.withValues(alpha: 0.4),
               fontFamily: 'monospace',
             ),
           ),
@@ -1100,7 +1074,7 @@ class _AIBanner extends ConsumerWidget {
 
     if (ai.inProgress && ai.pendingSuggestion == null) {
       return Container(
-        color: const Color(0xFF6B5BFF).withOpacity(0.08),
+        color: const Color(0xFF6B5BFF).withValues(alpha: 0.08),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         child: Row(
           children: [
@@ -1117,7 +1091,7 @@ class _AIBanner extends ConsumerWidget {
               tr("aiColorInProgress"),
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -1128,7 +1102,7 @@ class _AIBanner extends ConsumerWidget {
 
     final s = ai.pendingSuggestion!;
     return Material(
-      color: const Color(0xFF6B5BFF).withOpacity(0.15),
+      color: const Color(0xFF6B5BFF).withValues(alpha: 0.15),
       child: InkWell(
         onTap: () {
           ref.read(aiAutoNotifierProvider.notifier).applyPending();
@@ -1185,7 +1159,7 @@ class _AIBanner extends ConsumerWidget {
                   tr("ignore"),
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                   ),
                 ),
               ),
@@ -1235,7 +1209,7 @@ class _CenterMessage extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   fontFamily: 'monospace',
                 ),
               ),

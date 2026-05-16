@@ -123,7 +123,10 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                       SizedBox(height: 10),
-                      Text(tr("aiColorInProgress"), style: TextStyle(fontSize: 11.5)),
+                      Text(
+                        tr("aiColorInProgress"),
+                        style: TextStyle(fontSize: 11.5),
+                      ),
                     ],
                   ),
                 ),
@@ -132,9 +135,11 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.redAccent.withOpacity(0.1),
+                  color: Colors.redAccent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                  border: Border.all(
+                    color: Colors.redAccent.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Text(
                   _error!,
@@ -150,7 +155,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                   tr("aiColorSuggestionDescription"),
                   style: TextStyle(
                     fontSize: 11.5,
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                   ),
                 ),
               ),
@@ -232,7 +237,7 @@ class _SuggestionView extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10.5,
                     fontFamily: 'monospace',
-                    color: Colors.greenAccent.withOpacity(0.85),
+                    color: Colors.greenAccent.withValues(alpha: 0.85),
                   ),
                 ),
               ],
@@ -249,7 +254,7 @@ class _SuggestionView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: const Color(0xFF6B5BFF).withOpacity(0.15),
+              color: const Color(0xFF6B5BFF).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(3),
             ),
             child: Text(
@@ -296,7 +301,7 @@ class _SuggestionView extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 11,
                               fontFamily: 'monospace',
-                              color: Colors.greenAccent.withOpacity(0.85),
+                              color: Colors.greenAccent.withValues(alpha: 0.85),
                             ),
                           ),
                         ],
@@ -324,7 +329,7 @@ class _SuggestionView extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     letterSpacing: 1.2,
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha: 0.5),
                     fontWeight: FontWeight.w600,
                   ),
                 ),

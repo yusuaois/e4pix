@@ -3,8 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:isolate';
-import 'dart:math' as math;
-
 import 'package:image/image.dart' as img_pkg;
 import '../core/color/srgb_lut.dart';
 import '../core/models/adjustment_params.dart';

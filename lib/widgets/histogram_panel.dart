@@ -143,7 +143,7 @@ class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
       decoration: BoxDecoration(
         color: const Color(0xFF0B0B10),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: CustomPaint(painter: _HistogramPainter(_hist)),
     );
@@ -167,7 +167,7 @@ class _HistogramPainter extends CustomPainter {
 
     canvas.drawPath(
       _fillPath(h.luma, size, norm),
-      Paint()..color = Colors.white.withOpacity(0.18),
+      Paint()..color = Colors.white.withValues(alpha: 0.18),
     );
 
     void line(Int32List data, Color color) {
@@ -181,12 +181,12 @@ class _HistogramPainter extends CustomPainter {
       );
     }
 
-    line(h.red, const Color(0xFFFF6464).withOpacity(0.9));
-    line(h.green, const Color(0xFF60E060).withOpacity(0.9));
-    line(h.blue, const Color(0xFF6088FF).withOpacity(0.9));
+    line(h.red, const Color(0xFFFF6464).withValues(alpha: 0.9));
+    line(h.green, const Color(0xFF60E060).withValues(alpha: 0.9));
+    line(h.blue, const Color(0xFF6088FF).withValues(alpha: 0.9));
 
     // 削波警示
-    final clip = Paint()..color = Colors.redAccent.withOpacity(0.65);
+    final clip = Paint()..color = Colors.redAccent.withValues(alpha: 0.65);
     final th = h.totalPixels * 0.01;
     if (h.red[0] > th || h.green[0] > th || h.blue[0] > th) {
       canvas.drawRect(Rect.fromLTWH(0, 0, 3, size.height), clip);

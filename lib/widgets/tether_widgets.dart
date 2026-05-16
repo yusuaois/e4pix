@@ -46,7 +46,7 @@ class TetherStatusBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1A2A1A),
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       child: Row(
@@ -57,7 +57,7 @@ class TetherStatusBar extends StatelessWidget {
             'Tether',
             style: TextStyle(
               fontSize: 11.5,
-              color: Colors.greenAccent.withOpacity(0.85),
+              color: Colors.greenAccent.withValues(alpha: 0.85),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -68,7 +68,7 @@ class TetherStatusBar extends StatelessWidget {
               '${lastShotAt == null ? '' : ' · ${_ago(lastShotAt!)}'}',
               style: TextStyle(
                 fontSize: 11,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -83,8 +83,8 @@ class TetherStatusBar extends StatelessWidget {
             icon: Icon(
               preserveParams ? Icons.link_rounded : Icons.link_off_rounded,
               color: preserveParams
-                  ? Colors.greenAccent.withOpacity(0.85)
-                  : Colors.orangeAccent.withOpacity(0.85),
+                  ? Colors.greenAccent.withValues(alpha: 0.85)
+                  : Colors.orangeAccent.withValues(alpha: 0.85),
             ),
           ),
           IconButton(
@@ -110,7 +110,7 @@ class TetherStatusBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1A2A1A),
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
       child: Row(
@@ -121,7 +121,7 @@ class TetherStatusBar extends StatelessWidget {
             'Tether',
             style: TextStyle(
               fontSize: 11.5,
-              color: Colors.greenAccent.withOpacity(0.85),
+              color: Colors.greenAccent.withValues(alpha: 0.85),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -131,7 +131,7 @@ class TetherStatusBar extends StatelessWidget {
               watchPath,
               style: TextStyle(
                 fontSize: 11.5,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontFamily: 'monospace',
               ),
               overflow: TextOverflow.ellipsis,
@@ -143,7 +143,7 @@ class TetherStatusBar extends StatelessWidget {
             '${lastShotAt == null ? '' : ' · ${_ago(lastShotAt!)}'}',
             style: TextStyle(
               fontSize: 11.5,
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(width: 14),
@@ -177,8 +177,8 @@ class _PreserveToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = preserved
-        ? Colors.greenAccent.withOpacity(0.85)
-        : Colors.orangeAccent.withOpacity(0.85);
+        ? Colors.greenAccent.withValues(alpha: 0.85)
+        : Colors.orangeAccent.withValues(alpha: 0.85);
     return Tooltip(
       message: preserved
           ? tr("preserveModeDescription")
@@ -227,15 +227,15 @@ class _PulsingDotState extends State<_PulsingDot>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _c,
-      builder: (_, __) => Container(
+      builder: (_, _) => Container(
         width: 8,
         height: 8,
         decoration: BoxDecoration(
-          color: widget.color.withOpacity(0.4 + 0.6 * _c.value),
+          color: widget.color.withValues(alpha: 0.4 + 0.6 * _c.value),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: widget.color.withOpacity(0.4 * _c.value),
+              color: widget.color.withValues(alpha: 0.4 * _c.value),
               blurRadius: 6,
             ),
           ],
@@ -283,7 +283,9 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
       height: 92,
       decoration: BoxDecoration(
         color: const Color(0xFF0B0B10),
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
       ),
       child: ScrollConfiguration(
         behavior: ScrollConfiguration.of(context).copyWith(
@@ -354,14 +356,14 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                   )
                                 else
                                   Container(
-                                    color: Colors.white.withOpacity(0.05),
+                                    color: Colors.white.withValues(alpha: 0.05),
                                     alignment: Alignment.center,
                                     child: shot.error != null
                                         ? Icon(
                                             Icons.broken_image_outlined,
                                             size: 18,
-                                            color: Colors.redAccent.withOpacity(
-                                              0.6,
+                                            color: Colors.redAccent.withValues(
+                                              alpha: 0.6,
                                             ),
                                           )
                                         : const SizedBox(
@@ -374,7 +376,7 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                   ),
                                 if (widget.multiSelectMode && !isPicked)
                                   Container(
-                                    color: Colors.black.withOpacity(0.35),
+                                    color: Colors.black.withValues(alpha: 0.35),
                                   ),
                                 if (widget.multiSelectMode && isActive)
                                   Positioned(
@@ -386,7 +388,9 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                         vertical: 1,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.6),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.6,
+                                        ),
                                         borderRadius: BorderRadius.circular(2),
                                       ),
                                       child: const Text(
@@ -414,11 +418,11 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                             decoration: BoxDecoration(
                               color: isPicked
                                   ? const Color(0xFF6B5BFF)
-                                  : Colors.black.withOpacity(0.55),
+                                  : Colors.black.withValues(alpha: 0.55),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.white.withOpacity(
-                                  isPicked ? 1 : 0.7,
+                                color: Colors.white.withValues(
+                                  alpha: isPicked ? 1 : 0.7,
                                 ),
                                 width: 1.5,
                               ),
