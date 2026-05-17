@@ -117,5 +117,13 @@
     "deleteCurrentLUT": "Delete current LUT",
     "importCube": "Import .cube",
     "deleteLUT": "Delete LUT",
-    "confirmDeleteLUT": "Confirm delete 「{}」? This action cannot be undone."
+    "confirmDeleteLUT": "Confirm delete 「{}」? This action cannot be undone.",
+    "crop": "Crop",
+    "exportDecodingImage": "Decode RAW (Full Resolution)...",
+    "exportTransformingColorSpace": "Color Space Conversion...",
+    "exportRenderingImage": "GPU Rendering...",
+    "exportEncodingImage": "Decoding {}...",
+    "writingFile": "Writing File...",
+    "completed": "Completed",
+    "origin": "Original"
 }

@@ -22,6 +22,8 @@ import '../widgets/ai_settings_dialog.dart';
 import '../widgets/ai_suggestion_dialog.dart';
 import '../widgets/camera_picker_dialog.dart';
 import '../widgets/compare_button.dart';
+import '../widgets/crop_overlay.dart';
+import '../widgets/crop_panel.dart';
 import '../widgets/develop_sections.dart';
 import '../widgets/histogram_panel.dart';
 import '../widgets/preset_bar.dart';
@@ -444,6 +446,24 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           }
         }
 
+        // Crop R/Esc/Enter
+        if (event is KeyDownEvent) {
+          final inCrop = ref.read(cropEditModeProvider);
+
+          if (event.logicalKey == LogicalKeyboardKey.keyR && !inCrop) {
+            enterCropMode(ref);
+            return KeyEventResult.handled;
+          }
+          if (inCrop && event.logicalKey == LogicalKeyboardKey.escape) {
+            cancelCrop(ref);
+            return KeyEventResult.handled;
+          }
+          if (inCrop && event.logicalKey == LogicalKeyboardKey.enter) {
+            commitCrop(ref);
+            return KeyEventResult.handled;
+          }
+        }
+
         return KeyEventResult.ignored;
       },
       child: Scaffold(
@@ -560,8 +580,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   onChanged: _onParamsChanged,
                   lutName: lut.name,
                   library:
-                      ref.watch(lutLibraryNotifierProvider).value ??
-                      const [],
+                      ref.watch(lutLibraryNotifierProvider).value ?? const [],
                   onSelectLut: (entry) async {
                     if (entry == null) {
                       ref.read(lutNotifierProvider.notifier).clear();
@@ -642,6 +661,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       params: params,
       lutTexture: lutEnabled ? lut.texture : null,
       lutSize: lutEnabled ? lut.size : 0,
+      crop: params.crop,
     );
   }
 
@@ -679,7 +699,11 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               onPressed: hist.canRedo ? notifier.redo : null,
             ),
             const VerticalDivider(width: 1),
-            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.crop),
+              tooltip: tr('crop'),
+              onPressed: hasImage ? () => enterCropMode(ref) : null,
+            ),
             const CompareButton(),
             IconButton(
               icon: const Icon(
@@ -1074,12 +1098,20 @@ class _PreviewArea extends ConsumerWidget {
     final params = ref.watch(effectiveParamsProvider);
     final lutState = ref.watch(lutNotifierProvider);
     final lutEnabled = ref.watch(effectiveLutEnabledProvider);
+    final cropEditMode = ref.watch(cropEditModeProvider);
 
     return imageAsync.when(
       loading: () => imageAsync.value == null
           ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-          : _buildPreview(imageAsync.value!, params, lutState, lutEnabled),
-      error: (e, st) => _CenterMessage(
+          : _buildBody(
+              imageAsync.value!,
+              params,
+              lutState,
+              lutEnabled,
+              cropEditMode,
+              ref,
+            ),
+      error: (e, _) => _CenterMessage(
         icon: Icons.warning_amber_rounded,
         color: Colors.orangeAccent,
         title: tr("decodeFailed"),
@@ -1087,24 +1119,129 @@ class _PreviewArea extends ConsumerWidget {
       ),
       data: (state) {
         if (state == null) return _buildEmpty(context, ref);
-        return _buildPreview(state, params, lutState, lutEnabled);
+        return _buildBody(
+          state,
+          params,
+          lutState,
+          lutEnabled,
+          cropEditMode,
+          ref,
+        );
       },
     );
   }
 
-  Widget _buildPreview(
+  Widget _buildBody(
+    DecodedImageState state,
+    AdjustmentParams params,
+    LutState lut,
+    bool lutEnabled,
+    bool cropMode,
+    WidgetRef ref,
+  ) {
+    if (cropMode) return _buildCropEdit(state, params, lut, lutEnabled);
+    return _buildCroppedPreview(state, params, lut, lutEnabled);
+  }
+
+  Widget _buildCropEdit(
     DecodedImageState state,
     AdjustmentParams params,
     LutState lut,
     bool lutEnabled,
   ) {
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        final imgW = state.uiImage.width.toDouble();
+        final imgH = state.uiImage.height.toDouble();
+        final fit = applyBoxFit(
+          BoxFit.contain,
+          Size(imgW, imgH),
+          constraints.biggest,
+        );
+        final displaySize = fit.destination;
+
+        return Container(
+          color: Colors.black,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox.fromSize(
+                size: displaySize,
+                child: PreviewRenderer(
+                  image: state.uiImage,
+                  params: params,
+                  lutTexture: lutEnabled ? lut.texture : null,
+                  lutSize: lutEnabled ? lut.size : 0,
+                ),
+              ),
+              SizedBox.fromSize(
+                size: displaySize,
+                child: CropOverlay(imageDisplaySize: displaySize),
+              ),
+              Positioned(bottom: 16, child: CropPanel()),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 普通模式：显示已裁剪的画面（OverflowBox + Transform 模拟裁剪）
+  Widget _buildCroppedPreview(
+    DecodedImageState state,
+    AdjustmentParams params,
+    LutState lut,
+    bool lutEnabled,
+  ) {
+    final crop = params.crop;
+    final image = state.uiImage;
+
     return Container(
       color: Colors.black,
-      child: PreviewRenderer(
-        image: state.uiImage,
-        params: params,
-        lutTexture: lutEnabled ? lut.texture : null,
-        lutSize: lutEnabled ? lut.size : 0,
+      child: LayoutBuilder(
+        builder: (ctx, constraints) {
+          final imgW = image.width.toDouble();
+          final imgH = image.height.toDouble();
+          final outAspect = (imgW * crop.width) / (imgH * crop.height);
+          final box = applyBoxFit(
+            BoxFit.contain,
+            Size(outAspect, 1.0),
+            constraints.biggest,
+          ).destination;
+
+          final fullW = box.width / crop.width;
+          final fullH = box.height / crop.height;
+          final tx = -crop.x * fullW;
+          final ty = -crop.y * fullH;
+
+          return Center(
+            child: SizedBox.fromSize(
+              size: box,
+              child: ClipRect(
+                child: OverflowBox(
+                  minWidth: fullW,
+                  maxWidth: fullW,
+                  minHeight: fullH,
+                  maxHeight: fullH,
+                  alignment: Alignment.topLeft,
+                  child: Transform.translate(
+                    offset: Offset(tx, ty),
+                    child: SizedBox(
+                      width: fullW,
+                      height: fullH,
+                      child: PreviewRenderer(
+                        image: image,
+                        params: params,
+                        lutTexture: lutEnabled ? lut.texture : null,
+                        lutSize: lutEnabled ? lut.size : 0,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -3,8 +3,10 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:isolate';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:image/image.dart' as img_pkg;
 import '../core/color/srgb_lut.dart';
+import '../core/image/crop_image.dart';
 import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
 import 'render_engine.dart';
@@ -33,13 +35,13 @@ class Exporter {
     int jpegQuality = 95,
     ExportProgress? onProgress,
   }) async {
-    onProgress?.call(0.05, '解码 RAW（全分辨率）...');
+    onProgress?.call(0.05, tr("exportDecodingImage"));
     final raw = await RawBridge.decodeFull(inputRawPath);
 
-    onProgress?.call(0.40, '色彩空间转换...');
+    onProgress?.call(0.40, tr("exportTransformingColorSpace"));
     final sourceImage = await _rawToUiImage(raw);
 
-    onProgress?.call(0.65, 'GPU 渲染...');
+    onProgress?.call(0.65, tr("exportRenderingImage"));
     final rendered = await RenderEngine.renderToImage(
       program: shaderProgram,
       sourceImage: sourceImage,
@@ -49,18 +51,25 @@ class Exporter {
     );
     sourceImage.dispose();
 
-    onProgress?.call(0.80, '编码 ${format.extension.toUpperCase()}...');
+    ui.Image output = rendered;
+    if (!params.crop.isIdentity) {
+      output = await cropImage(rendered, params.crop);
+      rendered.dispose();
+    }
+
+    onProgress?.call(
+      0.80,
+      tr("exportEncodingImage", args: [format.extension.toUpperCase()]),
+    );
     final Uint8List bytes;
     switch (format) {
       case ExportFormat.png:
-        final bd = await rendered.toByteData(format: ui.ImageByteFormat.png);
+        final bd = await output.toByteData(format: ui.ImageByteFormat.png);
         bytes = bd!.buffer.asUint8List();
         break;
       case ExportFormat.jpeg:
-        final bd = await rendered.toByteData(
-          format: ui.ImageByteFormat.rawRgba,
-        );
-        final w = rendered.width, h = rendered.height;
+        final bd = await output.toByteData(format: ui.ImageByteFormat.rawRgba);
+        final w = output.width, h = output.height;
         bytes = await Isolate.run(() {
           final image = img_pkg.Image.fromBytes(
             width: w,
@@ -72,12 +81,12 @@ class Exporter {
         });
         break;
     }
-    rendered.dispose();
+    output.dispose();
 
-    onProgress?.call(0.95, '写入文件...');
+    onProgress?.call(0.95, tr("writingFile"));
     final file = File(outputPath);
     await file.writeAsBytes(bytes);
-    onProgress?.call(1.0, '完成');
+    onProgress?.call(1.0, tr("completed"));
     return file;
   }
 

@@ -1,10 +1,12 @@
 import 'dart:convert';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/models/adjustment_params.dart';
+import '../core/models/crop_params.dart';
 import 'params_state.dart';
 
 @immutable
@@ -24,20 +26,20 @@ class Preset {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'params': params.toJson(),
-        'createdAt': createdAt.toIso8601String(),
-        'isBuiltin': isBuiltin,
-      };
+    'id': id,
+    'name': name,
+    'params': params.toJson(),
+    'createdAt': createdAt.toIso8601String(),
+    'isBuiltin': isBuiltin,
+  };
 
   factory Preset.fromJson(Map<String, dynamic> j) => Preset(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        params: AdjustmentParams.fromJson(j['params'] as Map<String, dynamic>),
-        createdAt: DateTime.parse(j['createdAt'] as String),
-        isBuiltin: j['isBuiltin'] as bool? ?? false,
-      );
+    id: j['id'] as String,
+    name: j['name'] as String,
+    params: AdjustmentParams.fromJson(j['params'] as Map<String, dynamic>),
+    createdAt: DateTime.parse(j['createdAt'] as String),
+    isBuiltin: j['isBuiltin'] as bool? ?? false,
+  );
 }
 
 class PresetNotifier extends AsyncNotifier<List<Preset>> {
@@ -51,7 +53,9 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
     if (raw != null) {
       try {
         final list = jsonDecode(raw) as List;
-        user.addAll(list.map((j) => Preset.fromJson(j as Map<String, dynamic>)));
+        user.addAll(
+          list.map((j) => Preset.fromJson(j as Map<String, dynamic>)),
+        );
       } catch (e) {
         debugPrint('Preset parse failed: $e');
       }
@@ -64,7 +68,7 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
     final preset = Preset(
       id: 'p_${DateTime.now().millisecondsSinceEpoch}',
       name: name,
-      params: current,
+      params: current.copyWith(crop: CropParams.identity),
       createdAt: DateTime.now(),
     );
     final list = await future;
@@ -101,7 +105,10 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
     if (list == null) return;
     final preset = list.where((p) => p.id == id).firstOrNull;
     if (preset == null) return;
-    ref.read(currentParamsNotifierProvider.notifier).update(preset.params);
+    final current = ref.read(currentParamsNotifierProvider);
+    ref
+        .read(currentParamsNotifierProvider.notifier)
+        .update(preset.params.copyWith(crop: current.crop));
   }
 
   Future<void> _persist() async {
@@ -116,14 +123,14 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
 
   /// 出厂 preset
   List<Preset> _builtins() => [
-        Preset(
-          id: 'builtin_neutral',
-          name: '原片',
-          params: AdjustmentParams.neutral,
-          createdAt: DateTime(2024),
-          isBuiltin: true,
-        ),
-      ];
+    Preset(
+      id: 'builtin_neutral',
+      name: tr("origin"),
+      params: AdjustmentParams.neutral,
+      createdAt: DateTime(2024),
+      isBuiltin: true,
+    ),
+  ];
 }
 
 final presetNotifierProvider =

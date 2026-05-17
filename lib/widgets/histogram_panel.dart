@@ -4,7 +4,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../core/image/crop_image.dart';
 import '../core/models/adjustment_params.dart';
+import '../core/models/crop_params.dart';
 import '../render/render_engine.dart';
 
 class Histogram {
@@ -45,12 +47,14 @@ class LiveHistogramPanel extends StatefulWidget {
   final AdjustmentParams params;
   final ui.Image? lutTexture;
   final int lutSize;
+  final CropParams crop;
 
   const LiveHistogramPanel({
     super.key,
     required this.program,
     required this.sourceImage,
     required this.params,
+    required this.crop,
     this.lutTexture,
     this.lutSize = 0,
   });
@@ -115,17 +119,29 @@ class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
         targetWidth: w,
         targetHeight: h,
       );
+
       try {
         if (!mounted || widget.sourceImage != captured) return;
-        final bd = await rendered.toByteData(
-          format: ui.ImageByteFormat.rawRgba,
-        );
-        if (bd == null) return;
-        if (!mounted || widget.sourceImage != captured) return;
-        final hist = Histogram.fromRgba(bd.buffer.asUint8List());
-        if (mounted) setState(() => _hist = hist);
-      } finally {
-        rendered.dispose();
+
+        ui.Image finalImg = rendered;
+        if (!widget.crop.isIdentity) {
+          finalImg = await cropImage(rendered, widget.crop);
+          rendered.dispose();
+        }
+
+        try {
+          final bd = await finalImg.toByteData(
+            format: ui.ImageByteFormat.rawRgba,
+          );
+          if (bd == null) return;
+          if (!mounted || widget.sourceImage != captured) return;
+          final hist = Histogram.fromRgba(bd.buffer.asUint8List());
+          if (mounted) setState(() => _hist = hist);
+        } finally {
+          finalImg.dispose();
+        }
+      } catch (e) {
+        // ...
       }
     } catch (e) {
       debugPrint('Histogram recompute error: $e');

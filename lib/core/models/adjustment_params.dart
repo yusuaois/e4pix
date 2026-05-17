@@ -1,4 +1,5 @@
 import 'package:e4pix/core/models/hsl_bands.dart';
+import 'package:e4pix/core/models/crop_params.dart';
 import 'package:flutter/foundation.dart';
 
 @immutable
@@ -15,6 +16,7 @@ class AdjustmentParams {
   final double vibrance;
   final double lutIntensity;
   final HslBands hsl;
+  final CropParams crop;
 
   const AdjustmentParams({
     this.exposure = 0.0,
@@ -29,6 +31,7 @@ class AdjustmentParams {
     this.vibrance = 0.0,
     this.lutIntensity = 1.0,
     this.hsl = HslBands.neutral,
+    this.crop = CropParams.identity,
   });
 
   static const neutral = AdjustmentParams();
@@ -46,6 +49,7 @@ class AdjustmentParams {
     double? vibrance,
     double? lutIntensity,
     HslBands? hsl,
+    CropParams? crop,
   }) => AdjustmentParams(
     exposure: exposure ?? this.exposure,
     temperature: temperature ?? this.temperature,
@@ -59,6 +63,7 @@ class AdjustmentParams {
     vibrance: vibrance ?? this.vibrance,
     lutIntensity: lutIntensity ?? this.lutIntensity,
     hsl: hsl ?? this.hsl,
+    crop: crop ?? this.crop,
   );
 
   @override
@@ -76,7 +81,8 @@ class AdjustmentParams {
           saturation == other.saturation &&
           vibrance == other.vibrance &&
           lutIntensity == other.lutIntensity &&
-          hsl == other.hsl;
+          hsl == other.hsl &&
+          crop == other.crop;
 
   @override
   int get hashCode => Object.hash(
@@ -92,37 +98,42 @@ class AdjustmentParams {
     vibrance,
     lutIntensity,
     hsl,
+    crop,
   );
 
   Map<String, dynamic> toJson() => {
-      'exposure': exposure,
-      'temperature': temperature,
-      'tint': tint,
-      'contrast': contrast,
-      'highlights': highlights,
-      'shadows': shadows,
-      'whites': whites,
-      'blacks': blacks,
-      'saturation': saturation,
-      'vibrance': vibrance,
-      'lutIntensity': lutIntensity,
-      'hsl': hsl.toJson(),
-    };
+    'exposure': exposure,
+    'temperature': temperature,
+    'tint': tint,
+    'contrast': contrast,
+    'highlights': highlights,
+    'shadows': shadows,
+    'whites': whites,
+    'blacks': blacks,
+    'saturation': saturation,
+    'vibrance': vibrance,
+    'lutIntensity': lutIntensity,
+    'hsl': hsl.toJson(),
+    'crop': crop.toJson(),
+  };
 
-factory AdjustmentParams.fromJson(Map<String, dynamic> j) => AdjustmentParams(
-      exposure: (j['exposure'] as num?)?.toDouble() ?? 0.0,
-      temperature: (j['temperature'] as num?)?.toInt() ?? 5500,
-      tint: (j['tint'] as num?)?.toDouble() ?? 0.0,
-      contrast: (j['contrast'] as num?)?.toDouble() ?? 0.0,
-      highlights: (j['highlights'] as num?)?.toDouble() ?? 0.0,
-      shadows: (j['shadows'] as num?)?.toDouble() ?? 0.0,
-      whites: (j['whites'] as num?)?.toDouble() ?? 0.0,
-      blacks: (j['blacks'] as num?)?.toDouble() ?? 0.0,
-      saturation: (j['saturation'] as num?)?.toDouble() ?? 0.0,
-      vibrance: (j['vibrance'] as num?)?.toDouble() ?? 0.0,
-      lutIntensity: (j['lutIntensity'] as num?)?.toDouble() ?? 1.0,
-      hsl: j['hsl'] != null
-          ? HslBands.fromJson(j['hsl'] as Map<String, dynamic>)
-          : HslBands.neutral,
-    );
+  factory AdjustmentParams.fromJson(Map<String, dynamic> j) => AdjustmentParams(
+    exposure: (j['exposure'] as num?)?.toDouble() ?? 0.0,
+    temperature: (j['temperature'] as num?)?.toInt() ?? 5500,
+    tint: (j['tint'] as num?)?.toDouble() ?? 0.0,
+    contrast: (j['contrast'] as num?)?.toDouble() ?? 0.0,
+    highlights: (j['highlights'] as num?)?.toDouble() ?? 0.0,
+    shadows: (j['shadows'] as num?)?.toDouble() ?? 0.0,
+    whites: (j['whites'] as num?)?.toDouble() ?? 0.0,
+    blacks: (j['blacks'] as num?)?.toDouble() ?? 0.0,
+    saturation: (j['saturation'] as num?)?.toDouble() ?? 0.0,
+    vibrance: (j['vibrance'] as num?)?.toDouble() ?? 0.0,
+    lutIntensity: (j['lutIntensity'] as num?)?.toDouble() ?? 1.0,
+    hsl: j['hsl'] != null
+        ? HslBands.fromJson(j['hsl'] as Map<String, dynamic>)
+        : HslBands.neutral,
+    crop: j['crop'] != null
+        ? CropParams.fromJson(j['crop'] as Map<String, dynamic>)
+        : CropParams.identity,
+  );
 }

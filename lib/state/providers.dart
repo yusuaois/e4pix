@@ -9,3 +9,4 @@ export 'history_state.dart';
 export 'preset_state.dart';
 export 'compare_state.dart';
 export 'lut_library_state.dart';
+export 'crop_state.dart';
