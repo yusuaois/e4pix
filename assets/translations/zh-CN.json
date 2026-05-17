@@ -41,6 +41,7 @@
   "light": "光照",
   "color": "色彩",
   "hsl": "色彩空间",
+  "preset": "预设",
   "reset": "重置",
   "model": "模型",
   "apiKey": "API 密钥",
@@ -103,5 +104,18 @@
   "exportBatch": "批量导出",
   "exportBatchProgress": "导出中 {} / {}：{}",
   "exportBatchCompleted": "已导出 {} 张 · {}s",
-  "noShotsSelected": "未选择任何照片"
+  "noShotsSelected": "未选择任何照片",
+  "saveCurrentAsPreset": "保存当前为预设",
+  "rename": "重命名",
+  "delete": "删除",
+  "confirm": "确定",
+  "presetNameHint": "比如：清新夏日",
+  "undo": "撤销 (Ctrl+Z)",
+  "redo": "重做 (Ctrl+Shift+Z)",
+  "compareHint": "按住对比原片（也可按住 \\ 键）",
+  "notImportedLUT": "未导入 LUT",
+  "deleteCurrentLUT": "删除当前 LUT",
+  "importCube": "导入 .cube",
+  "deleteLUT": "删除 LUT",
+  "confirmDeleteLUT": "确定删除「{}」吗？此操作不可撤销。"
 }

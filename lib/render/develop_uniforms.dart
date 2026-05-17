@@ -26,12 +26,24 @@ void applyDevelopUniforms({
   shader.setFloat(i++, p.saturation / 100.0);
   shader.setFloat(i++, p.vibrance / 100.0);
 
-  for (int k = 0; k < 4; k++) shader.setFloat(i++, h.hues[k] / 100.0);
-  for (int k = 4; k < 8; k++) shader.setFloat(i++, h.hues[k] / 100.0);
-  for (int k = 0; k < 4; k++) shader.setFloat(i++, h.sats[k] / 100.0);
-  for (int k = 4; k < 8; k++) shader.setFloat(i++, h.sats[k] / 100.0);
-  for (int k = 0; k < 4; k++) shader.setFloat(i++, h.lums[k] / 100.0);
-  for (int k = 4; k < 8; k++) shader.setFloat(i++, h.lums[k] / 100.0);
+  for (int k = 0; k < 4; k++) {
+    shader.setFloat(i++, h.hues[k] / 100.0);
+  }
+  for (int k = 4; k < 8; k++) {
+    shader.setFloat(i++, h.hues[k] / 100.0);
+  }
+  for (int k = 0; k < 4; k++) {
+    shader.setFloat(i++, h.sats[k] / 100.0);
+  }
+  for (int k = 4; k < 8; k++) {
+    shader.setFloat(i++, h.sats[k] / 100.0);
+  }
+  for (int k = 0; k < 4; k++) {
+    shader.setFloat(i++, h.lums[k] / 100.0);
+  }
+  for (int k = 4; k < 8; k++) {
+    shader.setFloat(i++, h.lums[k] / 100.0);
+  }
 
   final hasLut = lutTexture != null && lutSize > 0;
   shader.setFloat(i++, hasLut ? p.lutIntensity : 0.0);

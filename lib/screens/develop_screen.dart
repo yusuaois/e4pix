@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
@@ -21,8 +21,10 @@ import '../widgets/adjustment_panel.dart';
 import '../widgets/ai_settings_dialog.dart';
 import '../widgets/ai_suggestion_dialog.dart';
 import '../widgets/camera_picker_dialog.dart';
+import '../widgets/compare_button.dart';
 import '../widgets/develop_sections.dart';
 import '../widgets/histogram_panel.dart';
+import '../widgets/preset_bar.dart';
 import '../widgets/tether_widgets.dart';
 
 class DevelopScreen extends ConsumerStatefulWidget {
@@ -67,26 +69,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final path = result.files.single.path;
     if (path != null) {
       ref.read(activeFilePathProvider.notifier).set(path);
-    }
-  }
-
-  Future<void> _loadLutFromFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: Platform.isAndroid ? FileType.any : FileType.custom,
-      allowedExtensions: Platform.isAndroid ? null : const ['cube'],
-    );
-    if (result == null || result.files.isEmpty) return;
-    final path = result.files.single.path;
-    if (path == null) return;
-
-    if (Platform.isAndroid && !path.toLowerCase().endsWith('.cube')) {
-      _snack(tr("cubeFailed"));
-      return;
-    }
-    try {
-      await ref.read(lutNotifierProvider.notifier).loadFromCubeFile(path);
-    } catch (_) {
-      _snack(tr('LUTFailed'));
     }
   }
 
@@ -430,9 +412,44 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       }
     });
 
-    return Scaffold(
-      body: SafeArea(
-        child: isPhone ? _buildPhoneLayout() : _buildDesktopLayout(),
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        final ctrl =
+            HardwareKeyboard.instance.isControlPressed ||
+            HardwareKeyboard.instance.isMetaPressed;
+
+        // Ctrl+Z / Ctrl+Shift+Z
+        if (event is KeyDownEvent &&
+            ctrl &&
+            event.logicalKey == LogicalKeyboardKey.keyZ) {
+          final shift = HardwareKeyboard.instance.isShiftPressed;
+          final n = ref.read(historyNotifierProvider.notifier);
+          if (shift) {
+            n.redo();
+          } else {
+            n.undo();
+          }
+          return KeyEventResult.handled;
+        }
+
+        // \ 键 hold-to-compare
+        if (event.logicalKey == LogicalKeyboardKey.backslash) {
+          if (event is KeyDownEvent) {
+            ref.read(compareBypassProvider.notifier).state = true;
+            return KeyEventResult.handled;
+          } else if (event is KeyUpEvent) {
+            ref.read(compareBypassProvider.notifier).state = false;
+            return KeyEventResult.handled;
+          }
+        }
+
+        return KeyEventResult.ignored;
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: isPhone ? _buildPhoneLayout() : _buildDesktopLayout(),
+        ),
       ),
     );
   }
@@ -542,17 +559,41 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   params: params,
                   onChanged: _onParamsChanged,
                   lutName: lut.name,
-                  onPickLut: _loadLutFromFile,
-                  onLoadTestLut: () => ref
-                      .read(lutNotifierProvider.notifier)
-                      .loadTestCinematic(),
-                  onLoadIdentity: () =>
-                      ref.read(lutNotifierProvider.notifier).loadIdentity(),
-                  onClearLut: () =>
-                      ref.read(lutNotifierProvider.notifier).clear(),
+                  library:
+                      ref.watch(lutLibraryNotifierProvider).value ??
+                      const [],
+                  onSelectLut: (entry) async {
+                    if (entry == null) {
+                      ref.read(lutNotifierProvider.notifier).clear();
+                    } else {
+                      await ref
+                          .read(lutNotifierProvider.notifier)
+                          .loadFromCubeFile(entry.filePath);
+                    }
+                  },
+                  onImportLut: () async {
+                    final entry = await ref
+                        .read(lutLibraryNotifierProvider.notifier)
+                        .importFromFile();
+                    if (entry != null) {
+                      await ref
+                          .read(lutNotifierProvider.notifier)
+                          .loadFromCubeFile(entry.filePath);
+                    }
+                  },
+                  onDeleteLut: (entry) async {
+                    final cur = ref.read(lutNotifierProvider);
+                    if (cur.name == '${entry.name}.cube') {
+                      ref.read(lutNotifierProvider.notifier).clear();
+                    }
+                    await ref
+                        .read(lutLibraryNotifierProvider.notifier)
+                        .delete(entry);
+                  },
                   histogram: program == null
                       ? null
                       : _buildHistogram(program, image),
+                  presetBar: const PresetBar(),
                 ),
             ],
           ),
@@ -592,14 +633,15 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   }
 
   Widget _buildHistogram(ui.FragmentProgram program, DecodedImageState image) {
-    final params = ref.watch(currentParamsNotifierProvider);
+    final params = ref.watch(effectiveParamsProvider);
     final lut = ref.watch(lutNotifierProvider);
+    final lutEnabled = ref.watch(effectiveLutEnabledProvider);
     return LiveHistogramPanel(
       program: program,
       sourceImage: image.uiImage,
       params: params,
-      lutTexture: lut.texture,
-      lutSize: lut.size,
+      lutTexture: lutEnabled ? lut.texture : null,
+      lutSize: lutEnabled ? lut.size : 0,
     );
   }
 
@@ -610,6 +652,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final cameraState = ref.watch(cameraNotifierProvider);
     final selection = ref.watch(exportSelectionNotifierProvider);
     final shots = ref.watch(shotsNotifierProvider);
+    final hist = ref.watch(historyNotifierProvider);
+    final notifier = ref.read(historyNotifierProvider.notifier);
 
     final hasImage = image != null && program != null;
 
@@ -623,7 +667,20 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       ),
       child: Row(
         children: [
-          if (hasImage)
+          if (hasImage) ...[
+            IconButton(
+              icon: const Icon(Icons.undo),
+              tooltip: tr('undo'),
+              onPressed: hist.canUndo ? notifier.undo : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.redo),
+              tooltip: tr('redo'),
+              onPressed: hist.canRedo ? notifier.redo : null,
+            ),
+            const VerticalDivider(width: 1),
+            const SizedBox(width: 4),
+            const CompareButton(),
             IconButton(
               icon: const Icon(
                 Icons.auto_awesome,
@@ -634,6 +691,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               onPressed: _showAISuggestion,
               onLongPress: _showAISettings,
             ),
+          ],
           if (session == null)
             IconButton(
               icon: const Icon(Icons.cable_rounded, size: 18),
@@ -803,10 +861,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   Widget _buildPhoneToolPanel() {
     final params = ref.watch(currentParamsNotifierProvider);
     final lut = ref.watch(lutNotifierProvider);
+    final library = ref.watch(lutLibraryNotifierProvider).value ?? const [];
+
     return SizedBox(
       height: 320,
       child: DefaultTabController(
-        length: 4,
+        length: 5,
         child: Container(
           color: const Color(0xFF14141A),
           child: Column(
@@ -825,12 +885,13 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       child: TabBar(
                         labelPadding: EdgeInsets.zero,
                         indicatorSize: TabBarIndicatorSize.tab,
-                        labelStyle: const TextStyle(fontSize: 12),
+                        labelStyle: const TextStyle(fontSize: 11),
                         tabs: [
                           Tab(text: tr("light"), height: 36),
                           Tab(text: tr("color"), height: 36),
                           Tab(text: tr("hsl"), height: 36),
                           Tab(text: 'LUT', height: 36),
+                          Tab(text: tr("preset"), height: 36),
                         ],
                       ),
                     ),
@@ -871,17 +932,38 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                         intensity: params.lutIntensity,
                         onIntensityChanged: (v) =>
                             _onParamsChanged(params.copyWith(lutIntensity: v)),
-                        onPick: _loadLutFromFile,
-                        onLoadTest: () => ref
-                            .read(lutNotifierProvider.notifier)
-                            .loadTestCinematic(),
-                        onLoadIdentity: () => ref
-                            .read(lutNotifierProvider.notifier)
-                            .loadIdentity(),
-                        onClear: () =>
-                            ref.read(lutNotifierProvider.notifier).clear(),
+                        library: library,
+                        onSelect: (entry) async {
+                          if (entry == null) {
+                            ref.read(lutNotifierProvider.notifier).clear();
+                          } else {
+                            await ref
+                                .read(lutNotifierProvider.notifier)
+                                .loadFromCubeFile(entry.filePath);
+                          }
+                        },
+                        onImport: () async {
+                          final entry = await ref
+                              .read(lutLibraryNotifierProvider.notifier)
+                              .importFromFile();
+                          if (entry != null) {
+                            await ref
+                                .read(lutNotifierProvider.notifier)
+                                .loadFromCubeFile(entry.filePath);
+                          }
+                        },
+                        onDelete: (entry) async {
+                          final cur = ref.read(lutNotifierProvider);
+                          if (cur.name == '${entry.name}.cube') {
+                            ref.read(lutNotifierProvider.notifier).clear();
+                          }
+                          await ref
+                              .read(lutLibraryNotifierProvider.notifier)
+                              .delete(entry);
+                        },
                       ),
                     ),
+                    const PresetTabContent(),
                   ],
                 ),
               ),
@@ -988,15 +1070,15 @@ class _PreviewArea extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // libRaw 错误是 widget-local 状态，所以由 parent 处理；这里只关心解码状态
     final imageAsync = ref.watch(imageNotifierProvider);
-    final params = ref.watch(currentParamsNotifierProvider);
-    final lut = ref.watch(lutNotifierProvider);
+    final params = ref.watch(effectiveParamsProvider);
+    final lutState = ref.watch(lutNotifierProvider);
+    final lutEnabled = ref.watch(effectiveLutEnabledProvider);
 
     return imageAsync.when(
       loading: () => imageAsync.value == null
           ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-          : _buildPreview(imageAsync.value!, params, lut),
+          : _buildPreview(imageAsync.value!, params, lutState, lutEnabled),
       error: (e, st) => _CenterMessage(
         icon: Icons.warning_amber_rounded,
         color: Colors.orangeAccent,
@@ -1005,7 +1087,7 @@ class _PreviewArea extends ConsumerWidget {
       ),
       data: (state) {
         if (state == null) return _buildEmpty(context, ref);
-        return _buildPreview(state, params, lut);
+        return _buildPreview(state, params, lutState, lutEnabled);
       },
     );
   }
@@ -1014,14 +1096,15 @@ class _PreviewArea extends ConsumerWidget {
     DecodedImageState state,
     AdjustmentParams params,
     LutState lut,
+    bool lutEnabled,
   ) {
     return Container(
       color: Colors.black,
       child: PreviewRenderer(
         image: state.uiImage,
         params: params,
-        lutTexture: lut.texture,
-        lutSize: lut.size,
+        lutTexture: lutEnabled ? lut.texture : null,
+        lutSize: lutEnabled ? lut.size : 0,
       ),
     );
   }

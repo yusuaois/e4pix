@@ -41,6 +41,7 @@
     "light": "Light",
     "color": "Color",
     "hsl": "HSL",
+    "preset": "Preset",
     "reset": "Reset",
     "model": "Model",
     "apiKey": "API Key",
@@ -103,5 +104,18 @@
     "exportBatch": "Batch Export",
     "exportBatchProgress": "Exporting {} / {}: {}",
     "exportBatchCompleted": "Exported {} shots · {}s",
-    "noShotsSelected": "No shots selected"
+    "noShotsSelected": "No shots selected",
+    "saveCurrentAsPreset": "Save Current as Preset",
+    "rename": "Rename",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "presetNameHint": "e.g., 'Fresh Summer'",
+    "undo": "Undo (Ctrl+Z)",
+    "redo": "Redo (Ctrl+Shift+Z)",
+    "compareHint": "Hold to compare original (or press \\ key)",
+    "notImportedLUT": "LUT not imported",
+    "deleteCurrentLUT": "Delete current LUT",
+    "importCube": "Import .cube",
+    "deleteLUT": "Delete LUT",
+    "confirmDeleteLUT": "Confirm delete 「{}」? This action cannot be undone."
 }

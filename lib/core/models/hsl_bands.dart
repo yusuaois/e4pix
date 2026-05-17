@@ -43,8 +43,28 @@ class HslBands {
 
   @override
   int get hashCode => Object.hash(
-        Object.hashAll(hues),
-        Object.hashAll(sats),
-        Object.hashAll(lums),
-      );
+    Object.hashAll(hues),
+    Object.hashAll(sats),
+    Object.hashAll(lums),
+  );
+
+  Map<String, dynamic> toJson() => {'hues': hues, 'sats': sats, 'lums': lums};
+
+  factory HslBands.fromJson(Map<String, dynamic> j) {
+    List<double> parseBand(dynamic raw) {
+      final out = List<double>.filled(8, 0.0);
+      if (raw is! List) return out;
+      for (int i = 0; i < 8 && i < raw.length; i++) {
+        final v = raw[i];
+        if (v is num) out[i] = v.toDouble();
+      }
+      return out;
+    }
+
+    return HslBands(
+      hues: parseBand(j['hues']),
+      sats: parseBand(j['sats']),
+      lums: parseBand(j['lums']),
+    );
+  }
 }

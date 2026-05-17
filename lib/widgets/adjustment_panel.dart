@@ -1,28 +1,31 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../core/models/adjustment_params.dart';
+import '../services/lut_library.dart';
 import 'develop_sections.dart';
 
 class AdjustmentPanel extends StatelessWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
   final Widget? histogram;
+  final Widget? presetBar;
   final String? lutName;
-  final VoidCallback? onPickLut;
-  final VoidCallback? onLoadTestLut;
-  final VoidCallback? onLoadIdentity;
-  final VoidCallback? onClearLut;
+  final List<LutEntry> library;
+  final ValueChanged<LutEntry?> onSelectLut;
+  final Future<void> Function() onImportLut;
+  final Future<void> Function(LutEntry) onDeleteLut;
 
   const AdjustmentPanel({
     super.key,
     required this.params,
     required this.onChanged,
+    required this.library,
+    required this.onSelectLut,
+    required this.onImportLut,
+    required this.onDeleteLut,
     this.histogram,
+    this.presetBar,
     this.lutName,
-    this.onPickLut,
-    this.onLoadTestLut,
-    this.onLoadIdentity,
-    this.onClearLut,
   });
 
   @override
@@ -43,6 +46,11 @@ class AdjustmentPanel extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
                 ?histogram,
+                if (presetBar != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                    child: presetBar!,
+                  ),
                 LightSection(params: params, onChanged: onChanged),
                 WhiteBalanceColorSection(params: params, onChanged: onChanged),
                 HslSection(
@@ -55,10 +63,10 @@ class AdjustmentPanel extends StatelessWidget {
                   intensity: params.lutIntensity,
                   onIntensityChanged: (v) =>
                       onChanged(params.copyWith(lutIntensity: v)),
-                  onPick: onPickLut,
-                  onLoadTest: onLoadTestLut,
-                  onLoadIdentity: onLoadIdentity,
-                  onClear: onClearLut,
+                  library: library,
+                  onSelect: onSelectLut,
+                  onImport: onImportLut,
+                  onDelete: onDeleteLut,
                 ),
                 const SizedBox(height: 24),
               ],

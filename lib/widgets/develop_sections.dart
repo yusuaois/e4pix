@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/hsl_bands.dart';
+import '../services/lut_library.dart';
 
 // 通用滑块 tile
 class DevelopSliderTile extends StatelessWidget {
@@ -397,54 +398,101 @@ class LutSection extends StatelessWidget {
   final String? lutName;
   final double intensity;
   final ValueChanged<double> onIntensityChanged;
-  final VoidCallback? onPick, onLoadTest, onLoadIdentity, onClear;
+  final List<LutEntry> library;
+  final ValueChanged<LutEntry?> onSelect;
+  final Future<void> Function() onImport;
+  final Future<void> Function(LutEntry) onDelete;
 
   const LutSection({
     super.key,
     required this.lutName,
     required this.intensity,
     required this.onIntensityChanged,
-    this.onPick,
-    this.onLoadTest,
-    this.onLoadIdentity,
-    this.onClear,
+    required this.library,
+    required this.onSelect,
+    required this.onImport,
+    required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     final loaded = lutName != null;
+    // 通过 name 反查当前选中的 entry
+    final LutEntry? selected = loaded
+        ? library.cast<LutEntry?>().firstWhere(
+            (e) =>
+                e != null &&
+                '${e.name.toLowerCase()}.cube' == lutName?.toLowerCase(),
+            orElse: () => null,
+          )
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SectionLabel(title: 'LUT'),
-        if (loaded) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 16, 4),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.gradient,
-                  size: 14,
-                  color: Colors.greenAccent.withValues(alpha: 0.7),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    lutName!,
-                    style: const TextStyle(fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+        const SizedBox(height: 4),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<LutEntry?>(
+                    isExpanded: true,
+                    value: selected,
+                    hint: Text(
+                      library.isEmpty ? tr("notImportedLUT") : tr("notChosen"),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.white),
+                    iconSize: 16,
+                    items: [
+                      DropdownMenuItem<LutEntry?>(
+                        value: null,
+                        child: Text(
+                          tr("notChosen"),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.white54,
+                          ),
+                        ),
+                      ),
+                      ...library.map(
+                        (entry) => DropdownMenuItem<LutEntry?>(
+                          value: entry,
+                          child: Text(
+                            entry.name,
+                            style: const TextStyle(fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ],
+                    onChanged: onSelect,
                   ),
                 ),
+              ),
+              if (selected != null)
                 IconButton(
-                  icon: const Icon(Icons.close, size: 16),
+                  icon: const Icon(Icons.delete_outline, size: 16),
                   visualDensity: VisualDensity.compact,
-                  tooltip: 'Remove',
-                  onPressed: onClear,
+                  tooltip: tr("deleteCurrentLUT"),
+                  onPressed: () => _confirmDelete(context, selected),
                 ),
-              ],
-            ),
+              IconButton(
+                icon: const Icon(Icons.file_upload_outlined, size: 18),
+                visualDensity: VisualDensity.compact,
+                tooltip: tr("importCube"),
+                onPressed: () => onImport(),
+              ),
+            ],
           ),
+        ),
+        if (loaded) ...[
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -482,56 +530,32 @@ class LutSection extends StatelessWidget {
               ],
             ),
           ),
-        ] else
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 16, 4),
-            child: Text(
-              tr("unload"),
-              style: TextStyle(
-                fontSize: 11.5,
-                color: Colors.white.withValues(alpha: 0.4),
-              ),
-            ),
-          ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onPick,
-                  icon: const Icon(Icons.folder_open, size: 14),
-                  label: const Text('.cube', style: TextStyle(fontSize: 11)),
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onLoadTest,
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: const Text('Test', style: TextStyle(fontSize: 11)),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onLoadIdentity,
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: const Text('Ident', style: TextStyle(fontSize: 11)),
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ],
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext ctx, LutEntry entry) async {
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: Text(tr('deleteLUT')),
+        content: Text(tr('confirmDeleteLUT', args: [entry.name])),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr("cancel")),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: Text(tr("delete")),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await onDelete(entry);
+    }
   }
 }
