@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:easy_localization/easy_localization.dart';
@@ -1240,7 +1241,7 @@ class _PreviewArea extends ConsumerWidget {
     bool cropMode,
     WidgetRef ref,
   ) {
-    if (cropMode) return _buildCropEdit(state, params, lut, lutEnabled);
+    if (cropMode) return _buildCropEdit(state, params, lut, lutEnabled, ref);
     return _buildCroppedPreview(state, params, lut, lutEnabled);
   }
 
@@ -1249,7 +1250,10 @@ class _PreviewArea extends ConsumerWidget {
     AdjustmentParams params,
     LutState lut,
     bool lutEnabled,
+    WidgetRef ref,
   ) {
+    final draft = ref.watch(cropDraftProvider);
+
     return Container(
       color: Colors.black,
       child: Column(
@@ -1259,25 +1263,57 @@ class _PreviewArea extends ConsumerWidget {
               builder: (ctx, constraints) {
                 final imgW = state.uiImage.width.toDouble();
                 final imgH = state.uiImage.height.toDouble();
+
+                // oriented 后的尺寸
+                final orientedW = draft.orientationSwapsAxes ? imgH : imgW;
+                final orientedH = draft.orientationSwapsAxes ? imgW : imgH;
                 final fit = applyBoxFit(
                   BoxFit.contain,
-                  Size(imgW, imgH),
+                  Size(orientedW, orientedH),
                   constraints.biggest,
                 );
                 final displaySize = fit.destination;
+
+                // Transform: 把"未变换的源"画到 oriented 视图里
+                final scale = displaySize.width / orientedW;
+                final matrix = Matrix4.identity()
+                  ..translate(displaySize.width / 2, displaySize.height / 2, 0)
+                  ..rotateZ(
+                    draft.orientation * math.pi / 2 +
+                        draft.straighten * math.pi / 180,
+                  )
+                  ..scale(draft.flipH ? -1.0 : 1.0, draft.flipV ? -1.0 : 1.0)
+                  ..translate(-imgW * scale / 2, -imgH * scale / 2);
 
                 return Stack(
                   alignment: Alignment.center,
                   children: [
                     SizedBox.fromSize(
                       size: displaySize,
-                      child: PreviewRenderer(
-                        image: state.uiImage,
-                        params: params,
-                        lutTexture: lutEnabled ? lut.texture : null,
-                        lutSize: lutEnabled ? lut.size : 0,
+                      child: ClipRect(
+                        child: Transform(
+                          transform: matrix,
+                          child: OverflowBox(
+                            minWidth: imgW * scale,
+                            maxWidth: imgW * scale,
+                            minHeight: imgH * scale,
+                            maxHeight: imgH * scale,
+                            alignment: Alignment.topLeft,
+                            child: SizedBox(
+                              width: imgW * scale,
+                              height: imgH * scale,
+                              child: PreviewRenderer(
+                                image: state.uiImage,
+                                params: params,
+                                lutTexture: lutEnabled ? lut.texture : null,
+                                lutSize: lutEnabled ? lut.size : 0,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
+                    // Overlay 画在 oriented 后的画布上
                     SizedBox.fromSize(
                       size: displaySize,
                       child: CropOverlay(imageDisplaySize: displaySize),
@@ -1306,39 +1342,78 @@ class _PreviewArea extends ConsumerWidget {
     final crop = params.crop;
     final image = state.uiImage;
 
+    // 无crop
+    if (crop.isIdentity) {
+      return Container(
+        color: Colors.black,
+        child: PreviewRenderer(
+          image: image,
+          params: params,
+          lutTexture: lutEnabled ? lut.texture : null,
+          lutSize: lutEnabled ? lut.size : 0,
+        ),
+      );
+    }
+
     return Container(
       color: Colors.black,
       child: LayoutBuilder(
         builder: (ctx, constraints) {
           final imgW = image.width.toDouble();
           final imgH = image.height.toDouble();
-          final outAspect = (imgW * crop.width) / (imgH * crop.height);
+          final outAspect = crop.outAspectFor(imgW, imgH);
           final box = applyBoxFit(
             BoxFit.contain,
             Size(outAspect, 1.0),
             constraints.biggest,
           ).destination;
 
-          final fullW = box.width / crop.width;
-          final fullH = box.height / crop.height;
-          final tx = -crop.x * fullW;
-          final ty = -crop.y * fullH;
+          // orientation 后的尺寸
+          final orientedW = crop.orientationSwapsAxes ? imgH : imgW;
+          final orientedH = crop.orientationSwapsAxes ? imgW : imgH;
+
+          // 让crop rect 区域刚好等于 box
+          // box.width = orientedW * crop.width * scale → scale = box.width / (orientedW * crop.width)
+          final scale = box.width / (orientedW * crop.width);
+          final renderedFullW = imgW * scale;
+          final renderedFullH = imgH * scale;
+          final renderedOrientedW = orientedW * scale;
+          final renderedOrientedH = orientedH * scale;
+
+          // Transform 矩阵
+          // 1) 移动到 box 的中心
+          // 2) 旋转 90°×orientation + straighten
+          // 3) flip
+          // 4) 平移回到 oriented 坐标的中心
+          // 5) 减去 crop 偏移
+          final matrix = Matrix4.identity()
+            ..translate(box.width / 2, box.height / 2, 0)
+            ..rotateZ(
+              crop.orientation * math.pi / 2 + crop.straighten * math.pi / 180,
+            )
+            ..scale(crop.flipH ? -1.0 : 1.0, crop.flipV ? -1.0 : 1.0)
+            // 此时坐标系原点在 box 中心，方向跟 oriented 一致
+            // 把 oriented 图像放在它的 (crop.x..crop.x+crop.width) 的中心
+            ..translate(
+              -(crop.x + crop.width / 2) * renderedOrientedW,
+              -(crop.y + crop.height / 2) * renderedOrientedH,
+            );
 
           return Center(
             child: SizedBox.fromSize(
               size: box,
               child: ClipRect(
-                child: OverflowBox(
-                  minWidth: fullW,
-                  maxWidth: fullW,
-                  minHeight: fullH,
-                  maxHeight: fullH,
-                  alignment: Alignment.topLeft,
-                  child: Transform.translate(
-                    offset: Offset(tx, ty),
+                child: Transform(
+                  transform: matrix,
+                  child: OverflowBox(
+                    minWidth: renderedFullW,
+                    maxWidth: renderedFullW,
+                    minHeight: renderedFullH,
+                    maxHeight: renderedFullH,
+                    alignment: Alignment.topLeft,
                     child: SizedBox(
-                      width: fullW,
-                      height: fullH,
+                      width: renderedFullW,
+                      height: renderedFullH,
                       child: PreviewRenderer(
                         image: image,
                         params: params,

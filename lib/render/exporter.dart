@@ -6,9 +6,9 @@ import 'dart:isolate';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:image/image.dart' as img_pkg;
 import '../core/color/srgb_lut.dart';
-import '../core/image/crop_image.dart';
 import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
+import 'crop_transform.dart';
 import 'render_engine.dart';
 
 enum ExportFormat { png, jpeg }
@@ -53,7 +53,7 @@ class Exporter {
 
     ui.Image output = rendered;
     if (!params.crop.isIdentity) {
-      output = await cropImage(rendered, params.crop);
+      output = await applyCropTransform(rendered, params.crop);
       rendered.dispose();
     }
 

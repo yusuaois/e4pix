@@ -4,9 +4,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../core/image/crop_image.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/crop_params.dart';
+import '../render/crop_transform.dart';
 import '../render/render_engine.dart';
 
 class Histogram {
@@ -125,7 +125,7 @@ class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
 
         ui.Image finalImg = rendered;
         if (!widget.crop.isIdentity) {
-          finalImg = await cropImage(rendered, widget.crop);
+          finalImg = await applyCropTransform(rendered, widget.crop);
           rendered.dispose();
         }
 

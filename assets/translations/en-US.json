@@ -125,5 +125,9 @@
     "exportEncodingImage": "Decoding {}...",
     "writingFile": "Writing File...",
     "completed": "Completed",
-    "origin": "Original"
+    "origin": "Original",
+    "rotate90CCW": "Rotate 90° (CCW)",
+    "rotate90CW": "Rotate 90° (CW)",
+    "flipHorizontal": "Flip Horizontal",
+    "flipVertical": "Flip Vertical"
 }
