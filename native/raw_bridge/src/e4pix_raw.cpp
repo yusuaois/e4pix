@@ -1,3 +1,10 @@
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <string>
+#endif
+
 #define E4PIX_BUILDING_DLL
 #include "e4pix_raw.h"
 
@@ -9,6 +16,23 @@
 
 namespace
 {
+    int open_file(LibRaw &raw, const char *path)
+    {
+#ifdef _WIN32
+        if (!path || !*path)
+            return raw.open_file(path);
+
+        int wlen = MultiByteToWideChar(CP_UTF8, 0, path, -1, nullptr, 0);
+        if (wlen <= 0)
+            return raw.open_file(path);
+        std::wstring wpath(wlen - 1, L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, path, -1, &wpath[0], wlen);
+        return raw.open_file(wpath.c_str());
+#else
+        // 原生 UTF-8
+        return raw.open_file(path);
+#endif
+    }
 
     // ---------- 内存与错误工具 ----------
     E4pixDecodeResult *alloc_result()
@@ -62,11 +86,11 @@ namespace
         p.use_camera_wb = 1;             // 相机白平衡
         p.use_auto_wb = 0;
         p.output_bps = output_bps;
-        p.output_color = 1;        // sRGB 色彩矩阵
-        p.no_auto_bright = 1;      // 不自动拉伸亮度
-        p.gamm[0] = 1.0;           // gamma_power = 1
-        p.gamm[1] = 1.0;           // gamma_slope
-        p.user_qual = (quality == 1) ? 3 : 2;  // 3=AHD, 2=PPG
+        p.output_color = 1;                   // sRGB 色彩矩阵
+        p.no_auto_bright = 1;                 // 不自动拉伸亮度
+        p.gamm[0] = 1.0;                      // gamma_power = 1
+        p.gamm[1] = 1.0;                      // gamma_slope
+        p.user_qual = (quality == 1) ? 3 : 2; // 3=AHD, 2=PPG
         p.no_interpolation = 0;
     }
 
@@ -80,7 +104,7 @@ namespace
         LibRaw raw;
         int err = 0;
 
-        err = raw.open_file(path);
+        err = open_file(raw, path);
         if (err != LIBRAW_SUCCESS)
         {
             set_error(result, err, libraw_strerror(err));
@@ -157,7 +181,7 @@ extern "C" E4pixDecodeResult *e4pix_extract_thumb(const char *path)
         return nullptr;
 
     LibRaw raw;
-    int err = raw.open_file(path);
+    int err = open_file(raw, path);
     if (err != LIBRAW_SUCCESS)
     {
         set_error(result, err, libraw_strerror(err));
@@ -215,9 +239,6 @@ extern "C" E4pixDecodeResult *e4pix_decode_preview_fast(const char *path)
 
 extern "C" E4pixDecodeResult *e4pix_decode_preview(const char *path)
 {
-    // 邻域插值，此处可能对性能有影响。half_size为true的话在对低信噪比的区域会有影响
-    // 值为true的话会在解码阶段就降采样到一半尺寸，能提升性能但可能对某些机型的低信噪比区域有影响
-    // 经尝试在加载部分图片时时间从1.5s -> 8s
     fprintf(stderr, "[e4pix] preview called\n");
     fflush(stderr);
     return decode_internal(path, /*half_size=*/false, /*bps=*/16, /*quality=*/0);
@@ -235,7 +256,7 @@ extern "C" E4pixDecodeResult *e4pix_read_metadata(const char *path)
         return nullptr;
 
     LibRaw raw;
-    int err = raw.open_file(path);
+    int err = open_file(raw, path);
     if (err != LIBRAW_SUCCESS)
     {
         set_error(result, err, libraw_strerror(err));
