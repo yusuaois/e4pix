@@ -406,7 +406,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   // Build
   @override
   Widget build(BuildContext context) {
-    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
+    final isVertical = MediaQuery.of(context).size.shortestSide < 600;
     // 监听相机错误一次性 snackbar
     ref.listen(cameraNotifierProvider, (prev, next) {
       if (next.lastError != null && prev?.lastError != next.lastError) {
@@ -468,13 +468,13 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       },
       child: Scaffold(
         body: SafeArea(
-          child: isPhone ? _buildPhoneLayout() : _buildDesktopLayout(),
+          child: isVertical ? _buildVerticalLayout() : _buildHorizontalLayout(),
         ),
       ),
     );
   }
 
-  Widget _buildPhoneLayout() {
+  Widget _buildVerticalLayout() {
     final session = ref.watch(tetherSessionNotifierProvider);
     final shots = ref.watch(shotsNotifierProvider);
     final activeShot = ref.watch(activeShotProvider);
@@ -552,7 +552,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     );
   }
 
-  Widget _buildDesktopLayout() {
+  Widget _buildHorizontalLayout() {
     final session = ref.watch(tetherSessionNotifierProvider);
     final shots = ref.watch(shotsNotifierProvider);
     final activeShot = ref.watch(activeShotProvider);
@@ -676,9 +676,101 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final notifier = ref.read(historyNotifierProvider.notifier);
 
     final hasImage = image != null && program != null;
+    final isVertical = MediaQuery.of(context).size.shortestSide < 600;
+
+    // 紧凑模式
+    Widget compactIcon({
+      required IconData icon,
+      required String tooltip,
+      VoidCallback? onPressed,
+      VoidCallback? onLongPress,
+      Color? color,
+      double size = 20,
+    }) {
+      final button = IconButton(
+        icon: Icon(icon, size: isVertical ? 18 : size, color: color),
+        tooltip: tooltip,
+        onPressed: onPressed,
+        visualDensity: isVertical
+            ? VisualDensity.compact
+            : VisualDensity.standard,
+        padding: isVertical ? const EdgeInsets.all(4) : const EdgeInsets.all(8),
+        constraints: isVertical
+            ? const BoxConstraints(minWidth: 32, minHeight: 32)
+            : const BoxConstraints(minWidth: 40, minHeight: 40),
+      );
+      if (onLongPress == null) return button;
+      return GestureDetector(onLongPress: onLongPress, child: button);
+    }
+
+    // 折到溢出菜单
+    final overflowItems = <PopupMenuEntry<String>>[];
+    if (hasImage) {
+      overflowItems.add(
+        PopupMenuItem(
+          value: 'ai',
+          child: Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome,
+                size: 18,
+                color: Color(0xFF6B5BFF),
+              ),
+              const SizedBox(width: 12),
+              Text(tr('aiColorSuggestion')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (session == null) {
+      overflowItems.add(
+        PopupMenuItem(
+          value: 'tether_folder',
+          child: Row(
+            children: [
+              const Icon(Icons.cable_rounded, size: 18),
+              const SizedBox(width: 12),
+              Text(tr('tetherFolderMonitor')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (!cameraState.isActive && session == null) {
+      overflowItems.add(
+        PopupMenuItem(
+          value: 'tether_camera',
+          child: Row(
+            children: [
+              const Icon(Icons.photo_camera_outlined, size: 18),
+              const SizedBox(width: 12),
+              Text(tr('tetherCamera')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    void handleMenu(String key) {
+      switch (key) {
+        case 'ai':
+          _showAISuggestion();
+          break;
+        case 'tether_folder':
+          _startFolderTether();
+          break;
+        case 'tether_camera':
+          _startCameraTether();
+          break;
+      }
+    }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      padding: EdgeInsets.symmetric(
+        horizontal: isVertical ? 8 : 24,
+        vertical: isVertical ? 6 : 14,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFF14141A),
         border: Border(
@@ -688,76 +780,70 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       child: Row(
         children: [
           if (hasImage) ...[
-            IconButton(
-              icon: const Icon(Icons.undo),
+            compactIcon(
+              icon: Icons.undo,
               tooltip: tr('undo'),
               onPressed: hist.canUndo ? notifier.undo : null,
             ),
-            IconButton(
-              icon: const Icon(Icons.redo),
+            compactIcon(
+              icon: Icons.redo,
               tooltip: tr('redo'),
               onPressed: hist.canRedo ? notifier.redo : null,
             ),
-            const VerticalDivider(width: 1),
-            IconButton(
-              icon: const Icon(Icons.crop),
+            if (!isVertical) const VerticalDivider(width: 1),
+            compactIcon(
+              icon: Icons.crop,
               tooltip: tr('crop'),
-              onPressed: hasImage ? () => enterCropMode(ref) : null,
+              onPressed: () => enterCropMode(ref),
             ),
             const CompareButton(),
-            IconButton(
-              icon: const Icon(
-                Icons.auto_awesome,
-                size: 18,
-                color: Color(0xFF6B5BFF),
-              ),
-              tooltip: tr("aiColorSuggestionHint"),
-              onPressed: _showAISuggestion,
-              onLongPress: _showAISettings,
-            ),
           ],
-          if (session == null)
-            IconButton(
-              icon: const Icon(Icons.cable_rounded, size: 18),
-              tooltip: tr("tetherFolderMonitor"),
-              onPressed: _startFolderTether,
-            ),
-          if (!cameraState.isActive && session == null)
-            IconButton(
-              icon: const Icon(Icons.photo_camera_outlined, size: 18),
-              tooltip: tr("tetherCamera"),
-              onPressed: _startCameraTether,
-            )
-          else if (cameraState.isActive)
-            IconButton(
-              icon: Icon(
-                Icons.photo_camera,
-                size: 18,
-                color: cameraState.shutterFlash
-                    ? Colors.greenAccent
-                    : Colors.greenAccent.withValues(alpha: 0.85),
+          // 水平直接展示，垂直布局折到菜单
+          if (!isVertical) ...[
+            if (hasImage)
+              compactIcon(
+                icon: Icons.auto_awesome,
+                color: const Color(0xFF6B5BFF),
+                tooltip: tr("aiColorSuggestionHint"),
+                onPressed: _showAISuggestion,
+                onLongPress: _showAISettings,
               ),
+            if (session == null)
+              compactIcon(
+                icon: Icons.cable_rounded,
+                tooltip: tr("tetherFolderMonitor"),
+                onPressed: _startFolderTether,
+              ),
+            if (!cameraState.isActive && session == null)
+              compactIcon(
+                icon: Icons.photo_camera_outlined,
+                tooltip: tr("tetherCamera"),
+                onPressed: _startCameraTether,
+              ),
+          ],
+          // 相机活动状态始终显示
+          if (cameraState.isActive)
+            compactIcon(
+              icon: Icons.photo_camera,
+              color: cameraState.shutterFlash
+                  ? Colors.greenAccent
+                  : Colors.greenAccent.withValues(alpha: 0.85),
               tooltip: tr(
                 "cameraConnected",
                 args: [cameraState.modelName ?? tr("cameraModelUnknown")],
               ),
               onPressed: _stopAllTether,
             ),
-          const SizedBox(width: 4),
           if (hasImage)
-            IconButton(
-              icon: const Icon(Icons.ios_share_rounded, size: 18),
+            compactIcon(
+              icon: Icons.ios_share_rounded,
               tooltip: tr("export"),
               onPressed: _showExportDialog,
             ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(
-              selection.multiSelectMode
-                  ? Icons.checklist_rtl_rounded
-                  : Icons.checklist_rounded,
-              size: 18,
-            ),
+          compactIcon(
+            icon: selection.multiSelectMode
+                ? Icons.checklist_rtl_rounded
+                : Icons.checklist_rounded,
             color: selection.multiSelectMode
                 ? const Color(0xFF6B5BFF)
                 : Colors.white.withValues(alpha: 0.85),
@@ -770,41 +856,56 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       .read(exportSelectionNotifierProvider.notifier)
                       .toggleMode(),
           ),
+          // 垂直布局"更多"按钮
+          if (isVertical && overflowItems.isNotEmpty)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, size: 18),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              itemBuilder: (_) => overflowItems,
+              onSelected: handleMenu,
+            ),
+          // 多选信息条
           if (selection.multiSelectMode) ...[
             if (selection.selectedPaths.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6B5BFF).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  tr(
-                    'selectedShots',
-                    args: ['${selection.selectedPaths.length}'],
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
                   ),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF6B5BFF),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6B5BFF).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    tr(
+                      'selectedShots',
+                      args: ['${selection.selectedPaths.length}'],
+                    ),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6B5BFF),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-            const SizedBox(width: 4),
             TextButton(
               onPressed: () {
-                final notifier = ref.read(
-                  exportSelectionNotifierProvider.notifier,
-                );
+                final n = ref.read(exportSelectionNotifierProvider.notifier);
                 if (selection.selectedPaths.length == shots.length) {
-                  notifier.clearSelection();
+                  n.clearSelection();
                 } else {
-                  notifier.selectAll(shots.map((s) => s.path));
+                  n.selectAll(shots.map((s) => s.path));
                 }
               },
               style: TextButton.styleFrom(
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(horizontal: 6),
+                minimumSize: Size.zero,
               ),
               child: Text(
                 selection.selectedPaths.length == shots.length
@@ -1149,40 +1250,49 @@ class _PreviewArea extends ConsumerWidget {
     LutState lut,
     bool lutEnabled,
   ) {
-    return LayoutBuilder(
-      builder: (ctx, constraints) {
-        final imgW = state.uiImage.width.toDouble();
-        final imgH = state.uiImage.height.toDouble();
-        final fit = applyBoxFit(
-          BoxFit.contain,
-          Size(imgW, imgH),
-          constraints.biggest,
-        );
-        final displaySize = fit.destination;
+    return Container(
+      color: Colors.black,
+      child: Column(
+        children: [
+          Expanded(
+            child: LayoutBuilder(
+              builder: (ctx, constraints) {
+                final imgW = state.uiImage.width.toDouble();
+                final imgH = state.uiImage.height.toDouble();
+                final fit = applyBoxFit(
+                  BoxFit.contain,
+                  Size(imgW, imgH),
+                  constraints.biggest,
+                );
+                final displaySize = fit.destination;
 
-        return Container(
-          color: Colors.black,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox.fromSize(
-                size: displaySize,
-                child: PreviewRenderer(
-                  image: state.uiImage,
-                  params: params,
-                  lutTexture: lutEnabled ? lut.texture : null,
-                  lutSize: lutEnabled ? lut.size : 0,
-                ),
-              ),
-              SizedBox.fromSize(
-                size: displaySize,
-                child: CropOverlay(imageDisplaySize: displaySize),
-              ),
-              Positioned(bottom: 16, child: CropPanel()),
-            ],
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox.fromSize(
+                      size: displaySize,
+                      child: PreviewRenderer(
+                        image: state.uiImage,
+                        params: params,
+                        lutTexture: lutEnabled ? lut.texture : null,
+                        lutSize: lutEnabled ? lut.size : 0,
+                      ),
+                    ),
+                    SizedBox.fromSize(
+                      size: displaySize,
+                      child: CropOverlay(imageDisplaySize: displaySize),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
-        );
-      },
+          const Padding(
+            padding: EdgeInsets.fromLTRB(8, 4, 8, 8),
+            child: CropPanel(),
+          ),
+        ],
+      ),
     );
   }
 

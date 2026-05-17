@@ -4,13 +4,22 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/cache/raw_cache_cleaner.dart';
 import '../native/raw_bridge.dart';
 import '../render/raw_to_ui_image.dart';
 
 class ActiveFilePathNotifier extends Notifier<String?> {
   @override
   String? build() => null;
-  void set(String? path) => state = path;
+  
+  void set(String? newPath) {
+    final old = state;
+    state = newPath;
+    // 删掉缓存副本
+    if (old != null && old != newPath) {
+      RawCacheCleaner.deleteIfCached(old);
+    }
+  }
 }
 
 final activeFilePathProvider =
