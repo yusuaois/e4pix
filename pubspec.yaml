@@ -104,3 +104,4 @@ flutter:
   # Add custom shaders
   shaders:
     - shaders/develop.frag
+    - shaders/develop_mask.frag

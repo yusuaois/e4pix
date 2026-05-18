@@ -8,8 +8,8 @@ import 'package:image/image.dart' as img_pkg;
 import '../core/color/srgb_lut.dart';
 import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
-import 'crop_transform.dart';
-import 'render_engine.dart';
+import 'full_pipeline_renderer.dart';
+
 
 enum ExportFormat { png, jpeg }
 
@@ -29,6 +29,7 @@ class Exporter {
     required String outputPath,
     required ExportFormat format,
     required ui.FragmentProgram shaderProgram,
+    required ui.FragmentProgram maskProgram,
     required AdjustmentParams params,
     ui.Image? lutTexture,
     int lutSize = 0,
@@ -42,20 +43,18 @@ class Exporter {
     final sourceImage = await _rawToUiImage(raw);
 
     onProgress?.call(0.65, tr("exportRenderingImage"));
-    final rendered = await RenderEngine.renderToImage(
-      program: shaderProgram,
+
+    final output = await FullPipelineRenderer.render(
+      developProgram: shaderProgram,
+      maskProgram: maskProgram,
       sourceImage: sourceImage,
       params: params,
       lutTexture: lutTexture,
       lutSize: lutSize,
+      targetWidth: sourceImage.width,
+      targetHeight: sourceImage.height,
     );
     sourceImage.dispose();
-
-    ui.Image output = rendered;
-    if (!params.crop.isIdentity) {
-      output = await applyCropTransform(rendered, params.crop);
-      rendered.dispose();
-    }
 
     onProgress?.call(
       0.80,

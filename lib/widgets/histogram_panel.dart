@@ -5,9 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../core/models/adjustment_params.dart';
-import '../core/models/crop_params.dart';
-import '../render/crop_transform.dart';
-import '../render/render_engine.dart';
+import '../render/full_pipeline_renderer.dart';
 
 class Histogram {
   final Int32List red, green, blue, luma;
@@ -43,18 +41,18 @@ class Histogram {
 // Histogram
 class LiveHistogramPanel extends StatefulWidget {
   final ui.FragmentProgram program;
+  final ui.FragmentProgram maskProgram;
   final ui.Image? sourceImage;
   final AdjustmentParams params;
   final ui.Image? lutTexture;
   final int lutSize;
-  final CropParams crop;
 
   const LiveHistogramPanel({
     super.key,
     required this.program,
+    required this.maskProgram,
     required this.sourceImage,
     required this.params,
-    required this.crop,
     this.lutTexture,
     this.lutSize = 0,
   });
@@ -110,38 +108,26 @@ class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
 
       if (!mounted || widget.sourceImage != captured) return;
 
-      final rendered = await RenderEngine.renderToImage(
-        program: widget.program,
+      final rendered = await FullPipelineRenderer.render(
+        developProgram: widget.program,
+        maskProgram: widget.maskProgram,
         sourceImage: src,
-        params: widget.params,
+        params: widget.params, // 包含 crop + locals
         lutTexture: widget.lutTexture,
         lutSize: widget.lutSize,
         targetWidth: w,
         targetHeight: h,
       );
-
       try {
+        final bd = await rendered.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        );
+        if (bd == null) return;
         if (!mounted || widget.sourceImage != captured) return;
-
-        ui.Image finalImg = rendered;
-        if (!widget.crop.isIdentity) {
-          finalImg = await applyCropTransform(rendered, widget.crop);
-          rendered.dispose();
-        }
-
-        try {
-          final bd = await finalImg.toByteData(
-            format: ui.ImageByteFormat.rawRgba,
-          );
-          if (bd == null) return;
-          if (!mounted || widget.sourceImage != captured) return;
-          final hist = Histogram.fromRgba(bd.buffer.asUint8List());
-          if (mounted) setState(() => _hist = hist);
-        } finally {
-          finalImg.dispose();
-        }
-      } catch (e) {
-        // ...
+        final hist = Histogram.fromRgba(bd.buffer.asUint8List());
+        if (mounted) setState(() => _hist = hist);
+      } finally {
+        rendered.dispose();
       }
     } catch (e) {
       debugPrint('Histogram recompute error: $e');

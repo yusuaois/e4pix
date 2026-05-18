@@ -11,6 +11,9 @@ import '../core/lut/cube_lut.dart';
 final shaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
   return ui.FragmentProgram.fromAsset('shaders/develop.frag');
 });
+final maskShaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
+  return ui.FragmentProgram.fromAsset('shaders/develop_mask.frag');
+});
 
 // 1Hz ticker
 final tickerProvider = StreamProvider<int>((ref) async* {

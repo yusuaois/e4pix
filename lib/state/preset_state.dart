@@ -68,7 +68,7 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
     final preset = Preset(
       id: 'p_${DateTime.now().millisecondsSinceEpoch}',
       name: name,
-      params: current.copyWith(crop: CropParams.identity),
+      params: current.copyWith(crop: CropParams.identity, locals: const []),
       createdAt: DateTime.now(),
     );
     final list = await future;
@@ -108,7 +108,9 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
     final current = ref.read(currentParamsNotifierProvider);
     ref
         .read(currentParamsNotifierProvider.notifier)
-        .update(preset.params.copyWith(crop: current.crop));
+        .update(
+          preset.params.copyWith(crop: current.crop, locals: current.locals),
+        );
   }
 
   Future<void> _persist() async {

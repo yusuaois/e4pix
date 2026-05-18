@@ -2,6 +2,8 @@ import 'package:e4pix/core/models/hsl_bands.dart';
 import 'package:e4pix/core/models/crop_params.dart';
 import 'package:flutter/foundation.dart';
 
+import 'local_adjustment.dart';
+
 @immutable
 class AdjustmentParams {
   final double exposure; // EV, [-5, +5]
@@ -17,6 +19,7 @@ class AdjustmentParams {
   final double lutIntensity;
   final HslBands hsl;
   final CropParams crop;
+  final List<LocalAdjustment> locals;
 
   const AdjustmentParams({
     this.exposure = 0.0,
@@ -32,6 +35,7 @@ class AdjustmentParams {
     this.lutIntensity = 1.0,
     this.hsl = HslBands.neutral,
     this.crop = CropParams.identity,
+    this.locals = const [],
   });
 
   static const neutral = AdjustmentParams();
@@ -50,6 +54,7 @@ class AdjustmentParams {
     double? lutIntensity,
     HslBands? hsl,
     CropParams? crop,
+    List<LocalAdjustment>? locals,
   }) => AdjustmentParams(
     exposure: exposure ?? this.exposure,
     temperature: temperature ?? this.temperature,
@@ -64,6 +69,7 @@ class AdjustmentParams {
     lutIntensity: lutIntensity ?? this.lutIntensity,
     hsl: hsl ?? this.hsl,
     crop: crop ?? this.crop,
+    locals: locals ?? this.locals,
   );
 
   @override
@@ -82,7 +88,8 @@ class AdjustmentParams {
           vibrance == other.vibrance &&
           lutIntensity == other.lutIntensity &&
           hsl == other.hsl &&
-          crop == other.crop;
+          crop == other.crop &&
+          listEquals(locals, other.locals);
 
   @override
   int get hashCode => Object.hash(
@@ -99,6 +106,7 @@ class AdjustmentParams {
     lutIntensity,
     hsl,
     crop,
+    locals,
   );
 
   Map<String, dynamic> toJson() => {
@@ -115,6 +123,7 @@ class AdjustmentParams {
     'lutIntensity': lutIntensity,
     'hsl': hsl.toJson(),
     'crop': crop.toJson(),
+    'locals': locals.map((e) => e.toJson()).toList(),
   };
 
   factory AdjustmentParams.fromJson(Map<String, dynamic> j) => AdjustmentParams(
@@ -135,5 +144,10 @@ class AdjustmentParams {
     crop: j['crop'] != null
         ? CropParams.fromJson(j['crop'] as Map<String, dynamic>)
         : CropParams.identity,
+    locals:
+        (j['locals'] as List?)
+            ?.map((e) => LocalAdjustment.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
   );
 }

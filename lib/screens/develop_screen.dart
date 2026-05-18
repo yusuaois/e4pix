@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/models/adjustment_params.dart';
+import '../core/models/local_params.dart';
 import '../core/models/tethered_shot.dart';
 import '../native/raw_bridge.dart';
 import '../render/exporter.dart';
@@ -27,6 +28,7 @@ import '../widgets/crop_overlay.dart';
 import '../widgets/crop_panel.dart';
 import '../widgets/develop_sections.dart';
 import '../widgets/histogram_panel.dart';
+import '../widgets/multi_pass_preview.dart';
 import '../widgets/preset_bar.dart';
 import '../widgets/tether_widgets.dart';
 
@@ -323,11 +325,18 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         final baseFrac = i / tasks.length;
         final span = 1 / tasks.length;
 
+        final maskProgram = ref.read(maskShaderProgramProvider).value;
+        if (maskProgram == null) {
+          _snack('Mask shader 还没加载完，请稍后再试');
+          return;
+        }
+
         await Exporter.exportFullRes(
           inputRawPath: task.path,
           outputPath: outPath,
           format: fmt,
           shaderProgram: program,
+          maskProgram: maskProgram,
           params: task.params,
           lutTexture: lut.texture,
           lutSize: lut.size,
@@ -484,6 +493,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final image = ref.watch(imageNotifierProvider).value;
     final program = ref.watch(shaderProgramProvider).value;
     final cameraState = ref.watch(cameraNotifierProvider);
+    final cropEditMode = ref.watch(cropEditModeProvider);
     final hasImage = image != null && program != null;
 
     return Column(
@@ -537,7 +547,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             },
           ),
         ),
-        if (session != null && shots.isNotEmpty)
+        if (session != null && shots.isNotEmpty && !cropEditMode)
           TetherThumbStrip(
             shots: shots,
             activeShot: activeShot,
@@ -653,16 +663,18 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   }
 
   Widget _buildHistogram(ui.FragmentProgram program, DecodedImageState image) {
+    final mask = ref.watch(maskShaderProgramProvider).value;
+    if (mask == null) return const SizedBox.shrink();
     final params = ref.watch(effectiveParamsProvider);
     final lut = ref.watch(lutNotifierProvider);
     final lutEnabled = ref.watch(effectiveLutEnabledProvider);
     return LiveHistogramPanel(
       program: program,
+      maskProgram: mask,
       sourceImage: image.uiImage,
       params: params,
       lutTexture: lutEnabled ? lut.texture : null,
       lutSize: lutEnabled ? lut.size : 0,
-      crop: params.crop,
     );
   }
 
@@ -835,37 +847,62 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               ),
               onPressed: _stopAllTether,
             ),
-          if (hasImage)
+          if (hasImage) ...[
             compactIcon(
               icon: Icons.ios_share_rounded,
               tooltip: tr("export"),
               onPressed: _showExportDialog,
             ),
-          compactIcon(
-            icon: selection.multiSelectMode
-                ? Icons.checklist_rtl_rounded
-                : Icons.checklist_rounded,
-            color: selection.multiSelectMode
-                ? const Color(0xFF6B5BFF)
-                : Colors.white.withValues(alpha: 0.85),
-            tooltip: selection.multiSelectMode
-                ? tr('multiSelectExit')
-                : tr('multiSelect'),
-            onPressed: shots.isEmpty
-                ? null
-                : () => ref
-                      .read(exportSelectionNotifierProvider.notifier)
-                      .toggleMode(),
-          ),
+            compactIcon(
+              icon: selection.multiSelectMode
+                  ? Icons.checklist_rtl_rounded
+                  : Icons.checklist_rounded,
+              color: selection.multiSelectMode
+                  ? const Color(0xFF6B5BFF)
+                  : Colors.white.withValues(alpha: 0.85),
+              tooltip: selection.multiSelectMode
+                  ? tr('multiSelectExit')
+                  : tr('multiSelect'),
+              onPressed: shots.isEmpty
+                  ? null
+                  : () => ref
+                        .read(exportSelectionNotifierProvider.notifier)
+                        .toggleMode(),
+            ),
+          ],
+          if (hasImage)
+            IconButton(
+              icon: const Icon(Icons.bug_report, size: 18),
+              tooltip: 'DEBUG: 加测试 mask',
+              onPressed: () {
+                final actions = LocalAdjustmentActions(ref);
+                final id = actions.addRadial();
+                if (id != null) {
+                  actions.updateLocal(
+                    id,
+                    (l) =>
+                        l.copyWith(params: const LocalParams(exposure: -1.5)),
+                  );
+                }
+              },
+            ),
           // 垂直布局"更多"按钮
-          if (isVertical && overflowItems.isNotEmpty)
+          if (isVertical && overflowItems.isNotEmpty && hasImage)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, size: 18),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               itemBuilder: (_) => overflowItems,
               onSelected: handleMenu,
-            ),
+            )
+          else if (overflowItems.isNotEmpty)
+            for (final item in overflowItems)
+              if (item is PopupMenuItem<String>)
+                compactIcon(
+                  icon: ((item.child as Row).children[0] as Icon).icon!,
+                  tooltip: ((item.child as Row).children[2] as Text).data ?? '',
+                  onPressed: () => handleMenu(item.value as String),
+                ),
           // 多选信息条
           if (selection.multiSelectMode) ...[
             if (selection.selectedPaths.isNotEmpty)
@@ -1242,7 +1279,7 @@ class _PreviewArea extends ConsumerWidget {
     WidgetRef ref,
   ) {
     if (cropMode) return _buildCropEdit(state, params, lut, lutEnabled, ref);
-    return _buildCroppedPreview(state, params, lut, lutEnabled);
+    return _buildCroppedPreview(state, params, lut, lutEnabled, ref);
   }
 
   Widget _buildCropEdit(
@@ -1338,7 +1375,47 @@ class _PreviewArea extends ConsumerWidget {
     AdjustmentParams params,
     LutState lut,
     bool lutEnabled,
+    WidgetRef ref,
   ) {
+    final hasLocals = params.locals.any(
+      (l) => l.enabled && !l.params.isNeutral,
+    );
+    if (hasLocals) {
+      final maskProgram = ref.watch(maskShaderProgramProvider).value;
+      final develop = ref.watch(shaderProgramProvider).value;
+      if (develop == null || maskProgram == null) {
+        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      }
+      return LayoutBuilder(
+        builder: (ctx, constraints) {
+          final imgW = state.uiImage.width.toDouble();
+          final imgH = state.uiImage.height.toDouble();
+          final outAspect = params.crop.outAspectFor(imgW, imgH);
+          final box = applyBoxFit(
+            BoxFit.contain,
+            Size(outAspect, 1.0),
+            constraints.biggest,
+          ).destination;
+          return Container(
+            color: Colors.black,
+            child: Center(
+              child: SizedBox.fromSize(
+                size: box,
+                child: MultiPassPreview(
+                  developProgram: develop,
+                  maskProgram: maskProgram,
+                  sourceImage: state.uiImage,
+                  params: params,
+                  lutTexture: lutEnabled ? lut.texture : null,
+                  lutSize: lutEnabled ? lut.size : 0,
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
     final crop = params.crop;
     final image = state.uiImage;
 
