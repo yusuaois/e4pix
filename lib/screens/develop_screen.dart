@@ -28,6 +28,8 @@ import '../widgets/crop_overlay.dart';
 import '../widgets/crop_panel.dart';
 import '../widgets/develop_sections.dart';
 import '../widgets/histogram_panel.dart';
+import '../widgets/local_mask_overlay.dart';
+import '../widgets/local_panel.dart';
 import '../widgets/multi_pass_preview.dart';
 import '../widgets/preset_bar.dart';
 import '../widgets/tether_widgets.dart';
@@ -870,22 +872,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                         .toggleMode(),
             ),
           ],
-          if (hasImage)
-            IconButton(
-              icon: const Icon(Icons.bug_report, size: 18),
-              tooltip: 'DEBUG: 加测试 mask',
-              onPressed: () {
-                final actions = LocalAdjustmentActions(ref);
-                final id = actions.addRadial();
-                if (id != null) {
-                  actions.updateLocal(
-                    id,
-                    (l) =>
-                        l.copyWith(params: const LocalParams(exposure: -1.5)),
-                  );
-                }
-              },
-            ),
           // 垂直布局"更多"按钮
           if (isVertical && overflowItems.isNotEmpty && hasImage)
             PopupMenuButton<String>(
@@ -1029,7 +1015,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     return SizedBox(
       height: 320,
       child: DefaultTabController(
-        length: 5,
+        length: 6,
         child: Container(
           color: const Color(0xFF14141A),
           child: Column(
@@ -1055,6 +1041,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                           Tab(text: tr("hsl"), height: 36),
                           Tab(text: 'LUT', height: 36),
                           Tab(text: tr("preset"), height: 36),
+                          Tab(text: tr("local"), height: 36),
                         ],
                       ),
                     ),
@@ -1127,6 +1114,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       ),
                     ),
                     const PresetTabContent(),
+                    const SingleChildScrollView(child: LocalPanel()),
                   ],
                 ),
               ),
@@ -1380,6 +1368,21 @@ class _PreviewArea extends ConsumerWidget {
     final hasLocals = params.locals.any(
       (l) => l.enabled && !l.params.isNeutral,
     );
+    final selectedLocalId = ref.watch(selectedLocalIdProvider);
+
+    Widget wrapOverlay(Widget content, Size displaySize) {
+      if (selectedLocalId == null) return content;
+      return Stack(
+        children: [
+          content,
+          Positioned.fill(
+            child: LocalMaskOverlay(imageDisplaySize: displaySize),
+          ),
+        ],
+      );
+    }
+
+    // 带有local
     if (hasLocals) {
       final maskProgram = ref.watch(maskShaderProgramProvider).value;
       final develop = ref.watch(shaderProgramProvider).value;
@@ -1401,13 +1404,16 @@ class _PreviewArea extends ConsumerWidget {
             child: Center(
               child: SizedBox.fromSize(
                 size: box,
-                child: MultiPassPreview(
-                  developProgram: develop,
-                  maskProgram: maskProgram,
-                  sourceImage: state.uiImage,
-                  params: params,
-                  lutTexture: lutEnabled ? lut.texture : null,
-                  lutSize: lutEnabled ? lut.size : 0,
+                child: wrapOverlay(
+                  MultiPassPreview(
+                    developProgram: develop,
+                    maskProgram: maskProgram,
+                    sourceImage: state.uiImage,
+                    params: params,
+                    lutTexture: lutEnabled ? lut.texture : null,
+                    lutSize: lutEnabled ? lut.size : 0,
+                  ),
+                  box,
                 ),
               ),
             ),
@@ -1416,19 +1422,36 @@ class _PreviewArea extends ConsumerWidget {
       );
     }
 
+    // 无local
     final crop = params.crop;
     final image = state.uiImage;
 
-    // 无crop
     if (crop.isIdentity) {
-      return Container(
-        color: Colors.black,
-        child: PreviewRenderer(
-          image: image,
-          params: params,
-          lutTexture: lutEnabled ? lut.texture : null,
-          lutSize: lutEnabled ? lut.size : 0,
-        ),
+      return LayoutBuilder(
+        builder: (ctx, constraints) {
+          final fit = applyBoxFit(
+            BoxFit.contain,
+            Size(image.width.toDouble(), image.height.toDouble()),
+            constraints.biggest,
+          );
+          return Container(
+            color: Colors.black,
+            child: Center(
+              child: SizedBox.fromSize(
+                size: fit.destination,
+                child: wrapOverlay(
+                  PreviewRenderer(
+                    image: image,
+                    params: params,
+                    lutTexture: lutEnabled ? lut.texture : null,
+                    lutSize: lutEnabled ? lut.size : 0,
+                  ),
+                  fit.destination,
+                ),
+              ),
+            ),
+          );
+        },
       );
     }
 

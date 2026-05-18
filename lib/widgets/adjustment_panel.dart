@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/models/adjustment_params.dart';
 import '../services/lut_library.dart';
 import 'develop_sections.dart';
+import 'local_panel.dart';
 
 class AdjustmentPanel extends StatelessWidget {
   final AdjustmentParams params;
@@ -46,11 +47,14 @@ class AdjustmentPanel extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
                 ?histogram,
-                if (presetBar != null)
+                if (presetBar != null) ...[
+                  const SectionLabel(title: 'PRESET'),
+                  const SizedBox(height: 4),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
                     child: presetBar!,
                   ),
+                ],
                 LightSection(params: params, onChanged: onChanged),
                 WhiteBalanceColorSection(params: params, onChanged: onChanged),
                 HslSection(
@@ -68,6 +72,8 @@ class AdjustmentPanel extends StatelessWidget {
                   onImport: onImportLut,
                   onDelete: onDeleteLut,
                 ),
+                const SizedBox(height: 8),
+                const LocalPanel(),
                 const SizedBox(height: 24),
               ],
             ),

@@ -129,5 +129,12 @@
   "rotate90CCW": "旋转 90° (CCW)",
   "rotate90CW": "旋转 90° (CW)",
   "flipHorizontal": "水平翻转",
-  "flipVertical": "垂直翻转"
+  "flipVertical": "垂直翻转",
+  "local": "局部",
+  "linear":"线性",
+  "radial": "径向",
+  "notAddedLocalAdjustment": "未添加局部调整",
+  "rotation": "旋转",
+  "feather": "羽化",
+  "invert": "反转"
 }

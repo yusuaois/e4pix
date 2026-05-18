@@ -454,7 +454,6 @@ class LutSection extends StatelessWidget {
                           tr("notChosen"),
                           style: TextStyle(
                             fontSize: 12,
-                            fontStyle: FontStyle.italic,
                             color: Colors.white54,
                           ),
                         ),

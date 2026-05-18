@@ -129,5 +129,12 @@
     "rotate90CCW": "Rotate 90° (CCW)",
     "rotate90CW": "Rotate 90° (CW)",
     "flipHorizontal": "Flip Horizontal",
-    "flipVertical": "Flip Vertical"
+    "flipVertical": "Flip Vertical",
+    "local": "Local",
+    "linear": "Linear",
+    "radial": "Radial",
+    "notAddedLocalAdjustment": "Not added local adjustment",
+    "rotation": "Rotation",
+    "feather": "Feather",
+    "invert": "Invert"
 }
