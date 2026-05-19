@@ -161,8 +161,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     if (!mounted) return;
 
     final program = ref.read(shaderProgramProvider).value;
+    final maskProgram = ref.read(maskShaderProgramProvider).value;
     final image = ref.read(imageNotifierProvider).value;
-    if (program == null || image == null) return;
+    if (program == null || image == null || maskProgram == null) return;
 
     final result = await showDialog<AIColorSuggestion>(
       context: context,
@@ -173,6 +174,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           final lut = ref.read(lutNotifierProvider);
           return AIInputRenderer.renderToTempFile(
             program: program,
+            maskProgram: maskProgram,
             sourceImage: image.uiImage,
             params: ref.read(currentParamsNotifierProvider),
             lutTexture: lut.texture,

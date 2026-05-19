@@ -68,19 +68,21 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
     if (state.inProgress) return;
 
     final program = ref.read(shaderProgramProvider).value;
+    final maskProgram = ref.read(maskShaderProgramProvider).value;
     final imageState = ref.read(imageNotifierProvider).value;
-    if (program == null || imageState == null) return;
+    if (program == null || maskProgram == null || imageState == null) return;
 
     final params = ref.read(currentParamsNotifierProvider);
     final lutState = ref.read(lutNotifierProvider);
     final shotPath = ref.read(activeFilePathProvider);
 
     state = state.copyWith(inProgress: true);
-
+    
     String? tempPath;
     try {
       tempPath = await AIInputRenderer.renderToTempFile(
         program: program,
+        maskProgram: maskProgram,
         sourceImage: imageState.uiImage,
         params: params,
         lutTexture: lutState.texture,
@@ -118,12 +120,12 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
   }
 
   void applyPending() {
-    final s = state.pendingSuggestion;
-    if (s == null) return;
-    final cur = ref.read(currentParamsNotifierProvider);
-    ref.read(currentParamsNotifierProvider.notifier).update(s.applyTo(cur));
-    state = state.copyWith(clearPending: true);
-  }
+  final s = state.pendingSuggestion;
+  if (s == null) return;
+  final cur = ref.read(currentParamsNotifierProvider);
+  ref.read(currentParamsNotifierProvider.notifier).update(s.applyTo(cur));
+  state = state.copyWith(clearPending: true);
+}
 }
 
 final aiAutoNotifierProvider = NotifierProvider<AIAutoNotifier, AIAutoState>(

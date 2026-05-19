@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,7 +7,6 @@ import '../core/models/crop_params.dart';
 import '../state/crop_state.dart';
 
 class CropOverlay extends ConsumerStatefulWidget {
-  /// 显示区域的尺寸（屏幕坐标）—— 已经按图片纵横比 fit 过
   final Size imageDisplaySize;
 
   const CropOverlay({super.key, required this.imageDisplaySize});
@@ -14,7 +15,13 @@ class CropOverlay extends ConsumerStatefulWidget {
   ConsumerState<CropOverlay> createState() => _CropOverlayState();
 }
 
-enum _Handle { none, body, tl, tr, bl, br, t, b, l, r }
+enum _Handle {
+  none,
+  body,
+  tl, tr, bl, br,
+  t, b, l, r,
+  rotationKnob,
+}
 
 class _CropOverlayState extends ConsumerState<CropOverlay> {
   _Handle _drag = _Handle.none;
@@ -22,7 +29,9 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
   CropParams _cropAtDragStart = CropParams.identity;
 
   static const double _handleSize = 14;
-  static const double _minSize = 0.05; // 最小裁剪 5%
+  static const double _minSize = 0.05;
+  static const double _knobRadius = 14;
+  static const double _knobOffset = 36;
 
   Rect _cropToScreen(CropParams c) {
     final w = widget.imageDisplaySize.width;
@@ -30,7 +39,22 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
     return Rect.fromLTWH(c.x * w, c.y * h, c.width * w, c.height * h);
   }
 
+  // knob 位置：crop rect 下方 36px 中央；空间不够时放上方
+  Offset _knobPosition(Rect screenRect) {
+    final dH = widget.imageDisplaySize.height;
+    final spaceBelow = dH - screenRect.bottom;
+    final cx = (screenRect.left + screenRect.right) / 2;
+    return spaceBelow >= 60
+        ? Offset(cx, screenRect.bottom + _knobOffset)
+        : Offset(cx, screenRect.top - _knobOffset);
+  }
+
   _Handle _hitTest(Offset pos, Rect screenRect) {
+    // 优先 knob（在 crop rect 外侧）
+    if ((pos - _knobPosition(screenRect)).distance < _knobRadius + 4) {
+      return _Handle.rotationKnob;
+    }
+
     bool near(double a, double b) => (a - b).abs() < _handleSize;
     final nearLeft = near(pos.dx, screenRect.left);
     final nearRight = near(pos.dx, screenRect.right);
@@ -72,6 +96,31 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
       },
       onPanUpdate: (d) {
         if (_drag == _Handle.none) return;
+
+        // rotation knob 单独处理（角度增量而非位置增量）
+        if (_drag == _Handle.rotationKnob) {
+          final c0 = _cropAtDragStart;
+          final cropCenter = Offset(
+            (c0.x + c0.width / 2) * dW,
+            (c0.y + c0.height / 2) * dH,
+          );
+          final startAngle = math.atan2(
+            _dragStart.dy - cropCenter.dy,
+            _dragStart.dx - cropCenter.dx,
+          );
+          final currentAngle = math.atan2(
+            d.localPosition.dy - cropCenter.dy,
+            d.localPosition.dx - cropCenter.dx,
+          );
+          final deltaDeg = (currentAngle - startAngle) * 180.0 / math.pi;
+          final newStraighten =
+              (c0.straighten + deltaDeg).clamp(-45.0, 45.0);
+          ref.read(cropDraftProvider.notifier).update(
+                c0.copyWith(straighten: newStraighten),
+              );
+          return;
+        }
+
         final delta = d.localPosition - _dragStart;
         final dx = delta.dx / dW;
         final dy = delta.dy / dH;
@@ -118,16 +167,23 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
             w = (c0.width + dx).clamp(_minSize, 1.0 - c0.x);
             break;
           case _Handle.none:
+          case _Handle.rotationKnob:
             return;
         }
-        ref
-            .read(cropDraftProvider.notifier)
-            .update(CropParams(x: x, y: y, width: w, height: h));
+
+        // 保留 orientation / flip / straighten
+        ref.read(cropDraftProvider.notifier).update(
+              c0.copyWith(x: x, y: y, width: w, height: h),
+            );
       },
       onPanEnd: (_) => _drag = _Handle.none,
       child: CustomPaint(
         size: widget.imageDisplaySize,
-        painter: _CropPainter(crop: crop, displaySize: widget.imageDisplaySize),
+        painter: _CropPainter(
+          crop: crop,
+          displaySize: widget.imageDisplaySize,
+          knobPosition: _knobPosition(screenRect),
+        ),
       ),
     );
   }
@@ -136,17 +192,20 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
 class _CropPainter extends CustomPainter {
   final CropParams crop;
   final Size displaySize;
-  _CropPainter({required this.crop, required this.displaySize});
+  final Offset knobPosition;
+
+  _CropPainter({
+    required this.crop,
+    required this.displaySize,
+    required this.knobPosition,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = displaySize.width;
     final h = displaySize.height;
     final r = Rect.fromLTWH(
-      crop.x * w,
-      crop.y * h,
-      crop.width * w,
-      crop.height * h,
+      crop.x * w, crop.y * h, crop.width * w, crop.height * h,
     );
 
     // 外部 darken
@@ -177,9 +236,9 @@ class _CropPainter extends CustomPainter {
     // 8 个 handle
     final handle = Paint()..color = Colors.white;
     void hSquare(Offset c) => canvas.drawRect(
-      Rect.fromCenter(center: c, width: 10, height: 10),
-      handle,
-    );
+          Rect.fromCenter(center: c, width: 10, height: 10),
+          handle,
+        );
     hSquare(r.topLeft);
     hSquare(r.topRight);
     hSquare(r.bottomLeft);
@@ -188,8 +247,62 @@ class _CropPainter extends CustomPainter {
     hSquare(Offset(r.center.dx, r.bottom));
     hSquare(Offset(r.left, r.center.dy));
     hSquare(Offset(r.right, r.center.dy));
+
+    // 旋转 knob
+    canvas.drawCircle(
+      knobPosition,
+      14,
+      Paint()..color = Colors.white.withValues(alpha: 0.92),
+    );
+    canvas.drawCircle(
+      knobPosition,
+      14,
+      Paint()
+        ..color = Colors.black54
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+    // 指示线（从中心朝上，随 straighten 旋转）
+    canvas.save();
+    canvas.translate(knobPosition.dx, knobPosition.dy);
+    canvas.rotate(crop.straighten * math.pi / 180.0);
+    canvas.drawLine(
+      Offset.zero,
+      const Offset(0, -9),
+      Paint()
+        ..color = const Color(0xFF6B5BFF)
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawCircle(
+      const Offset(0, -9),
+      2.5,
+      Paint()..color = const Color(0xFF6B5BFF),
+    );
+    canvas.restore();
+
+    // 角度文字
+    final tp = TextPainter(
+      text: TextSpan(
+        text:
+            '${crop.straighten >= 0 ? "+" : ""}${crop.straighten.toStringAsFixed(1)}°',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    tp.layout();
+    tp.paint(
+      canvas,
+      Offset(knobPosition.dx - tp.width / 2, knobPosition.dy + 18),
+    );
   }
 
   @override
-  bool shouldRepaint(_CropPainter old) => old.crop != crop;
+  bool shouldRepaint(_CropPainter old) =>
+      old.crop != crop || old.knobPosition != knobPosition;
 }

@@ -7,11 +7,12 @@ import 'package:image/image.dart' as img_pkg;
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/models/adjustment_params.dart';
-import '../../render/render_engine.dart';
+import '../../render/full_pipeline_renderer.dart';
 
 class AIInputRenderer {
   static Future<String> renderToTempFile({
     required ui.FragmentProgram program,
+    required ui.FragmentProgram maskProgram,
     required ui.Image sourceImage,
     required AdjustmentParams params,
     ui.Image? lutTexture,
@@ -19,16 +20,19 @@ class AIInputRenderer {
     int maxEdge = 768,
     int jpegQuality = 85,
   }) async {
-
-    final rendered = await RenderEngine.renderToImage(
-      program: program,
+    final rendered = await FullPipelineRenderer.render(
+      developProgram: program,
+      maskProgram: maskProgram,
       sourceImage: sourceImage,
       params: params,
       lutTexture: lutTexture,
       lutSize: lutSize,
+      targetWidth: sourceImage.width,
+      targetHeight: sourceImage.height,
     );
 
-    final byteData = await rendered.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final byteData =
+        await rendered.toByteData(format: ui.ImageByteFormat.rawRgba);
     final w = rendered.width;
     final h = rendered.height;
     rendered.dispose();
@@ -56,7 +60,8 @@ class AIInputRenderer {
     });
 
     final tempDir = await getTemporaryDirectory();
-    final path = '${tempDir.path}/e4pix_ai_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final path =
+        '${tempDir.path}/e4pix_ai_${DateTime.now().millisecondsSinceEpoch}.jpg';
     await File(path).writeAsBytes(jpegBytes);
     return path;
   }

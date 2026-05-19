@@ -16,7 +16,6 @@ class CurrentParamsNotifier extends Notifier<AdjustmentParams> {
     return AdjustmentParams.neutral;
   }
 
-  /// 设置新参数 —— 自动按当前模式分派回写
   void update(AdjustmentParams newParams) {
     state = newParams;
 
