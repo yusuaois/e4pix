@@ -1544,39 +1544,42 @@ class _PreviewArea extends ConsumerWidget {
       if (develop == null || maskProgram == null) {
         return const Center(child: CircularProgressIndicator(strokeWidth: 2));
       }
-      return LayoutBuilder(
-        builder: (ctx, constraints) {
-          final imgW = state.uiImage.width.toDouble();
-          final imgH = state.uiImage.height.toDouble();
-          final outAspect = params.crop.outAspectFor(imgW, imgH);
-          final isVertical = MediaQuery.of(ctx).size.shortestSide < 600;
-          final box = applyBoxFit(
-            BoxFit.contain,
-            Size(outAspect, 1.0),
-            constraints.biggest,
-          ).destination;
-          return Container(
-            color: Colors.black,
-            child: Center(
-              child: SizedBox.fromSize(
-                size: box,
-                child: wrapOverlay(
-                  MultiPassPreview(
-                    developProgram: develop,
-                    maskProgram: maskProgram,
-                    sourceImage: state.uiImage,
-                    params: params,
-                    lutTexture: lutEnabled ? lut.texture : null,
-                    lutSize: lutEnabled ? lut.size : 0,
-                    idleMaxEdge: isVertical ? 1600 : 2400,
-                    draggingMaxEdge: isVertical ? 600 : 800,
+      return GestureDetector(
+        onTap: () => ref.read(fullscreenPreviewProvider.notifier).state = true,
+        child: LayoutBuilder(
+          builder: (ctx, constraints) {
+            final imgW = state.uiImage.width.toDouble();
+            final imgH = state.uiImage.height.toDouble();
+            final outAspect = params.crop.outAspectFor(imgW, imgH);
+            final isVertical = MediaQuery.of(ctx).size.shortestSide < 600;
+            final box = applyBoxFit(
+              BoxFit.contain,
+              Size(outAspect, 1.0),
+              constraints.biggest,
+            ).destination;
+            return Container(
+              color: Colors.black,
+              child: Center(
+                child: SizedBox.fromSize(
+                  size: box,
+                  child: wrapOverlay(
+                    MultiPassPreview(
+                      developProgram: develop,
+                      maskProgram: maskProgram,
+                      sourceImage: state.uiImage,
+                      params: params,
+                      lutTexture: lutEnabled ? lut.texture : null,
+                      lutSize: lutEnabled ? lut.size : 0,
+                      idleMaxEdge: isVertical ? 1600 : 2400,
+                      draggingMaxEdge: isVertical ? 600 : 800,
+                    ),
+                    box,
                   ),
-                  box,
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       );
     }
 
@@ -1617,81 +1620,85 @@ class _PreviewArea extends ConsumerWidget {
       );
     }
 
-    return Container(
-      color: Colors.black,
-      child: LayoutBuilder(
-        builder: (ctx, constraints) {
-          final imgW = image.width.toDouble();
-          final imgH = image.height.toDouble();
-          final outAspect = crop.outAspectFor(imgW, imgH);
-          final box = applyBoxFit(
-            BoxFit.contain,
-            Size(outAspect, 1.0),
-            constraints.biggest,
-          ).destination;
+    return GestureDetector(
+      onTap: () => ref.read(fullscreenPreviewProvider.notifier).state = true,
+      child: Container(
+        color: Colors.black,
+        child: LayoutBuilder(
+          builder: (ctx, constraints) {
+            final imgW = image.width.toDouble();
+            final imgH = image.height.toDouble();
+            final outAspect = crop.outAspectFor(imgW, imgH);
+            final box = applyBoxFit(
+              BoxFit.contain,
+              Size(outAspect, 1.0),
+              constraints.biggest,
+            ).destination;
 
-          // orientation 后的尺寸
-          final orientedW = crop.orientationSwapsAxes ? imgH : imgW;
-          final orientedH = crop.orientationSwapsAxes ? imgW : imgH;
+            // orientation 后的尺寸
+            final orientedW = crop.orientationSwapsAxes ? imgH : imgW;
+            final orientedH = crop.orientationSwapsAxes ? imgW : imgH;
 
-          // 让crop rect 区域刚好等于 box
-          // box.width = orientedW * crop.width * scale → scale = box.width / (orientedW * crop.width)
-          final scale = box.width / (orientedW * crop.width);
-          final renderedFullW = imgW * scale;
-          final renderedFullH = imgH * scale;
-          final renderedOrientedW = orientedW * scale;
-          final renderedOrientedH = orientedH * scale;
+            // 让crop rect 区域刚好等于 box
+            // box.width = orientedW * crop.width * scale → scale = box.width / (orientedW * crop.width)
+            final scale = box.width / (orientedW * crop.width);
+            final renderedFullW = imgW * scale;
+            final renderedFullH = imgH * scale;
+            final renderedOrientedW = orientedW * scale;
+            final renderedOrientedH = orientedH * scale;
 
-          // Transform 矩阵
-          // 1) 移动到 box 的中心
-          // 2) 旋转 90°×orientation + straighten
-          // 3) flip
-          // 4) 平移回到 oriented 坐标的中心
-          // 5) 减去 crop 偏移
-          final matrix = Matrix4.identity()
-            ..translate(box.width / 2, box.height / 2, 0)
-            ..rotateZ(
-              crop.orientation * math.pi / 2 + crop.straighten * math.pi / 180,
-            )
-            ..scale(crop.flipH ? -1.0 : 1.0, crop.flipV ? -1.0 : 1.0)
-            // 此时坐标系原点在 box 中心，方向跟 oriented 一致
-            // 把 oriented 图像放在它的 (crop.x..crop.x+crop.width) 的中心
-            ..translate(
-              -(crop.x + crop.width / 2) * renderedOrientedW,
-              -(crop.y + crop.height / 2) * renderedOrientedH,
-            );
+            // Transform 矩阵
+            // 1) 移动到 box 的中心
+            // 2) 旋转 90°×orientation + straighten
+            // 3) flip
+            // 4) 平移回到 oriented 坐标的中心
+            // 5) 减去 crop 偏移
+            final matrix = Matrix4.identity()
+              ..translate(box.width / 2, box.height / 2, 0)
+              ..rotateZ(
+                crop.orientation * math.pi / 2 +
+                    crop.straighten * math.pi / 180,
+              )
+              ..scale(crop.flipH ? -1.0 : 1.0, crop.flipV ? -1.0 : 1.0)
+              // 此时坐标系原点在 box 中心，方向跟 oriented 一致
+              // 把 oriented 图像放在它的 (crop.x..crop.x+crop.width) 的中心
+              ..translate(
+                -(crop.x + crop.width / 2) * renderedOrientedW,
+                -(crop.y + crop.height / 2) * renderedOrientedH,
+              );
 
-          return Center(
-            child: SizedBox.fromSize(
-              size: box,
-              child: wrapOverlay(
-                ClipRect(
-                  child: Transform(
-                    transform: matrix,
-                    child: OverflowBox(
-                      minWidth: renderedFullW,
-                      maxWidth: renderedFullW,
-                      minHeight: renderedFullH,
-                      maxHeight: renderedFullH,
-                      alignment: Alignment.topLeft,
-                      child: SizedBox(
-                        width: renderedFullW,
-                        height: renderedFullH,
-                        child: PreviewRenderer(
-                          image: image,
-                          params: params,
-                          lutTexture: lutEnabled ? lut.texture : null,
-                          lutSize: lutEnabled ? lut.size : 0,
+            return Center(
+              child: SizedBox.fromSize(
+                size: box,
+                child: wrapOverlay(
+                  ClipRect(
+                    child: Transform(
+                      transform: matrix,
+                      child: OverflowBox(
+                        minWidth: renderedFullW,
+                        maxWidth: renderedFullW,
+                        minHeight: renderedFullH,
+                        maxHeight: renderedFullH,
+                        alignment: Alignment.topLeft,
+                        child: SizedBox(
+                          width: renderedFullW,
+                          height: renderedFullH,
+                          child: PreviewRenderer(
+                            image: image,
+                            params: params,
+                            lutTexture: lutEnabled ? lut.texture : null,
+                            lutSize: lutEnabled ? lut.size : 0,
+                          ),
                         ),
                       ),
                     ),
                   ),
+                  box,
                 ),
-                box,
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

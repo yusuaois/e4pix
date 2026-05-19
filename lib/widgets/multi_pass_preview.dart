@@ -9,7 +9,7 @@ import '../core/models/adjustment_params.dart';
 import '../render/full_pipeline_renderer.dart';
 import '../state/interaction_state.dart';
 
-/// 离屏多 pass 预览。当 params.locals 包含启用的局部调整时使用。
+/// 离屏多 pass 预览
 class MultiPassPreview extends ConsumerStatefulWidget {
   final ui.FragmentProgram developProgram;
   final ui.FragmentProgram maskProgram;
@@ -17,12 +17,7 @@ class MultiPassPreview extends ConsumerStatefulWidget {
   final AdjustmentParams params;
   final ui.Image? lutTexture;
   final int lutSize;
-
-  /// 闲置时（用户没在拖滑块）渲染的最大长边。
-  /// 桌面建议 2400；手机建议 1600。调用方决定。
   final int idleMaxEdge;
-
-  /// 拖滑块期间使用的最大长边。
   final int draggingMaxEdge;
 
   const MultiPassPreview({
@@ -44,18 +39,21 @@ class MultiPassPreview extends ConsumerStatefulWidget {
 class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   ui.Image? _rendered;
   int _generation = 0;
-  Timer? _debounce;
+
+  Timer? _throttle;
+  bool _isRendering = false;
+  bool _pendingRender = false;
+
   ProviderSubscription<bool>? _dragSub;
 
   @override
   void initState() {
     super.initState();
-    // 监听拖动结束 → 触发一次高质量重渲
     _dragSub = ref.listenManual<bool>(
       isUserDraggingSliderProvider,
       (prev, next) {
         if (prev == true && next == false) {
-          _scheduleRender(highQualityDelay: const Duration(milliseconds: 80));
+          _scheduleHighQualityRerender();
         }
       },
     );
@@ -75,37 +73,51 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    _throttle?.cancel();
     _dragSub?.close();
     _rendered?.dispose();
     super.dispose();
   }
 
-  /// 普通调度：33ms debounce。
-  /// 拖动刚结束时可以传一个稍长的 delay，等 final value 稳定。
-  void _scheduleRender({Duration? highQualityDelay}) {
-    _debounce?.cancel();
-    _debounce = Timer(
-      highQualityDelay ?? const Duration(milliseconds: 33),
-      _runRender,
-    );
+  void _scheduleRender() {
+    if (_throttle != null) return;
+    final isDragging = ref.read(isUserDraggingSliderProvider);
+    final delay = Duration(milliseconds: isDragging ? 50 : 33);
+    _throttle = Timer(delay, () {
+      _throttle = null;
+      _runRender();
+    });
+  }
+
+  void _scheduleHighQualityRerender() {
+    _throttle?.cancel();
+    _throttle = Timer(const Duration(milliseconds: 80), () {
+      _throttle = null;
+      _runRender();
+    });
   }
 
   Future<void> _runRender() async {
-    final gen = ++_generation;
-    final src = widget.sourceImage;
-
-    // 根据当前是否在拖动决定 maxEdge
-    final isDragging = ref.read(isUserDraggingSliderProvider);
-    final maxEdge =
-        isDragging ? widget.draggingMaxEdge : widget.idleMaxEdge;
-
-    final longest = math.max(src.width, src.height);
-    final scale = longest > maxEdge ? maxEdge / longest : 1.0;
-    final tw = (src.width * scale).round();
-    final th = (src.height * scale).round();
+    if (_isRendering) {
+      _pendingRender = true;
+      return;
+    }
+    _isRendering = true;
+    _pendingRender = false;
 
     try {
+      final gen = ++_generation;
+      final src = widget.sourceImage;
+
+      final isDragging = ref.read(isUserDraggingSliderProvider);
+      final maxEdge =
+          isDragging ? widget.draggingMaxEdge : widget.idleMaxEdge;
+
+      final longest = math.max(src.width, src.height);
+      final scale = longest > maxEdge ? maxEdge / longest : 1.0;
+      final tw = (src.width * scale).round();
+      final th = (src.height * scale).round();
+
       final result = await FullPipelineRenderer.render(
         developProgram: widget.developProgram,
         maskProgram: widget.maskProgram,
@@ -116,6 +128,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         targetWidth: tw,
         targetHeight: th,
       );
+
       if (gen != _generation || !mounted) {
         result.dispose();
         return;
@@ -125,6 +138,12 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       old?.dispose();
     } catch (e) {
       debugPrint('MultiPassPreview render failed: $e');
+    } finally {
+      _isRendering = false;
+      if (_pendingRender) {
+        _pendingRender = false;
+        _scheduleRender();
+      }
     }
   }
 

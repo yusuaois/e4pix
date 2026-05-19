@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
-import '../render/develop_uniforms.dart';
-import '../core/models/adjustment_params.dart';
 
-class PreviewRenderer extends StatefulWidget {
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../core/models/adjustment_params.dart';
+import '../state/interaction_state.dart';
+import 'develop_uniforms.dart';
+
+class PreviewRenderer extends ConsumerStatefulWidget {
   final ui.Image image;
   final AdjustmentParams params;
   final ui.Image? lutTexture;
@@ -18,17 +23,61 @@ class PreviewRenderer extends StatefulWidget {
   });
 
   @override
-  State<PreviewRenderer> createState() => _PreviewRendererState();
+  ConsumerState<PreviewRenderer> createState() => _PreviewRendererState();
 }
 
-class _PreviewRendererState extends State<PreviewRenderer> {
+class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
   ui.FragmentShader? _shader;
   Object? _shaderError;
+
+  late AdjustmentParams _displayedParams;
+  Timer? _throttle;
+  ProviderSubscription<bool>? _dragSub;
+
+  static const _draggingInterval = Duration(milliseconds: 33);
 
   @override
   void initState() {
     super.initState();
+    _displayedParams = widget.params;
     _load();
+
+    _dragSub = ref.listenManual<bool>(
+      isUserDraggingSliderProvider,
+      (prev, next) {
+        if (prev == true && next == false) {
+          _throttle?.cancel();
+          _throttle = null;
+          if (mounted && _displayedParams != widget.params) {
+            setState(() => _displayedParams = widget.params);
+          }
+        }
+      },
+    );
+  }
+
+  @override
+  void didUpdateWidget(PreviewRenderer old) {
+    super.didUpdateWidget(old);
+
+    if (old.params == widget.params) return;
+
+    final isDragging = ref.read(isUserDraggingSliderProvider);
+    if (!isDragging) {
+      _throttle?.cancel();
+      _throttle = null;
+      _displayedParams = widget.params;
+      return;
+    }
+
+    if (_throttle != null) return;
+    _throttle = Timer(_draggingInterval, () {
+      _throttle = null;
+      if (!mounted) return;
+      if (_displayedParams != widget.params) {
+        setState(() => _displayedParams = widget.params);
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -42,6 +91,13 @@ class _PreviewRendererState extends State<PreviewRenderer> {
       if (!mounted) return;
       setState(() => _shaderError = e);
     }
+  }
+
+  @override
+  void dispose() {
+    _throttle?.cancel();
+    _dragSub?.close();
+    super.dispose();
   }
 
   @override
@@ -59,7 +115,6 @@ class _PreviewRendererState extends State<PreviewRenderer> {
     }
     return LayoutBuilder(
       builder: (ctx, constraints) {
-        // 保持原图比例缩放
         final imgW = widget.image.width.toDouble();
         final imgH = widget.image.height.toDouble();
         final fit = applyBoxFit(
@@ -74,7 +129,7 @@ class _PreviewRendererState extends State<PreviewRenderer> {
               painter: _DevelopPainter(
                 shader: _shader!,
                 image: widget.image,
-                params: widget.params,
+                params: _displayedParams,
                 lut: widget.lutTexture,
                 lutSize: widget.lutSize,
               ),
