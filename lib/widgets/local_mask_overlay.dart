@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
+import '../state/interaction_state.dart';
 import '../state/local_state.dart';
 import '../state/params_state.dart';
 
@@ -68,16 +69,13 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
 
   bool _near(Offset a, Offset b) => (a - b).distance < _hitRadius;
 
-  /// 在所有 mask 中找出点击命中的 handle / body
   (String, _Handle)? _hitTest(
     Offset pos,
     List<LocalAdjustment> locals,
     String? selectedId,
   ) {
-    // 优先 selected
     final ordered = [
-      if (selectedId != null)
-        ...locals.where((l) => l.id == selectedId),
+      if (selectedId != null) ...locals.where((l) => l.id == selectedId),
       ...locals.where((l) => l.id != selectedId),
     ];
     for (final local in ordered) {
@@ -87,7 +85,6 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         final e = _maskToScreen(shape.endX, shape.endY);
         if (_near(pos, s)) return (local.id, _Handle.linearStart);
         if (_near(pos, e)) return (local.id, _Handle.linearEnd);
-        // 在 line 上的近距离投影 → body drag
         final dir = e - s;
         final lenSq = dir.dx * dir.dx + dir.dy * dir.dy;
         if (lenSq > 1) {
@@ -113,6 +110,14 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     return null;
   }
 
+  void _endDrag() {
+    if (_drag != _Handle.none) {
+      ref.read(isUserDraggingSliderProvider.notifier).state = false;
+    }
+    _drag = _Handle.none;
+    _dragId = null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final params = ref.watch(currentParamsNotifierProvider);
@@ -124,26 +129,33 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
       behavior: HitTestBehavior.opaque,
       onPanDown: (d) {
         final hit = _hitTest(d.localPosition, params.locals, selectedId);
-        if (hit == null) return;
+        if (hit == null) {
+          _drag = _Handle.none;
+          _dragId = null;
+          return;
+        }
         _dragId = hit.$1;
         _drag = hit.$2;
         _dragStartPos = d.localPosition;
-        _shapeAtDragStart = params.locals.firstWhere((l) => l.id == _dragId).mask;
-        // 选中
+        _shapeAtDragStart =
+            params.locals.firstWhere((l) => l.id == _dragId).mask;
         if (selectedId != _dragId) {
           ref.read(selectedLocalIdProvider.notifier).state = _dragId;
+        }
+      },
+      // ⭐ pan 正式开始才标记降级（避免单击 tap 也触发）
+      onPanStart: (_) {
+        if (_drag != _Handle.none) {
+          ref.read(isUserDraggingSliderProvider.notifier).state = true;
         }
       },
       onPanUpdate: (d) {
         if (_drag == _Handle.none || _dragId == null) return;
         _applyDrag(d.localPosition);
       },
-      onPanEnd: (_) {
-        _drag = _Handle.none;
-        _dragId = null;
-      },
+      onPanEnd: (_) => _endDrag(),
+      onPanCancel: _endDrag,
       onTapUp: (d) {
-        // 点空白处 deselect
         final hit = _hitTest(d.localPosition, params.locals, selectedId);
         if (hit == null) {
           ref.read(selectedLocalIdProvider.notifier).state = null;
@@ -167,7 +179,6 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     if (id == null || _shapeAtDragStart == null) return;
     final shape0 = _shapeAtDragStart!;
     final actions = LocalAdjustmentActions(ref);
-
     final newMaskUv = _screenToMask(pos);
 
     if (shape0 is LinearGradientMask) {
@@ -220,7 +231,6 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
               ));
           break;
         case _Handle.radialRight:
-          // 沿当前 rotation 的 +x 方向投影
           final c = _maskToScreen(m.centerX, m.centerY);
           final vec = pos - c;
           final ux = math.cos(m.rotation);
@@ -236,7 +246,8 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           final ux = -math.sin(m.rotation);
           final uy = math.cos(m.rotation);
           final proj = (vec.dx * ux + vec.dy * uy);
-          final newRy = (proj / widget.imageDisplaySize.height).clamp(0.02, 1.0);
+          final newRy =
+              (proj / widget.imageDisplaySize.height).clamp(0.02, 1.0);
           actions.updateLocal(id, (l) =>
               l.copyWith(mask: m.copyWith(radiusY: newRy)));
           break;
@@ -285,10 +296,11 @@ class _MasksPainter extends CustomPainter {
 
   void _paintLinear(Canvas canvas, LinearGradientMask m, Paint stroke,
       Paint fill, bool selected) {
-    final s = Offset(m.startX * displaySize.width, m.startY * displaySize.height);
-    final e = Offset(m.endX * displaySize.width, m.endY * displaySize.height);
+    final s = Offset(
+        m.startX * displaySize.width, m.startY * displaySize.height);
+    final e =
+        Offset(m.endX * displaySize.width, m.endY * displaySize.height);
     canvas.drawLine(s, e, stroke);
-    // 端点
     final r = selected ? 7.0 : 5.0;
     canvas.drawCircle(s, r, fill);
     canvas.drawCircle(e, r, fill);
@@ -299,23 +311,36 @@ class _MasksPainter extends CustomPainter {
     final c =
         Offset(m.centerX * displaySize.width, m.centerY * displaySize.height);
 
-    canvas.save();
-    canvas.translate(c.dx, c.dy);
-    canvas.rotate(m.rotation);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset.zero,
-        width: m.radiusX * displaySize.width * 2,
-        height: m.radiusY * displaySize.height * 2,
-      ),
-      stroke,
-    );
-    canvas.restore();
+    // ⭐ 手动画椭圆：跟 shader / handle 共用同一套数学（归一化空间旋转 → 非等比映射）
+    final path = Path();
+    const N = 64;
+    final cs = math.cos(m.rotation);
+    final sn = math.sin(m.rotation);
+    for (int i = 0; i <= N; i++) {
+      final theta = i * 2 * math.pi / N;
+      // 椭圆点在 mask-local 空间（归一化）
+      final lx = m.radiusX * math.cos(theta);
+      final ly = m.radiusY * math.sin(theta);
+      // 旋转到 world 空间（仍为归一化）
+      final wx = lx * cs - ly * sn;
+      final wy = lx * sn + ly * cs;
+      // 非等比映射到屏幕
+      final sx = c.dx + wx * displaySize.width;
+      final sy = c.dy + wy * displaySize.height;
+      if (i == 0) {
+        path.moveTo(sx, sy);
+      } else {
+        path.lineTo(sx, sy);
+      }
+    }
+    path.close();
+    canvas.drawPath(path, stroke);
 
+    // 中心 handle
     final r = selected ? 7.0 : 5.0;
     canvas.drawCircle(c, r, fill);
     if (selected) {
-      // 右、下 handle
+      // 右 / 下 handle —— 跟椭圆共用的数学
       final right = c +
           Offset(
             m.radiusX * displaySize.width * math.cos(m.rotation),

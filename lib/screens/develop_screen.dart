@@ -1664,27 +1664,30 @@ class _PreviewArea extends ConsumerWidget {
           return Center(
             child: SizedBox.fromSize(
               size: box,
-              child: ClipRect(
-                child: Transform(
-                  transform: matrix,
-                  child: OverflowBox(
-                    minWidth: renderedFullW,
-                    maxWidth: renderedFullW,
-                    minHeight: renderedFullH,
-                    maxHeight: renderedFullH,
-                    alignment: Alignment.topLeft,
-                    child: SizedBox(
-                      width: renderedFullW,
-                      height: renderedFullH,
-                      child: PreviewRenderer(
-                        image: image,
-                        params: params,
-                        lutTexture: lutEnabled ? lut.texture : null,
-                        lutSize: lutEnabled ? lut.size : 0,
+              child: wrapOverlay(
+                ClipRect(
+                  child: Transform(
+                    transform: matrix,
+                    child: OverflowBox(
+                      minWidth: renderedFullW,
+                      maxWidth: renderedFullW,
+                      minHeight: renderedFullH,
+                      maxHeight: renderedFullH,
+                      alignment: Alignment.topLeft,
+                      child: SizedBox(
+                        width: renderedFullW,
+                        height: renderedFullH,
+                        child: PreviewRenderer(
+                          image: image,
+                          params: params,
+                          lutTexture: lutEnabled ? lut.texture : null,
+                          lutSize: lutEnabled ? lut.size : 0,
+                        ),
                       ),
                     ),
                   ),
                 ),
+                box,
               ),
             ),
           );

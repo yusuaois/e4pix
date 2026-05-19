@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/crop_params.dart';
 import '../state/crop_state.dart';
+import '../state/interaction_state.dart';
 
 class CropOverlay extends ConsumerStatefulWidget {
   final Size imageDisplaySize;
@@ -15,13 +16,7 @@ class CropOverlay extends ConsumerStatefulWidget {
   ConsumerState<CropOverlay> createState() => _CropOverlayState();
 }
 
-enum _Handle {
-  none,
-  body,
-  tl, tr, bl, br,
-  t, b, l, r,
-  rotationKnob,
-}
+enum _Handle { none, body, tl, tr, bl, br, t, b, l, r, rotationKnob }
 
 class _CropOverlayState extends ConsumerState<CropOverlay> {
   _Handle _drag = _Handle.none;
@@ -94,6 +89,11 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
         _dragStart = d.localPosition;
         _cropAtDragStart = crop;
       },
+      onPanStart: (_) {
+        if (_drag != _Handle.none) {
+          ref.read(isUserDraggingSliderProvider.notifier).state = true;
+        }
+      },
       onPanUpdate: (d) {
         if (_drag == _Handle.none) return;
 
@@ -113,11 +113,10 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
             d.localPosition.dx - cropCenter.dx,
           );
           final deltaDeg = (currentAngle - startAngle) * 180.0 / math.pi;
-          final newStraighten =
-              (c0.straighten + deltaDeg).clamp(-45.0, 45.0);
-          ref.read(cropDraftProvider.notifier).update(
-                c0.copyWith(straighten: newStraighten),
-              );
+          final newStraighten = (c0.straighten + deltaDeg).clamp(-45.0, 45.0);
+          ref
+              .read(cropDraftProvider.notifier)
+              .update(c0.copyWith(straighten: newStraighten));
           return;
         }
 
@@ -172,11 +171,22 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
         }
 
         // 保留 orientation / flip / straighten
-        ref.read(cropDraftProvider.notifier).update(
-              c0.copyWith(x: x, y: y, width: w, height: h),
-            );
+        ref
+            .read(cropDraftProvider.notifier)
+            .update(c0.copyWith(x: x, y: y, width: w, height: h));
       },
-      onPanEnd: (_) => _drag = _Handle.none,
+      onPanEnd: (_) {
+        if (_drag != _Handle.none) {
+          ref.read(isUserDraggingSliderProvider.notifier).state = false;
+        }
+        _drag = _Handle.none;
+      },
+      onPanCancel: () {
+        if (_drag != _Handle.none) {
+          ref.read(isUserDraggingSliderProvider.notifier).state = false;
+        }
+        _drag = _Handle.none;
+      },
       child: CustomPaint(
         size: widget.imageDisplaySize,
         painter: _CropPainter(
@@ -205,7 +215,10 @@ class _CropPainter extends CustomPainter {
     final w = displaySize.width;
     final h = displaySize.height;
     final r = Rect.fromLTWH(
-      crop.x * w, crop.y * h, crop.width * w, crop.height * h,
+      crop.x * w,
+      crop.y * h,
+      crop.width * w,
+      crop.height * h,
     );
 
     // 外部 darken
@@ -236,9 +249,9 @@ class _CropPainter extends CustomPainter {
     // 8 个 handle
     final handle = Paint()..color = Colors.white;
     void hSquare(Offset c) => canvas.drawRect(
-          Rect.fromCenter(center: c, width: 10, height: 10),
-          handle,
-        );
+      Rect.fromCenter(center: c, width: 10, height: 10),
+      handle,
+    );
     hSquare(r.topLeft);
     hSquare(r.topRight);
     hSquare(r.bottomLeft);
