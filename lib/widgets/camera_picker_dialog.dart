@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../services/app_settings.dart';
 import '../services/camera/camera_controller.dart';
 
 class CameraPickResult {
@@ -26,11 +27,22 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
   String? _folder;
   bool _detecting = false;
   String? _error;
+  bool _rememberAsDefault = false;
+  bool _loadedDefault = false;
 
   @override
   void initState() {
     super.initState();
     _detect();
+    AppSettings.getTetherFolder().then((f) async {
+      if (!mounted || f == null) return;
+      final exists = await Directory(f).exists();
+      if (!mounted || !exists) return;
+      setState(() {
+        _folder = f;
+        _loadedDefault = true;
+      });
+    });
   }
 
   Future<void> _detect() async {
@@ -57,7 +69,12 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
     final folder = await FilePicker.platform.getDirectoryPath(
       dialogTitle: tr("saveFolderChoose"),
     );
-    if (folder != null) setState(() => _folder = folder);
+    if (folder != null) {
+      setState(() {
+        _folder = folder;
+        _loadedDefault = false;
+      });
+    }
   }
 
   @override
@@ -183,6 +200,45 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
               tr("saveTo"),
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
+            const SizedBox(height: 8),
+            // 标记 "正在使用默认"
+            if (_loadedDefault)
+              Row(
+                children: [
+                  const Icon(
+                    Icons.check_circle_outline,
+                    size: 12,
+                    color: Color(0xFF6B5BFF),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '使用已保存的默认文件夹',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: Colors.white.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ],
+              ),
+            // 用户主动选了一个非默认的文件夹 → 提示"记住"
+            if (!_loadedDefault && _folder != null)
+              Row(
+                children: [
+                  SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: Checkbox(
+                      value: _rememberAsDefault,
+                      onChanged: (v) =>
+                          setState(() => _rememberAsDefault = v ?? false),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text('记住为默认（下次直接使用）', style: TextStyle(fontSize: 11)),
+                ],
+              ),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -230,10 +286,16 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
         ),
         FilledButton(
           onPressed: (_selected != null && _folder != null)
-              ? () => Navigator.pop(
-                  context,
-                  CameraPickResult(_selected!, _folder!),
-                )
+              ? () async {
+                  if (_rememberAsDefault && !_loadedDefault) {
+                    await AppSettings.setTetherFolder(_folder);
+                  }
+                  if (!context.mounted) return;
+                  Navigator.pop(
+                    context,
+                    CameraPickResult(_selected!, _folder!),
+                  );
+                }
               : null,
           child: Text(tr("startCameraTether")),
         ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -10,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/models/adjustment_params.dart';
-import '../core/models/local_params.dart';
 import '../core/models/tethered_shot.dart';
 import '../native/raw_bridge.dart';
 import '../render/exporter.dart';
@@ -18,6 +18,7 @@ import '../render/preview_renderer.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
+import '../services/app_settings.dart';
 import '../state/providers.dart';
 import '../widgets/adjustment_panel.dart';
 import '../widgets/ai_settings_dialog.dart';
@@ -33,6 +34,8 @@ import '../widgets/local_panel.dart';
 import '../widgets/multi_pass_preview.dart';
 import '../widgets/preset_bar.dart';
 import '../widgets/tether_widgets.dart';
+import '../state/app_settings_state.dart';
+import 'settings_screen.dart';
 
 class DevelopScreen extends ConsumerStatefulWidget {
   const DevelopScreen({super.key});
@@ -80,10 +83,55 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   }
 
   Future<void> _startFolderTether() async {
-    final folder = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: tr('tetherFolderChoose'),
-    );
-    if (folder == null || folder.isEmpty) return;
+    // 默认文件夹
+    String? folder = ref.read(tetherFolderProvider);
+    folder ??= await AppSettings.getTetherFolder();
+
+    if (folder != null) {
+      final exists = await Directory(folder).exists();
+      if (!exists) {
+        // 文件夹不存在
+        await ref.read(tetherFolderProvider.notifier).clear();
+        folder = null;
+      }
+    }
+
+    // 无默认文件夹
+    if (folder == null) {
+      final picked = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: tr('tetherFolderChoose'),
+      );
+      if (picked == null || picked.isEmpty) return;
+
+      if (!mounted) return;
+      final remember = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(tr("settingsRememberFolder")),
+          content: Text(
+            '${tr("settingsRememberAsDefaultDesc")}\n\n$picked',
+            style: const TextStyle(fontSize: 12),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr("settingsRememberOnlyOnce")),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(tr("settingsRememberSave")),
+            ),
+          ],
+        ),
+      );
+
+      if (remember == true) {
+        await ref.read(tetherFolderProvider.notifier).set(picked);
+      }
+      folder = picked;
+    }
+
+    // 真正启动
     try {
       await ref.read(tetherSessionNotifierProvider.notifier).start(folder);
     } catch (e) {
@@ -331,7 +379,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
         final maskProgram = ref.read(maskShaderProgramProvider).value;
         if (maskProgram == null) {
-          _snack('Mask shader 还没加载完，请稍后再试');
+          _snack('Mask shader loading...');
           return;
         }
 
@@ -421,12 +469,16 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   @override
   Widget build(BuildContext context) {
     final isVertical = MediaQuery.of(context).size.shortestSide < 600;
-    // 监听相机错误一次性 snackbar
+    final isFullscreen = ref.watch(fullscreenPreviewProvider);
     ref.listen(cameraNotifierProvider, (prev, next) {
       if (next.lastError != null && prev?.lastError != next.lastError) {
         _snack(tr('cameraError', args: [next.lastError!]));
       }
     });
+
+    if (isFullscreen) {
+      return _buildFullscreen();
+    }
 
     return Focus(
       autofocus: true,
@@ -446,6 +498,14 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           } else {
             n.undo();
           }
+          return KeyEventResult.handled;
+        }
+
+        // F11
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.f11) {
+          final cur = ref.read(fullscreenPreviewProvider);
+          ref.read(fullscreenPreviewProvider.notifier).state = !cur;
           return KeyEventResult.handled;
         }
 
@@ -483,6 +543,39 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       child: Scaffold(
         body: SafeArea(
           child: isVertical ? _buildVerticalLayout() : _buildHorizontalLayout(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFullscreen() {
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape) {
+          ref.read(fullscreenPreviewProvider.notifier).state = false;
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onDoubleTap: () =>
+                    ref.read(fullscreenPreviewProvider.notifier).state = false,
+                child: const _PreviewArea(),
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              right: 8,
+              child: _FullscreenExitButton(),
+            ),
+          ],
         ),
       ),
     );
@@ -740,20 +833,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         ),
       );
     }
-    if (session == null) {
-      overflowItems.add(
-        PopupMenuItem(
-          value: 'tether_folder',
-          child: Row(
-            children: [
-              const Icon(Icons.cable_rounded, size: 18),
-              const SizedBox(width: 12),
-              Text(tr('tetherFolderMonitor')),
-            ],
-          ),
-        ),
-      );
-    }
     if (!cameraState.isActive && session == null) {
       overflowItems.add(
         PopupMenuItem(
@@ -768,6 +847,46 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         ),
       );
     }
+    if (session == null) {
+      overflowItems.add(
+        PopupMenuItem(
+          value: 'tether_folder',
+          child: Row(
+            children: [
+              const Icon(Icons.cable_rounded, size: 18),
+              const SizedBox(width: 12),
+              Text(tr('tetherFolderMonitor')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (hasImage) {
+      overflowItems.add(
+        PopupMenuItem(
+          value: 'fullscreen',
+          child: Row(
+            children: [
+              Icon(Icons.fullscreen, size: 18),
+              SizedBox(width: 12),
+              Text(tr("fullscreenPreview")),
+            ],
+          ),
+        ),
+      );
+    }
+    overflowItems.add(
+      PopupMenuItem(
+        value: 'settings',
+        child: Row(
+          children: [
+            const Icon(Icons.settings_outlined, size: 18),
+            const SizedBox(width: 12),
+            Text(tr("settings")),
+          ],
+        ),
+      ),
+    );
 
     void handleMenu(String key) {
       switch (key) {
@@ -779,6 +898,14 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           break;
         case 'tether_camera':
           _startCameraTether();
+          break;
+        case 'fullscreen':
+          ref.read(fullscreenPreviewProvider.notifier).state = true;
+          break;
+        case 'settings':
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
           break;
       }
     }
@@ -814,29 +941,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               onPressed: () => enterCropMode(ref),
             ),
             const CompareButton(),
-          ],
-          // 水平直接展示，垂直布局折到菜单
-          if (!isVertical) ...[
-            if (hasImage)
-              compactIcon(
-                icon: Icons.auto_awesome,
-                color: const Color(0xFF6B5BFF),
-                tooltip: tr("aiColorSuggestionHint"),
-                onPressed: _showAISuggestion,
-                onLongPress: _showAISettings,
-              ),
-            if (session == null)
-              compactIcon(
-                icon: Icons.cable_rounded,
-                tooltip: tr("tetherFolderMonitor"),
-                onPressed: _startFolderTether,
-              ),
-            if (!cameraState.isActive && session == null)
-              compactIcon(
-                icon: Icons.photo_camera_outlined,
-                tooltip: tr("tetherCamera"),
-                onPressed: _startCameraTether,
-              ),
           ],
           // 相机活动状态始终显示
           if (cameraState.isActive)
@@ -874,23 +978,54 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                         .toggleMode(),
             ),
           ],
+          // 水平直接展示，垂直布局折到菜单
+          if (!isVertical) ...[
+            if (session == null)
+              compactIcon(
+                icon: Icons.cable_rounded,
+                tooltip: tr("tetherFolderMonitor"),
+                onPressed: _startFolderTether,
+              ),
+            if (!cameraState.isActive && session == null)
+              compactIcon(
+                icon: Icons.photo_camera_outlined,
+                tooltip: tr("tetherCamera"),
+                onPressed: _startCameraTether,
+              ),
+            if (hasImage) ...[
+              compactIcon(
+                icon: Icons.auto_awesome,
+                color: const Color(0xFF6B5BFF),
+                tooltip: tr("aiColorSuggestionHint"),
+                onPressed: _showAISuggestion,
+                onLongPress: _showAISettings,
+              ),
+              compactIcon(
+                icon: Icons.fullscreen,
+                tooltip: tr("fullscreenPreviewBtnHint"),
+                onPressed: () =>
+                    ref.read(fullscreenPreviewProvider.notifier).state = true,
+              ),
+            ],
+            compactIcon(
+              icon: Icons.settings_outlined,
+              tooltip: tr("settings"),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
+            ),
+          ],
           // 垂直布局"更多"按钮
-          if (isVertical && overflowItems.isNotEmpty && hasImage)
+          if (isVertical && overflowItems.isNotEmpty)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, size: 18),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               itemBuilder: (_) => overflowItems,
               onSelected: handleMenu,
-            )
-          else if (overflowItems.isNotEmpty)
-            for (final item in overflowItems)
-              if (item is PopupMenuItem<String>)
-                compactIcon(
-                  icon: ((item.child as Row).children[0] as Icon).icon!,
-                  tooltip: ((item.child as Row).children[2] as Text).data ?? '',
-                  onPressed: () => handleMenu(item.value as String),
-                ),
+            ),
           // 多选信息条
           if (selection.multiSelectMode) ...[
             if (selection.selectedPaths.isNotEmpty)
@@ -1217,6 +1352,24 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   }
 }
 
+class _FullscreenExitButton extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.4),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () => ref.read(fullscreenPreviewProvider.notifier).state = false,
+        child: const Padding(
+          padding: EdgeInsets.all(8),
+          child: Icon(Icons.fullscreen_exit, size: 22, color: Colors.white),
+        ),
+      ),
+    );
+  }
+}
+
 // Preview area
 class _PreviewArea extends ConsumerWidget {
   const _PreviewArea();
@@ -1436,19 +1589,23 @@ class _PreviewArea extends ConsumerWidget {
             Size(image.width.toDouble(), image.height.toDouble()),
             constraints.biggest,
           );
-          return Container(
-            color: Colors.black,
-            child: Center(
-              child: SizedBox.fromSize(
-                size: fit.destination,
-                child: wrapOverlay(
-                  PreviewRenderer(
-                    image: image,
-                    params: params,
-                    lutTexture: lutEnabled ? lut.texture : null,
-                    lutSize: lutEnabled ? lut.size : 0,
+          return GestureDetector(
+            onTap: () =>
+                ref.read(fullscreenPreviewProvider.notifier).state = true,
+            child: Container(
+              color: Colors.black,
+              child: Center(
+                child: SizedBox.fromSize(
+                  size: fit.destination,
+                  child: wrapOverlay(
+                    PreviewRenderer(
+                      image: image,
+                      params: params,
+                      lutTexture: lutEnabled ? lut.texture : null,
+                      lutSize: lutEnabled ? lut.size : 0,
+                    ),
+                    fit.destination,
                   ),
-                  fit.destination,
                 ),
               ),
             ),
