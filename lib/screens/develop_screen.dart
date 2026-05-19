@@ -1549,6 +1549,7 @@ class _PreviewArea extends ConsumerWidget {
           final imgW = state.uiImage.width.toDouble();
           final imgH = state.uiImage.height.toDouble();
           final outAspect = params.crop.outAspectFor(imgW, imgH);
+          final isVertical = MediaQuery.of(ctx).size.shortestSide < 600;
           final box = applyBoxFit(
             BoxFit.contain,
             Size(outAspect, 1.0),
@@ -1567,6 +1568,8 @@ class _PreviewArea extends ConsumerWidget {
                     params: params,
                     lutTexture: lutEnabled ? lut.texture : null,
                     lutSize: lutEnabled ? lut.size : 0,
+                    idleMaxEdge: isVertical ? 1600 : 2400,
+                    draggingMaxEdge: isVertical ? 600 : 800,
                   ),
                   box,
                 ),

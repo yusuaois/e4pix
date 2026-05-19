@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/hsl_bands.dart';
 import '../services/lut_library.dart';
+import 'tracked_slider.dart';
 
 // 通用滑块 tile
 class DevelopSliderTile extends StatelessWidget {
@@ -62,7 +63,7 @@ class DevelopSliderTile extends StatelessWidget {
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
               overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
             ),
-            child: Slider(
+            child: TrackedSlider(
               value: value.clamp(min, max),
               min: min,
               max: max,
@@ -362,7 +363,7 @@ class _BandRow extends StatelessWidget {
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
               ),
-              child: Slider(
+              child: TrackedSlider(
                 value: value.clamp(-100.0, 100.0),
                 min: -100,
                 max: 100,
@@ -508,7 +509,7 @@ class LutSection extends StatelessWidget {
                         enabledThumbRadius: 7,
                       ),
                     ),
-                    child: Slider(
+                    child: TrackedSlider(
                       value: intensity.clamp(0.0, 1.0),
                       onChanged: onIntensityChanged,
                     ),

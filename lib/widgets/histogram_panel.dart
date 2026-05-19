@@ -3,9 +3,11 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/adjustment_params.dart';
 import '../render/full_pipeline_renderer.dart';
+import '../state/interaction_state.dart';
 
 class Histogram {
   final Int32List red, green, blue, luma;
@@ -39,7 +41,7 @@ class Histogram {
 }
 
 // Histogram
-class LiveHistogramPanel extends StatefulWidget {
+class LiveHistogramPanel extends ConsumerStatefulWidget {
   final ui.FragmentProgram program;
   final ui.FragmentProgram maskProgram;
   final ui.Image? sourceImage;
@@ -58,18 +60,27 @@ class LiveHistogramPanel extends StatefulWidget {
   });
 
   @override
-  State<LiveHistogramPanel> createState() => _LiveHistogramPanelState();
+  ConsumerState<LiveHistogramPanel> createState() =>
+      _LiveHistogramPanelState();
 }
 
-class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
+class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
   Histogram _hist = Histogram.empty;
   Timer? _debounce;
   bool _computing = false;
+  ProviderSubscription<bool>? _dragSub;
   static const _thumbDim = 256;
 
   @override
   void initState() {
     super.initState();
+    // 拖动结束后强制重算一次（拖动期间被跳过的更新由此补上）
+    _dragSub = ref.listenManual<bool>(
+      isUserDraggingSliderProvider,
+      (prev, next) {
+        if (prev == true && next == false) _schedule();
+      },
+    );
     _schedule();
   }
 
@@ -79,6 +90,8 @@ class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
     if (old.params != widget.params ||
         old.sourceImage != widget.sourceImage ||
         old.lutTexture != widget.lutTexture) {
+      // 拖动期间不算 —— 等放手再补
+      if (ref.read(isUserDraggingSliderProvider)) return;
       _schedule();
     }
   }
@@ -86,6 +99,7 @@ class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _dragSub?.close();
     super.dispose();
   }
 
@@ -100,7 +114,6 @@ class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
     final captured = widget.sourceImage!;
     try {
       final src = captured;
-      // 等比缩到 256 长边
       final scale =
           _thumbDim / (src.width > src.height ? src.width : src.height);
       final w = (src.width * scale).round().clamp(16, _thumbDim);
@@ -112,7 +125,7 @@ class _LiveHistogramPanelState extends State<LiveHistogramPanel> {
         developProgram: widget.program,
         maskProgram: widget.maskProgram,
         sourceImage: src,
-        params: widget.params, // 包含 crop + locals
+        params: widget.params,
         lutTexture: widget.lutTexture,
         lutSize: widget.lutSize,
         targetWidth: w,

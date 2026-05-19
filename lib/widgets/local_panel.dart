@@ -8,6 +8,7 @@ import '../core/models/mask_shape.dart';
 import '../state/local_state.dart';
 import '../state/params_state.dart';
 import 'develop_sections.dart';
+import 'tracked_slider.dart';
 
 class LocalPanel extends ConsumerWidget {
   const LocalPanel({super.key});
@@ -344,7 +345,7 @@ class _MiniSlider extends StatelessWidget {
                 thumbShape:
                     const RoundSliderThumbShape(enabledThumbRadius: 6),
               ),
-              child: Slider(
+              child: TrackedSlider(
                 value: value.clamp(min, max),
                 min: min,
                 max: max,
