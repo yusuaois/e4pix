@@ -11,8 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/models/adjustment_params.dart';
-import '../core/models/local_params.dart';
-import '../core/models/mask_shape.dart';
 import '../core/models/tethered_shot.dart';
 import '../native/raw_bridge.dart';
 import '../render/exporter.dart';
@@ -36,7 +34,6 @@ import '../widgets/local_panel.dart';
 import '../widgets/multi_pass_preview.dart';
 import '../widgets/preset_bar.dart';
 import '../widgets/tether_widgets.dart';
-import '../state/app_settings_state.dart';
 import 'settings_screen.dart';
 
 class DevelopScreen extends ConsumerStatefulWidget {
@@ -470,7 +467,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   // Build
   @override
   Widget build(BuildContext context) {
-    final isVertical = MediaQuery.of(context).size.shortestSide < 600;
+    final isVertical =
+        MediaQuery.of(context).size.width < 600 &&
+        MediaQuery.of(context).orientation == Orientation.portrait;
     final isFullscreen = ref.watch(fullscreenPreviewProvider);
     ref.listen(cameraNotifierProvider, (prev, next) {
       if (next.lastError != null && prev?.lastError != next.lastError) {

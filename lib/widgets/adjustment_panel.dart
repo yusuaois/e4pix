@@ -42,11 +42,15 @@ class AdjustmentPanel extends StatelessWidget {
       child: Column(
         children: [
           _Header(onReset: () => onChanged(AdjustmentParams.neutral)),
+          if (histogram != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 4),
+              child: histogram!,
+            ),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
-                ?histogram,
                 if (presetBar != null) ...[
                   const SectionLabel(title: 'PRESET'),
                   const SizedBox(height: 4),

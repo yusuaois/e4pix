@@ -8,18 +8,18 @@ sealed class MaskShape {
   Map<String, dynamic> toJson();
 
   static MaskShape fromJson(Map<String, dynamic> j) {
-  final type = j['type'] as String;
-  switch (type) {
-    case 'linear':
-      return LinearGradientMask.fromJson(j);
-    case 'radial':
-      return RadialGradientMask.fromJson(j);
-    case 'brush':
-      return BrushMask.fromJson(j);
-    default:
-      throw FormatException('Unknown mask type: $type');
+    final type = j['type'] as String;
+    switch (type) {
+      case 'linear':
+        return LinearGradientMask.fromJson(j);
+      case 'radial':
+        return RadialGradientMask.fromJson(j);
+      case 'brush':
+        return BrushMask.fromJson(j);
+      default:
+        throw FormatException('Unknown mask type: $type');
+    }
   }
-}
 }
 
 @immutable
@@ -49,22 +49,21 @@ class LinearGradientMask extends MaskShape {
     double? startY,
     double? endX,
     double? endY,
-  }) =>
-      LinearGradientMask(
-        startX: startX ?? this.startX,
-        startY: startY ?? this.startY,
-        endX: endX ?? this.endX,
-        endY: endY ?? this.endY,
-      );
+  }) => LinearGradientMask(
+    startX: startX ?? this.startX,
+    startY: startY ?? this.startY,
+    endX: endX ?? this.endX,
+    endY: endY ?? this.endY,
+  );
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'linear',
-        'startX': startX,
-        'startY': startY,
-        'endX': endX,
-        'endY': endY,
-      };
+    'type': 'linear',
+    'startX': startX,
+    'startY': startY,
+    'endX': endX,
+    'endY': endY,
+  };
 
   factory LinearGradientMask.fromJson(Map<String, dynamic> j) =>
       LinearGradientMask(
@@ -91,11 +90,11 @@ class LinearGradientMask extends MaskShape {
 class RadialGradientMask extends MaskShape {
   final double centerX;
   final double centerY;
-  final double radiusX;   // 在 x 轴方向的半径 [0..1]
+  final double radiusX; // 在 x 轴方向的半径 [0..1]
   final double radiusY;
-  final double rotation;  // 弧度
-  final double feather;   // [0..1]，软化程度，0=硬边，1=最软
-  final bool inverted;    // true: mask 是椭圆外部
+  final double rotation; // 弧度
+  final double feather; // [0..1]，软化程度，0=硬边，1=最软
+  final bool inverted; // true: mask 是椭圆外部
 
   const RadialGradientMask({
     required this.centerX,
@@ -122,28 +121,27 @@ class RadialGradientMask extends MaskShape {
     double? rotation,
     double? feather,
     bool? inverted,
-  }) =>
-      RadialGradientMask(
-        centerX: centerX ?? this.centerX,
-        centerY: centerY ?? this.centerY,
-        radiusX: radiusX ?? this.radiusX,
-        radiusY: radiusY ?? this.radiusY,
-        rotation: rotation ?? this.rotation,
-        feather: feather ?? this.feather,
-        inverted: inverted ?? this.inverted,
-      );
+  }) => RadialGradientMask(
+    centerX: centerX ?? this.centerX,
+    centerY: centerY ?? this.centerY,
+    radiusX: radiusX ?? this.radiusX,
+    radiusY: radiusY ?? this.radiusY,
+    rotation: rotation ?? this.rotation,
+    feather: feather ?? this.feather,
+    inverted: inverted ?? this.inverted,
+  );
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'radial',
-        'centerX': centerX,
-        'centerY': centerY,
-        'radiusX': radiusX,
-        'radiusY': radiusY,
-        'rotation': rotation,
-        'feather': feather,
-        'inverted': inverted,
-      };
+    'type': 'radial',
+    'centerX': centerX,
+    'centerY': centerY,
+    'radiusX': radiusX,
+    'radiusY': radiusY,
+    'rotation': rotation,
+    'feather': feather,
+    'inverted': inverted,
+  };
 
   factory RadialGradientMask.fromJson(Map<String, dynamic> j) =>
       RadialGradientMask(
@@ -170,40 +168,50 @@ class RadialGradientMask extends MaskShape {
 
   @override
   int get hashCode => Object.hash(
-        centerX, centerY, radiusX, radiusY, rotation, feather, inverted,
-      );
+    centerX,
+    centerY,
+    radiusX,
+    radiusY,
+    rotation,
+    feather,
+    inverted,
+  );
 }
 
 @immutable
 class BrushStroke {
   final List<Offset> points; // 归一化 [0..1]，相对裁剪后输出
-  final double radius;       // 归一化（相对宽度）
-  final double hardness;     // 0..1，1=硬边
-  final bool erase;          // true=擦除
+  final double radius; // 归一化（相对宽度）
+  final double hardness; // 0..1，1=硬边
+  final double flow; // 流量 0..1，每笔沉积量
+  final bool erase; // true=擦除
 
   const BrushStroke({
     required this.points,
     required this.radius,
     this.hardness = 0.8,
+    this.flow = 1.0,
     this.erase = false,
   });
 
   Map<String, dynamic> toJson() => {
-        'points': points.map((p) => [p.dx, p.dy]).toList(),
-        'radius': radius,
-        'hardness': hardness,
-        'erase': erase,
-      };
+    'points': points.map((p) => [p.dx, p.dy]).toList(),
+    'radius': radius,
+    'hardness': hardness,
+    'flow': flow,
+    'erase': erase,
+  };
 
   factory BrushStroke.fromJson(Map<String, dynamic> j) => BrushStroke(
-        points: (j['points'] as List).map((e) {
-          final l = e as List;
-          return Offset((l[0] as num).toDouble(), (l[1] as num).toDouble());
-        }).toList(),
-        radius: (j['radius'] as num).toDouble(),
-        hardness: (j['hardness'] as num?)?.toDouble() ?? 0.8,
-        erase: j['erase'] as bool? ?? false,
-      );
+    points: (j['points'] as List).map((e) {
+      final l = e as List;
+      return Offset((l[0] as num).toDouble(), (l[1] as num).toDouble());
+    }).toList(),
+    radius: (j['radius'] as num).toDouble(),
+    hardness: (j['hardness'] as num?)?.toDouble() ?? 0.8,
+    flow: (j['flow'] as num?)?.toDouble() ?? 1.0,
+    erase: j['erase'] as bool? ?? false,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -215,7 +223,8 @@ class BrushStroke {
           listEquals(points, other.points));
 
   @override
-  int get hashCode => Object.hash(radius, hardness, erase, Object.hashAll(points));
+  int get hashCode =>
+      Object.hash(radius, hardness, erase, Object.hashAll(points));
 }
 
 @immutable
@@ -233,17 +242,19 @@ class BrushMask extends MaskShape {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'brush',
-        'strokes': strokes.map((s) => s.toJson()).toList(),
-      };
+    'type': 'brush',
+    'strokes': strokes.map((s) => s.toJson()).toList(),
+  };
 
   factory BrushMask.fromJson(Map<String, dynamic> j) => BrushMask(
-        strokes: (j['strokes'] as List?)
-                ?.map((e) =>
-                    BrushStroke.fromJson(Map<String, dynamic>.from(e as Map)))
-                .toList() ??
-            const [],
-      );
+    strokes:
+        (j['strokes'] as List?)
+            ?.map(
+              (e) => BrushStroke.fromJson(Map<String, dynamic>.from(e as Map)),
+            )
+            .toList() ??
+        const [],
+  );
 
   @override
   bool operator ==(Object other) =>

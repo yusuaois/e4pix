@@ -243,6 +243,7 @@ class _BrushControls extends ConsumerWidget {
     final radius = ref.watch(brushRadiusProvider);
     final hardness = ref.watch(brushHardnessProvider);
     final erase = ref.watch(brushEraseProvider);
+    final flow = ref.watch(brushFlowProvider);
 
     return Column(
       children: [
@@ -253,19 +254,28 @@ class _BrushControls extends ConsumerWidget {
             children: [
               SizedBox(
                 width: 64,
-                child: Text(tr("localBrushMode"), style: TextStyle(fontSize: 11.5)),
+                child: Text(
+                  tr("localBrushMode"),
+                  style: TextStyle(fontSize: 11.5),
+                ),
               ),
               Expanded(
                 child: SegmentedButton<bool>(
                   segments: [
                     ButtonSegment(
                       value: false,
-                      label: Text(tr("localBrushModePaint"), style: TextStyle(fontSize: 11)),
+                      label: Text(
+                        tr("localBrushModePaint"),
+                        style: TextStyle(fontSize: 11),
+                      ),
                       icon: Icon(Icons.add, size: 14),
                     ),
                     ButtonSegment(
                       value: true,
-                      label: Text(tr("localBrushModeErase"), style: TextStyle(fontSize: 11)),
+                      label: Text(
+                        tr("localBrushModeErase"),
+                        style: TextStyle(fontSize: 11),
+                      ),
                       icon: Icon(Icons.remove, size: 14),
                     ),
                   ],
@@ -297,6 +307,14 @@ class _BrushControls extends ConsumerWidget {
           formatter: (v) => (v * 100).round().toString(),
           onChanged: (v) => ref.read(brushHardnessProvider.notifier).state = v,
         ),
+        _MiniSlider(
+          label: tr("localBrushFlow"),
+          value: flow,
+          min: 0.05,
+          max: 1.0,
+          formatter: (v) => (v * 100).round().toString(),
+          onChanged: (v) => ref.read(brushFlowProvider.notifier).state = v,
+        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
           child: Row(
@@ -314,7 +332,10 @@ class _BrushControls extends ConsumerWidget {
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
-                  child: Text(tr("localBrushStrokeClear"), style: TextStyle(fontSize: 11)),
+                  child: Text(
+                    tr("localBrushStrokeClear"),
+                    style: TextStyle(fontSize: 11),
+                  ),
                 ),
             ],
           ),

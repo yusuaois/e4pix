@@ -177,5 +177,6 @@
   "localBrushSize": "Size",
   "localBrushHardness": "Hardness",
   "localBrushStroke": "Stroke: {}",
-  "localBrushStrokeClear": "Clear"
+  "localBrushStrokeClear": "Clear",
+  "localBrushFlow": "Flow"
 }

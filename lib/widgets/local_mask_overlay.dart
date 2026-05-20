@@ -36,6 +36,8 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
 
   List<Offset>? _paintingPoints;
   Offset? _cursorScreen;
+  bool _brushDidMove = false;
+  bool _interactionWasBrush = false;
 
   static const double _hitRadius = 14;
 
@@ -45,14 +47,14 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
   }
 
   Offset _maskToScreen(double mx, double my) => Offset(
-        mx * widget.imageDisplaySize.width,
-        my * widget.imageDisplaySize.height,
-      );
+    mx * widget.imageDisplaySize.width,
+    my * widget.imageDisplaySize.height,
+  );
 
   Offset _screenToMask(Offset s) => Offset(
-        s.dx / widget.imageDisplaySize.width,
-        s.dy / widget.imageDisplaySize.height,
-      );
+    s.dx / widget.imageDisplaySize.width,
+    s.dy / widget.imageDisplaySize.height,
+  );
 
   Offset _radialEdgeRight(RadialGradientMask m) {
     final c = _maskToScreen(m.centerX, m.centerY);
@@ -127,6 +129,19 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     _dragId = null;
   }
 
+  void _finishBrush() {
+    if (_paintingPoints == null) return;
+    final moved = _brushDidMove && _paintingPoints!.length > 1;
+    if (moved) {
+      _commitBrushStroke();
+    } else {
+      _paintingPoints = null;
+      _cursorScreen = null;
+      ref.read(selectedLocalIdProvider.notifier).state = null;
+      setState(() {});
+    }
+  }
+
   void _commitBrushStroke() {
     final pts = _paintingPoints;
     final id = ref.read(selectedLocalIdProvider);
@@ -137,6 +152,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final radius = ref.read(brushRadiusProvider);
     final hardness = ref.read(brushHardnessProvider);
     final erase = ref.read(brushEraseProvider);
+    final flow = ref.read(brushFlowProvider);
     LocalAdjustmentActions(ref).addStrokeTo(
       id,
       BrushStroke(
@@ -144,6 +160,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         radius: radius,
         hardness: hardness,
         erase: erase,
+        flow: flow,
       ),
     );
     _paintingPoints = null;
@@ -165,9 +182,11 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final gesture = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onPanDown: (d) {
-        if (_brushMode) {
+        _interactionWasBrush = _brushMode;
+        if (_interactionWasBrush) {
           _cursorScreen = d.localPosition;
           _paintingPoints = [_screenToMask(d.localPosition)];
+          _brushDidMove = false;
           setState(() {});
           return;
         }
@@ -180,21 +199,23 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         _dragId = hit.$1;
         _drag = hit.$2;
         _dragStartPos = d.localPosition;
-        _shapeAtDragStart =
-            params.locals.firstWhere((l) => l.id == _dragId).mask;
+        _shapeAtDragStart = params.locals
+            .firstWhere((l) => l.id == _dragId)
+            .mask;
         if (selectedId != _dragId) {
           ref.read(selectedLocalIdProvider.notifier).state = _dragId;
         }
       },
       onPanStart: (_) {
-        if (_brushMode) return;
+        if (_interactionWasBrush) return;
         if (_drag != _Handle.none) {
           ref.read(isUserDraggingSliderProvider.notifier).state = true;
         }
       },
       onPanUpdate: (d) {
-        if (_brushMode) {
+        if (_interactionWasBrush) {
           if (_paintingPoints == null) return;
+          _brushDidMove = true;
           _cursorScreen = d.localPosition;
           _paintingPoints!.add(_screenToMask(d.localPosition));
           setState(() {});
@@ -204,22 +225,22 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         _applyDrag(d.localPosition);
       },
       onPanEnd: (_) {
-        if (_brushMode) {
-          _commitBrushStroke();
+        if (_interactionWasBrush) {
+          _finishBrush();
           return;
         }
         _endDrag();
       },
       onPanCancel: () {
-        if (_brushMode) {
-          _commitBrushStroke();
+        if (_interactionWasBrush) {
+          _finishBrush();
           return;
         }
         _endDrag();
       },
       onTapUp: (d) {
-        if (_brushMode) {
-          if (_paintingPoints != null) _commitBrushStroke();
+        if (_interactionWasBrush) {
+          _finishBrush();
           return;
         }
         final hit = _hitTest(d.localPosition, params.locals, selectedId);
@@ -235,8 +256,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           locals: params.locals,
           selectedId: selectedId,
           displaySize: widget.imageDisplaySize,
-          inProgressPoints:
-              _paintingPoints == null ? null : List.of(_paintingPoints!),
+          inProgressPoints: _paintingPoints == null
+              ? null
+              : List.of(_paintingPoints!),
           cursorScreen: isBrush ? _cursorScreen : null,
           brushRadiusNorm: brushRadius,
           brushErase: brushErase,
@@ -266,33 +288,42 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
       final m = shape0;
       switch (_drag) {
         case _Handle.linearStart:
-          actions.updateLocal(id, (l) => l.copyWith(
-                mask: m.copyWith(
-                  startX: newMaskUv.dx.clamp(0.0, 1.0),
-                  startY: newMaskUv.dy.clamp(0.0, 1.0),
-                ),
-              ));
+          actions.updateLocal(
+            id,
+            (l) => l.copyWith(
+              mask: m.copyWith(
+                startX: newMaskUv.dx.clamp(0.0, 1.0),
+                startY: newMaskUv.dy.clamp(0.0, 1.0),
+              ),
+            ),
+          );
           break;
         case _Handle.linearEnd:
-          actions.updateLocal(id, (l) => l.copyWith(
-                mask: m.copyWith(
-                  endX: newMaskUv.dx.clamp(0.0, 1.0),
-                  endY: newMaskUv.dy.clamp(0.0, 1.0),
-                ),
-              ));
+          actions.updateLocal(
+            id,
+            (l) => l.copyWith(
+              mask: m.copyWith(
+                endX: newMaskUv.dx.clamp(0.0, 1.0),
+                endY: newMaskUv.dy.clamp(0.0, 1.0),
+              ),
+            ),
+          );
           break;
         case _Handle.linearBody:
           final startUv = _screenToMask(_dragStartPos);
           final dx = newMaskUv.dx - startUv.dx;
           final dy = newMaskUv.dy - startUv.dy;
-          actions.updateLocal(id, (l) => l.copyWith(
-                mask: m.copyWith(
-                  startX: (m.startX + dx).clamp(0.0, 1.0),
-                  startY: (m.startY + dy).clamp(0.0, 1.0),
-                  endX: (m.endX + dx).clamp(0.0, 1.0),
-                  endY: (m.endY + dy).clamp(0.0, 1.0),
-                ),
-              ));
+          actions.updateLocal(
+            id,
+            (l) => l.copyWith(
+              mask: m.copyWith(
+                startX: (m.startX + dx).clamp(0.0, 1.0),
+                startY: (m.startY + dy).clamp(0.0, 1.0),
+                endX: (m.endX + dx).clamp(0.0, 1.0),
+                endY: (m.endY + dy).clamp(0.0, 1.0),
+              ),
+            ),
+          );
           break;
         default:
           break;
@@ -304,12 +335,15 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           final startUv = _screenToMask(_dragStartPos);
           final dx = newMaskUv.dx - startUv.dx;
           final dy = newMaskUv.dy - startUv.dy;
-          actions.updateLocal(id, (l) => l.copyWith(
-                mask: m.copyWith(
-                  centerX: (m.centerX + dx).clamp(0.0, 1.0),
-                  centerY: (m.centerY + dy).clamp(0.0, 1.0),
-                ),
-              ));
+          actions.updateLocal(
+            id,
+            (l) => l.copyWith(
+              mask: m.copyWith(
+                centerX: (m.centerX + dx).clamp(0.0, 1.0),
+                centerY: (m.centerY + dy).clamp(0.0, 1.0),
+              ),
+            ),
+          );
           break;
         case _Handle.radialRight:
           final c = _maskToScreen(m.centerX, m.centerY);
@@ -319,7 +353,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           final proj = (vec.dx * ux + vec.dy * uy);
           final newRx = (proj / widget.imageDisplaySize.width).clamp(0.02, 1.0);
           actions.updateLocal(
-              id, (l) => l.copyWith(mask: m.copyWith(radiusX: newRx)));
+            id,
+            (l) => l.copyWith(mask: m.copyWith(radiusX: newRx)),
+          );
           break;
         case _Handle.radialBottom:
           final c = _maskToScreen(m.centerX, m.centerY);
@@ -327,10 +363,14 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           final ux = -math.sin(m.rotation);
           final uy = math.cos(m.rotation);
           final proj = (vec.dx * ux + vec.dy * uy);
-          final newRy =
-              (proj / widget.imageDisplaySize.height).clamp(0.02, 1.0);
+          final newRy = (proj / widget.imageDisplaySize.height).clamp(
+            0.02,
+            1.0,
+          );
           actions.updateLocal(
-              id, (l) => l.copyWith(mask: m.copyWith(radiusY: newRy)));
+            id,
+            (l) => l.copyWith(mask: m.copyWith(radiusY: newRy)),
+          );
           break;
         default:
           break;
@@ -378,18 +418,24 @@ class _MasksPainter extends CustomPainter {
       } else if (shape is RadialGradientMask) {
         _paintRadial(canvas, shape, stroke, fill, selected);
       } else if (shape is BrushMask) {
-        _paintBrush(canvas, shape, selected);
+        final ip = selected ? inProgressPoints : null;
+        _paintBrush(canvas, shape, selected, ip);
       }
     }
-
-    _paintInProgress(canvas);
     _paintCursor(canvas);
   }
 
-  void _paintLinear(Canvas canvas, LinearGradientMask m, Paint stroke,
-      Paint fill, bool selected) {
-    final s =
-        Offset(m.startX * displaySize.width, m.startY * displaySize.height);
+  void _paintLinear(
+    Canvas canvas,
+    LinearGradientMask m,
+    Paint stroke,
+    Paint fill,
+    bool selected,
+  ) {
+    final s = Offset(
+      m.startX * displaySize.width,
+      m.startY * displaySize.height,
+    );
     final e = Offset(m.endX * displaySize.width, m.endY * displaySize.height);
     canvas.drawLine(s, e, stroke);
     final r = selected ? 7.0 : 5.0;
@@ -397,10 +443,17 @@ class _MasksPainter extends CustomPainter {
     canvas.drawCircle(e, r, fill);
   }
 
-  void _paintRadial(Canvas canvas, RadialGradientMask m, Paint stroke,
-      Paint fill, bool selected) {
-    final c =
-        Offset(m.centerX * displaySize.width, m.centerY * displaySize.height);
+  void _paintRadial(
+    Canvas canvas,
+    RadialGradientMask m,
+    Paint stroke,
+    Paint fill,
+    bool selected,
+  ) {
+    final c = Offset(
+      m.centerX * displaySize.width,
+      m.centerY * displaySize.height,
+    );
     final path = Path();
     const N = 64;
     final cs = math.cos(m.rotation);
@@ -424,12 +477,14 @@ class _MasksPainter extends CustomPainter {
     final r = selected ? 7.0 : 5.0;
     canvas.drawCircle(c, r, fill);
     if (selected) {
-      final right = c +
+      final right =
+          c +
           Offset(
             m.radiusX * displaySize.width * math.cos(m.rotation),
             m.radiusX * displaySize.height * math.sin(m.rotation),
           );
-      final bottom = c +
+      final bottom =
+          c +
           Offset(
             -m.radiusY * displaySize.width * math.sin(m.rotation),
             m.radiusY * displaySize.height * math.cos(m.rotation),
@@ -439,50 +494,71 @@ class _MasksPainter extends CustomPainter {
     }
   }
 
-  void _paintBrush(Canvas canvas, BrushMask m, bool selected) {
+  void _paintBrush(
+    Canvas canvas,
+    BrushMask m,
+    bool selected,
+    List<Offset>? inProgress,
+  ) {
+    final hasIp = inProgress != null && inProgress.isNotEmpty;
+    if (m.strokes.isEmpty && !hasIp) return;
+    final tint = _purple.withValues(alpha: selected ? 0.22 : 0.10);
+
+    canvas.saveLayer(Offset.zero & displaySize, Paint());
     for (final s in m.strokes) {
-      final base = s.erase ? Colors.redAccent : _purple;
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..strokeWidth = s.radius * 2 * displaySize.width
-        ..color = base.withValues(alpha: selected ? 0.20 : 0.10);
-      _drawStrokePath(canvas, s.points, s.radius, paint);
+      _overlayStroke(canvas, s.points, s.radius, s.erase, tint);
     }
+    if (hasIp) {
+      _overlayStroke(canvas, inProgress, brushRadiusNorm, brushErase, tint);
+    }
+    canvas.restore();
   }
 
-  void _paintInProgress(Canvas canvas) {
-    final pts = inProgressPoints;
-    if (pts == null || pts.isEmpty) return;
-    final base = brushErase ? Colors.redAccent : _purple;
+  void _overlayStroke(
+    Canvas canvas,
+    List<Offset> pts,
+    double radiusNorm,
+    bool erase,
+    Color tint,
+  ) {
+    if (pts.isEmpty) return;
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..strokeWidth = brushRadiusNorm * 2 * displaySize.width
-      ..color = base.withValues(alpha: 0.32);
-    _drawStrokePath(canvas, pts, brushRadiusNorm, paint);
-  }
+      ..strokeWidth = radiusNorm * 2 * displaySize.width;
+    if (erase) {
+      paint
+        ..blendMode = BlendMode.dstOut
+        ..color = const Color(0xFFFFFFFF);
+    } else {
+      paint.color = tint;
+    }
 
-  void _drawStrokePath(
-      Canvas canvas, List<Offset> pts, double radiusNorm, Paint paint) {
-    if (pts.isEmpty) return;
     if (pts.length == 1) {
+      final fill = Paint()..style = PaintingStyle.fill;
+      if (erase) {
+        fill
+          ..blendMode = BlendMode.dstOut
+          ..color = const Color(0xFFFFFFFF);
+      } else {
+        fill.color = tint;
+      }
       canvas.drawCircle(
         Offset(pts[0].dx * displaySize.width, pts[0].dy * displaySize.height),
         radiusNorm * displaySize.width,
-        Paint()
-          ..color = paint.color
-          ..style = PaintingStyle.fill,
+        fill,
       );
       return;
     }
+
     final path = Path()
       ..moveTo(pts[0].dx * displaySize.width, pts[0].dy * displaySize.height);
     for (int i = 1; i < pts.length; i++) {
       path.lineTo(
-          pts[i].dx * displaySize.width, pts[i].dy * displaySize.height);
+        pts[i].dx * displaySize.width,
+        pts[i].dy * displaySize.height,
+      );
     }
     canvas.drawPath(path, paint);
   }
@@ -492,19 +568,21 @@ class _MasksPainter extends CustomPainter {
     if (c == null) return;
     final r = brushRadiusNorm * displaySize.width;
     canvas.drawCircle(
-        c,
-        r,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.5
-          ..color = Colors.black54);
+      c,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..color = Colors.black54,
+    );
     canvas.drawCircle(
-        c,
-        r,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2
-          ..color = brushErase ? Colors.redAccent : Colors.white);
+      c,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = Colors.white,
+    );
   }
 
   @override

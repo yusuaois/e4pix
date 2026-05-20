@@ -2,12 +2,10 @@ import 'dart:ui' as ui;
 
 import '../core/models/mask_shape.dart';
 
-/// develop pass（pass 0）缓存 调 local 参数时复用，跳过全局重渲
 class DevelopPassCache {
   ui.Image? _image;
   Object? _key;
 
-  /// 命中返回缓存
   Future<ui.Image> getOrCompute(
     Object key,
     Future<ui.Image> Function() compute,
@@ -33,11 +31,9 @@ class _BrushEntry {
   _BrushEntry(this.mask, this.texture);
 }
 
-/// 画笔 mask 纹理缓存。按 maskId 缓存；笔画引用没变且尺寸一致就复用。
 class BrushMaskCache {
   final Map<String, _BrushEntry> _cache = {};
 
-  /// 命中返回缓存纹理（调用方**不得** dispose）。
   Future<ui.Image> getOrRasterize(
     String maskId,
     BrushMask mask,
@@ -65,26 +61,33 @@ class BrushMaskCache {
   }
 }
 
-/// 把笔画栅格化成单通道（R = mask 值）的 ui.Image。
-/// 黑 = 无 mask，白 = 全 mask。erase 笔画画黑色覆盖。
 Future<ui.Image> rasterizeBrushMask(BrushMask mask, int w, int h) async {
   final recorder = ui.PictureRecorder();
   final canvas = ui.Canvas(recorder);
+  final bounds = ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble());
 
-  // 背景全黑
-  canvas.drawRect(
-    ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-    ui.Paint()..color = const ui.Color(0xFF000000),
-  );
+  canvas.drawRect(bounds, ui.Paint()..color = const ui.Color(0xFF000000));
 
   for (final stroke in mask.strokes) {
-    final color =
-        stroke.erase ? const ui.Color(0xFF000000) : const ui.Color(0xFFFFFFFF);
+    final isErase = stroke.erase;
+    final flow = stroke.flow.clamp(0.0, 1.0);
+    if (flow <= 0) continue;
+
     final strokeWidthPx = stroke.radius * 2 * w;
     final sigma = strokeWidthPx * (1.0 - stroke.hardness) * 0.25;
 
+    final inkColor = isErase
+        ? const ui.Color(0xFF000000)
+        : const ui.Color(0xFFFFFFFF);
+    final layerPaint = ui.Paint()
+      ..color = isErase
+          ? ui.Color.fromRGBO(0, 0, 0, flow)
+          : ui.Color.fromRGBO(255, 255, 255, flow);
+
+    canvas.saveLayer(bounds, layerPaint);
+
     final paint = ui.Paint()
-      ..color = color
+      ..color = inkColor
       ..style = ui.PaintingStyle.stroke
       ..strokeCap = ui.StrokeCap.round
       ..strokeJoin = ui.StrokeJoin.round
@@ -96,16 +99,12 @@ Future<ui.Image> rasterizeBrushMask(BrushMask mask, int w, int h) async {
     if (stroke.points.length == 1) {
       final p = stroke.points.first;
       final dot = ui.Paint()
-        ..color = color
+        ..color = inkColor
         ..style = ui.PaintingStyle.fill;
       if (sigma > 0.5) {
         dot.maskFilter = ui.MaskFilter.blur(ui.BlurStyle.normal, sigma);
       }
-      canvas.drawCircle(
-        ui.Offset(p.dx * w, p.dy * h),
-        stroke.radius * w,
-        dot,
-      );
+      canvas.drawCircle(ui.Offset(p.dx * w, p.dy * h), stroke.radius * w, dot);
     } else {
       final path = ui.Path();
       final p0 = stroke.points.first;
@@ -116,6 +115,8 @@ Future<ui.Image> rasterizeBrushMask(BrushMask mask, int w, int h) async {
       }
       canvas.drawPath(path, paint);
     }
+
+    canvas.restore();
   }
 
   final picture = recorder.endRecording();

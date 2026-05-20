@@ -177,5 +177,6 @@
   "localBrushSize": "笔刷大小",
   "localBrushHardness": "硬度",
   "localBrushStroke": "笔画: {}",
-  "localBrushStrokeClear": "清除笔画"
+  "localBrushStrokeClear": "清除笔画",
+  "localBrushFlow": "流量"
 }
