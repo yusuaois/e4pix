@@ -166,5 +166,16 @@
   "fullscreenPreviewBtnHint": "Fullscreen Preview (F11 / Double-click)",
   "version": "Version",
   "versionCheck": "Check for updates",
-  "projectUrl": "Project URL"
+  "projectUrl": "Project URL",
+  "brush": "Brush",
+  "localLinearName": "Linear {}",
+  "localRadialName": "Radial {}",
+  "localBrushName": "Brush {}",
+  "localBrushMode": "Mode",
+  "localBrushModePaint": "Paint",
+  "localBrushModeErase": "Erase",
+  "localBrushSize": "Size",
+  "localBrushHardness": "Hardness",
+  "localBrushStroke": "Stroke: {}",
+  "localBrushStrokeClear": "Clear"
 }

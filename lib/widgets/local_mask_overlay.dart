@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
+import '../state/brush_state.dart';
 import '../state/interaction_state.dart';
 import '../state/local_state.dart';
 import '../state/params_state.dart';
@@ -33,7 +34,15 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
   Offset _dragStartPos = Offset.zero;
   MaskShape? _shapeAtDragStart;
 
+  List<Offset>? _paintingPoints;
+  Offset? _cursorScreen;
+
   static const double _hitRadius = 14;
+
+  bool get _brushMode {
+    final s = ref.read(selectedLocalProvider);
+    return s != null && s.mask is BrushMask;
+  }
 
   Offset _maskToScreen(double mx, double my) => Offset(
         mx * widget.imageDisplaySize.width,
@@ -118,16 +127,50 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     _dragId = null;
   }
 
+  void _commitBrushStroke() {
+    final pts = _paintingPoints;
+    final id = ref.read(selectedLocalIdProvider);
+    if (pts == null || pts.isEmpty || id == null) {
+      _paintingPoints = null;
+      return;
+    }
+    final radius = ref.read(brushRadiusProvider);
+    final hardness = ref.read(brushHardnessProvider);
+    final erase = ref.read(brushEraseProvider);
+    LocalAdjustmentActions(ref).addStrokeTo(
+      id,
+      BrushStroke(
+        points: List.of(pts),
+        radius: radius,
+        hardness: hardness,
+        erase: erase,
+      ),
+    );
+    _paintingPoints = null;
+    _cursorScreen = null;
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final params = ref.watch(currentParamsNotifierProvider);
     final selectedId = ref.watch(selectedLocalIdProvider);
+    final selected = ref.watch(selectedLocalProvider);
+    final isBrush = selected != null && selected.mask is BrushMask;
+    final brushRadius = ref.watch(brushRadiusProvider);
+    final brushErase = ref.watch(brushEraseProvider);
 
     if (params.locals.isEmpty) return const SizedBox.shrink();
 
-    return GestureDetector(
+    final gesture = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onPanDown: (d) {
+        if (_brushMode) {
+          _cursorScreen = d.localPosition;
+          _paintingPoints = [_screenToMask(d.localPosition)];
+          setState(() {});
+          return;
+        }
         final hit = _hitTest(d.localPosition, params.locals, selectedId);
         if (hit == null) {
           _drag = _Handle.none;
@@ -143,19 +186,42 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           ref.read(selectedLocalIdProvider.notifier).state = _dragId;
         }
       },
-      // ⭐ pan 正式开始才标记降级（避免单击 tap 也触发）
       onPanStart: (_) {
+        if (_brushMode) return;
         if (_drag != _Handle.none) {
           ref.read(isUserDraggingSliderProvider.notifier).state = true;
         }
       },
       onPanUpdate: (d) {
+        if (_brushMode) {
+          if (_paintingPoints == null) return;
+          _cursorScreen = d.localPosition;
+          _paintingPoints!.add(_screenToMask(d.localPosition));
+          setState(() {});
+          return;
+        }
         if (_drag == _Handle.none || _dragId == null) return;
         _applyDrag(d.localPosition);
       },
-      onPanEnd: (_) => _endDrag(),
-      onPanCancel: _endDrag,
+      onPanEnd: (_) {
+        if (_brushMode) {
+          _commitBrushStroke();
+          return;
+        }
+        _endDrag();
+      },
+      onPanCancel: () {
+        if (_brushMode) {
+          _commitBrushStroke();
+          return;
+        }
+        _endDrag();
+      },
       onTapUp: (d) {
+        if (_brushMode) {
+          if (_paintingPoints != null) _commitBrushStroke();
+          return;
+        }
         final hit = _hitTest(d.localPosition, params.locals, selectedId);
         if (hit == null) {
           ref.read(selectedLocalIdProvider.notifier).state = null;
@@ -169,8 +235,23 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           locals: params.locals,
           selectedId: selectedId,
           displaySize: widget.imageDisplaySize,
+          inProgressPoints:
+              _paintingPoints == null ? null : List.of(_paintingPoints!),
+          cursorScreen: isBrush ? _cursorScreen : null,
+          brushRadiusNorm: brushRadius,
+          brushErase: brushErase,
         ),
       ),
+    );
+
+    if (!isBrush) return gesture;
+
+    return MouseRegion(
+      onHover: (e) => setState(() => _cursorScreen = e.localPosition),
+      onExit: (_) {
+        if (_paintingPoints == null) setState(() => _cursorScreen = null);
+      },
+      child: gesture,
     );
   }
 
@@ -237,8 +318,8 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           final uy = math.sin(m.rotation);
           final proj = (vec.dx * ux + vec.dy * uy);
           final newRx = (proj / widget.imageDisplaySize.width).clamp(0.02, 1.0);
-          actions.updateLocal(id, (l) =>
-              l.copyWith(mask: m.copyWith(radiusX: newRx)));
+          actions.updateLocal(
+              id, (l) => l.copyWith(mask: m.copyWith(radiusX: newRx)));
           break;
         case _Handle.radialBottom:
           final c = _maskToScreen(m.centerX, m.centerY);
@@ -248,8 +329,8 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           final proj = (vec.dx * ux + vec.dy * uy);
           final newRy =
               (proj / widget.imageDisplaySize.height).clamp(0.02, 1.0);
-          actions.updateLocal(id, (l) =>
-              l.copyWith(mask: m.copyWith(radiusY: newRy)));
+          actions.updateLocal(
+              id, (l) => l.copyWith(mask: m.copyWith(radiusY: newRy)));
           break;
         default:
           break;
@@ -262,12 +343,22 @@ class _MasksPainter extends CustomPainter {
   final List<LocalAdjustment> locals;
   final String? selectedId;
   final Size displaySize;
+  final List<Offset>? inProgressPoints;
+  final Offset? cursorScreen;
+  final double brushRadiusNorm;
+  final bool brushErase;
 
   _MasksPainter({
     required this.locals,
     required this.selectedId,
     required this.displaySize,
+    this.inProgressPoints,
+    this.cursorScreen,
+    this.brushRadiusNorm = 0.08,
+    this.brushErase = false,
   });
+
+  static const _purple = Color(0xFF6B5BFF);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -276,30 +367,30 @@ class _MasksPainter extends CustomPainter {
       final stroke = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = selected ? 2.0 : 1.0
-        ..color = selected
-            ? const Color(0xFF6B5BFF)
-            : Colors.white.withValues(alpha: 0.45);
+        ..color = selected ? _purple : Colors.white.withValues(alpha: 0.45);
       final fill = Paint()
         ..style = PaintingStyle.fill
-        ..color = selected
-            ? const Color(0xFF6B5BFF)
-            : Colors.white.withValues(alpha: 0.5);
+        ..color = selected ? _purple : Colors.white.withValues(alpha: 0.5);
 
       final shape = l.mask;
       if (shape is LinearGradientMask) {
         _paintLinear(canvas, shape, stroke, fill, selected);
       } else if (shape is RadialGradientMask) {
         _paintRadial(canvas, shape, stroke, fill, selected);
+      } else if (shape is BrushMask) {
+        _paintBrush(canvas, shape, selected);
       }
     }
+
+    _paintInProgress(canvas);
+    _paintCursor(canvas);
   }
 
   void _paintLinear(Canvas canvas, LinearGradientMask m, Paint stroke,
       Paint fill, bool selected) {
-    final s = Offset(
-        m.startX * displaySize.width, m.startY * displaySize.height);
-    final e =
-        Offset(m.endX * displaySize.width, m.endY * displaySize.height);
+    final s =
+        Offset(m.startX * displaySize.width, m.startY * displaySize.height);
+    final e = Offset(m.endX * displaySize.width, m.endY * displaySize.height);
     canvas.drawLine(s, e, stroke);
     final r = selected ? 7.0 : 5.0;
     canvas.drawCircle(s, r, fill);
@@ -310,21 +401,16 @@ class _MasksPainter extends CustomPainter {
       Paint fill, bool selected) {
     final c =
         Offset(m.centerX * displaySize.width, m.centerY * displaySize.height);
-
-    // ⭐ 手动画椭圆：跟 shader / handle 共用同一套数学（归一化空间旋转 → 非等比映射）
     final path = Path();
     const N = 64;
     final cs = math.cos(m.rotation);
     final sn = math.sin(m.rotation);
     for (int i = 0; i <= N; i++) {
       final theta = i * 2 * math.pi / N;
-      // 椭圆点在 mask-local 空间（归一化）
       final lx = m.radiusX * math.cos(theta);
       final ly = m.radiusY * math.sin(theta);
-      // 旋转到 world 空间（仍为归一化）
       final wx = lx * cs - ly * sn;
       final wy = lx * sn + ly * cs;
-      // 非等比映射到屏幕
       final sx = c.dx + wx * displaySize.width;
       final sy = c.dy + wy * displaySize.height;
       if (i == 0) {
@@ -335,12 +421,9 @@ class _MasksPainter extends CustomPainter {
     }
     path.close();
     canvas.drawPath(path, stroke);
-
-    // 中心 handle
     final r = selected ? 7.0 : 5.0;
     canvas.drawCircle(c, r, fill);
     if (selected) {
-      // 右 / 下 handle —— 跟椭圆共用的数学
       final right = c +
           Offset(
             m.radiusX * displaySize.width * math.cos(m.rotation),
@@ -356,9 +439,87 @@ class _MasksPainter extends CustomPainter {
     }
   }
 
+  void _paintBrush(Canvas canvas, BrushMask m, bool selected) {
+    for (final s in m.strokes) {
+      final base = s.erase ? Colors.redAccent : _purple;
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..strokeWidth = s.radius * 2 * displaySize.width
+        ..color = base.withValues(alpha: selected ? 0.20 : 0.10);
+      _drawStrokePath(canvas, s.points, s.radius, paint);
+    }
+  }
+
+  void _paintInProgress(Canvas canvas) {
+    final pts = inProgressPoints;
+    if (pts == null || pts.isEmpty) return;
+    final base = brushErase ? Colors.redAccent : _purple;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = brushRadiusNorm * 2 * displaySize.width
+      ..color = base.withValues(alpha: 0.32);
+    _drawStrokePath(canvas, pts, brushRadiusNorm, paint);
+  }
+
+  void _drawStrokePath(
+      Canvas canvas, List<Offset> pts, double radiusNorm, Paint paint) {
+    if (pts.isEmpty) return;
+    if (pts.length == 1) {
+      canvas.drawCircle(
+        Offset(pts[0].dx * displaySize.width, pts[0].dy * displaySize.height),
+        radiusNorm * displaySize.width,
+        Paint()
+          ..color = paint.color
+          ..style = PaintingStyle.fill,
+      );
+      return;
+    }
+    final path = Path()
+      ..moveTo(pts[0].dx * displaySize.width, pts[0].dy * displaySize.height);
+    for (int i = 1; i < pts.length; i++) {
+      path.lineTo(
+          pts[i].dx * displaySize.width, pts[i].dy * displaySize.height);
+    }
+    canvas.drawPath(path, paint);
+  }
+
+  void _paintCursor(Canvas canvas) {
+    final c = cursorScreen;
+    if (c == null) return;
+    final r = brushRadiusNorm * displaySize.width;
+    canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..color = Colors.black54);
+    canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..color = brushErase ? Colors.redAccent : Colors.white);
+  }
+
   @override
   bool shouldRepaint(_MasksPainter old) =>
       !identical(old.locals, locals) ||
       old.selectedId != selectedId ||
-      old.displaySize != displaySize;
+      old.displaySize != displaySize ||
+      old.cursorScreen != cursorScreen ||
+      old.brushRadiusNorm != brushRadiusNorm ||
+      old.brushErase != brushErase ||
+      !_listEq(old.inProgressPoints, inProgressPoints);
+
+  static bool _listEq(List<Offset>? a, List<Offset>? b) {
+    if (identical(a, b)) return true;
+    if (a == null || b == null) return false;
+    return a.length == b.length;
+  }
 }

@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/brush_state.dart';
 import '../core/models/local_adjustment.dart';
 import '../core/models/local_params.dart';
 import '../core/models/mask_shape.dart';
@@ -25,9 +26,7 @@ class LocalPanel extends ConsumerWidget {
       children: [
         const SectionLabel(title: 'LOCAL'),
         const SizedBox(height: 4),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-        ),
+        const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 4)),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
           child: Row(
@@ -57,6 +56,19 @@ class LocalPanel extends ConsumerWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.brush, size: 14),
+                  label: Text(tr("brush"), style: TextStyle(fontSize: 11)),
+                  onPressed: atLimit
+                      ? null
+                      : () => LocalAdjustmentActions(ref).addBrush(),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -70,14 +82,12 @@ class LocalPanel extends ConsumerWidget {
           )
         else
           for (final local in params.locals)
-            _MaskListItem(
-              local: local,
-              isSelected: local.id == selectedId,
-            ),
+            _MaskListItem(local: local, isSelected: local.id == selectedId),
         if (selected != null) ...[
           const SizedBox(height: 6),
           const Divider(height: 1, color: Colors.white12),
           _LocalShapeControls(local: selected),
+          _BrushControls(local: selected),
           const Divider(height: 1, color: Colors.white12),
           _LocalParamsControls(local: selected),
           const SizedBox(height: 8),
@@ -102,7 +112,12 @@ class _MaskListItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isLinear = local.mask is LinearGradientMask;
+    final mask = local.mask;
+    final icon = mask is LinearGradientMask
+        ? Icons.gradient
+        : mask is RadialGradientMask
+        ? Icons.brightness_5
+        : Icons.brush;
     final color = isSelected
         ? const Color(0xFF6B5BFF)
         : Colors.white.withValues(alpha: 0.7);
@@ -118,11 +133,7 @@ class _MaskListItem extends ConsumerWidget {
               : Colors.transparent,
           child: Row(
             children: [
-              Icon(
-                isLinear ? Icons.gradient : Icons.brightness_5,
-                size: 14,
-                color: color,
-              ),
+              Icon(icon, size: 14, color: color),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -138,10 +149,9 @@ class _MaskListItem extends ConsumerWidget {
                   size: 14,
                   color: Colors.white54,
                 ),
-                onPressed: () => LocalAdjustmentActions(ref).updateLocal(
-                  local.id,
-                  (l) => l.copyWith(enabled: !l.enabled),
-                ),
+                onPressed: () => LocalAdjustmentActions(
+                  ref,
+                ).updateLocal(local.id, (l) => l.copyWith(enabled: !l.enabled)),
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -201,7 +211,10 @@ class _LocalShapeControls extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              SizedBox(width: 64, child: Text(tr("invert"), style: TextStyle(fontSize: 11.5))),
+              SizedBox(
+                width: 64,
+                child: Text(tr("invert"), style: TextStyle(fontSize: 11.5)),
+              ),
               Switch(
                 value: shape.inverted,
                 onChanged: (v) => actions.updateLocal(
@@ -210,6 +223,99 @@ class _LocalShapeControls extends ConsumerWidget {
                 ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BrushControls extends ConsumerWidget {
+  final LocalAdjustment local;
+  const _BrushControls({required this.local});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mask = local.mask;
+    if (mask is! BrushMask) return const SizedBox.shrink();
+
+    final radius = ref.watch(brushRadiusProvider);
+    final hardness = ref.watch(brushHardnessProvider);
+    final erase = ref.watch(brushEraseProvider);
+
+    return Column(
+      children: [
+        // 加 / 擦
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 64,
+                child: Text(tr("localBrushMode"), style: TextStyle(fontSize: 11.5)),
+              ),
+              Expanded(
+                child: SegmentedButton<bool>(
+                  segments: [
+                    ButtonSegment(
+                      value: false,
+                      label: Text(tr("localBrushModePaint"), style: TextStyle(fontSize: 11)),
+                      icon: Icon(Icons.add, size: 14),
+                    ),
+                    ButtonSegment(
+                      value: true,
+                      label: Text(tr("localBrushModeErase"), style: TextStyle(fontSize: 11)),
+                      icon: Icon(Icons.remove, size: 14),
+                    ),
+                  ],
+                  selected: {erase},
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onSelectionChanged: (s) =>
+                      ref.read(brushEraseProvider.notifier).state = s.first,
+                ),
+              ),
+            ],
+          ),
+        ),
+        _MiniSlider(
+          label: tr("localBrushSize"),
+          value: radius,
+          min: 0.01,
+          max: 0.30,
+          formatter: (v) => (v * 100).toStringAsFixed(0),
+          onChanged: (v) => ref.read(brushRadiusProvider.notifier).state = v,
+        ),
+        _MiniSlider(
+          label: tr("localBrushHardness"),
+          value: hardness,
+          min: 0,
+          max: 1,
+          formatter: (v) => (v * 100).round().toString(),
+          onChanged: (v) => ref.read(brushHardnessProvider.notifier).state = v,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+          child: Row(
+            children: [
+              Text(
+                tr("localBrushStroke", args: ["${mask.strokes.length}"]),
+                style: const TextStyle(fontSize: 10.5, color: Colors.white38),
+              ),
+              const Spacer(),
+              if (mask.strokes.isNotEmpty)
+                TextButton(
+                  onPressed: () =>
+                      LocalAdjustmentActions(ref).clearBrushStrokes(local.id),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  child: Text(tr("localBrushStrokeClear"), style: TextStyle(fontSize: 11)),
+                ),
             ],
           ),
         ),
@@ -281,8 +387,7 @@ class _LocalParamsControls extends ConsumerWidget {
           value: p.temperatureShift.toDouble(),
           min: -3000,
           max: 3000,
-          formatter: (v) =>
-              '${v >= 0 ? "+" : ""}${v.round()}',
+          formatter: (v) => '${v >= 0 ? "+" : ""}${v.round()}',
           onChanged: (v) =>
               update((q) => q.copyWith(temperatureShift: v.round())),
         ),
@@ -342,8 +447,7 @@ class _MiniSlider extends StatelessWidget {
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 2,
-                thumbShape:
-                    const RoundSliderThumbShape(enabledThumbRadius: 6),
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
               ),
               child: TrackedSlider(
                 value: value.clamp(min, max),
@@ -356,9 +460,7 @@ class _MiniSlider extends StatelessWidget {
           SizedBox(
             width: 42,
             child: Text(
-              formatter != null
-                  ? formatter!(value)
-                  : value.round().toString(),
+              formatter != null ? formatter!(value) : value.round().toString(),
               textAlign: TextAlign.right,
               style: const TextStyle(
                 fontSize: 10.5,

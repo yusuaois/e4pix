@@ -166,5 +166,16 @@
   "fullscreenPreviewBtnHint": "全屏预览 (F11 / 双击)",
   "version": "版本",
   "versionCheck": "检查更新",
-  "projectUrl": "项目地址"
+  "projectUrl": "项目地址",
+  "brush": "画笔",
+  "localLinearName": "线性 {}",
+  "localRadialName": "径向 {}",
+  "localBrushName": "画笔 {}",
+  "localBrushMode": "模式",
+  "localBrushModePaint": "涂抹",
+  "localBrushModeErase": "擦除",
+  "localBrushSize": "笔刷大小",
+  "localBrushHardness": "硬度",
+  "localBrushStroke": "笔画: {}",
+  "localBrushStrokeClear": "清除笔画"
 }

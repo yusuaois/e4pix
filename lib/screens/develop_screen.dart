@@ -979,33 +979,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                         .read(exportSelectionNotifierProvider.notifier)
                         .toggleMode(),
             ),
-            // 临时
-            IconButton(
-              icon: const Icon(Icons.brush, size: 18),
-              tooltip: 'DEBUG: 加画笔 mask',
-              onPressed: () {
-                final actions = LocalAdjustmentActions(ref);
-                final id = actions.addBrush();
-                if (id == null) return;
-                // 画面中间横涂一道
-                actions.addStrokeTo(
-                  id,
-                  const BrushStroke(
-                    points: [
-                      Offset(0.2, 0.5),
-                      Offset(0.5, 0.5),
-                      Offset(0.8, 0.5),
-                    ],
-                    radius: 0.10,
-                    hardness: 0.6,
-                  ),
-                );
-                actions.updateLocal(
-                  id,
-                  (l) => l.copyWith(params: const LocalParams(exposure: -1.8)),
-                );
-              },
-            ),
           ],
           // 水平直接展示，垂直布局折到菜单
           if (!isVertical) ...[

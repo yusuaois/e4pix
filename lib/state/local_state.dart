@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -40,7 +41,7 @@ class LocalAdjustmentActions {
         ...cur.locals,
         LocalAdjustment(
           id: id,
-          name: '渐变 ${cur.locals.length + 1}',
+          name: tr("localLinearName", args: ["${cur.locals.length + 1}"]),
           mask: LinearGradientMask.defaultTopToBottom,
         ),
       ],
@@ -60,7 +61,7 @@ class LocalAdjustmentActions {
         ...cur.locals,
         LocalAdjustment(
           id: id,
-          name: '径向 ${cur.locals.length + 1}',
+          name: tr("localRadialName", args: ["${cur.locals.length + 1}"]),
           mask: RadialGradientMask.defaultCircle,
         ),
       ],
@@ -80,7 +81,7 @@ class LocalAdjustmentActions {
         ...cur.locals,
         LocalAdjustment(
           id: id,
-          name: '画笔 ${cur.locals.length + 1}',
+          name: tr("localBrushName", args: ["${cur.locals.length + 1}"]),
           mask: const BrushMask(),
         ),
       ],
@@ -96,6 +97,15 @@ class LocalAdjustmentActions {
       final m = l.mask;
       if (m is! BrushMask) return l;
       return l.copyWith(mask: m.addStroke(stroke));
+    });
+  }
+
+  /// 清空指定画笔 mask 的所有笔画
+  void clearBrushStrokes(String id) {
+    updateLocal(id, (l) {
+      final m = l.mask;
+      if (m is! BrushMask) return l;
+      return l.copyWith(mask: const BrushMask());
     });
   }
 
