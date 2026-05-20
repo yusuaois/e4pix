@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 
 sealed class MaskShape {
@@ -6,16 +8,18 @@ sealed class MaskShape {
   Map<String, dynamic> toJson();
 
   static MaskShape fromJson(Map<String, dynamic> j) {
-    final type = j['type'] as String;
-    switch (type) {
-      case 'linear':
-        return LinearGradientMask.fromJson(j);
-      case 'radial':
-        return RadialGradientMask.fromJson(j);
-      default:
-        throw FormatException('Unknown mask type: $type');
-    }
+  final type = j['type'] as String;
+  switch (type) {
+    case 'linear':
+      return LinearGradientMask.fromJson(j);
+    case 'radial':
+      return RadialGradientMask.fromJson(j);
+    case 'brush':
+      return BrushMask.fromJson(j);
+    default:
+      throw FormatException('Unknown mask type: $type');
   }
+}
 }
 
 @immutable
@@ -168,4 +172,84 @@ class RadialGradientMask extends MaskShape {
   int get hashCode => Object.hash(
         centerX, centerY, radiusX, radiusY, rotation, feather, inverted,
       );
+}
+
+@immutable
+class BrushStroke {
+  final List<Offset> points; // 归一化 [0..1]，相对裁剪后输出
+  final double radius;       // 归一化（相对宽度）
+  final double hardness;     // 0..1，1=硬边
+  final bool erase;          // true=擦除
+
+  const BrushStroke({
+    required this.points,
+    required this.radius,
+    this.hardness = 0.8,
+    this.erase = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'points': points.map((p) => [p.dx, p.dy]).toList(),
+        'radius': radius,
+        'hardness': hardness,
+        'erase': erase,
+      };
+
+  factory BrushStroke.fromJson(Map<String, dynamic> j) => BrushStroke(
+        points: (j['points'] as List).map((e) {
+          final l = e as List;
+          return Offset((l[0] as num).toDouble(), (l[1] as num).toDouble());
+        }).toList(),
+        radius: (j['radius'] as num).toDouble(),
+        hardness: (j['hardness'] as num?)?.toDouble() ?? 0.8,
+        erase: j['erase'] as bool? ?? false,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BrushStroke &&
+          radius == other.radius &&
+          hardness == other.hardness &&
+          erase == other.erase &&
+          listEquals(points, other.points));
+
+  @override
+  int get hashCode => Object.hash(radius, hardness, erase, Object.hashAll(points));
+}
+
+@immutable
+class BrushMask extends MaskShape {
+  final List<BrushStroke> strokes;
+
+  const BrushMask({this.strokes = const []});
+
+  BrushMask copyWith({List<BrushStroke>? strokes}) =>
+      BrushMask(strokes: strokes ?? this.strokes);
+
+  BrushMask addStroke(BrushStroke s) => BrushMask(strokes: [...strokes, s]);
+
+  bool get isEmpty => strokes.isEmpty;
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'type': 'brush',
+        'strokes': strokes.map((s) => s.toJson()).toList(),
+      };
+
+  factory BrushMask.fromJson(Map<String, dynamic> j) => BrushMask(
+        strokes: (j['strokes'] as List?)
+                ?.map((e) =>
+                    BrushStroke.fromJson(Map<String, dynamic>.from(e as Map)))
+                .toList() ??
+            const [],
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BrushMask && listEquals(strokes, other.strokes));
+
+  @override
+  int get hashCode => Object.hashAll(strokes);
 }

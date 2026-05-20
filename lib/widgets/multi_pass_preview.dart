@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/adjustment_params.dart';
 import '../render/full_pipeline_renderer.dart';
+import '../render/mask_cache.dart';
 import '../state/interaction_state.dart';
 
 /// 离屏多 pass 预览
@@ -46,17 +47,20 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
 
   ProviderSubscription<bool>? _dragSub;
 
+  final _developCache = DevelopPassCache();
+  final _brushCache = BrushMaskCache();
+
   @override
   void initState() {
     super.initState();
-    _dragSub = ref.listenManual<bool>(
-      isUserDraggingSliderProvider,
-      (prev, next) {
-        if (prev == true && next == false) {
-          _scheduleHighQualityRerender();
-        }
-      },
-    );
+    _dragSub = ref.listenManual<bool>(isUserDraggingSliderProvider, (
+      prev,
+      next,
+    ) {
+      if (prev == true && next == false) {
+        _scheduleHighQualityRerender();
+      }
+    });
     _scheduleRender();
   }
 
@@ -76,6 +80,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     _throttle?.cancel();
     _dragSub?.close();
     _rendered?.dispose();
+    _developCache.dispose();
+    _brushCache.dispose();
     super.dispose();
   }
 
@@ -110,8 +116,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       final src = widget.sourceImage;
 
       final isDragging = ref.read(isUserDraggingSliderProvider);
-      final maxEdge =
-          isDragging ? widget.draggingMaxEdge : widget.idleMaxEdge;
+      final maxEdge = isDragging ? widget.draggingMaxEdge : widget.idleMaxEdge;
 
       final longest = math.max(src.width, src.height);
       final scale = longest > maxEdge ? maxEdge / longest : 1.0;
@@ -127,6 +132,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         lutSize: widget.lutSize,
         targetWidth: tw,
         targetHeight: th,
+        developCache: _developCache,
+        brushCache: _brushCache,
       );
 
       if (gen != _generation || !mounted) {

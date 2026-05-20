@@ -2,6 +2,7 @@
 #include <flutter/runtime_effect.glsl>
 
 uniform sampler2D uInput;
+uniform sampler2D uMaskTexture;
 uniform vec2 uResolution;
 
 uniform float uMaskType;          // 0=linear, 1=radial
@@ -108,8 +109,10 @@ void main() {
     float alpha;
     if (uMaskType < 0.5) {
         alpha = maskAlphaLinear(uv);
-    } else {
+    } else if (uMaskType < 1.5) {
         alpha = maskAlphaRadial(uv);
+    } else {
+        alpha = clamp(texture(uMaskTexture, uv).r, 0.0, 1.0);
     }
 
     vec3 lin = srgbToLinear(srcColor);

@@ -35,14 +35,16 @@ class LocalAdjustmentActions {
     if (_full()) return null;
     final id = _newId();
     final cur = ref.read(currentParamsNotifierProvider);
-    final next = cur.copyWith(locals: [
-      ...cur.locals,
-      LocalAdjustment(
-        id: id,
-        name: '渐变 ${cur.locals.length + 1}',
-        mask: LinearGradientMask.defaultTopToBottom,
-      ),
-    ]);
+    final next = cur.copyWith(
+      locals: [
+        ...cur.locals,
+        LocalAdjustment(
+          id: id,
+          name: '渐变 ${cur.locals.length + 1}',
+          mask: LinearGradientMask.defaultTopToBottom,
+        ),
+      ],
+    );
     ref.read(currentParamsNotifierProvider.notifier).update(next);
     ref.read(selectedLocalIdProvider.notifier).state = id;
     return id;
@@ -53,17 +55,48 @@ class LocalAdjustmentActions {
     if (_full()) return null;
     final id = _newId();
     final cur = ref.read(currentParamsNotifierProvider);
-    final next = cur.copyWith(locals: [
-      ...cur.locals,
-      LocalAdjustment(
-        id: id,
-        name: '径向 ${cur.locals.length + 1}',
-        mask: RadialGradientMask.defaultCircle,
-      ),
-    ]);
+    final next = cur.copyWith(
+      locals: [
+        ...cur.locals,
+        LocalAdjustment(
+          id: id,
+          name: '径向 ${cur.locals.length + 1}',
+          mask: RadialGradientMask.defaultCircle,
+        ),
+      ],
+    );
     ref.read(currentParamsNotifierProvider.notifier).update(next);
     ref.read(selectedLocalIdProvider.notifier).state = id;
     return id;
+  }
+
+  /// 添加一个空的画笔 mask
+  String? addBrush() {
+    if (_full()) return null;
+    final id = _newId();
+    final cur = ref.read(currentParamsNotifierProvider);
+    final next = cur.copyWith(
+      locals: [
+        ...cur.locals,
+        LocalAdjustment(
+          id: id,
+          name: '画笔 ${cur.locals.length + 1}',
+          mask: const BrushMask(),
+        ),
+      ],
+    );
+    ref.read(currentParamsNotifierProvider.notifier).update(next);
+    ref.read(selectedLocalIdProvider.notifier).state = id;
+    return id;
+  }
+
+  /// 给指定画笔 mask 追加一笔（UI 涂抹时调用）
+  void addStrokeTo(String id, BrushStroke stroke) {
+    updateLocal(id, (l) {
+      final m = l.mask;
+      if (m is! BrushMask) return l;
+      return l.copyWith(mask: m.addStroke(stroke));
+    });
   }
 
   /// 更新指定 id 的局部（mask 或 params 或开关或名字）
@@ -72,11 +105,13 @@ class LocalAdjustmentActions {
     final idx = cur.locals.indexWhere((l) => l.id == id);
     if (idx < 0) return;
     final updated = f(cur.locals[idx]);
-    final next = cur.copyWith(locals: [
-      ...cur.locals.sublist(0, idx),
-      updated,
-      ...cur.locals.sublist(idx + 1),
-    ]);
+    final next = cur.copyWith(
+      locals: [
+        ...cur.locals.sublist(0, idx),
+        updated,
+        ...cur.locals.sublist(idx + 1),
+      ],
+    );
     ref.read(currentParamsNotifierProvider.notifier).update(next);
   }
 
