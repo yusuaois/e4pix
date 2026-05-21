@@ -134,6 +134,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         targetHeight: th,
         developCache: _developCache,
         brushCache: _brushCache,
+        allowStaleAutoMask: isDragging,
       );
 
       if (gen != _generation || !mounted) {

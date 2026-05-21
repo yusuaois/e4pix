@@ -40,6 +40,7 @@ class FullPipelineRenderer {
     required int targetHeight,
     DevelopPassCache? developCache,
     BrushMaskCache? brushCache,
+    bool allowStaleAutoMask = false,
   }) async {
     final enabledLocals = params.locals
         .where((l) => l.enabled && !l.params.isNeutral)
@@ -148,6 +149,7 @@ class FullPipelineRenderer {
               guideWidth: guideW,
               guideHeight: guideH,
               guideEpoch: guideEpoch,
+              allowStaleGuide: allowStaleAutoMask,
             );
             maskTexOwned = false;
           } else {

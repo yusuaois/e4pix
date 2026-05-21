@@ -31,7 +31,7 @@ class DevelopPassCache {
 class _BrushEntry {
   final BrushMask mask;
   final ui.Image texture;
-  final int guideEpoch; // 自动蒙版 引导图签名
+  final int guideEpoch;
   _BrushEntry(this.mask, this.texture, this.guideEpoch);
 }
 
@@ -47,16 +47,20 @@ class BrushMaskCache {
     int guideWidth = 0,
     int guideHeight = 0,
     int guideEpoch = 0,
+    bool allowStaleGuide = false,
   }) async {
     final hasAuto = mask.strokes.any((s) => s.autoMask);
     final e = _cache[maskId];
-    final ok =
+    final baseOk =
         e != null &&
         identical(e.mask, mask) &&
         e.texture.width == w &&
-        e.texture.height == h &&
-        (!hasAuto || e.guideEpoch == guideEpoch);
-    if (ok) return e.texture;
+        e.texture.height == h;
+    if (baseOk) {
+      if (!hasAuto || e.guideEpoch == guideEpoch || allowStaleGuide) {
+        return e.texture;
+      }
+    }
 
     final tex = await rasterizeBrushMask(
       mask,
@@ -163,7 +167,8 @@ Future<ui.Image> _rasterizeAuto(
   int h,
   Uint8List guide,
 ) async {
-  final acc = Float32List(w * h); // 0..1 累积
+  final acc = Float32List(w * h);
+  int ux0 = w, uy0 = h, ux1 = -1, uy1 = -1;
 
   for (final stroke in mask.strokes) {
     final flow = stroke.flow.clamp(0.0, 1.0);
@@ -190,6 +195,12 @@ Future<ui.Image> _rasterizeAuto(
     final x1 = (maxX + radiusPx).ceil().clamp(0, w - 1);
     final y1 = (maxY + radiusPx).ceil().clamp(0, h - 1);
     if (x1 < x0 || y1 < y0) continue;
+
+    if (x0 < ux0) ux0 = x0;
+    if (y0 < uy0) uy0 = y0;
+    if (x1 > ux1) ux1 = x1;
+    if (y1 > uy1) uy1 = y1;
+
     final bw = x1 - x0 + 1;
     final geomMax = Float32List(bw * (y1 - y0 + 1));
 
@@ -263,6 +274,16 @@ Future<ui.Image> _rasterizeAuto(
     }
   }
 
+  if (ux1 >= ux0 && uy1 >= uy0) {
+    final r = (w * 0.006).round().clamp(2, 32);
+    const eps = 0.0025;
+    final bx0 = (ux0 - r) < 0 ? 0 : (ux0 - r);
+    final by0 = (uy0 - r) < 0 ? 0 : (uy0 - r);
+    final bx1 = (ux1 + r) > w - 1 ? w - 1 : (ux1 + r);
+    final by1 = (uy1 + r) > h - 1 ? h - 1 : (uy1 + r);
+    _fastGuidedRefine(acc, guide, w, bx0, by0, bx1, by1, r, eps);
+  }
+
   final rgba = Uint8List(w * h * 4);
   for (int i = 0; i < w * h; i++) {
     int v = (acc[i] * 255.0).round();
@@ -283,6 +304,154 @@ Future<ui.Image> _rasterizeAuto(
     completer.complete,
   );
   return completer.future;
+}
+
+void _fastGuidedRefine(
+  Float32List acc,
+  Uint8List guide,
+  int w,
+  int bx0,
+  int by0,
+  int bx1,
+  int by1,
+  int r,
+  double eps,
+) {
+  final bw = bx1 - bx0 + 1;
+  final bh = by1 - by0 + 1;
+  final area = bw * bh;
+
+  int s = 1;
+  if (area > 1200000) {
+    s = math.sqrt(area / 1200000).ceil();
+    if (s > 8) s = 8;
+  }
+
+  final iFull = Float32List(area);
+  for (int j = 0; j < bh; j++) {
+    final gy = by0 + j;
+    final rowBase = j * bw;
+    for (int i = 0; i < bw; i++) {
+      final gi = (gy * w + (bx0 + i)) * 4;
+      iFull[rowBase + i] =
+          (0.299 * guide[gi] + 0.587 * guide[gi + 1] + 0.114 * guide[gi + 2]) /
+          255.0;
+    }
+  }
+
+  final dbw = (bw + s - 1) ~/ s;
+  final dbh = (bh + s - 1) ~/ s;
+  final dn = dbw * dbh;
+  final id = Float32List(dn);
+  final pd = Float32List(dn);
+  for (int dj = 0; dj < dbh; dj++) {
+    final sj = math.min(dj * s, bh - 1);
+    final gy = by0 + sj;
+    for (int di = 0; di < dbw; di++) {
+      final si = math.min(di * s, bw - 1);
+      id[dj * dbw + di] = iFull[sj * bw + si];
+      pd[dj * dbw + di] = acc[gy * w + (bx0 + si)];
+    }
+  }
+
+  final rd = (r ~/ s) < 1 ? 1 : (r ~/ s);
+  final meanI = _boxMean(id, dbw, dbh, rd);
+  final meanP = _boxMean(pd, dbw, dbh, rd);
+  final ii = Float32List(dn);
+  final ip = Float32List(dn);
+  for (int k = 0; k < dn; k++) {
+    ii[k] = id[k] * id[k];
+    ip[k] = id[k] * pd[k];
+  }
+  final meanII = _boxMean(ii, dbw, dbh, rd);
+  final meanIp = _boxMean(ip, dbw, dbh, rd);
+
+  final a = Float32List(dn);
+  final b = Float32List(dn);
+  for (int k = 0; k < dn; k++) {
+    final varI = meanII[k] - meanI[k] * meanI[k];
+    final covIp = meanIp[k] - meanI[k] * meanP[k];
+    final ak = covIp / (varI + eps);
+    a[k] = ak;
+    b[k] = meanP[k] - ak * meanI[k];
+  }
+  final meanA = _boxMean(a, dbw, dbh, rd);
+  final meanB = _boxMean(b, dbw, dbh, rd);
+
+  for (int j = 0; j < bh; j++) {
+    final fy = j / s;
+    int ly0 = fy.floor();
+    final wy = fy - ly0;
+    int ly1 = ly0 + 1;
+    if (ly0 > dbh - 1) ly0 = dbh - 1;
+    if (ly1 > dbh - 1) ly1 = dbh - 1;
+    final gy = by0 + j;
+    final rowBase = j * bw;
+    for (int i = 0; i < bw; i++) {
+      final fx = i / s;
+      int lx0 = fx.floor();
+      final wx = fx - lx0;
+      int lx1 = lx0 + 1;
+      if (lx0 > dbw - 1) lx0 = dbw - 1;
+      if (lx1 > dbw - 1) lx1 = dbw - 1;
+      final aa = _bilerp(meanA, dbw, lx0, lx1, ly0, ly1, wx, wy);
+      final bb = _bilerp(meanB, dbw, lx0, lx1, ly0, ly1, wx, wy);
+      double q = aa * iFull[rowBase + i] + bb;
+      if (q < 0) q = 0;
+      if (q > 1) q = 1;
+      acc[gy * w + (bx0 + i)] = q;
+    }
+  }
+}
+
+double _bilerp(
+  Float32List m,
+  int dbw,
+  int x0,
+  int x1,
+  int y0,
+  int y1,
+  double wx,
+  double wy,
+) {
+  final v00 = m[y0 * dbw + x0];
+  final v01 = m[y0 * dbw + x1];
+  final v10 = m[y1 * dbw + x0];
+  final v11 = m[y1 * dbw + x1];
+  final top = v00 + (v01 - v00) * wx;
+  final bot = v10 + (v11 - v10) * wx;
+  return top + (bot - top) * wy;
+}
+
+Float32List _boxMean(Float32List src, int bw, int bh, int r) {
+  final stride = bw + 1;
+  final sat = Float64List(stride * (bh + 1));
+  for (int j = 0; j < bh; j++) {
+    double rowsum = 0;
+    final rb = j * bw;
+    final sr = (j + 1) * stride;
+    final sp = j * stride;
+    for (int i = 0; i < bw; i++) {
+      rowsum += src[rb + i];
+      sat[sr + i + 1] = sat[sp + i + 1] + rowsum;
+    }
+  }
+  final out = Float32List(bw * bh);
+  for (int j = 0; j < bh; j++) {
+    final y1 = j - r < 0 ? 0 : j - r;
+    final y2 = j + r >= bh ? bh - 1 : j + r;
+    for (int i = 0; i < bw; i++) {
+      final x1 = i - r < 0 ? 0 : i - r;
+      final x2 = i + r >= bw ? bw - 1 : i + r;
+      final ssum =
+          sat[(y2 + 1) * stride + (x2 + 1)] -
+          sat[y1 * stride + (x2 + 1)] -
+          sat[(y2 + 1) * stride + x1] +
+          sat[y1 * stride + x1];
+      out[j * bw + i] = ssum / ((y2 - y1 + 1) * (x2 - x1 + 1));
+    }
+  }
+  return out;
 }
 
 List<ui.Offset> _decimate(
