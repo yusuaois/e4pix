@@ -246,6 +246,7 @@ class _BrushControls extends ConsumerWidget {
     final flow = ref.watch(brushFlowProvider);
     final auto = ref.watch(brushAutoMaskProvider);
     final tol = ref.watch(brushToleranceProvider);
+    final edge = ref.watch(brushEdgeStrengthProvider);
 
     return Column(
       children: [
@@ -342,7 +343,7 @@ class _BrushControls extends ConsumerWidget {
             ],
           ),
         ),
-        if (auto)
+        if (auto) ...[
           _MiniSlider(
             label: tr("localBrushAutoMaskTolerance"),
             value: tol,
@@ -352,6 +353,16 @@ class _BrushControls extends ConsumerWidget {
             onChanged: (v) =>
                 ref.read(brushToleranceProvider.notifier).state = v,
           ),
+          _MiniSlider(
+            label: tr("localBrushAutoMaskEdgeStrength"),
+            value: edge,
+            min: 0.0,
+            max: 1.0,
+            formatter: (v) => (v * 100).round().toString(),
+            onChanged: (v) =>
+                ref.read(brushEdgeStrengthProvider.notifier).state = v,
+          ),
+        ],
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
           child: Row(

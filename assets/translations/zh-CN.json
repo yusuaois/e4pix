@@ -181,5 +181,6 @@
   "localBrushFlow": "流量",
   "localBrushAutoMask": "自动蒙版",
   "localBrushEdgeSnap": "边缘吸附",
-  "localBrushAutoMaskTolerance": "容差"
+  "localBrushAutoMaskTolerance": "容差",
+  "localBrushAutoMaskEdgeStrength": "边缘强度"
 }

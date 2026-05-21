@@ -155,6 +155,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final flow = ref.read(brushFlowProvider);
     final auto = ref.read(brushAutoMaskProvider);
     final tol = ref.read(brushToleranceProvider);
+    final edge = ref.read(brushEdgeStrengthProvider);
     LocalAdjustmentActions(ref).addStrokeTo(
       id,
       BrushStroke(
@@ -165,6 +166,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         flow: flow,
         autoMask: auto,
         tolerance: tol,
+        edgeStrength: edge,
       ),
     );
     _paintingPoints = null;

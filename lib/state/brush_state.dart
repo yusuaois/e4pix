@@ -17,3 +17,6 @@ final brushAutoMaskProvider = StateProvider<bool>((ref) => false);
 
 /// 自动蒙版颜色容差 0..1（越大吸附范围越宽）
 final brushToleranceProvider = StateProvider<double>((ref) => 0.15);
+
+/// 自动蒙版边缘强度 0..1（导向滤波贴边强度，越大越贴合图像边缘）
+final brushEdgeStrengthProvider = StateProvider<double>((ref) => 0.6);

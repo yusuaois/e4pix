@@ -187,6 +187,7 @@ class BrushStroke {
   final bool erase; // true=擦除
   final bool autoMask; // 自动蒙版（边缘吸附）
   final double tolerance; // 颜色容差 0..1，越大吸附范围越宽
+  final double edgeStrength; // 边缘强度 0..1（导向滤波贴边强度）
 
   const BrushStroke({
     required this.points,
@@ -196,6 +197,7 @@ class BrushStroke {
     this.erase = false,
     this.autoMask = false,
     this.tolerance = 0.15,
+    this.edgeStrength = 0.6,
   });
 
   Map<String, dynamic> toJson() => {
@@ -206,6 +208,7 @@ class BrushStroke {
     'erase': erase,
     'autoMask': autoMask,
     'tolerance': tolerance,
+    'edgeStrength': edgeStrength,
   };
 
   factory BrushStroke.fromJson(Map<String, dynamic> j) => BrushStroke(
@@ -219,6 +222,7 @@ class BrushStroke {
     erase: j['erase'] as bool? ?? false,
     autoMask: j['autoMask'] as bool? ?? false,
     tolerance: (j['tolerance'] as num?)?.toDouble() ?? 0.15,
+    edgeStrength: (j['edgeStrength'] as num?)?.toDouble() ?? 0.6,
   );
 
   @override
@@ -231,6 +235,7 @@ class BrushStroke {
           erase == other.erase &&
           autoMask == other.autoMask &&
           tolerance == other.tolerance &&
+          edgeStrength == other.edgeStrength &&
           listEquals(points, other.points));
 
   @override
@@ -241,6 +246,7 @@ class BrushStroke {
     erase,
     autoMask,
     tolerance,
+    edgeStrength,
     Object.hashAll(points),
   );
 }

@@ -161,6 +161,7 @@ Future<ui.Image> _rasterizeGeometric(BrushMask mask, int w, int h) async {
   return image;
 }
 
+// ── CPU 距离场路径（含 auto）：逐笔 几何 × 局部参考色 × 导向滤波 × flow ──
 Future<ui.Image> _rasterizeAuto(
   BrushMask mask,
   int w,
@@ -168,7 +169,6 @@ Future<ui.Image> _rasterizeAuto(
   Uint8List guide,
 ) async {
   final acc = Float32List(w * h);
-  int ux0 = w, uy0 = h, ux1 = -1, uy1 = -1;
 
   for (final stroke in mask.strokes) {
     final flow = stroke.flow.clamp(0.0, 1.0);
@@ -195,15 +195,28 @@ Future<ui.Image> _rasterizeAuto(
     final x1 = (maxX + radiusPx).ceil().clamp(0, w - 1);
     final y1 = (maxY + radiusPx).ceil().clamp(0, h - 1);
     if (x1 < x0 || y1 < y0) continue;
-
-    if (x0 < ux0) ux0 = x0;
-    if (y0 < uy0) uy0 = y0;
-    if (x1 > ux1) ux1 = x1;
-    if (y1 > uy1) uy1 = y1;
-
     final bw = x1 - x0 + 1;
-    final geomMax = Float32List(bw * (y1 - y0 + 1));
+    final bh = y1 - y0 + 1;
 
+    final sw = Float32List(bw * bh); // 本笔权重
+    Int32List? nearestSeg;
+    List<double>? refR, refG, refB;
+    if (stroke.autoMask) {
+      nearestSeg = Int32List(bw * bh)..fillRange(0, bw * bh, -1);
+      refR = List.filled(pts.length, 0);
+      refG = List.filled(pts.length, 0);
+      refB = List.filled(pts.length, 0);
+      for (int k = 0; k < pts.length; k++) {
+        final gx = (pts[k].dx * w).round().clamp(0, w - 1);
+        final gy = (pts[k].dy * h).round().clamp(0, h - 1);
+        final gi = (gy * w + gx) * 4;
+        refR[k] = guide[gi].toDouble();
+        refG[k] = guide[gi + 1].toDouble();
+        refB[k] = guide[gi + 2].toDouble();
+      }
+    }
+
+    // 几何 falloff（记录最近段）
     final segCount = pts.length == 1 ? 1 : pts.length - 1;
     for (int s = 0; s < segCount; s++) {
       final ax = pts[s].dx * w, ay = pts[s].dy * h;
@@ -223,48 +236,54 @@ Future<ui.Image> _rasterizeAuto(
                     ? 1.0
                     : _smoothDown((d - inner) / (radiusPx - inner)));
           final li = (y - y0) * bw + (x - x0);
-          if (g > geomMax[li]) geomMax[li] = g;
+          if (g > sw[li]) {
+            sw[li] = g;
+            if (nearestSeg != null) nearestSeg[li] = s;
+          }
         }
       }
     }
 
-    double refR = 0, refG = 0, refB = 0;
+    // 颜色调制（局部参考色：最近段两端点采样均值）
     if (stroke.autoMask) {
-      int n = 0;
-      for (final p in pts) {
-        final gx = (p.dx * w).round().clamp(0, w - 1);
-        final gy = (p.dy * h).round().clamp(0, h - 1);
-        final gi = (gy * w + gx) * 4;
-        refR += guide[gi];
-        refG += guide[gi + 1];
-        refB += guide[gi + 2];
-        n++;
-      }
-      if (n > 0) {
-        refR /= n;
-        refG /= n;
-        refB /= n;
+      final tol = stroke.tolerance.clamp(0.01, 1.0);
+      for (int li = 0; li < sw.length; li++) {
+        if (sw[li] <= 0) continue;
+        final seg = nearestSeg![li];
+        if (seg < 0) continue;
+        final s2 = (pts.length == 1)
+            ? 0
+            : (seg + 1 < pts.length ? seg + 1 : seg);
+        final rr = (refR![seg] + refR[s2]) * 0.5;
+        final gg = (refG![seg] + refG[s2]) * 0.5;
+        final bbv = (refB![seg] + refB[s2]) * 0.5;
+        final y = y0 + li ~/ bw;
+        final x = x0 + li % bw;
+        final gi = (y * w + x) * 4;
+        final dr = (guide[gi] - rr) / 255.0;
+        final dg = (guide[gi + 1] - gg) / 255.0;
+        final db = (guide[gi + 2] - bbv) / 255.0;
+        final dist = math.sqrt(dr * dr + dg * dg + db * db) / 1.7320508;
+        sw[li] = sw[li] * _colorFalloff(dist, tol);
       }
     }
-    final tol = stroke.tolerance.clamp(0.01, 1.0);
 
-    for (int y = y0; y <= y1; y++) {
-      for (int x = x0; x <= x1; x++) {
-        final li = (y - y0) * bw + (x - x0);
-        final gm = geomMax[li];
-        if (gm <= 0) continue;
-        double wgt = gm;
-        if (stroke.autoMask) {
-          final gi = (y * w + x) * 4;
-          final dr = (guide[gi] - refR) / 255.0;
-          final dg = (guide[gi + 1] - refG) / 255.0;
-          final db = (guide[gi + 2] - refB) / 255.0;
-          final dist = math.sqrt(dr * dr + dg * dg + db * db) / 1.7320508;
-          wgt *= _colorFalloff(dist, tol);
-        }
-        wgt *= flow;
+    // 导向滤波（逐笔；边缘强度 → eps）
+    if (stroke.autoMask) {
+      final strength = stroke.edgeStrength.clamp(0.0, 1.0);
+      final eps = 0.05 * math.pow(0.01, strength).toDouble();
+      final r = (w * 0.006).round().clamp(2, 32);
+      _fastGuidedRefineBuf(sw, guide, w, x0, y0, bw, bh, r, eps);
+    }
+
+    // flow + 合成
+    for (int j = 0; j < bh; j++) {
+      final gy = y0 + j;
+      for (int i = 0; i < bw; i++) {
+        double wgt = sw[j * bw + i];
         if (wgt <= 0) continue;
-        final ai = y * w + x;
+        wgt *= flow;
+        final ai = gy * w + (x0 + i);
         if (stroke.erase) {
           acc[ai] = acc[ai] * (1.0 - wgt);
         } else {
@@ -272,16 +291,6 @@ Future<ui.Image> _rasterizeAuto(
         }
       }
     }
-  }
-
-  if (ux1 >= ux0 && uy1 >= uy0) {
-    final r = (w * 0.006).round().clamp(2, 32);
-    const eps = 0.0025;
-    final bx0 = (ux0 - r) < 0 ? 0 : (ux0 - r);
-    final by0 = (uy0 - r) < 0 ? 0 : (uy0 - r);
-    final bx1 = (ux1 + r) > w - 1 ? w - 1 : (ux1 + r);
-    final by1 = (uy1 + r) > h - 1 ? h - 1 : (uy1 + r);
-    _fastGuidedRefine(acc, guide, w, bx0, by0, bx1, by1, r, eps);
   }
 
   final rgba = Uint8List(w * h * 4);
@@ -306,21 +315,19 @@ Future<ui.Image> _rasterizeAuto(
   return completer.future;
 }
 
-void _fastGuidedRefine(
-  Float32List acc,
+// 快速导向滤波，作用于 bbox 局部缓冲 p（bw×bh），就地写回；guide 用 (ox,oy) 偏移采样
+void _fastGuidedRefineBuf(
+  Float32List p,
   Uint8List guide,
   int w,
-  int bx0,
-  int by0,
-  int bx1,
-  int by1,
+  int ox,
+  int oy,
+  int bw,
+  int bh,
   int r,
   double eps,
 ) {
-  final bw = bx1 - bx0 + 1;
-  final bh = by1 - by0 + 1;
   final area = bw * bh;
-
   int s = 1;
   if (area > 1200000) {
     s = math.sqrt(area / 1200000).ceil();
@@ -329,11 +336,11 @@ void _fastGuidedRefine(
 
   final iFull = Float32List(area);
   for (int j = 0; j < bh; j++) {
-    final gy = by0 + j;
-    final rowBase = j * bw;
+    final gy = oy + j;
+    final rb = j * bw;
     for (int i = 0; i < bw; i++) {
-      final gi = (gy * w + (bx0 + i)) * 4;
-      iFull[rowBase + i] =
+      final gi = (gy * w + (ox + i)) * 4;
+      iFull[rb + i] =
           (0.299 * guide[gi] + 0.587 * guide[gi + 1] + 0.114 * guide[gi + 2]) /
           255.0;
     }
@@ -346,11 +353,10 @@ void _fastGuidedRefine(
   final pd = Float32List(dn);
   for (int dj = 0; dj < dbh; dj++) {
     final sj = math.min(dj * s, bh - 1);
-    final gy = by0 + sj;
     for (int di = 0; di < dbw; di++) {
       final si = math.min(di * s, bw - 1);
       id[dj * dbw + di] = iFull[sj * bw + si];
-      pd[dj * dbw + di] = acc[gy * w + (bx0 + si)];
+      pd[dj * dbw + di] = p[sj * bw + si];
     }
   }
 
@@ -385,8 +391,7 @@ void _fastGuidedRefine(
     int ly1 = ly0 + 1;
     if (ly0 > dbh - 1) ly0 = dbh - 1;
     if (ly1 > dbh - 1) ly1 = dbh - 1;
-    final gy = by0 + j;
-    final rowBase = j * bw;
+    final rb = j * bw;
     for (int i = 0; i < bw; i++) {
       final fx = i / s;
       int lx0 = fx.floor();
@@ -396,10 +401,10 @@ void _fastGuidedRefine(
       if (lx1 > dbw - 1) lx1 = dbw - 1;
       final aa = _bilerp(meanA, dbw, lx0, lx1, ly0, ly1, wx, wy);
       final bb = _bilerp(meanB, dbw, lx0, lx1, ly0, ly1, wx, wy);
-      double q = aa * iFull[rowBase + i] + bb;
+      double q = aa * iFull[rb + i] + bb;
       if (q < 0) q = 0;
       if (q > 1) q = 1;
-      acc[gy * w + (bx0 + i)] = q;
+      p[rb + i] = q;
     }
   }
 }
