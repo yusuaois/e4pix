@@ -722,6 +722,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       ? null
                       : _buildHistogram(program, image),
                   presetBar: const PresetBar(),
+                  info: _buildPanelInfo(),
                 ),
             ],
           ),
@@ -736,7 +737,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                 .where((s) => selection.selectedPaths.contains(s.path))
                 .toList(),
           ),
-        _buildBottomPanel(),
       ],
     );
   }
@@ -799,15 +799,15 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       double size = 20,
     }) {
       final button = IconButton(
-        icon: Icon(icon, size: isVertical ? 18 : size, color: color),
+        icon: Icon(icon, size: isVertical ? 17 : size, color: color),
         tooltip: tooltip,
         onPressed: onPressed,
         visualDensity: isVertical
             ? VisualDensity.compact
             : VisualDensity.standard,
-        padding: isVertical ? const EdgeInsets.all(4) : const EdgeInsets.all(8),
+        padding: isVertical ? const EdgeInsets.all(3) : const EdgeInsets.all(8),
         constraints: isVertical
-            ? const BoxConstraints(minWidth: 32, minHeight: 32)
+            ? const BoxConstraints(minWidth: 30, minHeight: 30)
             : const BoxConstraints(minWidth: 40, minHeight: 40),
       );
       if (onLongPress == null) return button;
@@ -913,8 +913,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: isVertical ? 8 : 24,
-        vertical: isVertical ? 6 : 14,
+        horizontal: isVertical ? 8 : 16,
+        vertical: isVertical ? 3 : 8,
       ),
       decoration: BoxDecoration(
         color: const Color(0xFF14141A),
@@ -1263,89 +1263,72 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     );
   }
 
-  Widget _buildBottomPanel() {
+  Widget _buildPanelInfo() {
     final image = ref.watch(imageNotifierProvider).value;
     final isLoading = ref.watch(imageNotifierProvider).isLoading;
     final path = ref.watch(activeFilePathProvider);
     final m = image?.decoded.metadata;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF14141A),
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Text(
+            m == null
+                ? (path ?? tr('imageNotChosen'))
+                : '${m.cameraModel} · ISO ${m.iso} · ${m.shutterDisplay} · f/${m.aperture.toStringAsFixed(1)}',
+            style: const TextStyle(fontSize: 11),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (image != null) ...[
+            const SizedBox(height: 3),
+            Row(
               children: [
-                Text(
-                  path ?? tr('imageNotChosen'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.5),
-                    fontFamily: 'monospace',
+                Expanded(
+                  child: Text(
+                    '${image.decoded.width}×${image.decoded.height} · '
+                    '${image.decoded.bitsPerChannel}-bit · '
+                    'decode ${image.decodeTime.inMilliseconds}ms · '
+                    'convert ${image.convertTime.inMilliseconds}ms',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontFamily: 'monospace',
+                      color: Colors.greenAccent.withValues(alpha: 0.75),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  m == null ? '——' : m.toString(),
-                  style: const TextStyle(fontSize: 13),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (image != null) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Text(
-                        '${image.decoded.width} × ${image.decoded.height} · '
-                        '${image.decoded.bitsPerChannel}-bit · '
-                        'decode ${image.decodeTime.inMilliseconds}ms · '
-                        'convert ${image.convertTime.inMilliseconds}ms',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.greenAccent.withValues(alpha: 0.8),
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      if (image.isPreliminary) ...[
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 9,
-                          height: 9,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.2,
-                            color: Colors.amberAccent.withValues(alpha: 0.7),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'HD…',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.amberAccent.withValues(alpha: 0.7),
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ],
-                    ],
+                if (image.isPreliminary) ...[
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    width: 9,
+                    height: 9,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.2,
+                      color: Colors.amberAccent.withValues(alpha: 0.7),
+                    ),
                   ),
                 ],
               ],
             ),
-          ),
-          const SizedBox(width: 16),
-          OutlinedButton.icon(
-            onPressed: isLoading ? null : _pickAndDecode,
-            icon: const Icon(Icons.folder_open, size: 18),
-            label: Text(tr("imageChoose")),
+          ],
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: isLoading ? null : _pickAndDecode,
+              icon: const Icon(Icons.folder_open, size: 16),
+              label: Text(
+                tr("imageChoose"),
+                style: const TextStyle(fontSize: 12),
+              ),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
           ),
         ],
       ),

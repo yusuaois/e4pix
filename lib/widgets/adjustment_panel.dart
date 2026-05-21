@@ -10,6 +10,7 @@ class AdjustmentPanel extends StatelessWidget {
   final ValueChanged<AdjustmentParams> onChanged;
   final Widget? histogram;
   final Widget? presetBar;
+  final Widget? info;
   final String? lutName;
   final List<LutEntry> library;
   final ValueChanged<LutEntry?> onSelectLut;
@@ -26,6 +27,7 @@ class AdjustmentPanel extends StatelessWidget {
     required this.onDeleteLut,
     this.histogram,
     this.presetBar,
+    this.info,
     this.lutName,
   });
 
@@ -51,6 +53,11 @@ class AdjustmentPanel extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
+                if (info != null) ...[
+                  info!,
+                  const Divider(height: 1, color: Colors.white12),
+                  const SizedBox(height: 4),
+                ],
                 if (presetBar != null) ...[
                   const SectionLabel(title: 'PRESET'),
                   const SizedBox(height: 4),
