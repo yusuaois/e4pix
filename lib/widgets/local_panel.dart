@@ -244,6 +244,8 @@ class _BrushControls extends ConsumerWidget {
     final hardness = ref.watch(brushHardnessProvider);
     final erase = ref.watch(brushEraseProvider);
     final flow = ref.watch(brushFlowProvider);
+    final auto = ref.watch(brushAutoMaskProvider);
+    final tol = ref.watch(brushToleranceProvider);
 
     return Column(
       children: [
@@ -315,6 +317,41 @@ class _BrushControls extends ConsumerWidget {
           formatter: (v) => (v * 100).round().toString(),
           onChanged: (v) => ref.read(brushFlowProvider.notifier).state = v,
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 64,
+                child: Text(
+                  tr("localBrushAutoMask"),
+                  style: TextStyle(fontSize: 11.5),
+                ),
+              ),
+              Switch(
+                value: auto,
+                onChanged: (v) =>
+                    ref.read(brushAutoMaskProvider.notifier).state = v,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              const Spacer(),
+              Text(
+                tr("localBrushEdgeSnap"),
+                style: TextStyle(fontSize: 10, color: Colors.white38),
+              ),
+            ],
+          ),
+        ),
+        if (auto)
+          _MiniSlider(
+            label: tr("localBrushAutoMaskTolerance"),
+            value: tol,
+            min: 0.02,
+            max: 0.6,
+            formatter: (v) => (v * 100).round().toString(),
+            onChanged: (v) =>
+                ref.read(brushToleranceProvider.notifier).state = v,
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
           child: Row(

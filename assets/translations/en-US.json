@@ -178,5 +178,8 @@
   "localBrushHardness": "Hardness",
   "localBrushStroke": "Stroke: {}",
   "localBrushStrokeClear": "Clear",
-  "localBrushFlow": "Flow"
+  "localBrushFlow": "Flow",
+  "localBrushAutoMask": "Auto Mask",
+  "localBrushEdgeSnap": "Edge Snap",
+  "localBrushAutoMaskTolerance": "Tolerance"
 }

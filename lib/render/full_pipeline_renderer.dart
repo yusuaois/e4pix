@@ -100,6 +100,36 @@ class FullPipelineRenderer {
       }
     }
 
+    // 自动蒙版引导图：develop+crop 输出像素，仅当存在 auto 笔画时读一次
+    Uint8List? guideBytes;
+    int guideW = current.width;
+    int guideH = current.height;
+    int guideEpoch = 0;
+    final needGuide = enabledLocals.any((l) {
+      final m = l.mask;
+      return m is BrushMask && m.strokes.any((s) => s.autoMask);
+    });
+    if (needGuide) {
+      try {
+        final bd = await current.toByteData(format: ui.ImageByteFormat.rawRgba);
+        guideBytes = bd?.buffer.asUint8List();
+        guideW = current.width;
+        guideH = current.height;
+        guideEpoch = Object.hash(
+          identityHashCode(sourceImage),
+          params.copyWith(crop: CropParams.identity, locals: const []),
+          identityHashCode(lutTexture),
+          lutSize,
+          targetWidth,
+          targetHeight,
+          params.crop,
+        );
+      } catch (e) {
+        debugPrint('Guide readback failed: $e');
+        guideBytes = null;
+      }
+    }
+
     // mask passes
     for (final local in enabledLocals) {
       try {
@@ -114,6 +144,10 @@ class FullPipelineRenderer {
               shape,
               current.width,
               current.height,
+              guideBytes: guideBytes,
+              guideWidth: guideW,
+              guideHeight: guideH,
+              guideEpoch: guideEpoch,
             );
             maskTexOwned = false;
           } else {
@@ -121,6 +155,9 @@ class FullPipelineRenderer {
               shape,
               current.width,
               current.height,
+              guideBytes: guideBytes,
+              guideWidth: guideW,
+              guideHeight: guideH,
             );
             maskTexOwned = true;
           }

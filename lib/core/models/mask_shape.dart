@@ -185,6 +185,8 @@ class BrushStroke {
   final double hardness; // 0..1，1=硬边
   final double flow; // 流量 0..1，每笔沉积量
   final bool erase; // true=擦除
+  final bool autoMask; // 自动蒙版（边缘吸附）
+  final double tolerance; // 颜色容差 0..1，越大吸附范围越宽
 
   const BrushStroke({
     required this.points,
@@ -192,6 +194,8 @@ class BrushStroke {
     this.hardness = 0.8,
     this.flow = 1.0,
     this.erase = false,
+    this.autoMask = false,
+    this.tolerance = 0.15,
   });
 
   Map<String, dynamic> toJson() => {
@@ -200,6 +204,8 @@ class BrushStroke {
     'hardness': hardness,
     'flow': flow,
     'erase': erase,
+    'autoMask': autoMask,
+    'tolerance': tolerance,
   };
 
   factory BrushStroke.fromJson(Map<String, dynamic> j) => BrushStroke(
@@ -211,6 +217,8 @@ class BrushStroke {
     hardness: (j['hardness'] as num?)?.toDouble() ?? 0.8,
     flow: (j['flow'] as num?)?.toDouble() ?? 1.0,
     erase: j['erase'] as bool? ?? false,
+    autoMask: j['autoMask'] as bool? ?? false,
+    tolerance: (j['tolerance'] as num?)?.toDouble() ?? 0.15,
   );
 
   @override
@@ -219,12 +227,22 @@ class BrushStroke {
       (other is BrushStroke &&
           radius == other.radius &&
           hardness == other.hardness &&
+          flow == other.flow &&
           erase == other.erase &&
+          autoMask == other.autoMask &&
+          tolerance == other.tolerance &&
           listEquals(points, other.points));
 
   @override
-  int get hashCode =>
-      Object.hash(radius, hardness, erase, Object.hashAll(points));
+  int get hashCode => Object.hash(
+    radius,
+    hardness,
+    flow,
+    erase,
+    autoMask,
+    tolerance,
+    Object.hashAll(points),
+  );
 }
 
 @immutable

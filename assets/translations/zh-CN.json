@@ -178,5 +178,8 @@
   "localBrushHardness": "硬度",
   "localBrushStroke": "笔画: {}",
   "localBrushStrokeClear": "清除笔画",
-  "localBrushFlow": "流量"
+  "localBrushFlow": "流量",
+  "localBrushAutoMask": "自动蒙版",
+  "localBrushEdgeSnap": "边缘吸附",
+  "localBrushAutoMaskTolerance": "容差"
 }
