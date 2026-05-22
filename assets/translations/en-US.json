@@ -182,5 +182,6 @@
   "localBrushAutoMask": "Auto Mask",
   "localBrushEdgeSnap": "Edge Snap",
   "localBrushAutoMaskTolerance": "Tolerance",
-  "localBrushAutoMaskEdgeStrength": "Edge Strength"
+  "localBrushAutoMaskEdgeStrength": "Edge Strength",
+  "info": "Info"
 }

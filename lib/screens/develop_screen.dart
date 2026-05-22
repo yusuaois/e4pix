@@ -47,6 +47,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   String _libRawVersion = '';
   String? _libRawError;
   Offset _histogramPosition = const Offset(8, 8);
+  bool _immersiveOn = false;
   static const _miniHistogramW = 140.0;
   static const _miniHistogramH = 70.0;
 
@@ -55,6 +56,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     super.initState();
     _libRawVersion = tr('loading');
     _probeFfi();
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
   }
 
   void _probeFfi() {
@@ -470,13 +477,26 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final isVertical =
         MediaQuery.of(context).size.width < 600 &&
         MediaQuery.of(context).orientation == Orientation.portrait;
+    final landscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    if (landscape != _immersiveOn) {
+      _immersiveOn = landscape;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        SystemChrome.setEnabledSystemUIMode(
+          landscape
+              ? SystemUiMode
+                    .immersiveSticky // 横屏：隐藏状态/导航栏，下拉临时显示后自动收起
+              : SystemUiMode.edgeToEdge, // 竖屏：正常显示
+        );
+      });
+    }
     final isFullscreen = ref.watch(fullscreenPreviewProvider);
     ref.listen(cameraNotifierProvider, (prev, next) {
       if (next.lastError != null && prev?.lastError != next.lastError) {
         _snack(tr('cameraError', args: [next.lastError!]));
       }
     });
-
     if (isFullscreen) {
       return _buildFullscreen();
     }

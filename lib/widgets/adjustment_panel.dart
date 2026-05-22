@@ -62,7 +62,6 @@ class AdjustmentPanel extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SectionLabel(title: 'PRESET'),
             const SizedBox(height: 4),
             if (presetBar != null)
               Padding(
@@ -73,6 +72,8 @@ class AdjustmentPanel extends ConsumerWidget {
         );
       case DevelopTool.local:
         return const LocalPanel();
+      case DevelopTool.info:
+        return info ?? const SizedBox.shrink();
     }
   }
 
@@ -104,14 +105,7 @@ class AdjustmentPanel extends ConsumerWidget {
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.only(top: 8, bottom: 24),
-                      children: [
-                        if (info != null) ...[
-                          info!,
-                          const Divider(height: 1, color: Colors.white12),
-                          const SizedBox(height: 4),
-                        ],
-                        _section(tool),
-                      ],
+                      children: [_section(tool)],
                     ),
                   ),
                 ],
@@ -157,6 +151,29 @@ class _ToolRail extends StatelessWidget {
           children: [
             const SizedBox(height: 8),
             _RailItem(
+              icon: Icons.info_outline,
+              tooltip: tr('info'),
+              selected: selected == DevelopTool.info,
+              onTap: () => onSelect(DevelopTool.info),
+            ),
+            if (onEnterCrop != null)
+              _RailItem(
+                icon: Icons.crop,
+                tooltip: tr('crop'),
+                onTap: onEnterCrop!,
+              ),
+            _RailItem(
+              icon: Icons.refresh,
+              tooltip: tr("reset"),
+              onTap: onReset,
+            ),
+            const Divider(
+              height: 14,
+              indent: 10,
+              endIndent: 10,
+              color: Colors.white12,
+            ),
+            _RailItem(
               icon: Icons.light_mode_outlined,
               tooltip: tr('light'),
               selected: selected == DevelopTool.light,
@@ -192,24 +209,6 @@ class _ToolRail extends StatelessWidget {
               selected: selected == DevelopTool.local,
               onTap: () => onSelect(DevelopTool.local),
             ),
-            if (onEnterCrop != null) ...[
-              const Divider(
-                height: 14,
-                indent: 10,
-                endIndent: 10,
-                color: Colors.white12,
-              ),
-              _RailItem(
-                icon: Icons.crop,
-                tooltip: tr('crop'),
-                onTap: onEnterCrop!,
-              ),
-              _RailItem(
-                icon: Icons.refresh,
-                tooltip: tr("reset"),
-                onTap: onReset,
-              ),
-            ],
             const SizedBox(height: 8),
           ],
         ),

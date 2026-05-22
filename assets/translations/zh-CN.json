@@ -182,5 +182,6 @@
   "localBrushAutoMask": "自动蒙版",
   "localBrushEdgeSnap": "边缘吸附",
   "localBrushAutoMaskTolerance": "容差",
-  "localBrushAutoMaskEdgeStrength": "边缘强度"
+  "localBrushAutoMaskEdgeStrength": "边缘强度",
+  "info": "信息"
 }

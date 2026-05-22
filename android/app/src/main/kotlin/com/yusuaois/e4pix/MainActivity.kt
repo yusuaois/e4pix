@@ -1,6 +1,9 @@
 package com.yusuaois.e4pix
 
+import android.os.Build
+import android.os.Bundle
 import android.util.Log
+import android.view.WindowManager
 import com.yusuaois.e4pix.camera.E4pixCameraPlugin
 import com.yusuaois.e4pix.camera.GPhoto2Native
 import io.flutter.embedding.android.FlutterActivity
@@ -23,5 +26,15 @@ class MainActivity : FlutterActivity() {
 
         // Register MethodChannel
         E4pixCameraPlugin(this, flutterEngine.dartExecutor.binaryMessenger)
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
     }
 }
