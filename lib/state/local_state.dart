@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -100,12 +102,23 @@ class LocalAdjustmentActions {
     });
   }
 
-  /// 清空指定画笔 mask 的所有笔画
+  /// 清空笔画（保留智能区域基底）
   void clearBrushStrokes(String id) {
     updateLocal(id, (l) {
       final m = l.mask;
       if (m is! BrushMask) return l;
-      return l.copyWith(mask: const BrushMask());
+      return l.copyWith(mask: m.copyWith(strokes: const []));
+    });
+  }
+
+  /// 设置智能区域 / AI 基底栅格
+  void setBaseRaster(String id, Uint8List raster, int w, int h) {
+    updateLocal(id, (l) {
+      final m = l.mask;
+      if (m is! BrushMask) return l;
+      return l.copyWith(
+        mask: m.copyWith(baseRaster: raster, baseW: w, baseH: h),
+      );
     });
   }
 
@@ -140,6 +153,15 @@ class LocalAdjustmentActions {
   /// 取消选中（返回到全局调整面板）
   void deselect() {
     ref.read(selectedLocalIdProvider.notifier).state = null;
+  }
+
+  /// 清除智能区域基底（保留笔画）
+  void clearBaseRaster(String id) {
+    updateLocal(id, (l) {
+      final m = l.mask;
+      if (m is! BrushMask) return l;
+      return l.copyWith(mask: BrushMask(strokes: m.strokes));
+    });
   }
 }
 

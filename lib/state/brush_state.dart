@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/legacy.dart';
 
+/// 画笔模式：手绘 / 智能区域
+enum BrushMode { paint, wand }
+
 /// 笔刷半径（归一化，相对输出宽度）
 final brushRadiusProvider = StateProvider<double>((ref) => 0.08);
 
@@ -20,3 +23,14 @@ final brushToleranceProvider = StateProvider<double>((ref) => 0.15);
 
 /// 自动蒙版边缘强度 0..1（导向滤波贴边强度，越大越贴合图像边缘）
 final brushEdgeStrengthProvider = StateProvider<double>((ref) => 0.6);
+
+final brushModeProvider = StateProvider<BrushMode>((ref) => BrushMode.paint);
+
+/// 智能区域颜色容差 0..1
+final wandToleranceProvider = StateProvider<double>((ref) => 0.12);
+
+/// 智能区域反选（选背景）
+final wandInvertProvider = StateProvider<bool>((ref) => false);
+
+/// 智能区域计算中
+final wandBusyProvider = StateProvider<bool>((ref) => false);

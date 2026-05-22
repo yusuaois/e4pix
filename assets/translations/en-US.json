@@ -183,5 +183,9 @@
   "localBrushEdgeSnap": "Edge Snap",
   "localBrushAutoMaskTolerance": "Tolerance",
   "localBrushAutoMaskEdgeStrength": "Edge Strength",
+  "localBrushIntellgentArea": "Intelligent Area",
+  "localBrushIntellgentAreaCalculating": "Calculating...",
+  "localBrushIntellgentAreaHint": "Click to select intelligent area",
+  "localBrushIntellgentAreaInverse": "Inverse",
   "info": "Info"
 }

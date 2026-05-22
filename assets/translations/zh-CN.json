@@ -183,5 +183,11 @@
   "localBrushEdgeSnap": "边缘吸附",
   "localBrushAutoMaskTolerance": "容差",
   "localBrushAutoMaskEdgeStrength": "边缘强度",
+  "localBrushIntellgentArea": "智能区域",
+  "localBrushIntellgentAreaCalculating": "计算中…",
+  "localBrushIntellgentAreaHint": "点击图像选择相近色区域",
+  "localBrushIntellgentAreaInverse": "反选(背景)",
+  "localBrushIntellgentAreaClear": "清除区域",
+  "localBrushIntellgentAreaChosen": "  ·  智能区域已选",
   "info": "信息"
 }

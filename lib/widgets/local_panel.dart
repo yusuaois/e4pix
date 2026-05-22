@@ -240,6 +240,152 @@ class _BrushControls extends ConsumerWidget {
     final mask = local.mask;
     if (mask is! BrushMask) return const SizedBox.shrink();
 
+    final mode = ref.watch(brushModeProvider);
+    final busy = ref.watch(wandBusyProvider);
+
+    return Column(
+      children: [
+        // 模式：画笔 / 智能区域
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: SegmentedButton<BrushMode>(
+            segments: [
+              ButtonSegment(
+                value: BrushMode.paint,
+                label: Text(tr("brush"), style: TextStyle(fontSize: 11)),
+                icon: Icon(Icons.brush, size: 14),
+              ),
+              ButtonSegment(
+                value: BrushMode.wand,
+                label: Text(
+                  tr("localBrushIntellgentArea"),
+                  style: TextStyle(fontSize: 11),
+                ),
+                icon: Icon(Icons.auto_fix_high, size: 14),
+              ),
+            ],
+            selected: {mode},
+            showSelectedIcon: false,
+            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            onSelectionChanged: (s) =>
+                ref.read(brushModeProvider.notifier).state = s.first,
+          ),
+        ),
+        if (mode == BrushMode.wand)
+          _wandControls(ref, busy)
+        else
+          _paintControls(ref),
+        // 笔画数 + 清除（两种模式都可微调）
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${tr("localBrushStroke", args: ["${mask.strokes.length}"])}${mask.baseRaster != null ? tr("localBrushIntellgentAreaChosen") : ""}',
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: Colors.white38,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (mask.baseRaster != null)
+                  TextButton(
+                    onPressed: () =>
+                        LocalAdjustmentActions(ref).clearBaseRaster(local.id),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: Text(
+                      tr("localBrushIntellgentAreaClear"),
+                      style: TextStyle(fontSize: 11),
+                    ),
+                  ),
+                if (mask.strokes.isNotEmpty)
+                  TextButton(
+                    onPressed: () =>
+                        LocalAdjustmentActions(ref).clearBrushStrokes(local.id),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: Text(
+                      tr("localBrushStrokeClear"),
+                      style: TextStyle(fontSize: 11),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _wandControls(WidgetRef ref, bool busy) {
+    final tol = ref.watch(wandToleranceProvider);
+    final invert = ref.watch(wandInvertProvider);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
+          child: Row(
+            children: [
+              Icon(
+                busy ? Icons.hourglass_top : Icons.touch_app,
+                size: 13,
+                color: Colors.white54,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  busy
+                      ? tr("localBrushIntellgentAreaCalculating")
+                      : tr("localBrushIntellgentAreaHint"),
+                  style: const TextStyle(fontSize: 10.5, color: Colors.white54),
+                ),
+              ),
+            ],
+          ),
+        ),
+        _MiniSlider(
+          label: tr("localBrushAutoMaskTolerance"),
+          value: tol,
+          min: 0.02,
+          max: 0.5,
+          formatter: (v) => (v * 100).round().toString(),
+          onChanged: (v) => ref.read(wandToleranceProvider.notifier).state = v,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 64,
+                child: Text(
+                  tr("localBrushIntellgentAreaInverse"),
+                  style: TextStyle(fontSize: 11.5),
+                ),
+              ),
+              Switch(
+                value: invert,
+                onChanged: (v) =>
+                    ref.read(wandInvertProvider.notifier).state = v,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _paintControls(WidgetRef ref) {
     final radius = ref.watch(brushRadiusProvider);
     final hardness = ref.watch(brushHardnessProvider);
     final erase = ref.watch(brushEraseProvider);
@@ -250,9 +396,8 @@ class _BrushControls extends ConsumerWidget {
 
     return Column(
       children: [
-        // 加 / 擦
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
           child: Row(
             children: [
               SizedBox(
@@ -363,31 +508,6 @@ class _BrushControls extends ConsumerWidget {
                 ref.read(brushEdgeStrengthProvider.notifier).state = v,
           ),
         ],
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
-          child: Row(
-            children: [
-              Text(
-                tr("localBrushStroke", args: ["${mask.strokes.length}"]),
-                style: const TextStyle(fontSize: 10.5, color: Colors.white38),
-              ),
-              const Spacer(),
-              if (mask.strokes.isNotEmpty)
-                TextButton(
-                  onPressed: () =>
-                      LocalAdjustmentActions(ref).clearBrushStrokes(local.id),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                  child: Text(
-                    tr("localBrushStrokeClear"),
-                    style: TextStyle(fontSize: 11),
-                  ),
-                ),
-            ],
-          ),
-        ),
       ],
     );
   }

@@ -92,11 +92,12 @@ Future<ui.Image> rasterizeBrushMask(
   int guideHeight = 0,
 }) async {
   final hasAuto = mask.strokes.any((s) => s.autoMask);
+  final hasBase = mask.baseRaster != null && mask.baseW > 0 && mask.baseH > 0;
   final guideOk = guideBytes != null && guideWidth == w && guideHeight == h;
-  if (!hasAuto || !guideOk) {
+  if (!hasAuto && !hasBase) {
     return _rasterizeGeometric(mask, w, h);
   }
-  return _rasterizeAuto(mask, w, h, guideBytes);
+  return _rasterizeCpu(mask, w, h, guideOk ? guideBytes : null);
 }
 
 Future<ui.Image> _rasterizeGeometric(BrushMask mask, int w, int h) async {
@@ -161,18 +162,52 @@ Future<ui.Image> _rasterizeGeometric(BrushMask mask, int w, int h) async {
   return image;
 }
 
-// ── CPU 距离场路径（含 auto）：逐笔 几何 × 局部参考色 × 导向滤波 × flow ──
-Future<ui.Image> _rasterizeAuto(
+// ── CPU 路径（含 auto 或 含基底）：基底起步 → 逐笔 几何×局部参考色×导向滤波×flow ──
+Future<ui.Image> _rasterizeCpu(
   BrushMask mask,
   int w,
   int h,
-  Uint8List guide,
+  Uint8List? guide,
 ) async {
   final acc = Float32List(w * h);
+
+  // 基底（智能区域结果）双线性放大到 (w,h)
+  final base = mask.baseRaster;
+  if (base != null && mask.baseW > 0 && mask.baseH > 0) {
+    final bw = mask.baseW, bh = mask.baseH;
+    for (int y = 0; y < h; y++) {
+      double fy = (y + 0.5) / h * bh - 0.5;
+      int y0 = fy.floor();
+      final wy = fy - y0;
+      int y1 = y0 + 1;
+      if (y0 < 0) y0 = 0;
+      if (y1 < 0) y1 = 0;
+      if (y0 > bh - 1) y0 = bh - 1;
+      if (y1 > bh - 1) y1 = bh - 1;
+      for (int x = 0; x < w; x++) {
+        double fx = (x + 0.5) / w * bw - 0.5;
+        int x0 = fx.floor();
+        final wx = fx - x0;
+        int x1 = x0 + 1;
+        if (x0 < 0) x0 = 0;
+        if (x1 < 0) x1 = 0;
+        if (x0 > bw - 1) x0 = bw - 1;
+        if (x1 > bw - 1) x1 = bw - 1;
+        final v00 = base[y0 * bw + x0].toDouble();
+        final v01 = base[y0 * bw + x1].toDouble();
+        final v10 = base[y1 * bw + x0].toDouble();
+        final v11 = base[y1 * bw + x1].toDouble();
+        final top = v00 + (v01 - v00) * wx;
+        final bot = v10 + (v11 - v10) * wx;
+        acc[y * w + x] = (top + (bot - top) * wy) / 255.0;
+      }
+    }
+  }
 
   for (final stroke in mask.strokes) {
     final flow = stroke.flow.clamp(0.0, 1.0);
     if (flow <= 0 || stroke.points.isEmpty) continue;
+    final useAuto = stroke.autoMask && guide != null;
 
     final radiusPx = stroke.radius * w;
     if (radiusPx < 0.5) continue;
@@ -198,10 +233,10 @@ Future<ui.Image> _rasterizeAuto(
     final bw = x1 - x0 + 1;
     final bh = y1 - y0 + 1;
 
-    final sw = Float32List(bw * bh); // 本笔权重
+    final sw = Float32List(bw * bh);
     Int32List? nearestSeg;
     List<double>? refR, refG, refB;
-    if (stroke.autoMask) {
+    if (useAuto) {
       nearestSeg = Int32List(bw * bh)..fillRange(0, bw * bh, -1);
       refR = List.filled(pts.length, 0);
       refG = List.filled(pts.length, 0);
@@ -216,7 +251,6 @@ Future<ui.Image> _rasterizeAuto(
       }
     }
 
-    // 几何 falloff（记录最近段）
     final segCount = pts.length == 1 ? 1 : pts.length - 1;
     for (int s = 0; s < segCount; s++) {
       final ax = pts[s].dx * w, ay = pts[s].dy * h;
@@ -244,8 +278,7 @@ Future<ui.Image> _rasterizeAuto(
       }
     }
 
-    // 颜色调制（局部参考色：最近段两端点采样均值）
-    if (stroke.autoMask) {
+    if (useAuto) {
       final tol = stroke.tolerance.clamp(0.01, 1.0);
       for (int li = 0; li < sw.length; li++) {
         if (sw[li] <= 0) continue;
@@ -266,17 +299,12 @@ Future<ui.Image> _rasterizeAuto(
         final dist = math.sqrt(dr * dr + dg * dg + db * db) / 1.7320508;
         sw[li] = sw[li] * _colorFalloff(dist, tol);
       }
-    }
-
-    // 导向滤波（逐笔；边缘强度 → eps）
-    if (stroke.autoMask) {
       final strength = stroke.edgeStrength.clamp(0.0, 1.0);
       final eps = 0.05 * math.pow(0.01, strength).toDouble();
       final r = (w * 0.006).round().clamp(2, 32);
       _fastGuidedRefineBuf(sw, guide, w, x0, y0, bw, bh, r, eps);
     }
 
-    // flow + 合成
     for (int j = 0; j < bh; j++) {
       final gy = y0 + j;
       for (int i = 0; i < bw; i++) {
@@ -517,4 +545,16 @@ double _colorFalloff(double dist, double tol) {
   if (t <= 0) return 1.0;
   if (t >= 1) return 0.0;
   return 1.0 - t * t * (3 - 2 * t);
+}
+
+/// 对整张 mask 跑导向滤波收边（智能区域服务用）
+void refineMaskEdges(
+  Float32List mask,
+  Uint8List guide,
+  int w,
+  int h,
+  int r,
+  double eps,
+) {
+  _fastGuidedRefineBuf(mask, guide, w, 0, 0, w, h, r, eps);
 }

@@ -254,15 +254,37 @@ class BrushStroke {
 @immutable
 class BrushMask extends MaskShape {
   final List<BrushStroke> strokes;
+  final Uint8List? baseRaster;
+  final int baseW;
+  final int baseH;
 
-  const BrushMask({this.strokes = const []});
+  const BrushMask({
+    this.strokes = const [],
+    this.baseRaster,
+    this.baseW = 0,
+    this.baseH = 0,
+  });
 
-  BrushMask copyWith({List<BrushStroke>? strokes}) =>
-      BrushMask(strokes: strokes ?? this.strokes);
+  BrushMask copyWith({
+    List<BrushStroke>? strokes,
+    Uint8List? baseRaster,
+    int? baseW,
+    int? baseH,
+  }) => BrushMask(
+    strokes: strokes ?? this.strokes,
+    baseRaster: baseRaster ?? this.baseRaster,
+    baseW: baseW ?? this.baseW,
+    baseH: baseH ?? this.baseH,
+  );
 
-  BrushMask addStroke(BrushStroke s) => BrushMask(strokes: [...strokes, s]);
+  BrushMask addStroke(BrushStroke s) => BrushMask(
+    strokes: [...strokes, s],
+    baseRaster: baseRaster,
+    baseW: baseW,
+    baseH: baseH,
+  );
 
-  bool get isEmpty => strokes.isEmpty;
+  bool get isEmpty => strokes.isEmpty && baseRaster == null;
 
   @override
   Map<String, dynamic> toJson() => {
@@ -283,8 +305,17 @@ class BrushMask extends MaskShape {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is BrushMask && listEquals(strokes, other.strokes));
+      (other is BrushMask &&
+          baseW == other.baseW &&
+          baseH == other.baseH &&
+          identical(baseRaster, other.baseRaster) &&
+          listEquals(strokes, other.strokes));
 
   @override
-  int get hashCode => Object.hashAll(strokes);
+  int get hashCode => Object.hash(
+    Object.hashAll(strokes),
+    identityHashCode(baseRaster),
+    baseW,
+    baseH,
+  );
 }
