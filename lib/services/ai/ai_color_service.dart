@@ -337,8 +337,9 @@ class AIColorService {
     }
 
     final adjMap = obj['adjustments'];
-    if (adjMap is! Map)
+    if (adjMap is! Map) {
       throw AIException(tr("aiColorSuggestionLackAdjustments"));
+    }
 
     final hslMap = obj['hsl'];
 

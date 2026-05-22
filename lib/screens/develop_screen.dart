@@ -723,6 +723,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       : _buildHistogram(program, image),
                   presetBar: const PresetBar(),
                   info: _buildPanelInfo(),
+                  onEnterCrop: () => enterCropMode(ref),
                 ),
             ],
           ),
@@ -935,12 +936,14 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               tooltip: tr('redo'),
               onPressed: hist.canRedo ? notifier.redo : null,
             ),
-            if (!isVertical) const VerticalDivider(width: 1),
-            compactIcon(
-              icon: Icons.crop,
-              tooltip: tr('crop'),
-              onPressed: () => enterCropMode(ref),
-            ),
+            if (!isVertical)
+              const VerticalDivider(width: 1)
+            else
+              compactIcon(
+                icon: Icons.crop,
+                tooltip: tr('crop'),
+                onPressed: () => enterCropMode(ref),
+              ),
             const CompareButton(),
           ],
           // 相机活动状态始终显示
