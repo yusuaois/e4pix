@@ -100,14 +100,14 @@ class SmartRegionService {
     final sg = guide[si * 4 + 1].toDouble();
     final sb = guide[si * 4 + 2].toDouble();
 
-    // 局部边缘阈值：跨过强色阶就停（停在山脉/地平线的关键）
-    final edgeStop = 0.045 + tol * 0.20;
+    final grad = _sobelMag(guide, w, h);
+    // 边缘屏障：梯度超过即不跨越
+    final gradThr = 0.07 + tol * 0.35;
 
-    double dist(double r1, double g1, double b1, double r2, double g2,
-        double b2) {
-      final dr = (r1 - r2) / 255.0;
-      final dg = (g1 - g2) / 255.0;
-      final db = (b1 - b2) / 255.0;
+    double dseed(int b) {
+      final dr = (guide[b * 4] - sr) / 255.0;
+      final dg = (guide[b * 4 + 1] - sg) / 255.0;
+      final db = (guide[b * 4 + 2] - sb) / 255.0;
       return math.sqrt(dr * dr + dg * dg + db * db) / 1.7320508;
     }
 
@@ -120,28 +120,51 @@ class SmartRegionService {
     while (stack.isNotEmpty) {
       final a = stack.removeLast();
       final ax = a % w, ay = a ~/ w;
-      final ar = guide[a * 4].toDouble();
-      final ag = guide[a * 4 + 1].toDouble();
-      final ab = guide[a * 4 + 2].toDouble();
       for (int ny = ay - 1; ny <= ay + 1; ny++) {
         if (ny < 0 || ny >= h) continue;
         for (int nx = ax - 1; nx <= ax + 1; nx++) {
           if (nx < 0 || nx >= w) continue;
           final b = ny * w + nx;
           if (visited[b] == 1) continue;
-          final br = guide[b * 4].toDouble();
-          final bg = guide[b * 4 + 1].toDouble();
-          final bb = guide[b * 4 + 2].toDouble();
-          // 判据1：与种子整体相近（松）
-          if (dist(br, bg, bb, sr, sg, sb) > tol) continue;
-          // 判据2：与当前像素局部相近，不跨边缘（关键）
-          if (dist(br, bg, bb, ar, ag, ab) > edgeStop) continue;
-          visited[b] = 1; // 只对纳入的标记，失败像素留待其他更平滑路径
+          if (dseed(b) > tol) continue; // 与种子色相近
+          if (grad[b] > gradThr) continue; // 不跨越强边缘
+          visited[b] = 1;
           out[b] = 1.0;
           stack.add(b);
         }
       }
     }
     return out;
+  }
+
+  // 亮度 Sobel 梯度幅值（0..~1），用作边缘屏障
+  static Float32List _sobelMag(Uint8List guide, int w, int h) {
+    final lum = Float32List(w * h);
+    for (int i = 0; i < w * h; i++) {
+      final o = i * 4;
+      lum[i] =
+          (0.299 * guide[o] + 0.587 * guide[o + 1] + 0.114 * guide[o + 2]) /
+          255.0;
+    }
+    final mag = Float32List(w * h);
+    for (int y = 0; y < h; y++) {
+      final ym = y > 0 ? y - 1 : 0;
+      final yp = y < h - 1 ? y + 1 : h - 1;
+      for (int x = 0; x < w; x++) {
+        final xm = x > 0 ? x - 1 : 0;
+        final xp = x < w - 1 ? x + 1 : w - 1;
+        final tl = lum[ym * w + xm],
+            tc = lum[ym * w + x],
+            tr = lum[ym * w + xp];
+        final ml = lum[y * w + xm], mr = lum[y * w + xp];
+        final bl = lum[yp * w + xm],
+            bc = lum[yp * w + x],
+            br = lum[yp * w + xp];
+        final gx = (tr + 2 * mr + br) - (tl + 2 * ml + bl);
+        final gy = (bl + 2 * bc + br) - (tl + 2 * tc + tr);
+        mag[y * w + x] = math.sqrt(gx * gx + gy * gy) / 4.0;
+      }
+    }
+    return mag;
   }
 }

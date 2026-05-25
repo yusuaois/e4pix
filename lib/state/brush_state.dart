@@ -27,7 +27,7 @@ final brushEdgeStrengthProvider = StateProvider<double>((ref) => 0.6);
 final brushModeProvider = StateProvider<BrushMode>((ref) => BrushMode.paint);
 
 /// 智能区域颜色容差 0..1
-final wandToleranceProvider = StateProvider<double>((ref) => 0.12);
+final wandToleranceProvider = StateProvider<double>((ref) => 0.08);
 
 /// 智能区域反选（选背景）
 final wandInvertProvider = StateProvider<bool>((ref) => false);

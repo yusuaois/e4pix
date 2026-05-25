@@ -357,7 +357,7 @@ class _BrushControls extends ConsumerWidget {
           label: tr("localBrushAutoMaskTolerance"),
           value: tol,
           min: 0.02,
-          max: 0.5,
+          max: 0.4,
           formatter: (v) => (v * 100).round().toString(),
           onChanged: (v) => ref.read(wandToleranceProvider.notifier).state = v,
         ),
