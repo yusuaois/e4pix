@@ -467,11 +467,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
       // 计算目标透明度 (0 ~ 114)
       final a = (base[i] * 0.45).round();
 
-      // 核心修复：对 RGB 进行手动预乘 (Premultiplied Alpha)
-      // 这可以防止 Skia/Impeller 引擎在 A=0 但 RGB>0 时渲染出实心色块
       rgba[o] = (0x6B * a) ~/ 255; // R
       rgba[o + 1] = (0x5B * a) ~/ 255; // G
-      rgba[o + 2] = a; // B (0xFF * a ~/ 255 简化后即为 a)
+      rgba[o + 2] = a; // B
       rgba[o + 3] = a; // A
     }
 
@@ -621,7 +619,6 @@ class _MasksPainter extends CustomPainter {
     if (m.strokes.isEmpty && !hasIp && !hasBase) return;
     final tint = _purple.withValues(alpha: selected ? 0.22 : 0.10);
 
-    // 基底 + 笔画 放进同一 layer：擦除(dstOut) 才能把基底也抠掉
     canvas.saveLayer(Offset.zero & displaySize, Paint());
     if (hasBase) {
       canvas.drawImageRect(

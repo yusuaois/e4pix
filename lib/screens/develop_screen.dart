@@ -1500,7 +1500,6 @@ class _PreviewArea extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    // Overlay 画在 oriented 后的画布上
                     SizedBox.fromSize(
                       size: displaySize,
                       child: CropOverlay(imageDisplaySize: displaySize),
@@ -1535,6 +1534,7 @@ class _PreviewArea extends ConsumerWidget {
     Widget wrapOverlay(Widget content, Size displaySize) {
       if (selectedLocalId == null) return content;
       return Stack(
+        fit: StackFit.expand,
         children: [
           content,
           Positioned.fill(

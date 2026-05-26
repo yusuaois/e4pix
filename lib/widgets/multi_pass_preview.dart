@@ -158,11 +158,16 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   @override
   Widget build(BuildContext context) {
     if (_rendered == null) {
-      return const Stack(
-        alignment: Alignment.center,
-        children: [CircularProgressIndicator(strokeWidth: 2)],
+      return const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
       );
     }
-    return RawImage(image: _rendered, fit: BoxFit.contain);
+    return SizedBox.expand(
+      child: RawImage(image: _rendered, fit: BoxFit.fill),
+    );
   }
 }
