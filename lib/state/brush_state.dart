@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/legacy.dart';
 
-/// 画笔模式：手绘 / 智能区域
-enum BrushMode { paint, wand }
+/// 画笔模式：手绘 / 智能区域(颜色) / 主体(模型分割)
+enum BrushMode { paint, wand, subject }
 
 /// 笔刷半径（归一化，相对输出宽度）
 final brushRadiusProvider = StateProvider<double>((ref) => 0.08);
@@ -34,3 +34,9 @@ final wandInvertProvider = StateProvider<bool>((ref) => false);
 
 /// 智能区域计算中
 final wandBusyProvider = StateProvider<bool>((ref) => false);
+
+/// 主体分割(模型)计算中
+final samBusyProvider = StateProvider<bool>((ref) => false);
+
+/// 模型不可用（缺模型/加载失败）
+final samUnavailableProvider = StateProvider<bool>((ref) => false);

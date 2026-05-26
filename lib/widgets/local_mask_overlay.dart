@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
 import '../services/smart_region_service.dart';
+import '../services/segmentation_service.dart';
 import '../state/brush_state.dart';
 import '../state/interaction_state.dart';
 import '../state/local_state.dart';
@@ -45,6 +46,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
   bool _brushDidMove = false;
   bool _interactionWasBrush = false;
   bool _interactionWasWand = false;
+  bool _interactionWasSubject = false;
 
   static const double _hitRadius = 14;
 
@@ -194,6 +196,26 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     }
   }
 
+  Future<void> _runSubject(Offset pos) async {
+    final id = ref.read(selectedLocalIdProvider);
+    if (id == null) return;
+    final invert = ref.read(wandInvertProvider);
+    ref.read(samBusyProvider.notifier).state = true;
+    try {
+      final ok = await SegmentationService.compute(
+        ref,
+        maskId: id,
+        seed: _screenToMask(pos),
+        invert: invert,
+      );
+      if (!ok && mounted) {
+        ref.read(samUnavailableProvider.notifier).state = true;
+      }
+    } finally {
+      if (mounted) ref.read(samBusyProvider.notifier).state = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final params = ref.watch(currentParamsNotifierProvider);
@@ -202,9 +224,10 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final mode = ref.watch(brushModeProvider);
     final isBrush = selected != null && selected.mask is BrushMask;
     final isWand = isBrush && mode == BrushMode.wand;
+    final isSubject = isBrush && mode == BrushMode.subject;
     final brushRadius = ref.watch(brushRadiusProvider);
     final brushErase = ref.watch(brushEraseProvider);
-    final busy = ref.watch(wandBusyProvider);
+    final busy = ref.watch(wandBusyProvider) || ref.watch(samBusyProvider);
 
     final selBrush = (selected?.mask is BrushMask)
         ? selected!.mask as BrushMask
@@ -216,9 +239,10 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final gesture = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onPanDown: (d) {
-        _interactionWasBrush = isBrush && !isWand;
+        _interactionWasBrush = isBrush && !isWand && !isSubject;
         _interactionWasWand = isWand;
-        if (_interactionWasWand) {
+        _interactionWasSubject = isSubject;
+        if (_interactionWasWand || _interactionWasSubject) {
           setState(() => _cursorScreen = d.localPosition);
           return;
         }
@@ -252,7 +276,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         }
       },
       onPanUpdate: (d) {
-        if (_interactionWasWand) {
+        if (_interactionWasWand || _interactionWasSubject) {
           setState(() => _cursorScreen = d.localPosition);
           return;
         }
@@ -268,7 +292,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         _applyDrag(d.localPosition);
       },
       onPanEnd: (_) {
-        if (_interactionWasWand) return;
+        if (_interactionWasWand || _interactionWasSubject) return;
         if (_interactionWasBrush) {
           _finishBrush();
           return;
@@ -276,7 +300,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         _endDrag();
       },
       onPanCancel: () {
-        if (_interactionWasWand) return;
+        if (_interactionWasWand || _interactionWasSubject) return;
         if (_interactionWasBrush) {
           _finishBrush();
           return;
@@ -286,6 +310,10 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
       onTapUp: (d) {
         if (_interactionWasWand) {
           _runWand(d.localPosition);
+          return;
+        }
+        if (_interactionWasSubject) {
+          _runSubject(d.localPosition);
           return;
         }
         if (_interactionWasBrush) {
@@ -311,7 +339,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           cursorScreen: (isBrush || isWand) ? _cursorScreen : null,
           brushRadiusNorm: brushRadius,
           brushErase: brushErase,
-          wandMode: isWand,
+          wandMode: isWand || isSubject,
           baseViz: isBrush ? _baseViz : null,
         ),
       ),

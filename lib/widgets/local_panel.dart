@@ -263,6 +263,11 @@ class _BrushControls extends ConsumerWidget {
                 ),
                 icon: Icon(Icons.auto_fix_high, size: 14),
               ),
+              ButtonSegment(
+                value: BrushMode.subject,
+                label: Text('主体', style: TextStyle(fontSize: 11)),
+                icon: Icon(Icons.center_focus_strong, size: 14),
+              ),
             ],
             selected: {mode},
             showSelectedIcon: false,
@@ -273,6 +278,8 @@ class _BrushControls extends ConsumerWidget {
         ),
         if (mode == BrushMode.wand)
           _wandControls(ref, busy)
+        else if (mode == BrushMode.subject)
+          _subjectControls(ref)
         else
           _paintControls(ref),
         // 笔画数 + 清除（两种模式都可微调）
@@ -371,6 +378,56 @@ class _BrushControls extends ConsumerWidget {
                   tr("localBrushIntellgentAreaInverse"),
                   style: TextStyle(fontSize: 11.5),
                 ),
+              ),
+              Switch(
+                value: invert,
+                onChanged: (v) =>
+                    ref.read(wandInvertProvider.notifier).state = v,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _subjectControls(WidgetRef ref) {
+    final busy = ref.watch(samBusyProvider);
+    final unavailable = ref.watch(samUnavailableProvider);
+    final invert = ref.watch(wandInvertProvider);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
+          child: Row(
+            children: [
+              Icon(
+                busy ? Icons.hourglass_top : Icons.touch_app,
+                size: 13,
+                color: Colors.white54,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  unavailable
+                      ? '模型未就绪（缺少模型文件）'
+                      : busy
+                      ? '分割中…'
+                      : '点击主体/区域，模型自动分割',
+                  style: const TextStyle(fontSize: 10.5, color: Colors.white54),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 64,
+                child: Text('反选(背景)', style: TextStyle(fontSize: 11.5)),
               ),
               Switch(
                 value: invert,
