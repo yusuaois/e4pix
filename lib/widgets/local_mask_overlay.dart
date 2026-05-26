@@ -54,13 +54,6 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     super.dispose();
   }
 
-  bool get _brushMode {
-    final s = ref.read(selectedLocalProvider);
-    return s != null && s.mask is BrushMask;
-  }
-
-  bool get _wandMode => ref.read(brushModeProvider) == BrushMode.wand;
-
   Offset _maskToScreen(double mx, double my) => Offset(
     mx * widget.imageDisplaySize.width,
     my * widget.imageDisplaySize.height,
@@ -471,18 +464,26 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final rgba = Uint8List(bw * bh * 4);
     for (int i = 0; i < bw * bh; i++) {
       final o = i * 4;
-      rgba[o] = 0x6B;
-      rgba[o + 1] = 0x5B;
-      rgba[o + 2] = 0xFF;
-      rgba[o + 3] = (base[i] * 0.45).round();
+      // 计算目标透明度 (0 ~ 114)
+      final a = (base[i] * 0.45).round();
+
+      // 核心修复：对 RGB 进行手动预乘 (Premultiplied Alpha)
+      // 这可以防止 Skia/Impeller 引擎在 A=0 但 RGB>0 时渲染出实心色块
+      rgba[o] = (0x6B * a) ~/ 255; // R
+      rgba[o + 1] = (0x5B * a) ~/ 255; // G
+      rgba[o + 2] = a; // B (0xFF * a ~/ 255 简化后即为 a)
+      rgba[o + 3] = a; // A
     }
+
     final c = Completer<ui.Image>();
     ui.decodeImageFromPixels(rgba, bw, bh, ui.PixelFormat.rgba8888, c.complete);
     final img = await c.future;
+
     if (!mounted) {
       img.dispose();
       return;
     }
+
     setState(() {
       _baseViz?.dispose();
       _baseViz = img;
@@ -616,10 +617,13 @@ class _MasksPainter extends CustomPainter {
     List<Offset>? inProgress,
   ) {
     final hasIp = inProgress != null && inProgress.isNotEmpty;
-    if (m.strokes.isEmpty && !hasIp && !(selected && baseViz != null)) return;
+    final hasBase = selected && baseViz != null;
+    if (m.strokes.isEmpty && !hasIp && !hasBase) return;
     final tint = _purple.withValues(alpha: selected ? 0.22 : 0.10);
 
-    if (selected && baseViz != null) {
+    // 基底 + 笔画 放进同一 layer：擦除(dstOut) 才能把基底也抠掉
+    canvas.saveLayer(Offset.zero & displaySize, Paint());
+    if (hasBase) {
       canvas.drawImageRect(
         baseViz!,
         Rect.fromLTWH(
@@ -632,8 +636,6 @@ class _MasksPainter extends CustomPainter {
         Paint(),
       );
     }
-
-    canvas.saveLayer(Offset.zero & displaySize, Paint());
     for (final s in m.strokes) {
       _overlayStroke(canvas, s.points, s.radius, s.erase, tint);
     }
