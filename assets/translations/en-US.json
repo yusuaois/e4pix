@@ -186,6 +186,12 @@
   "localBrushIntellgentArea": "Intelligent Area",
   "localBrushIntellgentAreaCalculating": "Calculating...",
   "localBrushIntellgentAreaHint": "Click to select intelligent area",
-  "localBrushIntellgentAreaInverse": "Inverse",
+  "localBrushInverse": "Inverse",
+  "localBrushIntellgentAreaClear": "Clear",
+  "localBrushIntellgentAreaChosen": "  ·  Chosen",
+  "localBrushSubject": "Subject",
+  "localBrushSubjectUnavailable": "Model Unavailable",
+  "localBrushSubjectDividing": "Dividing…",
+  "localBrushSubjectHint": "Click to select subject",
   "info": "Info"
 }

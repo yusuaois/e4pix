@@ -5,17 +5,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:onnxruntime/onnxruntime.dart';
 
-/// EdgeSAM 推理：encoder 跑一次缓存 embedding，decoder 按点快速跑。
+/// EdgeSAM
 class SamSession {
   SamSession._();
   static final SamSession instance = SamSession._();
 
-  // 资源路径（按需改名）
+  // 资源路径
   static const _encoderAsset = 'assets/models/edge_sam_3x_encoder.onnx';
   static const _decoderAsset = 'assets/models/edge_sam_3x_decoder.onnx';
   static const _inputSize = 1024;
 
-  // SAM 归一化（若模型已内置归一化，把这两行置 0/1）
+  // SAM 归一化
   static const _mean = [123.675, 116.28, 103.53];
   static const _std = [58.395, 57.12, 57.375];
 
@@ -26,7 +26,7 @@ class SamSession {
 
   // embedding 缓存
   Float32List? _emb;
-  final List<int> _embShape = const [1, 256, 64, 64];
+  List<int> _embShape = [1, 256, 64, 64];
   Object? _embSig;
   int _gw = 0, _gh = 0, _newW = 0, _newH = 0;
 
@@ -35,17 +35,23 @@ class SamSession {
     _initTried = true;
     try {
       OrtEnv.instance.init();
-      final encBytes =
-          (await rootBundle.load(_encoderAsset)).buffer.asUint8List();
-      final decBytes =
-          (await rootBundle.load(_decoderAsset)).buffer.asUint8List();
+      final encBytes = (await rootBundle.load(
+        _encoderAsset,
+      )).buffer.asUint8List();
+      final decBytes = (await rootBundle.load(
+        _decoderAsset,
+      )).buffer.asUint8List();
       final opt = OrtSessionOptions();
       _encoder = OrtSession.fromBuffer(encBytes, opt);
       _decoder = OrtSession.fromBuffer(decBytes, opt);
-      debugPrint('SAM encoder inputs=${_encoder!.inputNames} '
-          'outputs=${_encoder!.outputNames}');
-      debugPrint('SAM decoder inputs=${_decoder!.inputNames} '
-          'outputs=${_decoder!.outputNames}');
+      debugPrint(
+        'SAM encoder inputs=${_encoder!.inputNames} '
+        'outputs=${_encoder!.outputNames}',
+      );
+      debugPrint(
+        'SAM decoder inputs=${_decoder!.inputNames} '
+        'outputs=${_decoder!.outputNames}',
+      );
       return true;
     } catch (e) {
       debugPrint('SAM load failed: $e');
@@ -55,7 +61,6 @@ class SamSession {
     }
   }
 
-  /// 确保当前 guide 的 embedding 已就绪（签名命中则跳过）
   Future<void> ensureEmbedding({
     required Uint8List guide, // RGBA
     required int gw,
@@ -94,11 +99,15 @@ class SamSession {
     }
 
     final encIn = _encoder!.inputNames.first;
-    final t = OrtValueTensor.createTensorWithDataList(
-        input, [1, 3, _inputSize, _inputSize]);
+    final t = OrtValueTensor.createTensorWithDataList(input, [
+      1,
+      3,
+      _inputSize,
+      _inputSize,
+    ]);
     final ro = OrtRunOptions();
     final outs = _encoder!.run(ro, {encIn: t});
-    final emb = _toFloat32(outs[0]!.value, _embShape);
+    final (emb, embShape) = _toFloat32(outs[0]!.value);
     t.release();
     ro.release();
     for (final o in outs) {
@@ -106,6 +115,7 @@ class SamSession {
     }
 
     _emb = emb;
+    _embShape = embShape;
     _embSig = signature;
     _gw = gw;
     _gh = gh;
@@ -118,38 +128,35 @@ class SamSession {
     if (!available || _emb == null) return null;
     final gw = _gw, gh = _gh;
     final scale = _inputSize / math.max(gw, gh);
-    final px = (seedNorm.dx * gw) * scale; // 1024 空间的 x
-    final py = (seedNorm.dy * gh) * scale; // 1024 空间的 y
+    final px = (seedNorm.dx * gw) * scale;
+    final py = (seedNorm.dy * gh) * scale;
 
-    // EdgeSAM: 坐标 (height,width)=(y,x)，单个正样本点(label=1)，无填充点
-    // ⚠️ 若选区沿对角线镜像，把下一行的 [py, px] 改成 [px, py]
-    final coords = Float32List.fromList([py, px]);
+    final coords = Float32List.fromList([px, py]);
     final labels = Float32List.fromList([1]);
 
-    final emb =
-        OrtValueTensor.createTensorWithDataList(_emb!, _embShape);
-    final coordT =
-        OrtValueTensor.createTensorWithDataList(coords, [1, 1, 2]);
-    final labelT =
-        OrtValueTensor.createTensorWithDataList(labels, [1, 1]);
+    final emb = OrtValueTensor.createTensorWithDataList(_emb!, _embShape);
+    final coordT = OrtValueTensor.createTensorWithDataList(coords, [1, 1, 2]);
+    final labelT = OrtValueTensor.createTensorWithDataList(labels, [1, 1]);
 
     final created = <OrtValueTensor>[emb, coordT, labelT];
     final inNames = _decoder!.inputNames;
     final inputs = <String, OrtValue>{};
 
     if (inNames.length <= 3) {
-      // EdgeSAM：按顺序 [embeddings, coords, labels]
+      // [embeddings, coords, labels]
       inputs[inNames[0]] = emb;
       inputs[inNames[1]] = coordT;
       inputs[inNames[2]] = labelT;
     } else {
-      // 原版 SAM 6 输入：按名字补齐（容错保留）
       final mi = OrtValueTensor.createTensorWithDataList(
-          Float32List(256 * 256), [1, 1, 256, 256]);
-      final hmi =
-          OrtValueTensor.createTensorWithDataList(Float32List(1), [1]);
+        Float32List(256 * 256),
+        [1, 1, 256, 256],
+      );
+      final hmi = OrtValueTensor.createTensorWithDataList(Float32List(1), [1]);
       final ois = OrtValueTensor.createTensorWithDataList(
-          Float32List.fromList([gh.toDouble(), gw.toDouble()]), [2]);
+        Float32List.fromList([gh.toDouble(), gw.toDouble()]),
+        [2],
+      );
       created.addAll([mi, hmi, ois]);
       final byName = <String, OrtValueTensor>{
         'image_embeddings': emb,
@@ -207,7 +214,6 @@ class SamSession {
     return mask;
   }
 
-  // 鲁棒：自动剥到 [h][w]（兼容 2D/3D/4D 输出），取第一个 mask 通道
   List<List<double>> _maskGrid(dynamic v) {
     List cur = v as List;
     while (cur.isNotEmpty &&
@@ -218,20 +224,16 @@ class SamSession {
     }
     return [
       for (final row in cur)
-        [for (final e in (row as List)) (e as num).toDouble()]
+        [for (final e in (row as List)) (e as num).toDouble()],
     ];
   }
 
-  // 把 encoder 输出 [1,ch,h,w] 展平到 Float32List，并回填真实 shape
-  Float32List _toFloat32(dynamic v, List<int> shapeOut) {
+  (Float32List, List<int>) _toFloat32(dynamic v) {
     final l0 = v as List;
     final l1 = l0[0] as List;
     final l2 = l1[0] as List;
     final l3 = l2[0] as List;
     final c = l0.length, ch = l1.length, hh = l2.length, ww = l3.length;
-    shapeOut
-      ..clear()
-      ..addAll([c, ch, hh, ww]);
     final out = Float32List(c * ch * hh * ww);
     int idx = 0;
     for (int a = 0; a < c; a++) {
@@ -246,6 +248,6 @@ class SamSession {
         }
       }
     }
-    return out;
+    return (out, [c, ch, hh, ww]);
   }
 }

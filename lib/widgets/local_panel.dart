@@ -265,7 +265,10 @@ class _BrushControls extends ConsumerWidget {
               ),
               ButtonSegment(
                 value: BrushMode.subject,
-                label: Text('主体', style: TextStyle(fontSize: 11)),
+                label: Text(
+                  tr("localBrushSubject"),
+                  style: TextStyle(fontSize: 11),
+                ),
                 icon: Icon(Icons.center_focus_strong, size: 14),
               ),
             ],
@@ -282,7 +285,6 @@ class _BrushControls extends ConsumerWidget {
           _subjectControls(ref)
         else
           _paintControls(ref),
-        // 笔画数 + 清除（两种模式都可微调）
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
           child: Padding(
@@ -375,7 +377,7 @@ class _BrushControls extends ConsumerWidget {
               SizedBox(
                 width: 64,
                 child: Text(
-                  tr("localBrushIntellgentAreaInverse"),
+                  tr("localBrushInverse"),
                   style: TextStyle(fontSize: 11.5),
                 ),
               ),
@@ -411,10 +413,10 @@ class _BrushControls extends ConsumerWidget {
               Expanded(
                 child: Text(
                   unavailable
-                      ? '模型未就绪（缺少模型文件）'
+                      ? tr("localBrushSubjectUnavailable")
                       : busy
-                      ? '分割中…'
-                      : '点击主体/区域，模型自动分割',
+                      ? tr("localBrushSubjectDividing")
+                      : tr("localBrushSubjectHint"),
                   style: const TextStyle(fontSize: 10.5, color: Colors.white54),
                 ),
               ),
@@ -425,9 +427,12 @@ class _BrushControls extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              const SizedBox(
+              SizedBox(
                 width: 64,
-                child: Text('反选(背景)', style: TextStyle(fontSize: 11.5)),
+                child: Text(
+                  tr("localBrushInverse"),
+                  style: TextStyle(fontSize: 11.5),
+                ),
               ),
               Switch(
                 value: invert,
