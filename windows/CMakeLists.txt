@@ -2,6 +2,9 @@
 cmake_minimum_required(VERSION 3.14)
 project(e4pix LANGUAGES CXX)
 
+add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
+
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "e4pix")
