@@ -199,7 +199,8 @@ class SamSession {
         final top = a + (b - a) * fx;
         final bot = c + (d - c) * fx;
         final logit = top + (bot - top) * fy;
-        mask[j * gw + i] = 1.0 / (1.0 + math.exp(-logit));
+        const double margin = 1.0;
+        mask[j * gw + i] = ((logit + margin) / (margin * 2.0)).clamp(0.0, 1.0);
       }
     }
     return mask;
