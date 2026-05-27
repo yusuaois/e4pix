@@ -193,5 +193,8 @@
   "localBrushSubjectUnavailable": "Model Unavailable",
   "localBrushSubjectDividing": "Dividing…",
   "localBrushSubjectHint": "Click to select subject",
+  "localBrushSubjectExcludeHint": "Click to select exclude area",
+  "localBrushSubjectExcludeAdd": "Add",
+  "localBrushSubjectExcludeSubtract": "Subtract",
   "info": "Info"
 }

@@ -200,6 +200,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final id = ref.read(selectedLocalIdProvider);
     if (id == null) return;
     final invert = ref.read(wandInvertProvider);
+    final negative = ref.read(samNegativeProvider);
     ref.read(samBusyProvider.notifier).state = true;
     try {
       final ok = await SegmentationService.compute(
@@ -207,6 +208,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         maskId: id,
         seed: _screenToMask(pos),
         invert: invert,
+        negative: negative,
       );
       if (!ok && mounted) {
         ref.read(samUnavailableProvider.notifier).state = true;
@@ -341,6 +343,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           brushErase: brushErase,
           wandMode: isWand || isSubject,
           baseViz: isBrush ? _baseViz : null,
+          subjectNegative: isSubject && ref.watch(samNegativeProvider),
         ),
       ),
     );
@@ -527,6 +530,7 @@ class _MasksPainter extends CustomPainter {
   final bool brushErase;
   final bool wandMode;
   final ui.Image? baseViz;
+  final bool subjectNegative;
 
   _MasksPainter({
     required this.locals,
@@ -538,6 +542,7 @@ class _MasksPainter extends CustomPainter {
     this.brushErase = false,
     this.wandMode = false,
     this.baseViz,
+    this.subjectNegative = false,
   });
 
   static const _purple = Color(0xFF6B5BFF);
@@ -564,7 +569,7 @@ class _MasksPainter extends CustomPainter {
         _paintBrush(canvas, shape, selected, ip);
       }
     }
-    _paintCursor(canvas);
+    _paintCursor(canvas, subjectNegative);
   }
 
   void _paintLinear(
@@ -717,7 +722,7 @@ class _MasksPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-  void _paintCursor(Canvas canvas) {
+  void _paintCursor(Canvas canvas, bool negative) {
     final c = cursorScreen;
     if (c == null) return;
     if (wandMode) {
@@ -733,7 +738,11 @@ class _MasksPainter extends CustomPainter {
         canvas.drawLine(c + const Offset(-len, 0), c + const Offset(len, 0), p);
         canvas.drawLine(c + const Offset(0, -len), c + const Offset(0, len), p);
       }
-      canvas.drawCircle(c, 3, Paint()..color = const Color(0xFF6B5BFF));
+      canvas.drawCircle(
+        c,
+        3,
+        Paint()..color = negative ? Colors.redAccent : Color(0xFF6B5BFF),
+      );
       return;
     }
     final r = brushRadiusNorm * displaySize.width;

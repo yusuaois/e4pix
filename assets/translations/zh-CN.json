@@ -193,5 +193,8 @@
   "localBrushSubjectUnavailable": "模型未就绪（缺少模型文件）",
   "localBrushSubjectDividing": "分割中…",
   "localBrushSubjectHint": "点击主体/区域，模型自动分割",
+  "localBrushSubjectExcludeHint": "点击要排除的区域",
+  "localBrushSubjectExcludeAdd": "加入",
+  "localBrushSubjectExcludeSubtract": "排除",
   "info": "信息"
 }

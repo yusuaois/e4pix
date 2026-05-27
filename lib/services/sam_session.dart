@@ -24,6 +24,11 @@ class SamSession {
   bool _initTried = false;
   bool get available => _encoder != null && _decoder != null;
 
+  // 提示点
+  final List<double> _ptX = [];
+  final List<double> _ptY = [];
+  final List<int> _ptLabel = []; // 1=正, 0=负
+
   // embedding 缓存
   Float32List? _emb;
   List<int> _embShape = [1, 256, 64, 64];
@@ -69,6 +74,7 @@ class SamSession {
   }) async {
     if (!available) return;
     if (_embSig == signature && _emb != null) return;
+    _clearPoints();
 
     final longest = math.max(gw, gh);
     final scale = _inputSize / longest;
@@ -123,54 +129,39 @@ class SamSession {
     _newH = newH;
   }
 
-  /// 按点解码，返回 gw×gh 的 0..1 软 mask
-  Future<Float32List?> decode(ui.Offset seedNorm) async {
+  /// 追加一个提示点（正/负）并用累积的所有点解码，返回 gw×gh 软 mask
+  Future<Float32List?> decode(
+    ui.Offset seedNorm, {
+    bool negative = false,
+  }) async {
     if (!available || _emb == null) return null;
     final gw = _gw, gh = _gh;
     final scale = _inputSize / math.max(gw, gh);
-    final px = (seedNorm.dx * gw) * scale;
-    final py = (seedNorm.dy * gh) * scale;
 
-    final coords = Float32List.fromList([px, py]);
-    final labels = Float32List.fromList([1]);
+    _ptX.add((seedNorm.dx * gw) * scale);
+    _ptY.add((seedNorm.dy * gh) * scale);
+    _ptLabel.add(negative ? 0 : 1);
+
+    final n = _ptX.length;
+    final coords = Float32List(n * 2);
+    final labels = Float32List(n);
+    for (int i = 0; i < n; i++) {
+      coords[i * 2] = _ptX[i]; // x
+      coords[i * 2 + 1] = _ptY[i]; // y
+      labels[i] = _ptLabel[i].toDouble();
+    }
 
     final emb = OrtValueTensor.createTensorWithDataList(_emb!, _embShape);
-    final coordT = OrtValueTensor.createTensorWithDataList(coords, [1, 1, 2]);
-    final labelT = OrtValueTensor.createTensorWithDataList(labels, [1, 1]);
-
+    final coordT = OrtValueTensor.createTensorWithDataList(coords, [1, n, 2]);
+    final labelT = OrtValueTensor.createTensorWithDataList(labels, [1, n]);
     final created = <OrtValueTensor>[emb, coordT, labelT];
-    final inNames = _decoder!.inputNames;
-    final inputs = <String, OrtValue>{};
 
-    if (inNames.length <= 3) {
-      // [embeddings, coords, labels]
-      inputs[inNames[0]] = emb;
-      inputs[inNames[1]] = coordT;
-      inputs[inNames[2]] = labelT;
-    } else {
-      final mi = OrtValueTensor.createTensorWithDataList(
-        Float32List(256 * 256),
-        [1, 1, 256, 256],
-      );
-      final hmi = OrtValueTensor.createTensorWithDataList(Float32List(1), [1]);
-      final ois = OrtValueTensor.createTensorWithDataList(
-        Float32List.fromList([gh.toDouble(), gw.toDouble()]),
-        [2],
-      );
-      created.addAll([mi, hmi, ois]);
-      final byName = <String, OrtValueTensor>{
-        'image_embeddings': emb,
-        'point_coords': coordT,
-        'point_labels': labelT,
-        'mask_input': mi,
-        'has_mask_input': hmi,
-        'orig_im_size': ois,
-      };
-      for (final n in inNames) {
-        final c = byName[n];
-        if (c != null) inputs[n] = c;
-      }
-    }
+    final inNames = _decoder!.inputNames;
+    final inputs = <String, OrtValue>{
+      inNames[0]: emb,
+      inNames[1]: coordT,
+      inNames[2]: labelT,
+    };
 
     final ro = OrtRunOptions();
     final outs = _decoder!.run(ro, inputs);
@@ -208,11 +199,19 @@ class SamSession {
         final top = grid[v0][u0] + (grid[v0][u1] - grid[v0][u0]) * fx;
         final bot = grid[v1][u0] + (grid[v1][u1] - grid[v1][u0]) * fx;
         final logit = top + (bot - top) * fy;
-        mask[j * gw + i] = 1.0 / (1.0 + math.exp(-logit)); // sigmoid 软 mask
+        mask[j * gw + i] = 1.0 / (1.0 + math.exp(-logit));
       }
     }
     return mask;
   }
+
+  void _clearPoints() {
+    _ptX.clear();
+    _ptY.clear();
+    _ptLabel.clear();
+  }
+
+  void resetPoints() => _clearPoints();
 
   List<List<double>> _maskGrid(dynamic v) {
     List cur = v as List;

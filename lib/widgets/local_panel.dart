@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/sam_session.dart';
 import '../state/brush_state.dart';
 import '../core/models/local_adjustment.dart';
 import '../core/models/local_params.dart';
@@ -124,8 +125,10 @@ class _MaskListItem extends ConsumerWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () =>
-            ref.read(selectedLocalIdProvider.notifier).state = local.id,
+        onTap: () => {
+          ref.read(selectedLocalIdProvider.notifier).state = local.id,
+          SamSession.instance.resetPoints(),
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           color: isSelected
@@ -158,8 +161,10 @@ class _MaskListItem extends ConsumerWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 14, color: Colors.white54),
-                onPressed: () =>
-                    LocalAdjustmentActions(ref).deleteLocal(local.id),
+                onPressed: () => {
+                  LocalAdjustmentActions(ref).deleteLocal(local.id),
+                  SamSession.instance.resetPoints(),
+                },
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -275,14 +280,18 @@ class _BrushControls extends ConsumerWidget {
             selected: {mode},
             showSelectedIcon: false,
             style: const ButtonStyle(visualDensity: VisualDensity.compact),
-            onSelectionChanged: (s) =>
-                ref.read(brushModeProvider.notifier).state = s.first,
+            onSelectionChanged: (s) {
+              ref.read(brushModeProvider.notifier).state = s.first;
+              if (s.first != BrushMode.subject) {
+                SamSession.instance.resetPoints();
+              }
+            },
           ),
         ),
         if (mode == BrushMode.wand)
           _wandControls(ref, busy)
         else if (mode == BrushMode.subject)
-          _subjectControls(ref)
+          _subjectControls(ref, local.id)
         else
           _paintControls(ref),
         Padding(
@@ -304,8 +313,10 @@ class _BrushControls extends ConsumerWidget {
                 ),
                 if (mask.baseRaster != null)
                   TextButton(
-                    onPressed: () =>
-                        LocalAdjustmentActions(ref).clearBaseRaster(local.id),
+                    onPressed: () {
+                      LocalAdjustmentActions(ref).clearBaseRaster(local.id);
+                      SamSession.instance.resetPoints();
+                    },
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -394,10 +405,11 @@ class _BrushControls extends ConsumerWidget {
     );
   }
 
-  Widget _subjectControls(WidgetRef ref) {
+  Widget _subjectControls(WidgetRef ref, String maskId) {
     final busy = ref.watch(samBusyProvider);
     final unavailable = ref.watch(samUnavailableProvider);
     final invert = ref.watch(wandInvertProvider);
+    final negative = ref.watch(samNegativeProvider);
     return Column(
       children: [
         Padding(
@@ -416,11 +428,42 @@ class _BrushControls extends ConsumerWidget {
                       ? tr("localBrushSubjectUnavailable")
                       : busy
                       ? tr("localBrushSubjectDividing")
+                      : negative
+                      ? tr("localBrushSubjectExcludeHint")
                       : tr("localBrushSubjectHint"),
                   style: const TextStyle(fontSize: 10.5, color: Colors.white54),
                 ),
               ),
             ],
+          ),
+        ),
+        // 加点 / 减点
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
+          child: SegmentedButton<bool>(
+            segments: [
+              ButtonSegment(
+                value: false,
+                label: Text(
+                  tr("localBrushSubjectExcludeAdd"),
+                  style: TextStyle(fontSize: 11),
+                ),
+                icon: Icon(Icons.add, size: 14),
+              ),
+              ButtonSegment(
+                value: true,
+                label: Text(
+                  tr("localBrushSubjectExcludeSubtract"),
+                  style: TextStyle(fontSize: 11),
+                ),
+                icon: Icon(Icons.remove, size: 14),
+              ),
+            ],
+            selected: {negative},
+            showSelectedIcon: false,
+            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            onSelectionChanged: (s) =>
+                ref.read(samNegativeProvider.notifier).state = s.first,
           ),
         ),
         Padding(

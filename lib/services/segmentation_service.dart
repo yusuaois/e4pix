@@ -16,6 +16,7 @@ class SegmentationService {
     required String maskId,
     required ui.Offset seed,
     bool invert = false,
+    bool negative = false,
   }) async {
     final program = ref.read(shaderProgramProvider).value;
     final image = ref.read(imageNotifierProvider).value;
@@ -60,9 +61,13 @@ class SegmentationService {
       gw,
       gh,
     );
-    await SamSession.instance
-        .ensureEmbedding(guide: guide, gw: gw, gh: gh, signature: sig);
-    final mask = await SamSession.instance.decode(seed);
+    await SamSession.instance.ensureEmbedding(
+      guide: guide,
+      gw: gw,
+      gh: gh,
+      signature: sig,
+    );
+    final mask = await SamSession.instance.decode(seed, negative: negative);
     if (mask == null) return false;
 
     _featherBox(mask, gw, gh, (gw * 0.0015).round().clamp(1, 3));

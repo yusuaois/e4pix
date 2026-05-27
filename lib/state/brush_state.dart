@@ -40,3 +40,6 @@ final samBusyProvider = StateProvider<bool>((ref) => false);
 
 /// 模型不可用（缺模型/加载失败）
 final samUnavailableProvider = StateProvider<bool>((ref) => false);
+
+/// 主体分割：当前落点为负点(排除)。false=正点(加入)
+final samNegativeProvider = StateProvider<bool>((ref) => false);
