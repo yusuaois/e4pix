@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: ⬇️ Checkout Repository
         uses: actions/checkout@v4
+        with:
+          submodules: "true"
 
       - name: ☕ Setup Java
         uses: actions/setup-java@v3
@@ -48,6 +50,8 @@ jobs:
     steps:
       - name: ⬇️ Checkout Repository
         uses: actions/checkout@v4
+        with:
+          submodules: 'true'
 
       - name: 🐦 Setup Flutter
         uses: subosito/flutter-action@v2
