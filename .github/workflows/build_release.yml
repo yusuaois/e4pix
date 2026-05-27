@@ -1,0 +1,103 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: 📦 Get Dependencies
+        run: flutter pub get
+
+      - name: ⚙️ Build Runner
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: 🏗️ Build APK & AAB
+        run: |
+          flutter build apk --release
+          flutter build appbundle --release
+
+      - name: 🏷️ Rename Artifacts
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk e4pix_${{ github.ref_name }}_Android.apk
+          mv build/app/outputs/bundle/release/app-release.aab e4pix_${{ github.ref_name }}_Android.aab
+
+      - name: 📤 Upload Android Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: e4pix_*.*
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: 📦 Get Dependencies
+        run: flutter pub get
+
+      - name: ⚙️ Build Runner
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: 🏗️ Build Windows
+        run: flutter build windows --release
+
+      - name: 🗜️ Compress Windows Build (Zip)
+        run: |
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath e4pix_${{ github.ref_name }}_Windows.zip
+
+      - name: 📤 Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: e4pix_*.zip
+
+  create-release:
+    needs: [build-android, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 📥 Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: 📝 Inject SHA into Release Body
+        run: |
+          SHA_VALUE="${{ github.sha }}"
+          sed "s|__SHA__|${SHA_VALUE}|g" ./CHANGELOG.md > release_body.md
+
+      - name: ✅ Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.Release }}
+          files: release-artifacts/*
+          body_path: ./release_body.md
+          generate_release_notes: false

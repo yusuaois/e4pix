@@ -23,6 +23,7 @@ migrate_working_dir/
 /build/
 /coverage/
 .**/
+!/.github/
 app.*.symbols
 app.*.map.json
 /android/app/debug
