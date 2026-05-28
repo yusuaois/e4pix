@@ -11,7 +11,7 @@ import '../render/raw_to_ui_image.dart';
 class ActiveFilePathNotifier extends Notifier<String?> {
   @override
   String? build() => null;
-  
+
   void set(String? newPath) {
     final old = state;
     state = newPath;
@@ -142,20 +142,26 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
       // print('[Phase2] convert ${sw2.elapsedMilliseconds}ms');
 
       _swapHeld(fullImage);
-      state = AsyncData(DecodedImageState(
-        path: path,
-        decoded: fullDecoded,
-        uiImage: fullImage,
-        decodeTime: sw1.elapsed,
-        convertTime: sw2.elapsed,
-        isPreliminary: false,
-      ));
+      state = AsyncData(
+        DecodedImageState(
+          path: path,
+          decoded: fullDecoded,
+          uiImage: fullImage,
+          decodeTime: sw1.elapsed,
+          convertTime: sw2.elapsed,
+          isPreliminary: false,
+        ),
+      );
       // print('[Phase2] HD ready');
-    } catch (e) { //st
+    } catch (e) {
+      //st
       // print('[Phase2] ERROR: $e\n$st');
     }
   }
 }
 
 final imageNotifierProvider =
-    AsyncNotifierProvider<ImageNotifier, DecodedImageState?>(ImageNotifier.new);
+    AsyncNotifierProvider<ImageNotifier, DecodedImageState?>(
+      retry: (retryCount, error) => null,
+      ImageNotifier.new,
+    );
