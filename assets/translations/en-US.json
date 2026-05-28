@@ -196,5 +196,10 @@
   "localBrushSubjectExcludeHint": "Click to select exclude area",
   "localBrushSubjectExcludeAdd": "Add",
   "localBrushSubjectExcludeSubtract": "Subtract",
-  "info": "Info"
+  "info": "Info",
+  "settingsTheme": "Theme",
+  "settingsDynamicColor": "Dynamic Color (Material You)",
+  "settingsDynamicColorHint": "Follow system wallpaper / accent",
+  "settingsCustomColor": "Custom theme color",
+  "colorPickerTitle": "Pick theme color"
 }

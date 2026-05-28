@@ -149,7 +149,7 @@
   "aiColorSuggestionLackAdjustments": "AI 响应缺少 adjustments 字段",
   "settings": "设置",
   "settingsTether": "联机",
-  "settingsAbout":"关于",
+  "settingsAbout": "关于",
   "settingsTetherFolder": "默认保存文件夹",
   "settingsTetherFolderChoose": "选择联机默认保存文件夹",
   "settingsTetherFolderNone": "未设置（每次联机时询问）",
@@ -196,5 +196,10 @@
   "localBrushSubjectExcludeHint": "点击要排除的区域",
   "localBrushSubjectExcludeAdd": "加入",
   "localBrushSubjectExcludeSubtract": "排除",
-  "info": "信息"
+  "info": "信息",
+  "settingsTheme": "主题",
+  "settingsDynamicColor": "动态取色 (Material You)",
+  "settingsDynamicColorHint": "跟随系统壁纸 / 强调色",
+  "settingsCustomColor": "自定义主题色",
+  "colorPickerTitle": "选择主题色"
 }

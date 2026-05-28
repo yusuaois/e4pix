@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'core/cache/raw_cache_cleaner.dart';
 import 'screens/develop_screen.dart';
+import 'state/theme_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dynamic_color/dynamic_color.dart';
@@ -15,7 +16,6 @@ void main() async {
   runApp(
     ProviderScope(
       child: EasyLocalization(
-        // en-US.json, zh-CN.json
         supportedLocales: [Locale('en', 'US'), Locale('zh', 'CN')],
         path: 'assets/translations',
         fallbackLocale: Locale('en', 'US'),
@@ -25,22 +25,26 @@ void main() async {
   );
 }
 
-class E4pixApp extends StatelessWidget {
+class E4pixApp extends ConsumerWidget {
   const E4pixApp({super.key});
-  static const _fallbackSeed = Color(0xFF6B5BFF);
   static const _scaffoldBg = Color(0xFF0E0E12);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dynamicEnabled = ref.watch(dynamicColorEnabledProvider);
+    final seed = ref.watch(seedColorProvider);
+
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        final ColorScheme scheme =
-            (darkDynamic ??
-                    ColorScheme.fromSeed(
-                      seedColor: _fallbackSeed,
-                      brightness: Brightness.dark,
-                    ))
-                .copyWith(brightness: Brightness.dark);
+        final ColorScheme scheme;
+        if (dynamicEnabled && darkDynamic != null) {
+          scheme = darkDynamic.copyWith(brightness: Brightness.dark);
+        } else {
+          scheme = ColorScheme.fromSeed(
+            seedColor: Color(seed),
+            brightness: Brightness.dark,
+          );
+        }
 
         return MaterialApp(
           title: 'e4pix',

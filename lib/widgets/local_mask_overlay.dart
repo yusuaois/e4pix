@@ -335,7 +335,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           locals: params.locals,
           selectedId: selectedId,
           displaySize: widget.imageDisplaySize,
-          colorScheme: Theme.of(context).colorScheme,
+          primaryColor: Theme.of(context).colorScheme.primary,
           inProgressPoints: _paintingPoints == null
               ? null
               : List.of(_paintingPoints!),
@@ -532,13 +532,13 @@ class _MasksPainter extends CustomPainter {
   final bool wandMode;
   final ui.Image? baseViz;
   final bool subjectNegative;
-  final ColorScheme colorScheme;
+  final Color primaryColor;
 
   _MasksPainter({
     required this.locals,
     required this.selectedId,
     required this.displaySize,
-    required this.colorScheme,
+    required this.primaryColor,
     this.inProgressPoints,
     this.cursorScreen,
     this.brushRadiusNorm = 0.08,
@@ -555,10 +555,12 @@ class _MasksPainter extends CustomPainter {
       final stroke = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = selected ? 2.0 : 1.0
-        ..color = selected ? colorScheme.primary  : Colors.white.withValues(alpha: 0.45);
+        ..color = selected
+            ? primaryColor
+            : Colors.white.withValues(alpha: 0.45);
       final fill = Paint()
         ..style = PaintingStyle.fill
-        ..color = selected ? colorScheme.primary : Colors.white.withValues(alpha: 0.5);
+        ..color = selected ? primaryColor : Colors.white.withValues(alpha: 0.5);
 
       final shape = l.mask;
       if (shape is LinearGradientMask) {
@@ -651,7 +653,7 @@ class _MasksPainter extends CustomPainter {
     final hasIp = inProgress != null && inProgress.isNotEmpty;
     final hasBase = selected && baseViz != null;
     if (m.strokes.isEmpty && !hasIp && !hasBase) return;
-    final tint = colorScheme.primary.withValues(alpha: selected ? 0.22 : 0.10);
+    final tint = primaryColor.withValues(alpha: selected ? 0.22 : 0.10);
 
     canvas.saveLayer(Offset.zero & displaySize, Paint());
     if (hasBase) {
@@ -742,7 +744,7 @@ class _MasksPainter extends CustomPainter {
       canvas.drawCircle(
         c,
         3,
-        Paint()..color = negative ? colorScheme.inversePrimary : colorScheme.primary,
+        Paint()..color = negative ? Colors.redAccent : primaryColor,
       );
       return;
     }
