@@ -1857,7 +1857,7 @@ class _AIBanner extends ConsumerWidget {
   }
 }
 
-class _CenterMessage extends StatelessWidget {
+class _CenterMessage extends ConsumerWidget {
   final IconData icon;
   final Color color;
   final String title;
@@ -1870,7 +1870,7 @@ class _CenterMessage extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -1900,6 +1900,20 @@ class _CenterMessage extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: () async {
+                final result = await FilePicker.platform.pickFiles();
+                if (result == null || result.files.isEmpty) return;
+                final path = result.files.single.path;
+                if (path != null) {
+                  ref.read(activeFilePathProvider.notifier).set(path);
+                }
+              },
+              icon: const Icon(Icons.folder_open),
+              label: Text(tr("imageChoose")),
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

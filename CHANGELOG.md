@@ -1,7 +1,7 @@
 ## 🚀 新功能 (New Features)
 * **自定义主题色**: 可在设置中选择主题色
 ## 🐛 问题修复 (Bug Fixes)
-
+* 选中非RAW文件后无重选按钮
 ## 🛠️ 底层改进 (Under the Hood)
 
 ---
