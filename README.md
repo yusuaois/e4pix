@@ -67,7 +67,7 @@ AI 功能在「设置 → AI 配置」里填 Key，仅本地存。
 
 ### 许可证
 
-[PolyForm Noncommercial 1.0.0](https://www.google.com/search?q=LICENSE) ，禁止商用。商业授权请开 Issue。
+[Apache License 2.0](https://www.google.com/search?q=LICENSE)
 
 ---
 
@@ -126,4 +126,4 @@ For AI features, fill in your API key in **Settings → AI Configuration**. It i
 
 ### License
 
-[PolyForm Noncommercial 1.0.0](https://www.google.com/search?q=LICENSE), no commercial use. Open an Issue for commercial licensing.
+[Apache License 2.0](https://www.google.com/search?q=LICENSE)
