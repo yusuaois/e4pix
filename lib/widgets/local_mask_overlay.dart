@@ -335,6 +335,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           locals: params.locals,
           selectedId: selectedId,
           displaySize: widget.imageDisplaySize,
+          colorScheme: Theme.of(context).colorScheme,
           inProgressPoints: _paintingPoints == null
               ? null
               : List.of(_paintingPoints!),
@@ -354,13 +355,13 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         children: [
           Positioned.fill(child: gesture),
           const Positioned.fill(child: ColoredBox(color: Color(0x22000000))),
-          const Center(
+          Center(
             child: SizedBox(
               width: 26,
               height: 26,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Color(0xFF6B5BFF),
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -531,11 +532,13 @@ class _MasksPainter extends CustomPainter {
   final bool wandMode;
   final ui.Image? baseViz;
   final bool subjectNegative;
+  final ColorScheme colorScheme;
 
   _MasksPainter({
     required this.locals,
     required this.selectedId,
     required this.displaySize,
+    required this.colorScheme,
     this.inProgressPoints,
     this.cursorScreen,
     this.brushRadiusNorm = 0.08,
@@ -545,8 +548,6 @@ class _MasksPainter extends CustomPainter {
     this.subjectNegative = false,
   });
 
-  static const _purple = Color(0xFF6B5BFF);
-
   @override
   void paint(Canvas canvas, Size size) {
     for (final l in locals) {
@@ -554,10 +555,10 @@ class _MasksPainter extends CustomPainter {
       final stroke = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = selected ? 2.0 : 1.0
-        ..color = selected ? _purple : Colors.white.withValues(alpha: 0.45);
+        ..color = selected ? colorScheme.primary  : Colors.white.withValues(alpha: 0.45);
       final fill = Paint()
         ..style = PaintingStyle.fill
-        ..color = selected ? _purple : Colors.white.withValues(alpha: 0.5);
+        ..color = selected ? colorScheme.primary : Colors.white.withValues(alpha: 0.5);
 
       final shape = l.mask;
       if (shape is LinearGradientMask) {
@@ -650,7 +651,7 @@ class _MasksPainter extends CustomPainter {
     final hasIp = inProgress != null && inProgress.isNotEmpty;
     final hasBase = selected && baseViz != null;
     if (m.strokes.isEmpty && !hasIp && !hasBase) return;
-    final tint = _purple.withValues(alpha: selected ? 0.22 : 0.10);
+    final tint = colorScheme.primary.withValues(alpha: selected ? 0.22 : 0.10);
 
     canvas.saveLayer(Offset.zero & displaySize, Paint());
     if (hasBase) {
@@ -741,7 +742,7 @@ class _MasksPainter extends CustomPainter {
       canvas.drawCircle(
         c,
         3,
-        Paint()..color = negative ? Colors.redAccent : Color(0xFF6B5BFF),
+        Paint()..color = negative ? colorScheme.inversePrimary : colorScheme.primary,
       );
       return;
     }

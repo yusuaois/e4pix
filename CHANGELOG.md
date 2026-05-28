@@ -1,5 +1,5 @@
 ## 🚀 新功能 (New Features)
-* **自动构建**: 迁移至 GitHub Actions 自动化发布流程。
+* **动态取色**: 根据桌面进行动态取色。
 ## 🐛 问题修复 (Bug Fixes)
 
 ## 🛠️ 底层改进 (Under the Hood)

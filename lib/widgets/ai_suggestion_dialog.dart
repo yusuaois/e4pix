@@ -83,7 +83,11 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(Icons.auto_awesome, size: 18, color: Color(0xFF6B5BFF)),
+          Icon(
+            Icons.auto_awesome,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           SizedBox(width: 8),
           Text(tr("aiColorSuggestion")),
         ],
@@ -254,14 +258,16 @@ class _SuggestionView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: const Color(0xFF6B5BFF).withValues(alpha: 0.15),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(3),
             ),
             child: Text(
               suggestion.mood,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
-                color: Color(0xFF6B5BFF),
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
               ),

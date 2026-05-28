@@ -193,6 +193,7 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
           crop: crop,
           displaySize: widget.imageDisplaySize,
           knobPosition: _knobPosition(screenRect),
+          primaryColor: Theme.of(context).colorScheme.primary,
         ),
       ),
     );
@@ -203,11 +204,13 @@ class _CropPainter extends CustomPainter {
   final CropParams crop;
   final Size displaySize;
   final Offset knobPosition;
+  final Color primaryColor;
 
   _CropPainter({
     required this.crop,
     required this.displaySize,
     required this.knobPosition,
+    required this.primaryColor
   });
 
   @override
@@ -283,14 +286,14 @@ class _CropPainter extends CustomPainter {
       Offset.zero,
       const Offset(0, -9),
       Paint()
-        ..color = const Color(0xFF6B5BFF)
+        ..color = primaryColor
         ..strokeWidth = 2.5
         ..strokeCap = StrokeCap.round,
     );
     canvas.drawCircle(
       const Offset(0, -9),
       2.5,
-      Paint()..color = const Color(0xFF6B5BFF),
+      Paint()..color = primaryColor,
     );
     canvas.restore();
 

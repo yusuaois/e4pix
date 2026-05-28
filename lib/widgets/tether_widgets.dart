@@ -333,9 +333,9 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
                             color: isPicked
-                                ? const Color(0xFF6B5BFF)
+                                ? Theme.of(context).colorScheme.primary
                                 : (isActive && !widget.multiSelectMode
-                                      ? const Color(0xFF6B5BFF)
+                                      ? Theme.of(context).colorScheme.primary
                                       : Colors.transparent),
                             width: 2,
                           ),
@@ -417,7 +417,7 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                             height: 18,
                             decoration: BoxDecoration(
                               color: isPicked
-                                  ? const Color(0xFF6B5BFF)
+                                  ? Theme.of(context).colorScheme.primary
                                   : Colors.black.withValues(alpha: 0.55),
                               shape: BoxShape.circle,
                               border: Border.all(

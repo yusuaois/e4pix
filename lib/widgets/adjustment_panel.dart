@@ -232,7 +232,7 @@ class _RailItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = selected
-        ? const Color(0xFF6B5BFF)
+        ? Theme.of(context).colorScheme.primary
         : Colors.white.withValues(alpha: 0.6);
     return Tooltip(
       message: tooltip,
@@ -244,11 +244,13 @@ class _RailItem extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: selected
-                ? const Color(0xFF6B5BFF).withValues(alpha: 0.08)
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08)
                 : Colors.transparent,
             border: Border(
               left: BorderSide(
-                color: selected ? const Color(0xFF6B5BFF) : Colors.transparent,
+                color: selected
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.transparent,
                 width: 2.5,
               ),
             ),

@@ -843,10 +843,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           value: 'ai',
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.auto_awesome,
                 size: 18,
-                color: Color(0xFF6B5BFF),
+                color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(width: 12),
               Text(tr('aiColorSuggestion')),
@@ -990,7 +990,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   ? Icons.checklist_rtl_rounded
                   : Icons.checklist_rounded,
               color: selection.multiSelectMode
-                  ? const Color(0xFF6B5BFF)
+                  ? Theme.of(context).colorScheme.primary
                   : Colors.white.withValues(alpha: 0.85),
               tooltip: selection.multiSelectMode
                   ? tr('multiSelectExit')
@@ -1019,7 +1019,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             if (hasImage) ...[
               compactIcon(
                 icon: Icons.auto_awesome,
-                color: const Color(0xFF6B5BFF),
+                color: Theme.of(context).colorScheme.primary,
                 tooltip: tr("aiColorSuggestionHint"),
                 onPressed: _showAISuggestion,
                 onLongPress: _showAISettings,
@@ -1060,7 +1060,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6B5BFF).withValues(alpha: 0.2),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -1068,10 +1070,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       'selectedShots',
                       args: ['${selection.selectedPaths.length}'],
                     ),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF6B5BFF),
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1758,16 +1760,16 @@ class _AIBanner extends ConsumerWidget {
 
     if (ai.inProgress && ai.pendingSuggestion == null) {
       return Container(
-        color: const Color(0xFF6B5BFF).withValues(alpha: 0.08),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         child: Row(
           children: [
-            const SizedBox(
+            SizedBox(
               width: 12,
               height: 12,
               child: CircularProgressIndicator(
                 strokeWidth: 1.5,
-                color: Color(0xFF6B5BFF),
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(width: 10),
@@ -1786,7 +1788,7 @@ class _AIBanner extends ConsumerWidget {
 
     final s = ai.pendingSuggestion!;
     return Material(
-      color: const Color(0xFF6B5BFF).withValues(alpha: 0.15),
+      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
       child: InkWell(
         onTap: () {
           ref.read(aiAutoNotifierProvider.notifier).applyPending();
@@ -1795,10 +1797,10 @@ class _AIBanner extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.auto_awesome,
                 size: 14,
-                color: Color(0xFF6B5BFF),
+                color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(width: 8),
               Expanded(

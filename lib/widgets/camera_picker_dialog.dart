@@ -170,7 +170,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                                       : Icons.radio_button_off,
                                   size: 14,
                                   color: isSel
-                                      ? const Color(0xFF6B5BFF)
+                                      ? Theme.of(context).colorScheme.primary
                                       : Colors.white.withValues(alpha: 0.4),
                                 ),
                                 const SizedBox(width: 8),
@@ -205,14 +205,14 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
             if (_loadedDefault)
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.check_circle_outline,
                     size: 12,
-                    color: Color(0xFF6B5BFF),
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '使用已保存的默认文件夹',
+                    tr("settingsUsingDefaultFolder"),
                     style: TextStyle(
                       fontSize: 10.5,
                       color: Colors.white.withValues(alpha: 0.55),
@@ -236,7 +236,10 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Text('记住为默认（下次直接使用）', style: TextStyle(fontSize: 11)),
+                  Text(
+                    tr("settingsRememberAsDefault"),
+                    style: TextStyle(fontSize: 11),
+                  ),
                 ],
               ),
             const SizedBox(height: 6),
