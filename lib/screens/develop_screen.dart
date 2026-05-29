@@ -94,15 +94,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     }
   }
 
-  Future<void> _pickAndDecode() async {
-    final result = await FilePicker.platform.pickFiles();
-    if (result == null || result.files.isEmpty) return;
-    final path = result.files.single.path;
-    if (path != null) {
-      ref.read(activeFilePathProvider.notifier).set(path);
-    }
-  }
-
   Future<void> _startFolderTether() async {
     String? folder = ref.read(tetherFolderProvider);
     folder ??= await AppSettings.getTetherFolder();
@@ -676,7 +667,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             },
           ),
         ),
-        if (session != null && shots.isNotEmpty && !cropEditMode)
+        if (shots.isNotEmpty && !cropEditMode)
           TetherThumbStrip(
             shots: shots,
             activeShot: activeShot,
@@ -703,6 +694,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final params = ref.watch(currentParamsNotifierProvider);
     final lut = ref.watch(lutNotifierProvider);
     final cameraState = ref.watch(cameraNotifierProvider);
+    final cropEditMode = ref.watch(cropEditModeProvider);
 
     return Column(
       children: [
@@ -759,7 +751,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             ],
           ),
         ),
-        if (session != null && shots.isNotEmpty)
+        if (shots.isNotEmpty && !cropEditMode)
           TetherThumbStrip(
             shots: shots,
             activeShot: activeShot,
@@ -1370,6 +1362,15 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       ),
     );
   }
+
+  Future<void> _pickAndDecode() async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result == null || result.files.isEmpty) return;
+    final paths = result.files.map((f) => f.path).whereType<String>().toList();
+    if (paths.isNotEmpty) {
+      ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+    }
+  }
 }
 
 class _FullscreenExitButton extends ConsumerWidget {
@@ -1736,11 +1737,16 @@ class _PreviewArea extends ConsumerWidget {
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: () async {
-              final result = await FilePicker.platform.pickFiles();
+              final result = await FilePicker.platform.pickFiles(
+                allowMultiple: true,
+              );
               if (result == null || result.files.isEmpty) return;
-              final path = result.files.single.path;
-              if (path != null) {
-                ref.read(activeFilePathProvider.notifier).set(path);
+              final paths = result.files
+                  .map((f) => f.path)
+                  .whereType<String>()
+                  .toList();
+              if (paths.isNotEmpty) {
+                ref.read(shotsNotifierProvider.notifier).addFiles(paths);
               }
             },
             icon: const Icon(Icons.folder_open),
@@ -1914,12 +1920,18 @@ class _CenterMessage extends ConsumerWidget {
             const SizedBox(height: 8),
             FilledButton.icon(
               onPressed: () async {
-                final result = await FilePicker.platform.pickFiles();
+                final result = await FilePicker.platform.pickFiles(
+                  allowMultiple: true,
+                );
                 if (result == null || result.files.isEmpty) return;
-                final path = result.files.single.path;
-                if (path != null) {
-                  ref.read(activeFilePathProvider.notifier).set(path);
+                final paths = result.files
+                    .map((f) => f.path)
+                    .whereType<String>()
+                    .toList();
+                if (paths.isNotEmpty) {
+                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
                 }
+                ;
               },
               icon: const Icon(Icons.folder_open),
               label: Text(tr("imageChoose")),

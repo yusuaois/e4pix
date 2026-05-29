@@ -76,13 +76,13 @@ final tetherSessionNotifierProvider =
 
 // Shots list
 class ShotsNotifier extends Notifier<List<TetheredShot>> {
-  bool _isDisposed = false; // 添加一个标志位
+  bool _isDisposed = false;
 
   @override
   List<TetheredShot> build() {
     _isDisposed = false;
     ref.onDispose(() {
-      _isDisposed = true; // 销毁时标记为 true
+      _isDisposed = true;
       for (final s in state) {
         try {
           s.disposeThumbnail();
@@ -117,14 +117,11 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
       params: inherited,
     );
 
-    // 同步添加新照片到列表
     state = [...state, shot];
 
-    // 自动切到新 shot
     ref.read(activeShotPathProvider.notifier).set(shot.path);
     ref.read(activeFilePathProvider.notifier).set(shot.path);
 
-    // 加载缩略图
     final loaded = await TetheredShot.loadWithThumbnail(shot);
 
     if (_isDisposed) {
@@ -132,9 +129,49 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
       return;
     }
 
-    // 替换包含缩略图的实例，触发 UI 刷新
     state = [for (final s in state) s.path == shot.path ? loaded : s];
     ref.read(aiAutoNotifierProvider.notifier).onNewShotArrived();
+  }
+
+  Future<void> addFiles(List<String> paths) async {
+    if (paths.isEmpty) return;
+
+    final existing = state.map((s) => s.path).toSet();
+    final fresh = paths.where((p) => !existing.contains(p)).toList();
+    if (fresh.isEmpty) {
+      ref.read(activeShotPathProvider.notifier).set(paths.first);
+      ref.read(activeFilePathProvider.notifier).set(paths.first);
+      return;
+    }
+
+    final newShots = [
+      for (final path in fresh)
+        TetheredShot(
+          path: path,
+          filename: p.basename(path),
+          detectedAt: DateTime.now(),
+          params: AdjustmentParams.neutral,
+        ),
+    ];
+    state = [...state, ...newShots];
+
+    final first = newShots.first;
+    ref.read(activeShotPathProvider.notifier).set(first.path);
+    ref.read(activeFilePathProvider.notifier).set(first.path);
+
+    for (final shot in newShots) {
+      if (_isDisposed) return;
+      final loaded = await TetheredShot.loadWithThumbnail(shot);
+      if (_isDisposed) {
+        loaded.disposeThumbnail();
+        return;
+      }
+      if (state.any((s) => s.path == shot.path)) {
+        state = [for (final s in state) s.path == shot.path ? loaded : s];
+      } else {
+        loaded.disposeThumbnail();
+      }
+    }
   }
 
   void updateParams(String shotPath, AdjustmentParams newParams) {
