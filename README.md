@@ -4,7 +4,7 @@
 
 # e4pix
 
-<img src="docs/screenshot_android_vertical.png" alt="e4pix Screenshot"/>
+<img src="docs/screenshot_android_horizontal.png" alt="e4pix Screenshot"/>
 
 联机拍摄 + 实时 RAW 调色
 
