@@ -1,6 +1,7 @@
 ## 🚀 新功能 (New Features)
 * **更新检查**: 自动与手动更新检查
 ## 🐛 问题修复 (Bug Fixes)
+* 修复Android调用API报错
 ## 🛠️ 底层改进 (Under the Hood)
 
 ---
