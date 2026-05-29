@@ -6,8 +6,13 @@ import 'package:path_provider/path_provider.dart';
 class LutEntry {
   final String filePath;
   final String name;
+  final String ext;
 
-  const LutEntry({required this.filePath, required this.name});
+  const LutEntry({
+    required this.filePath,
+    required this.name,
+    required this.ext,
+  });
 
   @override
   bool operator ==(Object other) =>
@@ -35,12 +40,14 @@ class LutLibrary {
           final lower = f.path.toLowerCase();
           return lower.endsWith('.cube') || lower.endsWith('.vlt');
         })
-        .map(
-          (f) => LutEntry(
+        .map((f) {
+          final e = p.extension(f.path); // ".cube" / ".vlt"
+          return LutEntry(
             filePath: f.path,
             name: p.basenameWithoutExtension(f.path),
-          ),
-        )
+            ext: e.isEmpty ? '' : e.substring(1).toLowerCase(),
+          );
+        })
         .toList();
     out.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return out;
@@ -60,8 +67,15 @@ class LutLibrary {
       i++;
     }
 
+    // 复制文件
     await File(sourcePath).copy(dest);
-    return LutEntry(filePath: dest, name: p.basenameWithoutExtension(dest));
+
+    final e = p.extension(dest);
+    return LutEntry(
+      filePath: dest,
+      name: p.basenameWithoutExtension(dest),
+      ext: e.isEmpty ? '' : e.substring(1).toLowerCase(),
+    );
   }
 
   static Future<void> delete(LutEntry entry) async {

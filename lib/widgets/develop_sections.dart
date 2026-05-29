@@ -495,10 +495,12 @@ class _LutSlot extends ConsumerWidget {
     Future<void> onDelete(LutEntry entry) async {
       // 若该 entry 正用于任一槽，先清该槽
       final cur = ref.read(lutNotifierProvider);
-      if (_stripExt(cur.nameA ?? '').toLowerCase() == entry.name.toLowerCase()) {
+      if (_stripExt(cur.nameA ?? '').toLowerCase() ==
+          entry.name.toLowerCase()) {
         ref.read(lutNotifierProvider.notifier).clear(slot: 0);
       }
-      if (_stripExt(cur.nameB ?? '').toLowerCase() == entry.name.toLowerCase()) {
+      if (_stripExt(cur.nameB ?? '').toLowerCase() ==
+          entry.name.toLowerCase()) {
         ref.read(lutNotifierProvider.notifier).clear(slot: 1);
       }
       await ref.read(lutLibraryNotifierProvider.notifier).delete(entry);
@@ -556,11 +558,30 @@ class _LutSlot extends ConsumerWidget {
                       ...library.map(
                         (entry) => DropdownMenuItem<LutEntry?>(
                           value: entry,
-                          child: Text(
-                            entry.name,
-                            style: const TextStyle(fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  entry.name,
+                                  style: const TextStyle(fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                entry.ext.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontFamily: 'monospace',
+                                  color: entry.ext == 'vlt'
+                                      ? Colors.orangeAccent.withValues(
+                                          alpha: 0.7,
+                                        )
+                                      : Colors.white.withValues(alpha: 0.4),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -574,7 +595,8 @@ class _LutSlot extends ConsumerWidget {
                   icon: const Icon(Icons.delete_outline, size: 16),
                   visualDensity: VisualDensity.compact,
                   tooltip: tr("deleteCurrentLUT"),
-                  onPressed: () => _confirmDelete(context, ref, selected, onDelete),
+                  onPressed: () =>
+                      _confirmDelete(context, ref, selected, onDelete),
                 ),
               IconButton(
                 icon: const Icon(Icons.file_upload_outlined, size: 18),
@@ -611,8 +633,9 @@ class _LutSlot extends ConsumerWidget {
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 3,
-                      thumbShape:
-                          const RoundSliderThumbShape(enabledThumbRadius: 7),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 7,
+                      ),
                     ),
                     child: TrackedSlider(
                       value: intensity.clamp(0.0, 1.0),
