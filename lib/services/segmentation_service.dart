@@ -38,8 +38,10 @@ class SegmentationService {
       program: program,
       sourceImage: src,
       params: params,
-      lutTexture: lutEnabled ? lut.texture : null,
-      lutSize: lutEnabled ? lut.size : 0,
+      lutTexture: lutEnabled ? lut.textureA : null,
+      lutSize: lutEnabled ? lut.sizeA : 0,
+      lutTextureB: lutEnabled ? lut.textureB : null,
+      lutSizeB: lutEnabled ? lut.sizeB : 0,
       targetWidth: tw,
       targetHeight: th,
     );

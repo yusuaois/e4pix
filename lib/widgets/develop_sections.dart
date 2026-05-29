@@ -1,8 +1,12 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/hsl_bands.dart';
 import '../services/lut_library.dart';
+import '../state/lut_library_state.dart';
+import '../state/params_state.dart';
+import '../state/render_state.dart';
 import 'tracked_slider.dart';
 
 // 通用滑块 tile
@@ -395,44 +399,134 @@ class _BandRow extends StatelessWidget {
 }
 
 // LUT Section
-class LutSection extends StatelessWidget {
-  final String? lutName;
-  final double intensity;
-  final ValueChanged<double> onIntensityChanged;
-  final List<LutEntry> library;
-  final ValueChanged<LutEntry?> onSelect;
-  final Future<void> Function() onImport;
-  final Future<void> Function(LutEntry) onDelete;
-
-  const LutSection({
-    super.key,
-    required this.lutName,
-    required this.intensity,
-    required this.onIntensityChanged,
-    required this.library,
-    required this.onSelect,
-    required this.onImport,
-    required this.onDelete,
-  });
+// LUT Section — 双槽 (A → B 串联)，自取 provider
+class LutSection extends ConsumerWidget {
+  const LutSection({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final loaded = lutName != null;
-    // 通过 name 反查当前选中的 entry
-    final LutEntry? selected = loaded
-        ? library.cast<LutEntry?>().firstWhere(
-            (e) =>
-                e != null &&
-                '${e.name.toLowerCase()}.cube' == lutName?.toLowerCase(),
-            orElse: () => null,
-          )
-        : null;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lut = ref.watch(lutNotifierProvider);
+    final params = ref.watch(currentParamsNotifierProvider);
+    final library = ref.watch(lutLibraryNotifierProvider).value ?? const [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SectionLabel(title: 'LUT'),
         const SizedBox(height: 4),
+        _LutSlot(
+          slot: 0,
+          label: 'LUT A',
+          lutName: lut.nameA,
+          intensity: params.lutIntensity,
+          library: library,
+        ),
+        const SizedBox(height: 10),
+        _LutSlot(
+          slot: 1,
+          label: 'LUT B',
+          lutName: lut.nameB,
+          intensity: params.lutIntensityB,
+          library: library,
+        ),
+      ],
+    );
+  }
+}
+
+class _LutSlot extends ConsumerWidget {
+  final int slot; // 0 = A, 1 = B
+  final String label;
+  final String? lutName;
+  final double intensity;
+  final List<LutEntry> library;
+
+  const _LutSlot({
+    required this.slot,
+    required this.label,
+    required this.lutName,
+    required this.intensity,
+    required this.library,
+  });
+
+  // 反查当前选中 entry：比较「不带扩展名的文件名」，兼容 .cube / .vlt
+  LutEntry? _findSelected() {
+    if (lutName == null) return null;
+    final target = _stripExt(lutName!).toLowerCase();
+    for (final e in library) {
+      if (e.name.toLowerCase() == target) return e;
+    }
+    return null;
+  }
+
+  static String _stripExt(String n) {
+    final dot = n.lastIndexOf('.');
+    return dot < 0 ? n : n.substring(0, dot);
+  }
+
+  bool get _isVlt => (lutName ?? '').toLowerCase().endsWith('.vlt');
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final loaded = lutName != null;
+    final selected = _findSelected();
+
+    Future<void> onSelect(LutEntry? entry) async {
+      if (entry == null) {
+        ref.read(lutNotifierProvider.notifier).clear(slot: slot);
+      } else {
+        await ref
+            .read(lutNotifierProvider.notifier)
+            .loadFromCubeFile(entry.filePath, slot: slot);
+      }
+    }
+
+    Future<void> onImport() async {
+      final entry = await ref
+          .read(lutLibraryNotifierProvider.notifier)
+          .importFromFile();
+      if (entry != null) {
+        await ref
+            .read(lutNotifierProvider.notifier)
+            .loadFromCubeFile(entry.filePath, slot: slot);
+      }
+    }
+
+    Future<void> onDelete(LutEntry entry) async {
+      // 若该 entry 正用于任一槽，先清该槽
+      final cur = ref.read(lutNotifierProvider);
+      if (_stripExt(cur.nameA ?? '').toLowerCase() == entry.name.toLowerCase()) {
+        ref.read(lutNotifierProvider.notifier).clear(slot: 0);
+      }
+      if (_stripExt(cur.nameB ?? '').toLowerCase() == entry.name.toLowerCase()) {
+        ref.read(lutNotifierProvider.notifier).clear(slot: 1);
+      }
+      await ref.read(lutLibraryNotifierProvider.notifier).delete(entry);
+    }
+
+    void onIntensityChanged(double v) {
+      final p = ref.read(currentParamsNotifierProvider);
+      final np = slot == 0
+          ? p.copyWith(lutIntensity: v)
+          : p.copyWith(lutIntensityB: v);
+      ref.read(currentParamsNotifierProvider.notifier).update(np);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 2),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
+              color: Colors.white.withValues(alpha: 0.4),
+            ),
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -453,7 +547,7 @@ class LutSection extends StatelessWidget {
                         value: null,
                         child: Text(
                           tr("notChosen"),
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             color: Colors.white54,
                           ),
@@ -480,17 +574,29 @@ class LutSection extends StatelessWidget {
                   icon: const Icon(Icons.delete_outline, size: 16),
                   visualDensity: VisualDensity.compact,
                   tooltip: tr("deleteCurrentLUT"),
-                  onPressed: () => _confirmDelete(context, selected),
+                  onPressed: () => _confirmDelete(context, ref, selected, onDelete),
                 ),
               IconButton(
                 icon: const Icon(Icons.file_upload_outlined, size: 18),
                 visualDensity: VisualDensity.compact,
                 tooltip: tr("importCube"),
-                onPressed: () => onImport(),
+                onPressed: onImport,
               ),
             ],
           ),
         ),
+        // .vlt 提示
+        if (_isVlt)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
+            child: Text(
+              tr("lutVltHint"), // "适用于 V-Log 素材"
+              style: TextStyle(
+                fontSize: 10.5,
+                color: Colors.orangeAccent.withValues(alpha: 0.75),
+              ),
+            ),
+          ),
         if (loaded) ...[
           const SizedBox(height: 4),
           Padding(
@@ -505,9 +611,8 @@ class LutSection extends StatelessWidget {
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 3,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 7,
-                      ),
+                      thumbShape:
+                          const RoundSliderThumbShape(enabledThumbRadius: 7),
                     ),
                     child: TrackedSlider(
                       value: intensity.clamp(0.0, 1.0),
@@ -535,7 +640,12 @@ class LutSection extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext ctx, LutEntry entry) async {
+  Future<void> _confirmDelete(
+    BuildContext ctx,
+    WidgetRef ref,
+    LutEntry entry,
+    Future<void> Function(LutEntry) onDelete,
+  ) async {
     final ok = await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
@@ -554,8 +664,6 @@ class LutSection extends StatelessWidget {
         ],
       ),
     );
-    if (ok == true) {
-      await onDelete(entry);
-    }
+    if (ok == true) await onDelete(entry);
   }
 }

@@ -15,8 +15,9 @@ class LutLibraryNotifier extends AsyncNotifier<List<LutEntry>> {
     final src = result?.files.firstOrNull?.path;
     if (src == null) return null;
 
-    if (!src.toLowerCase().endsWith('.cube')) {
-      debugPrint('选中的文件不是 .cube 格式');
+    final lower = src.toLowerCase();
+    if (!lower.endsWith('.cube') && !lower.endsWith('.vlt')) {
+      debugPrint('选中的文件不是 .cube / .vlt 格式');
       return null;
     }
 

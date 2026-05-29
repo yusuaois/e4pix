@@ -17,6 +17,7 @@ class AdjustmentParams {
   final double saturation;
   final double vibrance;
   final double lutIntensity;
+  final double lutIntensityB;
   final HslBands hsl;
   final CropParams crop;
   final List<LocalAdjustment> locals;
@@ -33,6 +34,7 @@ class AdjustmentParams {
     this.saturation = 0.0,
     this.vibrance = 0.0,
     this.lutIntensity = 1.0,
+    this.lutIntensityB = 1.0,
     this.hsl = HslBands.neutral,
     this.crop = CropParams.identity,
     this.locals = const [],
@@ -52,6 +54,7 @@ class AdjustmentParams {
     double? saturation,
     double? vibrance,
     double? lutIntensity,
+    double? lutIntensityB,
     HslBands? hsl,
     CropParams? crop,
     List<LocalAdjustment>? locals,
@@ -67,6 +70,7 @@ class AdjustmentParams {
     saturation: saturation ?? this.saturation,
     vibrance: vibrance ?? this.vibrance,
     lutIntensity: lutIntensity ?? this.lutIntensity,
+    lutIntensityB: lutIntensityB ?? this.lutIntensityB,
     hsl: hsl ?? this.hsl,
     crop: crop ?? this.crop,
     locals: locals ?? this.locals,
@@ -87,6 +91,7 @@ class AdjustmentParams {
           saturation == other.saturation &&
           vibrance == other.vibrance &&
           lutIntensity == other.lutIntensity &&
+          lutIntensityB == other.lutIntensityB &&
           hsl == other.hsl &&
           crop == other.crop &&
           listEquals(locals, other.locals);
@@ -104,6 +109,7 @@ class AdjustmentParams {
     saturation,
     vibrance,
     lutIntensity,
+    lutIntensityB,
     hsl,
     crop,
     locals,
@@ -121,6 +127,7 @@ class AdjustmentParams {
     'saturation': saturation,
     'vibrance': vibrance,
     'lutIntensity': lutIntensity,
+    'lutIntensityB': lutIntensityB,
     'hsl': hsl.toJson(),
     'crop': crop.toJson(),
     'locals': locals.map((e) => e.toJson()).toList(),
@@ -138,6 +145,7 @@ class AdjustmentParams {
     saturation: (j['saturation'] as num?)?.toDouble() ?? 0.0,
     vibrance: (j['vibrance'] as num?)?.toDouble() ?? 0.0,
     lutIntensity: (j['lutIntensity'] as num?)?.toDouble() ?? 1.0,
+    lutIntensityB: (j['lutIntensityB'] as num?)?.toDouble() ?? 1.0,
     hsl: j['hsl'] != null
         ? HslBands.fromJson(j['hsl'] as Map<String, dynamic>)
         : HslBands.neutral,

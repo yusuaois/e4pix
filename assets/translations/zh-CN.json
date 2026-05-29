@@ -119,6 +119,7 @@
   "importCube": "导入 .cube",
   "deleteLUT": "删除 LUT",
   "confirmDeleteLUT": "确定删除「{}」吗？此操作不可撤销。",
+  "lutVltHint": "适用于 V-Log 素材",
   "crop": "裁剪",
   "exportDecodingImage": "解码 RAW（全分辨率）...",
   "exportTransformingColorSpace": "色彩空间转换...",

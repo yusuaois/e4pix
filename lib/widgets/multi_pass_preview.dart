@@ -18,6 +18,8 @@ class MultiPassPreview extends ConsumerStatefulWidget {
   final AdjustmentParams params;
   final ui.Image? lutTexture;
   final int lutSize;
+  final ui.Image? lutTextureB;
+  final int lutSizeB;
   final int idleMaxEdge;
   final int draggingMaxEdge;
 
@@ -29,6 +31,8 @@ class MultiPassPreview extends ConsumerStatefulWidget {
     required this.params,
     this.lutTexture,
     this.lutSize = 0,
+    this.lutTextureB,
+    this.lutSizeB = 0,
     this.idleMaxEdge = 2400,
     this.draggingMaxEdge = 800,
   });
@@ -70,7 +74,10 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     if (old.sourceImage != widget.sourceImage ||
         old.params != widget.params ||
         old.lutTexture != widget.lutTexture ||
-        old.lutSize != widget.lutSize) {
+        old.lutSize != widget.lutSize ||
+        old.lutTextureB != widget.lutTextureB ||
+        old.lutSizeB != widget.lutSizeB
+        ) {
       _scheduleRender();
     }
   }
@@ -130,6 +137,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         params: widget.params,
         lutTexture: widget.lutTexture,
         lutSize: widget.lutSize,
+        lutTextureB: widget.lutTextureB,
+        lutSizeB: widget.lutSizeB,
         targetWidth: tw,
         targetHeight: th,
         developCache: _developCache,

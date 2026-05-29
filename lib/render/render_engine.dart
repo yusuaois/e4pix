@@ -12,6 +12,8 @@ class RenderEngine {
     required AdjustmentParams params,
     ui.Image? lutTexture,
     int lutSize = 0,
+    ui.Image? lutTextureB,
+    int lutSizeB = 0,
     int? targetWidth,
     int? targetHeight,
   }) async {
@@ -29,6 +31,8 @@ class RenderEngine {
       image: sourceImage,
       lutTexture: lutTexture,
       lutSize: lutSize,
+      lutTextureB: lutTextureB,
+      lutSizeB: lutSizeB,
     );
 
     canvas.drawRect(

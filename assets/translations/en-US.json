@@ -119,6 +119,7 @@
   "importCube": "Import .cube",
   "deleteLUT": "Delete LUT",
   "confirmDeleteLUT": "Confirm delete 「{}」? This action cannot be undone.",
+  "lutVltHint": "For V-Log footage",
   "crop": "Crop",
   "exportDecodingImage": "Decode RAW (Full Resolution)...",
   "exportTransformingColorSpace": "Color Space Conversion...",

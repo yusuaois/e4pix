@@ -9,6 +9,8 @@ void applyDevelopUniforms({
   required ui.Image image,
   ui.Image? lutTexture,
   int lutSize = 0,
+  ui.Image? lutTextureB,
+  int lutSizeB = 0, 
 }) {
   final p = params;
   final h = p.hsl;
@@ -46,10 +48,16 @@ void applyDevelopUniforms({
   }
 
   final hasLut = lutTexture != null && lutSize > 0;
-  shader.setFloat(i++, hasLut ? p.lutIntensity : 0.0);
-  shader.setFloat(i++, lutSize.toDouble());
-  shader.setFloat(i++, hasLut ? 1.0 : 0.0);
+  shader.setFloat(i++, hasLut ? params.lutIntensity : 0.0);  // 36
+  shader.setFloat(i++, lutSize.toDouble());                   // 37
+  shader.setFloat(i++, hasLut ? 1.0 : 0.0);                   // 38
+
+  final hasLutB = lutTextureB != null && lutSizeB > 0;
+  shader.setFloat(i++, hasLutB ? params.lutIntensityB : 0.0); // 39
+  shader.setFloat(i++, lutSizeB.toDouble());                  // 40
+  shader.setFloat(i++, hasLutB ? 1.0 : 0.0);                  // 41
 
   shader.setImageSampler(0, image);
   shader.setImageSampler(1, lutTexture ?? image);
+  shader.setImageSampler(2, lutTextureB ?? image);
 }

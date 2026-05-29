@@ -15,25 +15,15 @@ class AdjustmentPanel extends ConsumerWidget {
   final Widget? presetBar;
   final Widget? info;
   final VoidCallback? onEnterCrop;
-  final String? lutName;
-  final List<LutEntry> library;
-  final ValueChanged<LutEntry?> onSelectLut;
-  final Future<void> Function() onImportLut;
-  final Future<void> Function(LutEntry) onDeleteLut;
 
   const AdjustmentPanel({
     super.key,
     required this.params,
     required this.onChanged,
-    required this.library,
-    required this.onSelectLut,
-    required this.onImportLut,
-    required this.onDeleteLut,
     this.histogram,
     this.presetBar,
     this.info,
     this.onEnterCrop,
-    this.lutName,
   });
 
   Widget _section(DevelopTool tool) {
@@ -48,16 +38,7 @@ class AdjustmentPanel extends ConsumerWidget {
           onChanged: (b) => onChanged(params.copyWith(hsl: b)),
         );
       case DevelopTool.lut:
-        return LutSection(
-          lutName: lutName,
-          intensity: params.lutIntensity,
-          onIntensityChanged: (v) =>
-              onChanged(params.copyWith(lutIntensity: v)),
-          library: library,
-          onSelect: onSelectLut,
-          onImport: onImportLut,
-          onDelete: onDeleteLut,
-        );
+        return LutSection();
       case DevelopTool.preset:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

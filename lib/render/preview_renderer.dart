@@ -13,6 +13,8 @@ class PreviewRenderer extends ConsumerStatefulWidget {
   final AdjustmentParams params;
   final ui.Image? lutTexture;
   final int lutSize;
+  final ui.Image? lutTextureB;
+  final int lutSizeB;
 
   const PreviewRenderer({
     super.key,
@@ -20,6 +22,8 @@ class PreviewRenderer extends ConsumerStatefulWidget {
     required this.params,
     this.lutTexture,
     this.lutSize = 0,
+    this.lutTextureB,
+    this.lutSizeB = 0,
   });
 
   @override
@@ -42,18 +46,18 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
     _displayedParams = widget.params;
     _load();
 
-    _dragSub = ref.listenManual<bool>(
-      isUserDraggingSliderProvider,
-      (prev, next) {
-        if (prev == true && next == false) {
-          _throttle?.cancel();
-          _throttle = null;
-          if (mounted && _displayedParams != widget.params) {
-            setState(() => _displayedParams = widget.params);
-          }
+    _dragSub = ref.listenManual<bool>(isUserDraggingSliderProvider, (
+      prev,
+      next,
+    ) {
+      if (prev == true && next == false) {
+        _throttle?.cancel();
+        _throttle = null;
+        if (mounted && _displayedParams != widget.params) {
+          setState(() => _displayedParams = widget.params);
         }
-      },
-    );
+      }
+    });
   }
 
   @override
@@ -132,6 +136,8 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
                 params: _displayedParams,
                 lut: widget.lutTexture,
                 lutSize: widget.lutSize,
+                lutB: widget.lutTextureB,
+                lutSizeB: widget.lutSizeB,
               ),
             ),
           ),
@@ -147,6 +153,8 @@ class _DevelopPainter extends CustomPainter {
   final AdjustmentParams params;
   final ui.Image? lut;
   final int lutSize;
+  final ui.Image? lutB;
+  final int lutSizeB;
 
   _DevelopPainter({
     required this.shader,
@@ -154,6 +162,8 @@ class _DevelopPainter extends CustomPainter {
     required this.params,
     this.lut,
     this.lutSize = 0,
+    this.lutB,
+    this.lutSizeB = 0,
   });
 
   @override
@@ -165,6 +175,8 @@ class _DevelopPainter extends CustomPainter {
       image: image,
       lutTexture: lut,
       lutSize: lutSize,
+      lutTextureB: lutB,
+      lutSizeB: lutSizeB,
     );
     canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
   }
@@ -174,5 +186,7 @@ class _DevelopPainter extends CustomPainter {
       old.image != image ||
       old.params != params ||
       old.lut != lut ||
-      old.lutSize != lutSize;
+      old.lutSize != lutSize ||
+      old.lutB != lutB ||
+      old.lutSizeB != lutSizeB;
 }

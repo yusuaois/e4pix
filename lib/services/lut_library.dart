@@ -31,11 +31,16 @@ class LutLibrary {
     final files = await dir.list().toList();
     final out = files
         .whereType<File>()
-        .where((f) => f.path.toLowerCase().endsWith('.cube'))
-        .map((f) => LutEntry(
-              filePath: f.path,
-              name: p.basenameWithoutExtension(f.path),
-            ))
+        .where((f) {
+          final lower = f.path.toLowerCase();
+          return lower.endsWith('.cube') || lower.endsWith('.vlt');
+        })
+        .map(
+          (f) => LutEntry(
+            filePath: f.path,
+            name: p.basenameWithoutExtension(f.path),
+          ),
+        )
         .toList();
     out.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return out;
@@ -56,10 +61,7 @@ class LutLibrary {
     }
 
     await File(sourcePath).copy(dest);
-    return LutEntry(
-      filePath: dest,
-      name: p.basenameWithoutExtension(dest),
-    );
+    return LutEntry(filePath: dest, name: p.basenameWithoutExtension(dest));
   }
 
   static Future<void> delete(LutEntry entry) async {

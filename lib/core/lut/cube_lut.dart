@@ -5,7 +5,7 @@ import 'dart:ui' as ui;
 
 class CubeLut {
   final String name;
-  final int size;                // 17 / 33 / 65
+  final int size; // 17 / 33 / 65
   final Float32List rgbTriplets; // 长度 = size^3 * 3
 
   const CubeLut({
@@ -17,6 +17,7 @@ class CubeLut {
   // ---------------- 解析 ----------------
   static Future<CubeLut> fromFile(String path) async {
     final lines = await File(path).readAsLines();
+    final isVlt = path.toLowerCase().endsWith('.vlt');
     int size = 0;
     final values = <double>[];
 
@@ -28,7 +29,6 @@ class CubeLut {
         size = int.parse(line.split(RegExp(r'\s+')).last);
         continue;
       }
-      // 忽略各种元数据头
       if (line.startsWith('TITLE') ||
           line.startsWith('DOMAIN_') ||
           line.startsWith('LUT_1D_SIZE') ||
@@ -43,18 +43,26 @@ class CubeLut {
         final g = double.tryParse(parts[1]);
         final b = double.tryParse(parts[2]);
         if (r != null && g != null && b != null) {
-          values..add(r)..add(g)..add(b);
+          if (isVlt) {
+            // 12-bit，除以 4095 归一化
+            values
+              ..add(r / 4095.0)
+              ..add(g / 4095.0)
+              ..add(b / 4095.0);
+          } else {
+            values
+              ..add(r)
+              ..add(g)
+              ..add(b);
+          }
         }
       }
     }
 
-    if (size == 0) {
-      throw const FormatException('LUT_3D_SIZE 未找到');
-    }
+    if (size == 0) throw const FormatException('LUT_3D_SIZE 未找到');
     final expected = size * size * size * 3;
     if (values.length != expected) {
-      throw FormatException(
-        '预期 $expected 个值（size=$size），实际 ${values.length}');
+      throw FormatException('预期 $expected 个值（size=$size），实际 ${values.length}');
     }
 
     return CubeLut(
@@ -103,7 +111,11 @@ class CubeLut {
         }
       }
     }
-    return CubeLut(name: 'Test · Warm Cinematic', size: size, rgbTriplets: values);
+    return CubeLut(
+      name: 'Test · Warm Cinematic',
+      size: size,
+      rgbTriplets: values,
+    );
   }
 
   // ---------------- 转 HALD strip 纹理 ----------------
@@ -122,7 +134,7 @@ class CubeLut {
           final dstX = b * size + r;
           final dstY = g;
           final dst = (dstY * w + dstX) * 4;
-          pixels[dst]     = (rgbTriplets[src]     * 255).clamp(0, 255).round();
+          pixels[dst] = (rgbTriplets[src] * 255).clamp(0, 255).round();
           pixels[dst + 1] = (rgbTriplets[src + 1] * 255).clamp(0, 255).round();
           pixels[dst + 2] = (rgbTriplets[src + 2] * 255).clamp(0, 255).round();
           pixels[dst + 3] = 255;
@@ -133,7 +145,12 @@ class CubeLut {
 
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
-      pixels, w, h, ui.PixelFormat.rgba8888, completer.complete);
+      pixels,
+      w,
+      h,
+      ui.PixelFormat.rgba8888,
+      completer.complete,
+    );
     return completer.future;
   }
 }

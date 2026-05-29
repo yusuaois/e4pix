@@ -17,6 +17,8 @@ class AIInputRenderer {
     required AdjustmentParams params,
     ui.Image? lutTexture,
     int lutSize = 0,
+    ui.Image? lutTextureB,
+    int lutSizeB = 0,
     int maxEdge = 768,
     int jpegQuality = 85,
   }) async {
@@ -27,12 +29,15 @@ class AIInputRenderer {
       params: params,
       lutTexture: lutTexture,
       lutSize: lutSize,
+      lutTextureB: lutTextureB,
+      lutSizeB: lutSizeB,
       targetWidth: sourceImage.width,
       targetHeight: sourceImage.height,
     );
 
-    final byteData =
-        await rendered.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final byteData = await rendered.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    );
     final w = rendered.width;
     final h = rendered.height;
     rendered.dispose();

@@ -77,7 +77,7 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
     final shotPath = ref.read(activeFilePathProvider);
 
     state = state.copyWith(inProgress: true);
-    
+
     String? tempPath;
     try {
       tempPath = await AIInputRenderer.renderToTempFile(
@@ -85,8 +85,10 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
         maskProgram: maskProgram,
         sourceImage: imageState.uiImage,
         params: params,
-        lutTexture: lutState.texture,
-        lutSize: lutState.size,
+        lutTexture: lutState.textureA,
+        lutSize: lutState.sizeA,
+        lutTextureB: lutState.textureB,
+        lutSizeB: lutState.sizeB,
         maxEdge: await AISettings.getMaxEdge(),
       );
       final bytes = await File(tempPath).readAsBytes();
@@ -120,12 +122,12 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
   }
 
   void applyPending() {
-  final s = state.pendingSuggestion;
-  if (s == null) return;
-  final cur = ref.read(currentParamsNotifierProvider);
-  ref.read(currentParamsNotifierProvider.notifier).update(s.applyTo(cur));
-  state = state.copyWith(clearPending: true);
-}
+    final s = state.pendingSuggestion;
+    if (s == null) return;
+    final cur = ref.read(currentParamsNotifierProvider);
+    ref.read(currentParamsNotifierProvider.notifier).update(s.applyTo(cur));
+    state = state.copyWith(clearPending: true);
+  }
 }
 
 final aiAutoNotifierProvider = NotifierProvider<AIAutoNotifier, AIAutoState>(

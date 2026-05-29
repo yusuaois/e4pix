@@ -233,8 +233,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             maskProgram: maskProgram,
             sourceImage: image.uiImage,
             params: ref.read(currentParamsNotifierProvider),
-            lutTexture: lut.texture,
-            lutSize: lut.size,
+            lutTexture: lut.textureA,
+            lutSize: lut.sizeA,
+            lutTextureB: lut.textureB,
+            lutSizeB: lut.sizeB,
             maxEdge: await AISettings.getMaxEdge(),
           );
         },
@@ -398,8 +400,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           shaderProgram: program,
           maskProgram: maskProgram,
           params: task.params,
-          lutTexture: lut.texture,
-          lutSize: lut.size,
+          lutTexture: lut.textureA,
+          lutSize: lut.sizeA,
+          lutTextureB: lut.textureB,
+          lutSizeB: lut.sizeB,
           jpegQuality: quality,
           onProgress: (f, s) {
             if (tasks.length == 1) {
@@ -710,37 +714,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                 AdjustmentPanel(
                   params: params,
                   onChanged: _onParamsChanged,
-                  lutName: lut.name,
-                  library:
-                      ref.watch(lutLibraryNotifierProvider).value ?? const [],
-                  onSelectLut: (entry) async {
-                    if (entry == null) {
-                      ref.read(lutNotifierProvider.notifier).clear();
-                    } else {
-                      await ref
-                          .read(lutNotifierProvider.notifier)
-                          .loadFromCubeFile(entry.filePath);
-                    }
-                  },
-                  onImportLut: () async {
-                    final entry = await ref
-                        .read(lutLibraryNotifierProvider.notifier)
-                        .importFromFile();
-                    if (entry != null) {
-                      await ref
-                          .read(lutNotifierProvider.notifier)
-                          .loadFromCubeFile(entry.filePath);
-                    }
-                  },
-                  onDeleteLut: (entry) async {
-                    final cur = ref.read(lutNotifierProvider);
-                    if (cur.name == '${entry.name}.cube') {
-                      ref.read(lutNotifierProvider.notifier).clear();
-                    }
-                    await ref
-                        .read(lutLibraryNotifierProvider.notifier)
-                        .delete(entry);
-                  },
                   histogram: program == null
                       ? null
                       : _buildHistogram(program, image),
@@ -795,8 +768,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       maskProgram: mask,
       sourceImage: image.uiImage,
       params: params,
-      lutTexture: lutEnabled ? lut.texture : null,
-      lutSize: lutEnabled ? lut.size : 0,
+      lutTexture: lutEnabled ? lut.textureA : null,
+      lutSize: lutEnabled ? lut.sizeA : 0,
+      lutTextureB: lutEnabled ? lut.textureB : null,
+      lutSizeB: lutEnabled ? lut.sizeB : 0,
     );
   }
 
@@ -1242,43 +1217,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                             _onParamsChanged(params.copyWith(hsl: b)),
                       ),
                     ),
-                    SingleChildScrollView(
-                      child: LutSection(
-                        lutName: lut.name,
-                        intensity: params.lutIntensity,
-                        onIntensityChanged: (v) =>
-                            _onParamsChanged(params.copyWith(lutIntensity: v)),
-                        library: library,
-                        onSelect: (entry) async {
-                          if (entry == null) {
-                            ref.read(lutNotifierProvider.notifier).clear();
-                          } else {
-                            await ref
-                                .read(lutNotifierProvider.notifier)
-                                .loadFromCubeFile(entry.filePath);
-                          }
-                        },
-                        onImport: () async {
-                          final entry = await ref
-                              .read(lutLibraryNotifierProvider.notifier)
-                              .importFromFile();
-                          if (entry != null) {
-                            await ref
-                                .read(lutNotifierProvider.notifier)
-                                .loadFromCubeFile(entry.filePath);
-                          }
-                        },
-                        onDelete: (entry) async {
-                          final cur = ref.read(lutNotifierProvider);
-                          if (cur.name == '${entry.name}.cube') {
-                            ref.read(lutNotifierProvider.notifier).clear();
-                          }
-                          await ref
-                              .read(lutLibraryNotifierProvider.notifier)
-                              .delete(entry);
-                        },
-                      ),
-                    ),
+                    SingleChildScrollView(child: LutSection()),
                     const PresetTabContent(),
                     const SingleChildScrollView(child: LocalPanel()),
                   ],
@@ -1506,8 +1445,10 @@ class _PreviewArea extends ConsumerWidget {
                               child: PreviewRenderer(
                                 image: state.uiImage,
                                 params: params,
-                                lutTexture: lutEnabled ? lut.texture : null,
-                                lutSize: lutEnabled ? lut.size : 0,
+                                lutTexture: lutEnabled ? lut.textureA : null,
+                                lutSize: lutEnabled ? lut.sizeA : 0,
+                                lutTextureB: lutEnabled ? lut.textureB : null,
+                                lutSizeB: lutEnabled ? lut.sizeB : 0,
                               ),
                             ),
                           ),
@@ -1589,8 +1530,10 @@ class _PreviewArea extends ConsumerWidget {
                       maskProgram: maskProgram,
                       sourceImage: state.uiImage,
                       params: params,
-                      lutTexture: lutEnabled ? lut.texture : null,
-                      lutSize: lutEnabled ? lut.size : 0,
+                      lutTexture: lutEnabled ? lut.textureA : null,
+                      lutSize: lutEnabled ? lut.sizeA : 0,
+                      lutTextureB: lutEnabled ? lut.textureB : null,
+                      lutSizeB: lutEnabled ? lut.sizeB : 0,
                       idleMaxEdge: isVertical ? 1600 : 2400,
                       draggingMaxEdge: isVertical ? 600 : 800,
                     ),
@@ -1628,8 +1571,10 @@ class _PreviewArea extends ConsumerWidget {
                     PreviewRenderer(
                       image: image,
                       params: params,
-                      lutTexture: lutEnabled ? lut.texture : null,
-                      lutSize: lutEnabled ? lut.size : 0,
+                      lutTexture: lutEnabled ? lut.textureA : null,
+                      lutSize: lutEnabled ? lut.sizeA : 0,
+                      lutTextureB: lutEnabled ? lut.textureB : null,
+                      lutSizeB: lutEnabled ? lut.sizeB : 0,
                     ),
                     fit.destination,
                   ),
@@ -1707,8 +1652,10 @@ class _PreviewArea extends ConsumerWidget {
                           child: PreviewRenderer(
                             image: image,
                             params: params,
-                            lutTexture: lutEnabled ? lut.texture : null,
-                            lutSize: lutEnabled ? lut.size : 0,
+                            lutTexture: lutEnabled ? lut.textureA : null,
+                            lutSize: lutEnabled ? lut.sizeA : 0,
+                            lutTextureB: lutEnabled ? lut.textureB : null,
+                            lutSizeB: lutEnabled ? lut.sizeB : 0,
                           ),
                         ),
                       ),

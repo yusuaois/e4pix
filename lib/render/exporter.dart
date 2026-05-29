@@ -33,6 +33,8 @@ class Exporter {
     required AdjustmentParams params,
     ui.Image? lutTexture,
     int lutSize = 0,
+    ui.Image? lutTextureB,
+    int lutSizeB = 0,
     int jpegQuality = 95,
     ExportProgress? onProgress,
   }) async {
@@ -51,6 +53,8 @@ class Exporter {
       params: params,
       lutTexture: lutTexture,
       lutSize: lutSize,
+      lutTextureB: lutTextureB,
+      lutSizeB: lutSizeB,
       targetWidth: sourceImage.width,
       targetHeight: sourceImage.height,
     );
