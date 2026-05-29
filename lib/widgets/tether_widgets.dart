@@ -252,6 +252,7 @@ class TetherThumbStrip extends StatefulWidget {
   final ValueChanged<TetheredShot> onSelect;
   final bool multiSelectMode;
   final List<TetheredShot> selectedShots;
+  final Axis axis;
 
   const TetherThumbStrip({
     super.key,
@@ -260,6 +261,7 @@ class TetherThumbStrip extends StatefulWidget {
     required this.onSelect,
     this.multiSelectMode = false,
     this.selectedShots = const [],
+    this.axis = Axis.horizontal,
   });
 
   @override
@@ -278,51 +280,56 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
   @override
   Widget build(BuildContext context) {
     if (widget.shots.isEmpty) return const SizedBox.shrink();
+    final vertical = widget.axis == Axis.vertical;
 
     return Container(
-      height: 92,
+      width: vertical ? 96 : null,
+      height: vertical ? null : 92,
       decoration: BoxDecoration(
         color: const Color(0xFF0B0B10),
         border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+          top: vertical
+              ? BorderSide.none
+              : BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+          right: vertical
+              ? BorderSide(color: Colors.white.withValues(alpha: 0.05))
+              : BorderSide.none,
         ),
       ),
       child: ScrollConfiguration(
         behavior: ScrollConfiguration.of(context).copyWith(
           dragDevices: {
-            PointerDeviceKind.mouse, // 鼠标左键拖拽
-            PointerDeviceKind.touch, // 触摸屏支持
-            PointerDeviceKind.trackpad, // 触控板支持
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.touch,
+            PointerDeviceKind.trackpad,
           },
         ),
-        // 鼠标滚轮事件映射到水平
         child: Listener(
           onPointerSignal: (pointerSignal) {
             if (pointerSignal is PointerScrollEvent) {
-              // dy
               final offset = pointerSignal.scrollDelta.dy;
-              final targetPosition = _scrollController.offset + offset;
+              final target = _scrollController.offset + offset;
               _scrollController.jumpTo(
-                targetPosition.clamp(
-                  0.0,
-                  _scrollController.position.maxScrollExtent,
-                ),
+                target.clamp(0.0, _scrollController.position.maxScrollExtent),
               );
             }
           },
           child: ListView.builder(
             controller: _scrollController,
-            scrollDirection: Axis.horizontal,
-            reverse: true,
+            scrollDirection: widget.axis,
+            reverse: !vertical,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             itemCount: widget.shots.length,
             itemBuilder: (ctx, i) {
-              final shot = widget.shots[widget.shots.length - 1 - i];
+              final idx = vertical ? i : widget.shots.length - 1 - i;
+              final shot = widget.shots[idx];
               final isActive = shot == widget.activeShot;
               final isPicked = widget.selectedShots.contains(shot);
 
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: vertical
+                    ? const EdgeInsets.symmetric(vertical: 4)
+                    : const EdgeInsets.symmetric(horizontal: 4),
                 child: GestureDetector(
                   onTap: () => widget.onSelect(shot),
                   child: Stack(
@@ -344,8 +351,8 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(2),
                           child: SizedBox(
-                            width: 110,
-                            height: 70,
+                            width: vertical ? 76 : 110,
+                            height: vertical ? 54 : 70,
                             child: Stack(
                               fit: StackFit.expand,
                               children: [

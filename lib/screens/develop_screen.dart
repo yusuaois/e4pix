@@ -696,7 +696,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final image = ref.watch(imageNotifierProvider).value;
     final program = ref.watch(shaderProgramProvider).value;
     final params = ref.watch(currentParamsNotifierProvider);
-    final lut = ref.watch(lutNotifierProvider);
     final cameraState = ref.watch(cameraNotifierProvider);
     final cropEditMode = ref.watch(cropEditModeProvider);
 
@@ -709,6 +708,17 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         Expanded(
           child: Row(
             children: [
+              if (shots.isNotEmpty && !cropEditMode)
+                TetherThumbStrip(
+                  shots: shots,
+                  activeShot: activeShot,
+                  onSelect: _onThumbTap,
+                  multiSelectMode: selection.multiSelectMode,
+                  selectedShots: shots
+                      .where((s) => selection.selectedPaths.contains(s.path))
+                      .toList(),
+                  axis: Axis.vertical,
+                ),
               const Expanded(child: _PreviewArea()),
               if (image != null)
                 AdjustmentPanel(
@@ -724,16 +734,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             ],
           ),
         ),
-        if (shots.isNotEmpty && !cropEditMode)
-          TetherThumbStrip(
-            shots: shots,
-            activeShot: activeShot,
-            onSelect: _onThumbTap,
-            multiSelectMode: selection.multiSelectMode,
-            selectedShots: shots
-                .where((s) => selection.selectedPaths.contains(s.path))
-                .toList(),
-          ),
       ],
     );
   }

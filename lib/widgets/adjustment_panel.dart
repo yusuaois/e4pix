@@ -62,7 +62,7 @@ class AdjustmentPanel extends ConsumerWidget {
     final tool = ref.watch(developToolProvider);
 
     return SizedBox(
-      width: 340 + 46,
+      width: 340,
       child: Row(
         children: [
           Expanded(

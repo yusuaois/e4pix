@@ -35,7 +35,7 @@ class LocalPanel extends ConsumerWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.gradient, size: 14),
-                  label: Text(tr("linear"), style: TextStyle(fontSize: 11)),
+                  label: Text(tr("linear"), style: TextStyle(fontSize: 10)),
                   onPressed: atLimit
                       ? null
                       : () => LocalAdjustmentActions(ref).addLinear(),
@@ -48,7 +48,7 @@ class LocalPanel extends ConsumerWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.brightness_5, size: 14),
-                  label: Text(tr("radial"), style: TextStyle(fontSize: 11)),
+                  label: Text(tr("radial"), style: TextStyle(fontSize: 10)),
                   onPressed: atLimit
                       ? null
                       : () => LocalAdjustmentActions(ref).addRadial(),
@@ -61,7 +61,7 @@ class LocalPanel extends ConsumerWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.brush, size: 14),
-                  label: Text(tr("brush"), style: TextStyle(fontSize: 11)),
+                  label: Text(tr("brush"), style: TextStyle(fontSize: 10)),
                   onPressed: atLimit
                       ? null
                       : () => LocalAdjustmentActions(ref).addBrush(),
@@ -78,7 +78,7 @@ class LocalPanel extends ConsumerWidget {
             padding: EdgeInsets.fromLTRB(20, 4, 16, 8),
             child: Text(
               tr("notAddedLocalAdjustment"),
-              style: TextStyle(fontSize: 11.5, color: Colors.white38),
+              style: TextStyle(fontSize: 10.5, color: Colors.white38),
             ),
           )
         else
@@ -97,7 +97,7 @@ class LocalPanel extends ConsumerWidget {
             child: TextButton(
               onPressed: () =>
                   ref.read(selectedLocalIdProvider.notifier).state = null,
-              child: Text(tr("completed"), style: TextStyle(fontSize: 11)),
+              child: Text(tr("completed"), style: TextStyle(fontSize: 10)),
             ),
           ),
         ],
@@ -218,7 +218,7 @@ class _LocalShapeControls extends ConsumerWidget {
             children: [
               SizedBox(
                 width: 64,
-                child: Text(tr("invert"), style: TextStyle(fontSize: 11.5)),
+                child: Text(tr("invert"), style: TextStyle(fontSize: 10.5)),
               ),
               Switch(
                 value: shape.inverted,
@@ -257,14 +257,14 @@ class _BrushControls extends ConsumerWidget {
             segments: [
               ButtonSegment(
                 value: BrushMode.paint,
-                label: Text(tr("brush"), style: TextStyle(fontSize: 11)),
+                label: Text(tr("brush"), style: TextStyle(fontSize: 10)),
                 icon: Icon(Icons.brush, size: 14),
               ),
               ButtonSegment(
                 value: BrushMode.wand,
                 label: Text(
                   tr("localBrushIntellgentArea"),
-                  style: TextStyle(fontSize: 11),
+                  style: TextStyle(fontSize: 10),
                 ),
                 icon: Icon(Icons.auto_fix_high, size: 14),
               ),
@@ -272,7 +272,7 @@ class _BrushControls extends ConsumerWidget {
                 value: BrushMode.subject,
                 label: Text(
                   tr("localBrushSubject"),
-                  style: TextStyle(fontSize: 11),
+                  style: TextStyle(fontSize: 10),
                 ),
                 icon: Icon(Icons.center_focus_strong, size: 14),
               ),
@@ -323,7 +323,7 @@ class _BrushControls extends ConsumerWidget {
                     ),
                     child: Text(
                       tr("localBrushIntellgentAreaClear"),
-                      style: TextStyle(fontSize: 11),
+                      style: TextStyle(fontSize: 10),
                     ),
                   ),
                 if (mask.strokes.isNotEmpty)
@@ -336,7 +336,7 @@ class _BrushControls extends ConsumerWidget {
                     ),
                     child: Text(
                       tr("localBrushStrokeClear"),
-                      style: TextStyle(fontSize: 11),
+                      style: TextStyle(fontSize: 10),
                     ),
                   ),
               ],
@@ -389,7 +389,7 @@ class _BrushControls extends ConsumerWidget {
                 width: 64,
                 child: Text(
                   tr("localBrushInverse"),
-                  style: TextStyle(fontSize: 11.5),
+                  style: TextStyle(fontSize: 10.5),
                 ),
               ),
               Switch(
@@ -446,7 +446,7 @@ class _BrushControls extends ConsumerWidget {
                 value: false,
                 label: Text(
                   tr("localBrushSubjectExcludeAdd"),
-                  style: TextStyle(fontSize: 11),
+                  style: TextStyle(fontSize: 10),
                 ),
                 icon: Icon(Icons.add, size: 14),
               ),
@@ -454,7 +454,7 @@ class _BrushControls extends ConsumerWidget {
                 value: true,
                 label: Text(
                   tr("localBrushSubjectExcludeSubtract"),
-                  style: TextStyle(fontSize: 11),
+                  style: TextStyle(fontSize: 10),
                 ),
                 icon: Icon(Icons.remove, size: 14),
               ),
@@ -474,7 +474,7 @@ class _BrushControls extends ConsumerWidget {
                 width: 64,
                 child: Text(
                   tr("localBrushInverse"),
-                  style: TextStyle(fontSize: 11.5),
+                  style: TextStyle(fontSize: 10.5),
                 ),
               ),
               Switch(
@@ -509,7 +509,7 @@ class _BrushControls extends ConsumerWidget {
                 width: 64,
                 child: Text(
                   tr("localBrushMode"),
-                  style: TextStyle(fontSize: 11.5),
+                  style: TextStyle(fontSize: 10.5),
                 ),
               ),
               Expanded(
@@ -519,7 +519,7 @@ class _BrushControls extends ConsumerWidget {
                       value: false,
                       label: Text(
                         tr("localBrushModePaint"),
-                        style: TextStyle(fontSize: 11),
+                        style: TextStyle(fontSize: 10),
                       ),
                       icon: Icon(Icons.add, size: 14),
                     ),
@@ -527,7 +527,7 @@ class _BrushControls extends ConsumerWidget {
                       value: true,
                       label: Text(
                         tr("localBrushModeErase"),
-                        style: TextStyle(fontSize: 11),
+                        style: TextStyle(fontSize: 10),
                       ),
                       icon: Icon(Icons.remove, size: 14),
                     ),
@@ -576,7 +576,7 @@ class _BrushControls extends ConsumerWidget {
                 width: 64,
                 child: Text(
                   tr("localBrushAutoMask"),
-                  style: TextStyle(fontSize: 11.5),
+                  style: TextStyle(fontSize: 10.5),
                 ),
               ),
               Switch(
@@ -735,7 +735,7 @@ class _MiniSlider extends StatelessWidget {
         children: [
           SizedBox(
             width: 64,
-            child: Text(label, style: const TextStyle(fontSize: 11.5)),
+            child: Text(label, style: const TextStyle(fontSize: 10.5)),
           ),
           Expanded(
             child: SliderTheme(
