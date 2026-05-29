@@ -1,0 +1,53 @@
+name: Weekly Version Check & Tag
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+jobs:
+  check-and-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 必须设置为 0，这样才能拉取到历史所有的 Tag 用于比对
+          token: ${{ secrets.Release }}
+
+      - name: 🔍 Extract Version from pubspec.yaml
+        id: extract_version
+        run: |
+          # 提取 version 字段 (例如将 "1.0.0+1" 提取并截断为 "1.0.0")
+          RAW_VERSION=$(grep '^version: ' pubspec.yaml | sed 's/version: //')
+          VERSION_NAME=$(echo $RAW_VERSION | cut -d '+' -f 1)
+
+          # 组装成 Tag 格式，例如 v1.0.0
+          echo "PUBSPEC_VERSION=v$VERSION_NAME" >> $GITHUB_ENV
+          echo "Current pubspec version is v$VERSION_NAME"
+
+      - name: 🏷️ Get Latest Git Tag
+        id: get_latest_tag
+        run: |
+          # 获取最新的 tag，如果仓库还是空的没有 tag，则默认设为 v0.0.0
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          echo "Latest Git tag is $LATEST_TAG"
+
+      - name: 🚀 Push New Tag (If Changed)
+        if: env.PUBSPEC_VERSION != env.LATEST_TAG
+        run: |
+          echo "New version detected: ${{ env.PUBSPEC_VERSION }} (was ${{ env.LATEST_TAG }}). Pushing new tag..."
+
+          # 配置 Git 机器人信息
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 打 Tag 并推送到远程
+          git tag ${{ env.PUBSPEC_VERSION }}
+          git push origin ${{ env.PUBSPEC_VERSION }}
+
+      - name: 💤 No Update Needed
+        if: env.PUBSPEC_VERSION == env.LATEST_TAG
+        run: |
+          echo "Version ${{ env.PUBSPEC_VERSION }} is already tagged. Skipping release."
