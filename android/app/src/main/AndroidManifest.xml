@@ -58,6 +58,9 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
+    <!-- 联网 调AI API -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- USB Host -->
     <uses-feature android:name="android.hardware.usb.host" android:required="true" />
 </manifest>
