@@ -19,6 +19,7 @@ import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
 import '../services/app_settings.dart';
+import '../services/update_service.dart';
 import '../state/providers.dart';
 import '../widgets/adjustment_panel.dart';
 import '../widgets/ai_settings_dialog.dart';
@@ -56,12 +57,27 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     super.initState();
     _libRawVersion = tr('loading');
     _probeFfi();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _silentUpdateCheck());
   }
 
   @override
   void dispose() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
+  }
+
+  Future<void> _silentUpdateCheck() async {
+    try {
+      final info = await UpdateService.check();
+      if (info == null || !info.hasUpdate || !mounted) return;
+      final ignored = await UpdateService.ignoredVersion();
+      if (ignored == info.latestVersion) return;
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => UpdateDialog(info: info, showIgnore: true),
+      );
+    } catch (_) {}
   }
 
   void _probeFfi() {
@@ -78,7 +94,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     }
   }
 
-  // 动作写 notifier
   Future<void> _pickAndDecode() async {
     final result = await FilePicker.platform.pickFiles();
     if (result == null || result.files.isEmpty) return;
@@ -89,20 +104,17 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   }
 
   Future<void> _startFolderTether() async {
-    // 默认文件夹
     String? folder = ref.read(tetherFolderProvider);
     folder ??= await AppSettings.getTetherFolder();
 
     if (folder != null) {
       final exists = await Directory(folder).exists();
       if (!exists) {
-        // 文件夹不存在
         await ref.read(tetherFolderProvider.notifier).clear();
         folder = null;
       }
     }
 
-    // 无默认文件夹
     if (folder == null) {
       final picked = await FilePicker.platform.getDirectoryPath(
         dialogTitle: tr('tetherFolderChoose'),
@@ -137,7 +149,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       folder = picked;
     }
 
-    // 真正启动
     try {
       await ref.read(tetherSessionNotifierProvider.notifier).start(folder);
     } catch (e) {

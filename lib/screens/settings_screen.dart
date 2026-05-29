@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
@@ -9,6 +10,7 @@ import '../state/app_settings_state.dart';
 import '../widgets/ai_settings_dialog.dart';
 import '../state/theme_state.dart';
 import '../widgets/theme_color_picker.dart';
+import '../services/update_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -298,6 +300,7 @@ class _AboutTiles extends StatelessWidget {
                 ),
               ),
             ),
+            const _CheckUpdateTile(),
             ListTile(
               leading: const Icon(Icons.code, size: 20),
               title: Text(tr("projectUrl"), style: TextStyle(fontSize: 13.5)),
@@ -315,6 +318,151 @@ class _AboutTiles extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _CheckUpdateTile extends StatefulWidget {
+  const _CheckUpdateTile();
+  @override
+  State<_CheckUpdateTile> createState() => _CheckUpdateTileState();
+}
+
+class _CheckUpdateTileState extends State<_CheckUpdateTile> {
+  bool _busy = false;
+
+  Future<void> _check() async {
+    setState(() => _busy = true);
+    UpdateInfo? info;
+    try {
+      info = await UpdateService.check();
+    } catch (_) {
+      info = null;
+    }
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    if (info == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(tr("updateCheckFailed"))));
+      return;
+    }
+    if (!info.hasUpdate) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(tr("updateUpToDate"))));
+      return;
+    }
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (_) => UpdateDialog(info: info!),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.system_update_alt, size: 20),
+      title: Text(tr("checkUpdate"), style: const TextStyle(fontSize: 13.5)),
+      trailing: _busy
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.arrow_forward_ios, size: 14),
+      onTap: _busy ? null : _check,
+    );
+  }
+}
+
+class UpdateDialog extends StatelessWidget {
+  final UpdateInfo info;
+  final bool showIgnore;
+  const UpdateDialog({super.key, required this.info, this.showIgnore = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = info.assetForPlatform;
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1A20),
+      title: Text(
+        tr("updateAvailable", args: [info.latestVersion]),
+        style: const TextStyle(fontSize: 16),
+      ),
+      content: SizedBox(
+        width: 360,
+        child: SingleChildScrollView(
+          child: info.body.trim().isEmpty
+              ? Text(
+                  tr("updateNoNotes"),
+                  style: const TextStyle(fontSize: 12.5, height: 1.5),
+                )
+              : MarkdownBody(
+                  data: info.body,
+                  onTapLink: (text, href, title) {
+                    if (href != null) {
+                      url_launcher.launchUrl(
+                        Uri.parse(href),
+                        mode: url_launcher.LaunchMode.externalApplication,
+                      );
+                    }
+                  },
+                  styleSheet: MarkdownStyleSheet(
+                    p: const TextStyle(fontSize: 12.5, height: 1.5),
+                    h2: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      height: 1.8,
+                    ),
+                    listBullet: const TextStyle(fontSize: 12.5),
+                    blockquote: const TextStyle(
+                      fontSize: 11.5,
+                      color: Colors.white54,
+                    ),
+                    blockquoteDecoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+        ),
+      ),
+      actions: [
+        if (showIgnore)
+          TextButton(
+            onPressed: () {
+              UpdateService.ignoreVersion(info.latestVersion);
+              Navigator.pop(context);
+            },
+            child: Text(tr("updateIgnore")),
+          ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(tr("updateLater")),
+        ),
+        TextButton(
+          onPressed: () {
+            url_launcher.launchUrl(
+              Uri.parse(info.releaseUrl),
+              mode: url_launcher.LaunchMode.externalApplication,
+            );
+          },
+          child: Text(tr("updateOpenPage")),
+        ),
+        if (asset != null)
+          FilledButton(
+            onPressed: () {
+              url_launcher.launchUrl(
+                Uri.parse(asset.url),
+                mode: url_launcher.LaunchMode.externalApplication,
+              );
+            },
+            child: Text(tr("updateDownload")),
+          ),
+      ],
     );
   }
 }

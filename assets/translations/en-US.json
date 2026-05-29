@@ -201,5 +201,14 @@
   "settingsDynamicColor": "Dynamic Color (Material You)",
   "settingsDynamicColorHint": "Follow system wallpaper / accent",
   "settingsCustomColor": "Custom theme color",
-  "colorPickerTitle": "Pick theme color"
+  "colorPickerTitle": "Pick theme color",
+  "checkUpdate": "Check for update",
+  "updateAvailable": "New version {} available",
+  "updateCheckFailed": "Check for update failed",
+  "updateUpToDate": "You are using the latest version",
+  "updateNoNotes": "No update notes",
+  "updateLater": "Later",
+  "updateOpenPage": "Open page",
+  "updateDownload": "Download",
+  "updateIgnore": "Ignore this version"
 }

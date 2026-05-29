@@ -201,5 +201,14 @@
   "settingsDynamicColor": "动态取色 (Material You)",
   "settingsDynamicColorHint": "跟随系统壁纸 / 强调色",
   "settingsCustomColor": "自定义主题色",
-  "colorPickerTitle": "选择主题色"
+  "colorPickerTitle": "选择主题色",
+  "checkUpdate": "检查更新",
+  "updateAvailable": "发现新版本 {}",
+  "updateCheckFailed": "检查更新失败，请稍后再试",
+  "updateUpToDate": "已是最新版本",
+  "updateNoNotes": "暂无更新说明",
+  "updateLater": "稍后",
+  "updateOpenPage": "打开发布页",
+  "updateDownload": "下载",
+  "updateIgnore": "忽略此版本"
 }
