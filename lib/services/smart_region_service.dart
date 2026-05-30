@@ -7,6 +7,7 @@ import '../render/crop_transform.dart';
 import '../render/mask_cache.dart';
 import '../render/render_engine.dart';
 import '../state/brush_state.dart';
+import '../state/curve_state.dart';
 import '../state/providers.dart';
 
 class SmartRegionService {
@@ -42,6 +43,7 @@ class SmartRegionService {
       lutSize: lutEnabled ? lut.sizeA : 0,
       lutTextureB: lutEnabled ? lut.textureB : null,
       lutSizeB: lutEnabled ? lut.sizeB : 0,
+      curveTexture: ref.read(curveTextureProvider),
       targetWidth: tw,
       targetHeight: th,
     );

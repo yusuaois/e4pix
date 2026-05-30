@@ -1,8 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/compare_state.dart';
+import '../state/curve_state.dart';
 
 class CompareButton extends ConsumerWidget {
   const CompareButton({super.key});
@@ -50,3 +53,8 @@ class CompareButton extends ConsumerWidget {
     );
   }
 }
+
+final effectiveCurveTextureProvider = Provider<ui.Image?>((ref) {
+  if (ref.watch(compareBypassProvider)) return null;
+  return ref.watch(curveTextureProvider);
+});

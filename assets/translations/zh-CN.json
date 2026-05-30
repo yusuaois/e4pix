@@ -225,5 +225,7 @@
   "qualityHigh": "高",
   "settingsExportQuality": "默认导出质量",
   "settingsExportQualityHint": "JPEG 导出的默认质量，导出时可临时调整",
-  "settingsPreviewQualityHint": "预览渲染分辨率，越高越清晰但越慢"
+  "settingsPreviewQualityHint": "预览渲染分辨率，越高越清晰但越慢",
+  "curve": "曲线",
+  "curveHint": "点按添加 · 拖动调整 · 长按删除"
 }

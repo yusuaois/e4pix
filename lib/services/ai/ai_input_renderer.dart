@@ -19,6 +19,7 @@ class AIInputRenderer {
     int lutSize = 0,
     ui.Image? lutTextureB,
     int lutSizeB = 0,
+    ui.Image? curveTexture,
     int maxEdge = 768,
     int jpegQuality = 85,
   }) async {
@@ -31,6 +32,7 @@ class AIInputRenderer {
       lutSize: lutSize,
       lutTextureB: lutTextureB,
       lutSizeB: lutSizeB,
+      curveTexture: curveTexture,
       targetWidth: sourceImage.width,
       targetHeight: sourceImage.height,
     );

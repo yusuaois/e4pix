@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/models/crop_params.dart';
 import '../render/crop_transform.dart';
 import '../render/render_engine.dart';
+import '../state/curve_state.dart';
 import '../state/providers.dart';
 import 'sam_session.dart';
 
@@ -42,6 +43,7 @@ class SegmentationService {
       lutSize: lutEnabled ? lut.sizeA : 0,
       lutTextureB: lutEnabled ? lut.textureB : null,
       lutSizeB: lutEnabled ? lut.sizeB : 0,
+      curveTexture: ref.read(curveTextureProvider),
       targetWidth: tw,
       targetHeight: th,
     );

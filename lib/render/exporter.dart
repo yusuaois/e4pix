@@ -35,6 +35,7 @@ class Exporter {
     int lutSize = 0,
     ui.Image? lutTextureB,
     int lutSizeB = 0,
+    ui.Image? curveTexture,
     int jpegQuality = 95,
     ExportProgress? onProgress,
   }) async {
@@ -55,6 +56,7 @@ class Exporter {
       lutSize: lutSize,
       lutTextureB: lutTextureB,
       lutSizeB: lutSizeB,
+      curveTexture: curveTexture,
       targetWidth: sourceImage.width,
       targetHeight: sourceImage.height,
     );

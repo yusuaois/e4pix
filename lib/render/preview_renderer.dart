@@ -15,6 +15,7 @@ class PreviewRenderer extends ConsumerStatefulWidget {
   final int lutSize;
   final ui.Image? lutTextureB;
   final int lutSizeB;
+  final ui.Image? curveTexture;
 
   const PreviewRenderer({
     super.key,
@@ -24,6 +25,7 @@ class PreviewRenderer extends ConsumerStatefulWidget {
     this.lutSize = 0,
     this.lutTextureB,
     this.lutSizeB = 0,
+    this.curveTexture,
   });
 
   @override
@@ -138,6 +140,7 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
                 lutSize: widget.lutSize,
                 lutB: widget.lutTextureB,
                 lutSizeB: widget.lutSizeB,
+                curve: widget.curveTexture,
               ),
             ),
           ),
@@ -155,6 +158,7 @@ class _DevelopPainter extends CustomPainter {
   final int lutSize;
   final ui.Image? lutB;
   final int lutSizeB;
+  final ui.Image? curve;
 
   _DevelopPainter({
     required this.shader,
@@ -164,6 +168,7 @@ class _DevelopPainter extends CustomPainter {
     this.lutSize = 0,
     this.lutB,
     this.lutSizeB = 0,
+    this.curve,
   });
 
   @override
@@ -177,6 +182,7 @@ class _DevelopPainter extends CustomPainter {
       lutSize: lutSize,
       lutTextureB: lutB,
       lutSizeB: lutSizeB,
+      curveTexture: curve,
     );
     canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
   }
@@ -188,5 +194,6 @@ class _DevelopPainter extends CustomPainter {
       old.lut != lut ||
       old.lutSize != lutSize ||
       old.lutB != lutB ||
-      old.lutSizeB != lutSizeB;
+      old.lutSizeB != lutSizeB ||
+      old.curve != curve;
 }

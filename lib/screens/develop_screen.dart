@@ -22,6 +22,7 @@ import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
 import '../services/app_settings.dart';
 import '../services/update_service.dart';
+import '../state/curve_state.dart';
 import '../state/providers.dart';
 import '../state/quality_state.dart';
 import '../widgets/adjustment_panel.dart';
@@ -241,6 +242,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             lutSize: lut.sizeA,
             lutTextureB: lut.textureB,
             lutSizeB: lut.sizeB,
+            curveTexture: ref.watch(effectiveCurveTextureProvider),
             maxEdge: await AISettings.getMaxEdge(),
           );
         },
@@ -408,6 +410,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           lutSize: lut.sizeA,
           lutTextureB: lut.textureB,
           lutSizeB: lut.sizeB,
+          curveTexture: ref.watch(effectiveCurveTextureProvider),
           jpegQuality: quality,
           onProgress: (f, s) {
             if (tasks.length == 1) {
@@ -502,6 +505,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       });
     }
     final isFullscreen = ref.watch(fullscreenPreviewProvider);
+    ref.listen(currentParamsNotifierProvider.select((p) => p.toneCurve), (
+      prev,
+      next,
+    ) {
+      ref.read(curveTextureProvider.notifier).update(next);
+    });
     ref.listen(cameraNotifierProvider, (prev, next) {
       if (next.lastError != null && prev?.lastError != next.lastError) {
         _snack(tr('cameraError', args: [next.lastError!]));
@@ -776,6 +785,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       lutSize: lutEnabled ? lut.sizeA : 0,
       lutTextureB: lutEnabled ? lut.textureB : null,
       lutSizeB: lutEnabled ? lut.sizeB : 0,
+      curveTexture: ref.watch(effectiveCurveTextureProvider),
     );
   }
 
@@ -1466,6 +1476,9 @@ class _PreviewArea extends ConsumerWidget {
                                 lutSize: lutEnabled ? lut.sizeA : 0,
                                 lutTextureB: lutEnabled ? lut.textureB : null,
                                 lutSizeB: lutEnabled ? lut.sizeB : 0,
+                                curveTexture: ref.watch(
+                                  effectiveCurveTextureProvider,
+                                ),
                               ),
                             ),
                           ),
@@ -1553,6 +1566,7 @@ class _PreviewArea extends ConsumerWidget {
                       lutSize: lutEnabled ? lut.sizeA : 0,
                       lutTextureB: lutEnabled ? lut.textureB : null,
                       lutSizeB: lutEnabled ? lut.sizeB : 0,
+                      curveTexture: ref.watch(effectiveCurveTextureProvider),
                       idleMaxEdge: idle,
                       draggingMaxEdge: dragging,
                     ),
@@ -1594,6 +1608,7 @@ class _PreviewArea extends ConsumerWidget {
                       lutSize: lutEnabled ? lut.sizeA : 0,
                       lutTextureB: lutEnabled ? lut.textureB : null,
                       lutSizeB: lutEnabled ? lut.sizeB : 0,
+                      curveTexture: ref.watch(effectiveCurveTextureProvider),
                     ),
                     fit.destination,
                   ),
@@ -1675,6 +1690,9 @@ class _PreviewArea extends ConsumerWidget {
                             lutSize: lutEnabled ? lut.sizeA : 0,
                             lutTextureB: lutEnabled ? lut.textureB : null,
                             lutSizeB: lutEnabled ? lut.sizeB : 0,
+                            curveTexture: ref.watch(
+                              effectiveCurveTextureProvider,
+                            ),
                           ),
                         ),
                       ),

@@ -31,6 +31,8 @@ class AdjustmentPanel extends ConsumerWidget {
         return LightSection(params: params, onChanged: onChanged);
       case DevelopTool.color:
         return WhiteBalanceColorSection(params: params, onChanged: onChanged);
+      case DevelopTool.curve:
+        return const CurveSection();
       case DevelopTool.hsl:
         return HslSection(
           bands: params.hsl,
@@ -164,6 +166,12 @@ class _ToolRail extends StatelessWidget {
               tooltip: tr('color'),
               selected: selected == DevelopTool.color,
               onTap: () => onSelect(DevelopTool.color),
+            ),
+            _RailItem(
+              icon: Icons.show_chart, // 或 Icons.timeline
+              tooltip: tr('curve'),
+              selected: selected == DevelopTool.curve,
+              onTap: () => onSelect(DevelopTool.curve),
             ),
             _RailItem(
               icon: Icons.gradient,

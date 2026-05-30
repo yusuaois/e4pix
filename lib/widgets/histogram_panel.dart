@@ -50,6 +50,7 @@ class LiveHistogramPanel extends ConsumerStatefulWidget {
   final int lutSize;
   final ui.Image? lutTextureB;
   final int lutSizeB;
+  final ui.Image? curveTexture;
 
   const LiveHistogramPanel({
     super.key,
@@ -61,6 +62,7 @@ class LiveHistogramPanel extends ConsumerStatefulWidget {
     this.lutSize = 0,
     this.lutTextureB,
     this.lutSizeB = 0,
+    this.curveTexture,
   });
 
   @override
@@ -94,7 +96,8 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
     if (old.params != widget.params ||
         old.sourceImage != widget.sourceImage ||
         old.lutTexture != widget.lutTexture ||
-        old.lutTextureB != widget.lutTextureB
+        old.lutTextureB != widget.lutTextureB ||
+        old.curveTexture != widget.curveTexture
         ) {
       // 拖动期间不算 —— 等放手再补
       if (ref.read(isUserDraggingSliderProvider)) return;
@@ -136,6 +139,7 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
         lutSize: widget.lutSize,
         lutTextureB: widget.lutTextureB,
         lutSizeB: widget.lutSizeB,
+        curveTexture: widget.curveTexture,
         targetWidth: w,
         targetHeight: h,
       );

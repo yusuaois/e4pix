@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
+import '../widgets/compare_button.dart';
 import 'image_state.dart';
 import 'params_state.dart';
 import 'render_state.dart';
@@ -89,6 +90,7 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
         lutSize: lutState.sizeA,
         lutTextureB: lutState.textureB,
         lutSizeB: lutState.sizeB,
+        curveTexture: ref.read(effectiveCurveTextureProvider),
         maxEdge: await AISettings.getMaxEdge(),
       );
       final bytes = await File(tempPath).readAsBytes();

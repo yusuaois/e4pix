@@ -14,6 +14,7 @@ class RenderEngine {
     int lutSize = 0,
     ui.Image? lutTextureB,
     int lutSizeB = 0,
+    ui.Image? curveTexture,
     int? targetWidth,
     int? targetHeight,
   }) async {
@@ -33,6 +34,7 @@ class RenderEngine {
       lutSize: lutSize,
       lutTextureB: lutTextureB,
       lutSizeB: lutSizeB,
+      curveTexture: curveTexture,
     );
 
     canvas.drawRect(

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/lut_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/hsl_bands.dart';
+import '../core/models/tone_curve.dart';
 import '../services/lut_library.dart';
 import '../state/lut_library_state.dart';
 import '../state/params_state.dart';
@@ -225,6 +226,235 @@ class WhiteBalanceColorSection extends StatelessWidget {
       ],
     );
   }
+}
+
+// Curve
+class CurveSection extends ConsumerStatefulWidget {
+  const CurveSection({super.key});
+
+  @override
+  ConsumerState<CurveSection> createState() => _CurveSectionState();
+}
+
+class _CurveSectionState extends ConsumerState<CurveSection> {
+  int? _dragIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final params = ref.watch(currentParamsNotifierProvider);
+    final curve = params.toneCurve;
+    final primary = Theme.of(context).colorScheme.primary;
+
+    void commit(ToneCurve next) {
+      ref
+          .read(currentParamsNotifierProvider.notifier)
+          .update(params.copyWith(toneCurve: next));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionLabel(title: '曲线'),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: LayoutBuilder(
+              builder: (ctx, constraints) {
+                final size = Size(constraints.maxWidth, constraints.maxHeight);
+                return GestureDetector(
+                  onTapUp: (d) => _onTapUp(d, size, curve, commit),
+                  onPanStart: (d) => _onPanStart(d, size, curve),
+                  onPanUpdate: (d) => _onPanUpdate(d, size, curve, commit),
+                  onPanEnd: (_) => _dragIndex = null,
+                  onLongPressStart: (d) =>
+                      _onLongPress(d.localPosition, size, curve, commit),
+                  child: CustomPaint(
+                    painter: _CurvePainter(curve: curve, lineColor: primary),
+                    size: size,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '点按添加 · 拖动调整 · 长按删除',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: Colors.white.withValues(alpha: 0.4),
+                ),
+              ),
+              TextButton(
+                onPressed: curve.isIdentity
+                    ? null
+                    : () => commit(ToneCurve.identity),
+                child: Text(tr("reset"), style: const TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 屏幕坐标 → 归一化（y 翻转：屏幕上=值大）
+  Offset2 _toNorm(Offset local, Size size) => Offset2(
+    (local.dx / size.width).clamp(0.0, 1.0),
+    (1 - local.dy / size.height).clamp(0.0, 1.0),
+  );
+
+  Offset _toScreen(Offset2 p, Size size) =>
+      Offset(p.x * size.width, (1 - p.y) * size.height);
+
+  int? _hitTest(Offset local, Size size, ToneCurve curve) {
+    const r = 22.0; // 命中半径
+    for (int i = 0; i < curve.points.length; i++) {
+      final sp = _toScreen(curve.points[i], size);
+      if ((sp - local).distance < r) return i;
+    }
+    return null;
+  }
+
+  void _onTapUp(
+    TapUpDetails d,
+    Size size,
+    ToneCurve curve,
+    void Function(ToneCurve) commit,
+  ) {
+    final hit = _hitTest(d.localPosition, size, curve);
+    if (hit != null) return;
+    final n = _toNorm(d.localPosition, size);
+    final pts = [...curve.points, Offset2(n.x, n.y)]
+      ..sort((a, b) => a.x.compareTo(b.x));
+    commit(ToneCurve(pts));
+  }
+
+  void _onPanStart(DragStartDetails d, Size size, ToneCurve curve) {
+    _dragIndex = _hitTest(d.localPosition, size, curve);
+  }
+
+  void _onPanUpdate(
+    DragUpdateDetails d,
+    Size size,
+    ToneCurve curve,
+    void Function(ToneCurve) commit,
+  ) {
+    final i = _dragIndex;
+    if (i == null) return;
+    final n = _toNorm(d.localPosition, size);
+    final pts = [...curve.points];
+    final isFirst = i == 0;
+    final isLast = i == pts.length - 1;
+    // 端点只能上下动（x 固定 0 / 1）；中间点 x 限制在邻点之间
+    double nx;
+    if (isFirst) {
+      nx = 0.0;
+    } else if (isLast) {
+      nx = 1.0;
+    } else {
+      final lo = pts[i - 1].x + 0.01;
+      final hi = pts[i + 1].x - 0.01;
+      nx = n.x.clamp(lo, hi);
+    }
+    pts[i] = Offset2(nx, n.y);
+    commit(ToneCurve(pts));
+  }
+
+  void _onLongPress(
+    Offset local,
+    Size size,
+    ToneCurve curve,
+    void Function(ToneCurve) commit,
+  ) {
+    final hit = _hitTest(local, size, curve);
+    if (hit == null) return;
+    // 端点不可删
+    if (hit == 0 || hit == curve.points.length - 1) return;
+    final pts = [...curve.points]..removeAt(hit);
+    commit(ToneCurve(pts));
+  }
+}
+
+class _CurvePainter extends CustomPainter {
+  final ToneCurve curve;
+  final Color lineColor;
+  _CurvePainter({required this.curve, required this.lineColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+
+    // 背景
+    final bg = Paint()..color = const Color(0xFF0E0E12);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(6)),
+      bg,
+    );
+
+    // 网格（4×4）
+    final grid = Paint()
+      ..color = Colors.white.withValues(alpha: 0.08)
+      ..strokeWidth = 1;
+    for (int i = 1; i < 4; i++) {
+      final x = w * i / 4;
+      final y = h * i / 4;
+      canvas.drawLine(Offset(x, 0), Offset(x, h), grid);
+      canvas.drawLine(Offset(0, y), Offset(w, y), grid);
+    }
+    // 对角参考线
+    final diag = Paint()
+      ..color = Colors.white.withValues(alpha: 0.12)
+      ..strokeWidth = 1;
+    canvas.drawLine(Offset(0, h), Offset(w, 0), diag);
+
+    // 曲线（用 256 点 LUT 画）
+    final lut = curve.toLut(count: 128);
+    final path = Path();
+    for (int i = 0; i < lut.length; i++) {
+      final x = w * i / (lut.length - 1);
+      final y = h * (1 - lut[i]);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = lineColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // 控制点
+    for (final p in curve.points) {
+      final c = Offset(p.x * w, (1 - p.y) * h);
+      canvas.drawCircle(c, 6, Paint()..color = const Color(0xFF0E0E12));
+      canvas.drawCircle(
+        c,
+        6,
+        Paint()
+          ..color = lineColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+      canvas.drawCircle(c, 2.5, Paint()..color = lineColor);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CurvePainter old) =>
+      old.curve != curve || old.lineColor != lineColor;
 }
 
 // HSL Section

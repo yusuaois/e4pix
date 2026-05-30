@@ -225,5 +225,7 @@
   "qualityHigh": "High",
   "settingsExportQuality": "Default quality",
   "settingsExportQualityHint": "JPEG export default quality, can be temporarily adjusted during export",
-  "settingsPreviewQualityHint": "Preview render resolution — higher is sharper but slower"
+  "settingsPreviewQualityHint": "Preview render resolution — higher is sharper but slower",
+  "curve": "Curve",
+  "curveHint": "Tap to add · Drag to adjust · Long press to delete"
 }

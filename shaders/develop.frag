@@ -33,9 +33,13 @@ uniform float uLutIntensityB;    // 39
 uniform float uLutSizeB;         // 40
 uniform float uHasLutB;          // 41
 
+// ---- 曲线 (42) ----
+uniform float uHasCurve;         // 42  >0.5 启用
+
 uniform sampler2D uImage;        // sampler 0
 uniform sampler2D uLut;          // sampler 1  (A)
 uniform sampler2D uLutB;         // sampler 2  (B)
+uniform sampler2D uCurve;        // sampler 3
 
 out vec4 fragColor;
 
@@ -233,6 +237,15 @@ vec3 sampleLut3DB(vec3 c, float N) {
     return mix(c0, c1, f.b);
 }
 
+// 一维曲线 LUT，输入亮度 v∈[0,1] → 输出
+float sampleCurve1D(float v) {
+    return texture(uCurve, vec2(clamp(v, 0.0, 1.0), 0.5)).r;
+}
+vec3 applyCurve(vec3 c) {
+    // RGB 主曲线
+    return vec3(sampleCurve1D(c.r), sampleCurve1D(c.g), sampleCurve1D(c.b));
+}
+
 // ============================================================================
 // Main
 // ============================================================================
@@ -248,12 +261,14 @@ void main() {
     c = applyContrast(c, uContrast);
 
     vec3 disp = linearToSrgb(c);
+    if (uHasCurve > 0.5) {
+        disp = applyCurve(disp);
+    }
     disp = applyHsl8(disp);
     disp = applySaturation(disp, uSaturation);
     disp = applyVibrance(disp, uVibrance);
 
     // ---- LUT 在 display-referred sRGB 上应用 ----
-    // ---- LUT A → B 串联，各自强度 ----
     if (uHasLut > 0.5 && uLutIntensity > 0.001) {
         vec3 graded = sampleLut3D(disp, uLutSize);
         disp = mix(disp, graded, uLutIntensity);
