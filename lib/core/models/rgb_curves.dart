@@ -7,12 +7,14 @@ class RgbCurves {
   final ToneCurve red;
   final ToneCurve green;
   final ToneCurve blue;
+  final ToneCurve luminance;
 
   const RgbCurves({
     this.master = ToneCurve.identity,
     this.red = ToneCurve.identity,
     this.green = ToneCurve.identity,
     this.blue = ToneCurve.identity,
+    this.luminance = ToneCurve.identity,
   });
 
   static const identity = RgbCurves();
@@ -21,18 +23,21 @@ class RgbCurves {
       master.isIdentity &&
       red.isIdentity &&
       green.isIdentity &&
-      blue.isIdentity;
+      blue.isIdentity &&
+      luminance.isIdentity;
 
   RgbCurves copyWith({
     ToneCurve? master,
     ToneCurve? red,
     ToneCurve? green,
     ToneCurve? blue,
+    ToneCurve? luminance,
   }) => RgbCurves(
     master: master ?? this.master,
     red: red ?? this.red,
     green: green ?? this.green,
     blue: blue ?? this.blue,
+    luminance: luminance ?? this.luminance,
   );
 
   Map<String, dynamic> toJson() => {
@@ -40,6 +45,7 @@ class RgbCurves {
     'red': red.toJson(),
     'green': green.toJson(),
     'blue': blue.toJson(),
+    'luminance': luminance.toJson(),
   };
 
   factory RgbCurves.fromJson(Map<String, dynamic> j) => RgbCurves(
@@ -53,6 +59,9 @@ class RgbCurves {
     blue: j['blue'] != null
         ? ToneCurve.fromJson(j['blue'])
         : ToneCurve.identity,
+    luminance: j['luminance'] != null
+        ? ToneCurve.fromJson(j['luminance'])
+        : ToneCurve.identity,
   );
 
   @override
@@ -61,7 +70,8 @@ class RgbCurves {
       other.master == master &&
       other.red == red &&
       other.green == green &&
-      other.blue == blue;
+      other.blue == blue &&
+      other.luminance == luminance;
   @override
-  int get hashCode => Object.hash(master, red, green, blue);
+  int get hashCode => Object.hash(master, red, green, blue, luminance);
 }

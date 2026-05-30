@@ -244,6 +244,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     1 => c.red,
     2 => c.green,
     3 => c.blue,
+    4 => c.luminance,
     _ => c.master,
   };
 
@@ -251,6 +252,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     1 => c.copyWith(red: nc),
     2 => c.copyWith(green: nc),
     3 => c.copyWith(blue: nc),
+    4 => c.copyWith(luminance: nc),
     _ => c.copyWith(master: nc),
   };
 
@@ -258,6 +260,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     1 => const Color(0xFFE5534B),
     2 => const Color(0xFF4CAF50),
     3 => const Color(0xFF5B8DEF),
+    4 => const Color(0xFFCCCCCC),
     _ => Theme.of(ctx).colorScheme.primary,
   };
 
@@ -288,6 +291,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
               _chTab('R', 1, const Color(0xFFE5534B)),
               _chTab('G', 2, const Color(0xFF4CAF50)),
               _chTab('B', 3, const Color(0xFF5B8DEF)),
+              _chTab(tr("lum"), 4, const Color(0xFFCCCCCC)),
             ],
           ),
         ),
@@ -347,7 +351,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
       child: GestureDetector(
         onTap: () => setState(() => _channel = ch),
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2),
+          margin: const EdgeInsets.symmetric(horizontal: 1.5),
           padding: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
             color: sel ? color.withValues(alpha: 0.18) : Colors.transparent,
@@ -360,8 +364,10 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
           alignment: Alignment.center,
           child: Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.clip,
             style: TextStyle(
-              fontSize: 11.5,
+              fontSize: 10.5,
               color: sel ? color : Colors.white.withValues(alpha: 0.6),
               fontWeight: sel ? FontWeight.w600 : FontWeight.normal,
             ),

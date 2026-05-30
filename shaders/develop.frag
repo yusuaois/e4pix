@@ -239,17 +239,26 @@ vec3 sampleLut3DB(vec3 c, float N) {
 
 // 曲线 LUT，输入亮度 v∈[0,1] → 输出
 float sampleCurveRow(float v, float row) {
-    return texture(uCurve, vec2(clamp(v, 0.0, 1.0), (row + 0.5) / 4.0)).r;
+    return texture(uCurve, vec2(clamp(v, 0.0, 1.0), (row + 0.5) / 5.0)).r;
 }
 vec3 applyCurve(vec3 c) {
+    // 1 R/G/B 各曲线
     float r = sampleCurveRow(c.r, 1.0);
     float g = sampleCurveRow(c.g, 2.0);
     float b = sampleCurveRow(c.b, 3.0);
-    return vec3(
+    // 2 主曲线
+    vec3 rgb = vec3(
         sampleCurveRow(r, 0.0),
         sampleCurveRow(g, 0.0),
         sampleCurveRow(b, 0.0)
     );
+    // 3 明度曲线
+    float y = luma(rgb);
+    if (y > 1e-4) {
+        float y2 = sampleCurveRow(y, 4.0);
+        rgb *= (y2 / y);
+    }
+    return clamp(rgb, 0.0, 1.0);
 }
 
 // ============================================================================

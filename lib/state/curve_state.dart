@@ -29,9 +29,9 @@ class CurveTextureNotifier extends Notifier<ui.Image?> {
     final r = curves.red.toLut(count: 256);
     final g = curves.green.toLut(count: 256);
     final b = curves.blue.toLut(count: 256);
+    final lum = curves.luminance.toLut(count: 256);
 
-    // 256 宽 × 4 高，每行一条曲线，值塞 R/G/B（灰度），A=255
-    final pixels = Uint8List(256 * 4 * 4); // w * h * rgba
+    final pixels = Uint8List(256 * 5 * 4); // w * h * rgba
     void writeRow(int row, Float32List lut) {
       for (int x = 0; x < 256; x++) {
         final idx = (row * 256 + x) * 4;
@@ -47,8 +47,9 @@ class CurveTextureNotifier extends Notifier<ui.Image?> {
     writeRow(1, r);
     writeRow(2, g);
     writeRow(3, b);
+    writeRow(4, lum);
 
-    final img = await _decode(pixels, 256, 4);
+    final img = await _decode(pixels, 256, 5);
     if (_disposed) {
       img.dispose();
       return;
