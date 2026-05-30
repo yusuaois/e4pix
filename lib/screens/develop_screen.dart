@@ -505,7 +505,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       });
     }
     final isFullscreen = ref.watch(fullscreenPreviewProvider);
-    ref.listen(currentParamsNotifierProvider.select((p) => p.toneCurve), (
+    ref.listen(currentParamsNotifierProvider.select((p) => p.curves), (
       prev,
       next,
     ) {

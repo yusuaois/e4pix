@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/lut_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/hsl_bands.dart';
+import '../core/models/rgb_curves.dart';
 import '../core/models/tone_curve.dart';
 import '../services/lut_library.dart';
 import '../state/lut_library_state.dart';
@@ -231,24 +232,46 @@ class WhiteBalanceColorSection extends StatelessWidget {
 // Curve
 class CurveSection extends ConsumerStatefulWidget {
   const CurveSection({super.key});
-
   @override
   ConsumerState<CurveSection> createState() => _CurveSectionState();
 }
 
 class _CurveSectionState extends ConsumerState<CurveSection> {
+  int _channel = 0; // 0主 1R 2G 3B
   int? _dragIndex;
+
+  ToneCurve _curveOf(RgbCurves c) => switch (_channel) {
+    1 => c.red,
+    2 => c.green,
+    3 => c.blue,
+    _ => c.master,
+  };
+
+  RgbCurves _withChannel(RgbCurves c, ToneCurve nc) => switch (_channel) {
+    1 => c.copyWith(red: nc),
+    2 => c.copyWith(green: nc),
+    3 => c.copyWith(blue: nc),
+    _ => c.copyWith(master: nc),
+  };
+
+  Color _channelColor(BuildContext ctx) => switch (_channel) {
+    1 => const Color(0xFFE5534B),
+    2 => const Color(0xFF4CAF50),
+    3 => const Color(0xFF5B8DEF),
+    _ => Theme.of(ctx).colorScheme.primary,
+  };
 
   @override
   Widget build(BuildContext context) {
     final params = ref.watch(currentParamsNotifierProvider);
-    final curve = params.toneCurve;
-    final primary = Theme.of(context).colorScheme.primary;
+    final curves = params.curves;
+    final curve = _curveOf(curves);
+    final lineColor = _channelColor(context);
 
     void commit(ToneCurve next) {
       ref
           .read(currentParamsNotifierProvider.notifier)
-          .update(params.copyWith(toneCurve: next));
+          .update(params.copyWith(curves: _withChannel(curves, next)));
     }
 
     return Column(
@@ -256,6 +279,19 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
       children: [
         const SectionLabel(title: '曲线'),
         const SizedBox(height: 8),
+        // 通道切换
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              _chTab('RGB', 0, Theme.of(context).colorScheme.primary),
+              _chTab('R', 1, const Color(0xFFE5534B)),
+              _chTab('G', 2, const Color(0xFF4CAF50)),
+              _chTab('B', 3, const Color(0xFF5B8DEF)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: AspectRatio(
@@ -271,7 +307,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
                   onLongPressStart: (d) =>
                       _onLongPress(d.localPosition, size, curve, commit),
                   child: CustomPaint(
-                    painter: _CurvePainter(curve: curve, lineColor: primary),
+                    painter: _CurvePainter(curve: curve, lineColor: lineColor),
                     size: size,
                   ),
                 );
@@ -286,7 +322,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '点按添加 · 拖动调整 · 长按删除',
+                tr("curveHint"),
                 style: TextStyle(
                   fontSize: 10.5,
                   color: Colors.white.withValues(alpha: 0.4),
@@ -305,20 +341,46 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     );
   }
 
-  // 屏幕坐标 → 归一化（y 翻转：屏幕上=值大）
+  Widget _chTab(String label, int ch, Color color) {
+    final sel = _channel == ch;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _channel = ch),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: sel ? color.withValues(alpha: 0.18) : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: sel ? color : Colors.white.withValues(alpha: 0.12),
+              width: sel ? 1.5 : 1,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              color: sel ? color : Colors.white.withValues(alpha: 0.6),
+              fontWeight: sel ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Offset2 _toNorm(Offset local, Size size) => Offset2(
     (local.dx / size.width).clamp(0.0, 1.0),
     (1 - local.dy / size.height).clamp(0.0, 1.0),
   );
-
   Offset _toScreen(Offset2 p, Size size) =>
       Offset(p.x * size.width, (1 - p.y) * size.height);
-
   int? _hitTest(Offset local, Size size, ToneCurve curve) {
-    const r = 22.0; // 命中半径
+    const r = 22.0;
     for (int i = 0; i < curve.points.length; i++) {
-      final sp = _toScreen(curve.points[i], size);
-      if ((sp - local).distance < r) return i;
+      if ((_toScreen(curve.points[i], size) - local).distance < r) return i;
     }
     return null;
   }
@@ -329,8 +391,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     ToneCurve curve,
     void Function(ToneCurve) commit,
   ) {
-    final hit = _hitTest(d.localPosition, size, curve);
-    if (hit != null) return;
+    if (_hitTest(d.localPosition, size, curve) != null) return;
     final n = _toNorm(d.localPosition, size);
     final pts = [...curve.points, Offset2(n.x, n.y)]
       ..sort((a, b) => a.x.compareTo(b.x));
@@ -351,18 +412,14 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     if (i == null) return;
     final n = _toNorm(d.localPosition, size);
     final pts = [...curve.points];
-    final isFirst = i == 0;
-    final isLast = i == pts.length - 1;
-    // 端点只能上下动（x 固定 0 / 1）；中间点 x 限制在邻点之间
+    final isFirst = i == 0, isLast = i == pts.length - 1;
     double nx;
     if (isFirst) {
       nx = 0.0;
     } else if (isLast) {
       nx = 1.0;
     } else {
-      final lo = pts[i - 1].x + 0.01;
-      final hi = pts[i + 1].x - 0.01;
-      nx = n.x.clamp(lo, hi);
+      nx = n.x.clamp(pts[i - 1].x + 0.01, pts[i + 1].x - 0.01);
     }
     pts[i] = Offset2(nx, n.y);
     commit(ToneCurve(pts));
@@ -375,9 +432,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     void Function(ToneCurve) commit,
   ) {
     final hit = _hitTest(local, size, curve);
-    if (hit == null) return;
-    // 端点不可删
-    if (hit == 0 || hit == curve.points.length - 1) return;
+    if (hit == null || hit == 0 || hit == curve.points.length - 1) return;
     final pts = [...curve.points]..removeAt(hit);
     commit(ToneCurve(pts));
   }
