@@ -1,26 +1,12 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:watcher/watcher.dart';
 
+import '../core/constants/raw_formats.dart';
+
 // 监听文件夹
 class TetherWatcher {
-  static const _rawExtensions = {
-    '.arw',
-    '.cr2',
-    '.cr3',
-    '.nef',
-    '.nrw',
-    '.raf',
-    '.dng',
-    '.orf',
-    '.rw2',
-    '.pef',
-    '.srw',
-    '.rwl',
-  };
-
   final String watchPath;
   final Set<String> _seen = {};
   StreamSubscription? _sub;
@@ -49,7 +35,7 @@ class TetherWatcher {
 
     // 标记已有RAW
     await for (final entity in dir.list(recursive: false)) {
-      if (entity is File && _isRaw(entity.path)) {
+      if (entity is File && RawFormats.isRaw(entity.path)) {
         _seen.add(entity.path);
       }
     }
@@ -75,7 +61,7 @@ class TetherWatcher {
 
   Future<void> _onEvent(WatchEvent ev) async {
     if (ev.type != ChangeType.ADD && ev.type != ChangeType.MODIFY) return;
-    if (!_isRaw(ev.path) || _seen.contains(ev.path)) return;
+    if (!RawFormats.isRaw(ev.path) || _seen.contains(ev.path)) return;
 
     final file = File(ev.path);
     final stable = await _waitUntilStable(file);
@@ -85,9 +71,6 @@ class TetherWatcher {
     _seen.add(ev.path);
     if (!_controller.isClosed) _controller.add(file);
   }
-
-  bool _isRaw(String path) =>
-      _rawExtensions.contains(p.extension(path).toLowerCase());
 
   /// 轮询大小不再变化才认为写入完成。
   Future<bool> _waitUntilStable(File f, {int maxAttempts = 40}) async {

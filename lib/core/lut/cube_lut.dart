@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import '../constants/lut_formats.dart';
+
 class CubeLut {
   final String name;
   final int size; // 17 / 33 / 65
@@ -17,7 +19,7 @@ class CubeLut {
   // ---------------- 解析 ----------------
   static Future<CubeLut> fromFile(String path) async {
     final lines = await File(path).readAsLines();
-    final isVlt = path.toLowerCase().endsWith('.vlt');
+    final isVlt = LutFormats.isVlt(path);
     int size = 0;
     final values = <double>[];
 

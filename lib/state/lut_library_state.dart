@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/constants/lut_formats.dart';
 import '../services/lut_library.dart';
 
 class LutLibraryNotifier extends AsyncNotifier<List<LutEntry>> {
@@ -15,8 +16,7 @@ class LutLibraryNotifier extends AsyncNotifier<List<LutEntry>> {
     final src = result?.files.firstOrNull?.path;
     if (src == null) return null;
 
-    final lower = src.toLowerCase();
-    if (!lower.endsWith('.cube') && !lower.endsWith('.vlt')) {
+    if (!LutFormats.isLut(src)) {
       debugPrint('选中的文件不是 .cube / .vlt 格式');
       return null;
     }

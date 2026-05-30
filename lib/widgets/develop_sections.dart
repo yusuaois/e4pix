@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/constants/lut_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/hsl_bands.dart';
 import '../services/lut_library.dart';
@@ -464,7 +465,7 @@ class _LutSlot extends ConsumerWidget {
     return dot < 0 ? n : n.substring(0, dot);
   }
 
-  bool get _isVlt => (lutName ?? '').toLowerCase().endsWith('.vlt');
+  bool get _isVlt => lutName != null && LutFormats.isVlt(lutName!);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

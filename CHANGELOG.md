@@ -1,5 +1,6 @@
 ## 🚀 新功能 (New Features)
-
+* **滚动展示支持格式**: 在空白页面展示支持格式
+* 
 ## 🐛 问题修复 (Bug Fixes)
 
 ## 🛠️ 底层改进 (Under the Hood)

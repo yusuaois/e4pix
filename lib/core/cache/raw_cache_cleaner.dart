@@ -3,22 +3,9 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-class RawCacheCleaner {
-  static const _rawExts = [
-    '.arw',
-    '.cr2',
-    '.cr3',
-    '.nef',
-    '.nrw',
-    '.raf',
-    '.dng',
-    '.orf',
-    '.rw2',
-    '.pef',
-    '.srw',
-    '.rwl',
-  ];
+import '../constants/raw_formats.dart';
 
+class RawCacheCleaner {
   /// 启动时清理
   static Future<void> cleanOld({
     Duration maxAge = const Duration(hours: 1),
@@ -31,8 +18,7 @@ class RawCacheCleaner {
         followLinks: false,
       )) {
         if (entity is! File) continue;
-        final upper = entity.path.toUpperCase();
-        if (!_rawExts.any((e) => upper.endsWith(e))) continue;
+        if (!RawFormats.isRaw(entity.path)) continue;
         try {
           final stat = await entity.stat();
           if (stat.modified.isBefore(cutoff)) {

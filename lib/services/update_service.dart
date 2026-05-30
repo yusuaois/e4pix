@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/constants/app_info.dart';
+
 class UpdateAsset {
   final String name;
   final String url;
@@ -53,10 +55,6 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const _owner = 'yusuaois';
-  static const _repo = 'e4pix';
-  static const _latestUrl =
-      'https://api.github.com/repos/$_owner/$_repo/releases/latest';
   static const _ignoredKey = 'update_ignored_version';
 
   static Future<void> ignoreVersion(String v) async {
@@ -71,7 +69,7 @@ class UpdateService {
 
   static Future<UpdateInfo?> check() async {
     final resp = await http.get(
-      Uri.parse(_latestUrl),
+      Uri.parse(AppInfo.latestReleaseApi),
       headers: {'Accept': 'application/vnd.github+json'},
     );
     if (resp.statusCode != 200) return null;

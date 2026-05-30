@@ -6,10 +6,12 @@ import 'dart:ui' as ui;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../core/constants/raw_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/tethered_shot.dart';
 import '../native/raw_bridge.dart';
@@ -1729,15 +1731,97 @@ class _PreviewArea extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'ARW · CR2 · CR3 · NEF · RAF · DNG · ORF · RW2 …',
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.4),
-              fontFamily: 'monospace',
-            ),
+          SizedBox(
+            width: MediaQuery.of(context).size.width * 0.8,
+            child: _FormatMarquee(text: RawFormats.displayList),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FormatMarquee extends StatefulWidget {
+  final String text;
+  const _FormatMarquee({required this.text});
+
+  @override
+  State<_FormatMarquee> createState() => _FormatMarqueeState();
+}
+
+class _FormatMarqueeState extends State<_FormatMarquee>
+    with SingleTickerProviderStateMixin {
+  final _scroll = ScrollController();
+  late final Ticker _ticker;
+  double _offset = 0;
+  Duration? _last;
+
+  static const _speed = 30.0;
+  static const _gap = ' · ';
+
+  static final _style = TextStyle(
+    fontSize: 11,
+    color: Colors.white.withValues(alpha: 0.4), // white alpha .4
+    fontFamily: 'monospace',
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker(_onTick)..start();
+  }
+
+  void _onTick(Duration elapsed) {
+    if (!_scroll.hasClients) return;
+    final max = _scroll.position.maxScrollExtent;
+    if (max <= 0) {
+      _last = null;
+      return;
+    }
+    final dt = _last == null ? 0.0 : (elapsed - _last!).inMicroseconds / 1e6;
+    _last = elapsed;
+    _offset += _speed * dt;
+    if (_offset > max) _offset -= max;
+    _scroll.jumpTo(_offset);
+  }
+
+  double _measure(String s, double maxWidth) {
+    final tp = TextPainter(
+      text: TextSpan(text: s, style: _style),
+      maxLines: 1,
+      textDirection: ui.TextDirection.ltr,
+    )..layout();
+    return tp.width;
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 18,
+      child: LayoutBuilder(
+        builder: (ctx, constraints) {
+          final avail = constraints.maxWidth;
+          final textW = _measure(widget.text, avail);
+          final overflow = textW > avail;
+
+          if (!overflow) {
+            return Center(child: Text(widget.text, style: _style, maxLines: 1));
+          }
+          final doubled = '${widget.text}$_gap${widget.text}$_gap';
+          return ListView(
+            controller: _scroll,
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [Text(doubled, style: _style, maxLines: 1)],
+          );
+        },
       ),
     );
   }

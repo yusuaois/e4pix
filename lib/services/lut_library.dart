@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../core/constants/lut_formats.dart';
+
 class LutEntry {
   final String filePath;
   final String name;
@@ -36,10 +38,7 @@ class LutLibrary {
     final files = await dir.list().toList();
     final out = files
         .whereType<File>()
-        .where((f) {
-          final lower = f.path.toLowerCase();
-          return lower.endsWith('.cube') || lower.endsWith('.vlt');
-        })
+        .where((f) => LutFormats.isLut(f.path))
         .map((f) {
           final e = p.extension(f.path); // ".cube" / ".vlt"
           return LutEntry(

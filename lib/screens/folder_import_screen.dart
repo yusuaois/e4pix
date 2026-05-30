@@ -8,22 +8,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../core/constants/raw_formats.dart';
 import '../native/raw_bridge.dart';
-
-const _rawExts = {
-  '.arw',
-  '.cr2',
-  '.cr3',
-  '.nef',
-  '.nrw',
-  '.raf',
-  '.dng',
-  '.orf',
-  '.rw2',
-  '.pef',
-  '.srw',
-  '.rwl',
-};
 
 Future<List<String>?> openFolderImport(BuildContext context) async {
   final dir = await FilePicker.platform.getDirectoryPath(
@@ -69,7 +55,7 @@ class _FolderImportScreenState extends State<_FolderImportScreen> {
       }
       final paths = <String>[];
       await for (final e in dir.list(recursive: false, followLinks: false)) {
-        if (e is File && _rawExts.contains(p.extension(e.path).toLowerCase())) {
+        if (e is File && RawFormats.isRaw(e.path)) {
           paths.add(e.path);
         }
       }

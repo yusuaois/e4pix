@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
+import '../core/constants/app_info.dart';
 import '../state/app_settings_state.dart';
 import '../widgets/ai_settings_dialog.dart';
 import '../state/theme_state.dart';
@@ -305,14 +306,12 @@ class _AboutTiles extends StatelessWidget {
               leading: const Icon(Icons.code, size: 20),
               title: Text(tr("projectUrl"), style: TextStyle(fontSize: 13.5)),
               subtitle: const Text(
-                'github.com/yusuaois/e4pix',
+                AppInfo.repoDisplay,
                 style: TextStyle(fontSize: 11, color: Colors.white54),
               ),
               trailing: const Icon(Icons.open_in_new, size: 14),
               onTap: () {
-                url_launcher.launchUrl(
-                  Uri.parse('https://github.com/yusuaois/e4pix'),
-                );
+                url_launcher.launchUrl(Uri.parse(AppInfo.repoUrl));
               },
             ),
           ],
