@@ -227,5 +227,12 @@
   "settingsExportQualityHint": "JPEG 导出的默认质量，导出时可临时调整",
   "settingsPreviewQualityHint": "预览渲染分辨率，越高越清晰但越慢",
   "curve": "曲线",
-  "curveHint": "点按添加 · 拖动调整 · 长按删除"
+  "curveHint": "点按添加 · 拖动调整 · 长按删除",
+  "filter": "筛选",
+  "filterAllRatings": "全部星级",
+  "filterAllFlags": "全部",
+  "filterPickOnly": "只看留用",
+  "filterHideReject": "隐藏排除",
+  "flagPick": "留用",
+  "flagReject": "排除"
 }

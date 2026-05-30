@@ -185,6 +185,21 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
     state = [for (final s in state) s.copyWith(params: newParams)];
   }
 
+  void updateRating(String shotPath, int rating) {
+    final r = rating.clamp(0, 5);
+    state = [
+      for (final s in state)
+        if (s.path == shotPath) s.copyWith(rating: r) else s,
+    ];
+  }
+
+  void updateFlag(String shotPath, ShotFlag flag) {
+    state = [
+      for (final s in state)
+        if (s.path == shotPath) s.copyWith(flag: flag) else s,
+    ];
+  }
+
   void clear() {
     for (final s in state) {
       s.disposeThumbnail();

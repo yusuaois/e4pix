@@ -385,6 +385,36 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                   Container(
                                     color: Colors.black.withValues(alpha: 0.35),
                                   ),
+                                if (shot.rating > 0)
+                                  Positioned(
+                                    left: 3,
+                                    bottom: 3,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: List.generate(
+                                        shot.rating,
+                                        (_) => const Icon(
+                                          Icons.star,
+                                          size: 9,
+                                          color: Colors.amberAccent,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                if (shot.flag != ShotFlag.none)
+                                  Positioned(
+                                    top: 3,
+                                    right: 3,
+                                    child: Icon(
+                                      shot.flag == ShotFlag.pick
+                                          ? Icons.flag
+                                          : Icons.flag_outlined,
+                                      size: 12,
+                                      color: shot.flag == ShotFlag.pick
+                                          ? Colors.greenAccent
+                                          : Colors.redAccent,
+                                    ),
+                                  ),
                                 if (widget.multiSelectMode && isActive)
                                   Positioned(
                                     left: 4,
@@ -401,7 +431,7 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                         borderRadius: BorderRadius.circular(2),
                                       ),
                                       child: const Text(
-                                        '当前',
+                                        'Now',
                                         style: TextStyle(
                                           fontSize: 8.5,
                                           color: Colors.white,

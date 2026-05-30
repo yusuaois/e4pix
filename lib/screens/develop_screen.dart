@@ -23,6 +23,7 @@ import '../services/ai/ai_settings.dart';
 import '../services/app_settings.dart';
 import '../services/update_service.dart';
 import '../state/curve_state.dart';
+import '../state/filter_state.dart';
 import '../state/providers.dart';
 import '../state/quality_state.dart';
 import '../widgets/adjustment_panel.dart';
@@ -505,6 +506,15 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       });
     }
     final isFullscreen = ref.watch(fullscreenPreviewProvider);
+    ref.listen(filteredShotsProvider, (prev, next) {
+      final active = ref.read(activeShotPathProvider);
+      if (next.isEmpty) return;
+      if (active == null || !next.any((s) => s.path == active)) {
+        final first = next.first;
+        ref.read(activeShotPathProvider.notifier).set(first.path);
+        ref.read(activeFilePathProvider.notifier).set(first.path);
+      }
+    });
     ref.listen(currentParamsNotifierProvider.select((p) => p.curves), (
       prev,
       next,
@@ -575,6 +585,42 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           if (inCrop && event.logicalKey == LogicalKeyboardKey.enter) {
             commitCrop(ref);
             return KeyEventResult.handled;
+          }
+        }
+
+        // 打分/旗标（非裁剪模式）
+        if (event is KeyDownEvent && !ref.read(cropEditModeProvider)) {
+          final active = ref.read(activeShotPathProvider);
+          if (active != null) {
+            final n = ref.read(shotsNotifierProvider.notifier);
+            final key = event.logicalKey;
+            if (key == LogicalKeyboardKey.digit0) {
+              n.updateRating(active, 0);
+              return KeyEventResult.handled;
+            }
+            for (int d = 1; d <= 5; d++) {
+              if (key ==
+                  LogicalKeyboardKey(LogicalKeyboardKey.digit1.keyId + d - 1)) {
+                n.updateRating(active, d);
+                return KeyEventResult.handled;
+              }
+            }
+            if (key == LogicalKeyboardKey.keyP) {
+              final cur = ref.read(activeShotProvider);
+              n.updateFlag(
+                active,
+                cur?.flag == ShotFlag.pick ? ShotFlag.none : ShotFlag.pick,
+              );
+              return KeyEventResult.handled;
+            }
+            if (key == LogicalKeyboardKey.keyX) {
+              final cur = ref.read(activeShotProvider);
+              n.updateFlag(
+                active,
+                cur?.flag == ShotFlag.reject ? ShotFlag.none : ShotFlag.reject,
+              );
+              return KeyEventResult.handled;
+            }
           }
         }
 
@@ -686,7 +732,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         ),
         if (shots.isNotEmpty && !cropEditMode)
           TetherThumbStrip(
-            shots: shots,
+            shots: ref.watch(filteredShotsProvider),
             activeShot: activeShot,
             onSelect: _onThumbTap,
             multiSelectMode: selection.multiSelectMode,
@@ -694,7 +740,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                 .where((s) => selection.selectedPaths.contains(s.path))
                 .toList(),
           ),
-        _buildPhoneInfoBar(),
+        _buildVerticalInfoBar(),
         if (hasImage) _buildPhoneToolPanel(),
       ],
     );
@@ -723,7 +769,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             children: [
               if (shots.isNotEmpty && !cropEditMode)
                 TetherThumbStrip(
-                  shots: shots,
+                  shots: ref.watch(filteredShotsProvider),
                   activeShot: activeShot,
                   onSelect: _onThumbTap,
                   multiSelectMode: selection.multiSelectMode,
@@ -741,7 +787,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       ? null
                       : _buildHistogram(program, image),
                   presetBar: const PresetBar(),
-                  info: _buildPanelInfo(),
+                  info: _buildHorizontalInfoBar(),
                   onEnterCrop: () => enterCropMode(ref),
                 ),
             ],
@@ -994,6 +1040,56 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                         .toggleMode(),
             ),
           ],
+          PopupMenuButton<String>(
+            icon: Icon(
+              Icons.filter_alt,
+              size: isVertical ? 17 : 20,
+              color: ref.watch(shotFilterProvider).isActive
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
+            ),
+            tooltip: tr('filter'),
+            itemBuilder: (_) => [
+              // 星级
+              for (int r = 0; r <= 5; r++)
+                CheckedPopupMenuItem(
+                  value: 'rating_$r',
+                  checked: ref.read(shotFilterProvider).minRating == r,
+                  child: Text(r == 0 ? tr('filterAllRatings') : '★ ≥ $r'),
+                ),
+              const PopupMenuDivider(),
+              CheckedPopupMenuItem(
+                value: 'flag_all',
+                checked: ref.read(shotFilterProvider).flag == FlagFilter.all,
+                child: Text(tr('filterAllFlags')),
+              ),
+              CheckedPopupMenuItem(
+                value: 'flag_pick',
+                checked:
+                    ref.read(shotFilterProvider).flag == FlagFilter.pickOnly,
+                child: Text(tr('filterPickOnly')),
+              ),
+              CheckedPopupMenuItem(
+                value: 'flag_hidereject',
+                checked:
+                    ref.read(shotFilterProvider).flag ==
+                    FlagFilter.rejectHidden,
+                child: Text(tr('filterHideReject')),
+              ),
+            ],
+            onSelected: (key) {
+              final n = ref.read(shotFilterProvider.notifier);
+              if (key.startsWith('rating_')) {
+                n.setMinRating(int.parse(key.split('_')[1]));
+              } else if (key == 'flag_all') {
+                n.setFlag(FlagFilter.all);
+              } else if (key == 'flag_pick') {
+                n.setFlag(FlagFilter.pickOnly);
+              } else if (key == 'flag_hidereject') {
+                n.setFlag(FlagFilter.rejectHidden);
+              }
+            },
+          ),
           // 水平直接展示，垂直布局折到菜单
           if (!isVertical) ...[
             if (session == null)
@@ -1099,7 +1195,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     );
   }
 
-  Widget _buildPhoneInfoBar() {
+  Widget _buildVerticalInfoBar() {
     final image = ref.watch(imageNotifierProvider).value;
     final path = ref.watch(activeFilePathProvider);
     final m = image?.decoded.metadata;
@@ -1112,21 +1208,22 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(
-              m == null
-                  ? (path ?? tr('imageNotChosen'))
-                  : '${m.cameraModel} · ISO ${m.iso} · ${m.shutterDisplay} · f/${m.aperture.toStringAsFixed(1)}',
-              style: const TextStyle(fontSize: 11),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (image != null)
-            Row(
-              children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  m == null
+                      ? (path ?? tr('imageNotChosen'))
+                      : '${m.cameraModel} · ISO ${m.iso} · ${m.shutterDisplay} · f/${m.aperture.toStringAsFixed(1)}',
+                  style: const TextStyle(fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (image != null) ...[
                 Text(
                   '${image.decoded.width}×${image.decoded.height}',
                   style: TextStyle(
@@ -1156,7 +1253,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   ),
                 ],
               ],
-            ),
+            ],
+          ),
+          if (image != null) _RatingFlagBar(),
         ],
       ),
     );
@@ -1242,7 +1341,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     );
   }
 
-  Widget _buildPanelInfo() {
+  Widget _buildHorizontalInfoBar() {
     final image = ref.watch(imageNotifierProvider).value;
     final isLoading = ref.watch(imageNotifierProvider).isLoading;
     final path = ref.watch(activeFilePathProvider);
@@ -1294,6 +1393,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               ],
             ),
           ],
+          const SizedBox(height: 6),
+          _RatingFlagBar(),
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
@@ -1336,6 +1437,73 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         ref.read(shotsNotifierProvider.notifier).addFiles(paths);
       }
     }
+  }
+}
+
+class _RatingFlagBar extends ConsumerWidget {
+  const _RatingFlagBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final active = ref.watch(activeShotProvider);
+    if (active == null) return const SizedBox.shrink();
+    final notifier = ref.read(shotsNotifierProvider.notifier);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 5 颗星
+        for (int i = 1; i <= 5; i++)
+          GestureDetector(
+            onTap: () => notifier.updateRating(
+              active.path,
+              active.rating == i ? i - 1 : i,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1),
+              child: Icon(
+                i <= active.rating ? Icons.star : Icons.star_border,
+                size: 18,
+                color: i <= active.rating
+                    ? Colors.amberAccent
+                    : Colors.white.withValues(alpha: 0.3),
+              ),
+            ),
+          ),
+        const SizedBox(width: 8),
+        // 旗标
+        IconButton(
+          icon: Icon(
+            Icons.flag,
+            size: 16,
+            color: active.flag == ShotFlag.pick
+                ? Colors.greenAccent
+                : Colors.white.withValues(alpha: 0.4),
+          ),
+          tooltip: tr('flagPick'),
+          visualDensity: VisualDensity.compact,
+          onPressed: () => notifier.updateFlag(
+            active.path,
+            active.flag == ShotFlag.pick ? ShotFlag.none : ShotFlag.pick,
+          ),
+        ),
+        IconButton(
+          icon: Icon(
+            Icons.block,
+            size: 16,
+            color: active.flag == ShotFlag.reject
+                ? Colors.redAccent
+                : Colors.white.withValues(alpha: 0.4),
+          ),
+          tooltip: tr('flagReject'),
+          visualDensity: VisualDensity.compact,
+          onPressed: () => notifier.updateFlag(
+            active.path,
+            active.flag == ShotFlag.reject ? ShotFlag.none : ShotFlag.reject,
+          ),
+        ),
+      ],
+    );
   }
 }
 

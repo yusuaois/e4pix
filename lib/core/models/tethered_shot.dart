@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import '../../native/raw_bridge.dart';
 import 'adjustment_params.dart';
 
+enum ShotFlag { none, pick, reject }
+
 /// **不可变** —— 改 params / thumbnail 需要 copyWith 返回新实例。
 @immutable
 class TetheredShot {
@@ -15,6 +17,8 @@ class TetheredShot {
   final ui.Image? thumbnail;
   final String? error;
   final AdjustmentParams params;
+  final int rating;
+  final ShotFlag flag;
 
   const TetheredShot({
     required this.path,
@@ -23,12 +27,16 @@ class TetheredShot {
     this.thumbnail,
     this.error,
     this.params = AdjustmentParams.neutral,
+    this.rating = 0,
+    this.flag = ShotFlag.none,
   });
 
   TetheredShot copyWith({
     ui.Image? thumbnail,
     String? error,
     AdjustmentParams? params,
+    int? rating,
+    ShotFlag? flag,
   }) {
     return TetheredShot(
       path: path,
@@ -37,6 +45,8 @@ class TetheredShot {
       thumbnail: thumbnail ?? this.thumbnail,
       error: error ?? this.error,
       params: params ?? this.params,
+      rating: rating ?? this.rating,
+      flag: flag ?? this.flag,
     );
   }
 
@@ -59,7 +69,11 @@ class TetheredShot {
         }
         final c = Completer<ui.Image>();
         ui.decodeImageFromPixels(
-          rgba, raw.width, raw.height, ui.PixelFormat.rgba8888, c.complete,
+          rgba,
+          raw.width,
+          raw.height,
+          ui.PixelFormat.rgba8888,
+          c.complete,
         );
         thumb = await c.future;
       }
