@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/models/adjustment_params.dart';
+import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
 import '../services/tether_watcher.dart';
 import 'ai_auto_state.dart';
@@ -172,6 +173,20 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
         loaded.disposeThumbnail();
       }
     }
+  }
+
+  void syncParamsToPaths(
+    Set<String> paths,
+    AdjustmentParams src,
+    Set<SyncItem> items,
+  ) {
+    state = [
+      for (final s in state)
+        if (paths.contains(s.path))
+          s.copyWith(params: mergeParams(s.params, src, items))
+        else
+          s,
+    ];
   }
 
   void updateParams(String shotPath, AdjustmentParams newParams) {

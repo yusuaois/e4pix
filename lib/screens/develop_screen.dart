@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 
 import '../core/constants/raw_formats.dart';
 import '../core/models/adjustment_params.dart';
+import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
 import '../native/raw_bridge.dart';
 import '../render/exporter.dart';
@@ -1140,7 +1141,13 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             ),
           // 多选信息条
           if (selection.multiSelectMode) ...[
-            if (selection.selectedPaths.isNotEmpty)
+            if (selection.selectedPaths.isNotEmpty) ...[
+              compactIcon(
+                icon: Icons.sync,
+                tooltip: tr('syncAdjustments'),
+                color: Theme.of(context).colorScheme.primary,
+                onPressed: _syncToSelected,
+              ),
               Flexible(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -1168,6 +1175,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   ),
                 ),
               ),
+            ],
             TextButton(
               onPressed: () {
                 final n = ref.read(exportSelectionNotifierProvider.notifier);
@@ -1417,6 +1425,87 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _syncToSelected() async {
+    final selection = ref.read(exportSelectionNotifierProvider);
+    if (selection.selectedPaths.isEmpty) {
+      _snack(tr('syncNoTarget'));
+      return;
+    }
+    final src = ref.read(currentParamsNotifierProvider);
+
+    Set<SyncItem> items = {...kDefaultSyncItems};
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: Text(tr('syncAdjustments')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr(
+                    'syncToCount',
+                    args: ['${selection.selectedPaths.length}'],
+                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                ),
+                const SizedBox(height: 8),
+                for (final item in SyncItem.values)
+                  CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: items.contains(item),
+                    title: Text(
+                      tr(item.labelKey),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    subtitle: item == SyncItem.locals
+                        ? Text(
+                            tr('syncLocalsWarn'),
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: Colors.orangeAccent.withValues(alpha: 0.8),
+                            ),
+                          )
+                        : null,
+                    onChanged: (v) => setS(() {
+                      if (v == true) {
+                        items.add(item);
+                      } else {
+                        items.remove(item);
+                      }
+                    }),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('cancel')),
+            ),
+            FilledButton(
+              onPressed: items.isEmpty ? null : () => Navigator.pop(ctx, true),
+              child: Text(tr('sync')),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok != true) return;
+    ref
+        .read(shotsNotifierProvider.notifier)
+        .syncParamsToPaths(selection.selectedPaths, src, items);
+    _snack(
+      tr('syncDone', args: ['${selection.selectedPaths.length}']),
+      floating: true,
     );
   }
 

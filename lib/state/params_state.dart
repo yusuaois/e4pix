@@ -20,15 +20,16 @@ class CurrentParamsNotifier extends Notifier<AdjustmentParams> {
     state = newParams;
 
     final session = ref.read(tetherSessionNotifierProvider);
-    if (session == null) return;
-
     final preserve = ref.read(preserveParamsProvider);
-    if (preserve) {
+
+    if (session != null && preserve) {
       ref.read(shotsNotifierProvider.notifier).updateAllParams(newParams);
     } else {
       final active = ref.read(activeShotProvider);
       if (active != null) {
-        ref.read(shotsNotifierProvider.notifier).updateParams(active.path, newParams);
+        ref
+            .read(shotsNotifierProvider.notifier)
+            .updateParams(active.path, newParams);
       }
     }
   }
@@ -38,5 +39,5 @@ class CurrentParamsNotifier extends Notifier<AdjustmentParams> {
 
 final currentParamsNotifierProvider =
     NotifierProvider<CurrentParamsNotifier, AdjustmentParams>(
-  CurrentParamsNotifier.new,
-);
+      CurrentParamsNotifier.new,
+    );
