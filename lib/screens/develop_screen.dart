@@ -23,6 +23,7 @@ import '../services/ai/ai_settings.dart';
 import '../services/app_settings.dart';
 import '../services/update_service.dart';
 import '../state/providers.dart';
+import '../state/quality_state.dart';
 import '../widgets/adjustment_panel.dart';
 import '../widgets/ai_settings_dialog.dart';
 import '../widgets/ai_suggestion_dialog.dart';
@@ -268,7 +269,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     }
 
     ExportFormat format = ExportFormat.png;
-    int quality = 95;
+    int quality = ref.read(exportQualityProvider);
     final isBatch = tasks.length > 1;
 
     final ok = await showDialog<bool>(
@@ -1153,8 +1154,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
   Widget _buildPhoneToolPanel() {
     final params = ref.watch(currentParamsNotifierProvider);
-    final lut = ref.watch(lutNotifierProvider);
-    final library = ref.watch(lutLibraryNotifierProvider).value ?? const [];
 
     return SizedBox(
       height: 320,
@@ -1532,6 +1531,8 @@ class _PreviewArea extends ConsumerWidget {
             final imgH = state.uiImage.height.toDouble();
             final outAspect = params.crop.outAspectFor(imgW, imgH);
             final isVertical = MediaQuery.of(ctx).size.shortestSide < 600;
+            final previewQ = ref.watch(previewQualityProvider);
+            final (idle, dragging) = previewQ.edges(isVertical: isVertical);
             final box = applyBoxFit(
               BoxFit.contain,
               Size(outAspect, 1.0),
@@ -1552,8 +1553,8 @@ class _PreviewArea extends ConsumerWidget {
                       lutSize: lutEnabled ? lut.sizeA : 0,
                       lutTextureB: lutEnabled ? lut.textureB : null,
                       lutSizeB: lutEnabled ? lut.sizeB : 0,
-                      idleMaxEdge: isVertical ? 1600 : 2400,
-                      draggingMaxEdge: isVertical ? 600 : 800,
+                      idleMaxEdge: idle,
+                      draggingMaxEdge: dragging,
                     ),
                     box,
                   ),

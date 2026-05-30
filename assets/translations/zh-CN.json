@@ -217,5 +217,13 @@
   "folderImportConfirm": "导入 {} 张",
   "folderImportEmpty": "此文件夹没有 RAW 文件",
   "folderImportNotFound": "文件夹不存在或无法访问",
-  "deselectAll": "取消全选"
+  "deselectAll": "取消全选",
+  "settingsRender": "渲染",
+  "settingsPreviewQuality": "预览质量",
+  "qualityLow": "低",
+  "qualityMedium": "中",
+  "qualityHigh": "高",
+  "settingsExportQuality": "默认导出质量",
+  "settingsExportQualityHint": "JPEG 导出的默认质量，导出时可临时调整",
+  "settingsPreviewQualityHint": "预览渲染分辨率，越高越清晰但越慢"
 }

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 import '../core/constants/app_info.dart';
 import '../state/app_settings_state.dart';
+import '../state/quality_state.dart';
 import '../widgets/ai_settings_dialog.dart';
 import '../state/theme_state.dart';
 import '../widgets/theme_color_picker.dart';
@@ -37,6 +38,10 @@ class SettingsScreen extends ConsumerWidget {
 
           _SectionHeader(tr("settingsTheme")),
           const _ThemeTiles(),
+          SizedBox(height: 16),
+
+          _SectionHeader(tr("settingsRender")),
+          const _QualityTiles(),
           SizedBox(height: 16),
 
           _SectionHeader(tr("settingsAbout")),
@@ -272,6 +277,84 @@ class _Swatch extends StatelessWidget {
                   ? const Icon(Icons.check, size: 16, color: Colors.white)
                   : null),
       ),
+    );
+  }
+}
+
+class _QualityTiles extends ConsumerWidget {
+  const _QualityTiles();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pq = ref.watch(previewQualityProvider);
+    final eq = ref.watch(exportQualityProvider);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Row(
+            children: [
+              const Icon(Icons.speed, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  tr("settingsPreviewQuality"),
+                  style: const TextStyle(fontSize: 13.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: SegmentedButton<PreviewQuality>(
+            segments: [
+              ButtonSegment(
+                value: PreviewQuality.low,
+                label: Text(tr("qualityLow"), style: const TextStyle(fontSize: 12)),
+              ),
+              ButtonSegment(
+                value: PreviewQuality.medium,
+                label: Text(tr("qualityMedium"), style: const TextStyle(fontSize: 12)),
+              ),
+              ButtonSegment(
+                value: PreviewQuality.high,
+                label: Text(tr("qualityHigh"), style: const TextStyle(fontSize: 12)),
+              ),
+            ],
+            selected: {pq},
+            onSelectionChanged: (s) =>
+                ref.read(previewQualityProvider.notifier).set(s.first),
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.high_quality_outlined, size: 20),
+          title: Text(
+            tr("settingsExportQuality"),
+            style: const TextStyle(fontSize: 13.5),
+          ),
+          subtitle: Text(
+            tr("settingsExportQualityHint"),
+            style: const TextStyle(fontSize: 11, color: Colors.white54),
+          ),
+          trailing: Text(
+            '$eq',
+            style: const TextStyle(
+              fontSize: 12, fontFamily: 'monospace', color: Colors.white70),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Slider(
+            value: eq.toDouble(),
+            min: 50,
+            max: 100,
+            onChanged: (v) =>
+                ref.read(exportQualityProvider.notifier).set(v.round()),
+          ),
+        ),
+      ],
     );
   }
 }

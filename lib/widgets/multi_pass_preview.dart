@@ -76,8 +76,9 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         old.lutTexture != widget.lutTexture ||
         old.lutSize != widget.lutSize ||
         old.lutTextureB != widget.lutTextureB ||
-        old.lutSizeB != widget.lutSizeB
-        ) {
+        old.lutSizeB != widget.lutSizeB ||
+        old.idleMaxEdge != widget.idleMaxEdge ||
+        old.draggingMaxEdge != widget.draggingMaxEdge) {
       _scheduleRender();
     }
   }

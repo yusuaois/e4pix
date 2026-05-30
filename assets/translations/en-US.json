@@ -217,5 +217,13 @@
   "folderImportConfirm": "Import {} shots",
   "folderImportEmpty": "No shots found",
   "folderImportNotFound": "Folder not found or cannot access",
-  "deselectAll": "Deselect all"
+  "deselectAll": "Deselect all",
+  "settingsRender": "Render",
+  "settingsPreviewQuality": "Preview quality",
+  "qualityLow": "Low",
+  "qualityMedium": "Medium",
+  "qualityHigh": "High",
+  "settingsExportQuality": "Default quality",
+  "settingsExportQualityHint": "JPEG export default quality, can be temporarily adjusted during export",
+  "settingsPreviewQualityHint": "Preview render resolution — higher is sharper but slower"
 }
