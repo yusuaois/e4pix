@@ -211,5 +211,11 @@
   "updateLater": "Later",
   "updateOpenPage": "Open page",
   "updateDownload": "Download",
-  "updateIgnore": "Ignore this version"
+  "updateIgnore": "Ignore this version",
+  "folderImport": "Import from folder",
+  "folderImportPickDir": "Pick folder",
+  "folderImportConfirm": "Import {} shots",
+  "folderImportEmpty": "No shots found",
+  "folderImportNotFound": "Folder not found or cannot access",
+  "deselectAll": "Deselect all"
 }

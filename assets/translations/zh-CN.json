@@ -211,5 +211,11 @@
   "updateLater": "稍后",
   "updateOpenPage": "打开发布页",
   "updateDownload": "下载",
-  "updateIgnore": "忽略此版本"
+  "updateIgnore": "忽略此版本",
+  "folderImport": "从文件夹导入",
+  "folderImportPickDir": "选择 RAW 所在文件夹",
+  "folderImportConfirm": "导入 {} 张",
+  "folderImportEmpty": "此文件夹没有 RAW 文件",
+  "folderImportNotFound": "文件夹不存在或无法访问",
+  "deselectAll": "取消全选"
 }

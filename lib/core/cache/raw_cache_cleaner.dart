@@ -5,16 +5,18 @@ import 'package:path_provider/path_provider.dart';
 
 class RawCacheCleaner {
   static const _rawExts = [
-    '.RW2',
-    '.CR2',
-    '.CR3',
-    '.NEF',
-    '.ARW',
-    '.DNG',
-    '.RAF',
-    '.ORF',
-    '.PEF',
-    '.SRW',
+    '.arw',
+    '.cr2',
+    '.cr3',
+    '.nef',
+    '.nrw',
+    '.raf',
+    '.dng',
+    '.orf',
+    '.rw2',
+    '.pef',
+    '.srw',
+    '.rwl',
   ];
 
   /// 启动时清理

@@ -29,6 +29,7 @@ import '../widgets/compare_button.dart';
 import '../widgets/crop_overlay.dart';
 import '../widgets/crop_panel.dart';
 import '../widgets/develop_sections.dart';
+import 'folder_import_screen.dart';
 import '../widgets/histogram_panel.dart';
 import '../widgets/local_mask_overlay.dart';
 import '../widgets/local_panel.dart';
@@ -1286,10 +1287,15 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: isLoading ? null : _pickAndDecode,
-              icon: const Icon(Icons.folder_open, size: 16),
+              onPressed: isLoading ? null : _importImages,
+              icon: Icon(
+                Platform.isAndroid
+                    ? Icons.folder_copy_outlined
+                    : Icons.folder_open,
+                size: 16,
+              ),
               label: Text(
-                tr("imageChoose"),
+                Platform.isAndroid ? tr("folderImport") : tr("imageChoose"),
                 style: const TextStyle(fontSize: 12),
               ),
               style: OutlinedButton.styleFrom(
@@ -1302,12 +1308,22 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     );
   }
 
-  Future<void> _pickAndDecode() async {
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if (result == null || result.files.isEmpty) return;
-    final paths = result.files.map((f) => f.path).whereType<String>().toList();
-    if (paths.isNotEmpty) {
-      ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+  Future<void> _importImages() async {
+    if (Platform.isAndroid) {
+      final paths = await openFolderImport(context);
+      if (paths != null && paths.isNotEmpty) {
+        ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+      }
+    } else {
+      final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+      if (result == null || result.files.isEmpty) return;
+      final paths = result.files
+          .map((f) => f.path)
+          .whereType<String>()
+          .toList();
+      if (paths.isNotEmpty) {
+        ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+      }
     }
   }
 }
@@ -1684,20 +1700,33 @@ class _PreviewArea extends ConsumerWidget {
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: () async {
-              final result = await FilePicker.platform.pickFiles(
-                allowMultiple: true,
-              );
-              if (result == null || result.files.isEmpty) return;
-              final paths = result.files
-                  .map((f) => f.path)
-                  .whereType<String>()
-                  .toList();
-              if (paths.isNotEmpty) {
-                ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+              if (Platform.isAndroid) {
+                final paths = await openFolderImport(context);
+                if (paths != null && paths.isNotEmpty) {
+                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+                }
+              } else {
+                final result = await FilePicker.platform.pickFiles(
+                  allowMultiple: true,
+                );
+                if (result == null || result.files.isEmpty) return;
+                final paths = result.files
+                    .map((f) => f.path)
+                    .whereType<String>()
+                    .toList();
+                if (paths.isNotEmpty) {
+                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+                }
               }
             },
-            icon: const Icon(Icons.folder_open),
-            label: Text(tr("imageChoose")),
+            icon: Icon(
+              Platform.isAndroid
+                  ? Icons.folder_copy_outlined
+                  : Icons.folder_open,
+            ),
+            label: Text(
+              Platform.isAndroid ? tr("folderImport") : tr("imageChoose"),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -1867,21 +1896,33 @@ class _CenterMessage extends ConsumerWidget {
             const SizedBox(height: 8),
             FilledButton.icon(
               onPressed: () async {
-                final result = await FilePicker.platform.pickFiles(
-                  allowMultiple: true,
-                );
-                if (result == null || result.files.isEmpty) return;
-                final paths = result.files
-                    .map((f) => f.path)
-                    .whereType<String>()
-                    .toList();
-                if (paths.isNotEmpty) {
-                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+                if (Platform.isAndroid) {
+                  final paths = await openFolderImport(context);
+                  if (paths != null && paths.isNotEmpty) {
+                    ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+                  }
+                } else {
+                  final result = await FilePicker.platform.pickFiles(
+                    allowMultiple: true,
+                  );
+                  if (result == null || result.files.isEmpty) return;
+                  final paths = result.files
+                      .map((f) => f.path)
+                      .whereType<String>()
+                      .toList();
+                  if (paths.isNotEmpty) {
+                    ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+                  }
                 }
-                ;
               },
-              icon: const Icon(Icons.folder_open),
-              label: Text(tr("imageChoose")),
+              icon: Icon(
+                Platform.isAndroid
+                    ? Icons.folder_copy_outlined
+                    : Icons.folder_open,
+              ),
+              label: Text(
+                Platform.isAndroid ? tr("folderImport") : tr("imageChoose"),
+              ),
             ),
             const SizedBox(height: 8),
           ],

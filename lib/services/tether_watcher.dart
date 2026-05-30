@@ -7,8 +7,18 @@ import 'package:watcher/watcher.dart';
 // 监听文件夹
 class TetherWatcher {
   static const _rawExtensions = {
-    '.arw', '.cr2', '.cr3', '.nef', '.nrw', '.raf',
-    '.dng', '.orf', '.rw2', '.pef', '.srw', '.rwl',
+    '.arw',
+    '.cr2',
+    '.cr3',
+    '.nef',
+    '.nrw',
+    '.raf',
+    '.dng',
+    '.orf',
+    '.rw2',
+    '.pef',
+    '.srw',
+    '.rwl',
   };
 
   final String watchPath;
@@ -93,8 +103,7 @@ class TetherWatcher {
           stableCount = 0;
         }
         lastSize = size;
-      } catch (_) {
-      }
+      } catch (_) {}
       await Future.delayed(const Duration(milliseconds: 200));
     }
     return false;
