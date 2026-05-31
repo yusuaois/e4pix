@@ -982,3 +982,92 @@ class _LutSlot extends ConsumerWidget {
     if (ok == true) await onDelete(entry);
   }
 }
+
+class DetailSection extends StatelessWidget {
+  final AdjustmentParams params;
+  final ValueChanged<AdjustmentParams> onChanged;
+  const DetailSection({
+    super.key,
+    required this.params,
+    required this.onChanged,
+  });
+
+  Widget _slider({
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required ValueChanged<double> onChanged,
+    int fractionDigits = 0,
+  }) {
+    return Builder(
+      builder: (context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 12)),
+                Text(
+                  value.toStringAsFixed(fractionDigits),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+              ),
+              child: TrackedSlider(
+                value: value,
+                min: min,
+                max: max,
+                onChanged: onChanged,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionLabel(title: 'Sharpen'),
+        _slider(
+          label: tr('sharpenAmount'),
+          value: params.sharpenAmount,
+          min: 0,
+          max: 100,
+          onChanged: (v) => onChanged(params.copyWith(sharpenAmount: v)),
+        ),
+        _slider(
+          label: tr('sharpenRadius'),
+          value: params.sharpenRadius,
+          min: 0.5,
+          max: 3.0,
+          fractionDigits: 1,
+          onChanged: (v) => onChanged(params.copyWith(sharpenRadius: v)),
+        ),
+        _slider(
+          label: tr('sharpenMasking'),
+          value: params.sharpenMasking,
+          min: 0,
+          max: 100,
+          onChanged: (v) => onChanged(params.copyWith(sharpenMasking: v)),
+        ),
+      ],
+    );
+  }
+}

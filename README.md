@@ -26,6 +26,7 @@
 - 图片筛选：星标与旗标
 - 参数同步
 - 裁剪 / 旋转 / 翻转 / 拉直
+- 锐化
 - 局部调整：线性 / 径向渐变，画笔（流量、硬度、加擦、自动蒙版）
 - 智能区域：相近色选择
 - 主体分割：可自动区分主体，正负点细化
@@ -84,7 +85,11 @@ Cross-platform RAW editing tool, connect your camera for real-time color grading
 
 - Tethered shooting (USB); folder monitoring
 - Real-time RAW color grading: exposure, contrast, highlights/shadows, white balance, HSL hue, LUT (.cube)
+- RGB curves
+- Photo filtering: star ratings and flags
+- Parameter syncing
 - Crop / rotate / flip / straighten
+- Sharpening
 - Local adjustments: linear / radial gradients, brush (flow, hardness, add/erase, auto-mask)
 - Smart Region: selection by color similarity
 - Subject Segmentation: automatic subject identification with positive/negative points for refinement

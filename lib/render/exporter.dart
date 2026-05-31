@@ -10,7 +10,6 @@ import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
 import 'full_pipeline_renderer.dart';
 
-
 enum ExportFormat { png, jpeg }
 
 extension ExportFormatExt on ExportFormat {
@@ -36,6 +35,7 @@ class Exporter {
     ui.Image? lutTextureB,
     int lutSizeB = 0,
     ui.Image? curveTexture,
+    ui.FragmentProgram? sharpenProgram,
     int jpegQuality = 95,
     ExportProgress? onProgress,
   }) async {
@@ -57,6 +57,7 @@ class Exporter {
       lutTextureB: lutTextureB,
       lutSizeB: lutSizeB,
       curveTexture: curveTexture,
+      sharpenProgram: sharpenProgram,
       targetWidth: sourceImage.width,
       targetHeight: sourceImage.height,
     );

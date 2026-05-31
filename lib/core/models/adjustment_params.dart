@@ -18,6 +18,9 @@ class AdjustmentParams {
   final double blacks;
   final double saturation;
   final double vibrance;
+  final double sharpenAmount;   // 0-100，默认 0（不锐化）
+  final double sharpenRadius;   // 0.5-3.0 像素，默认 1.0
+  final double sharpenMasking;  // 0-100，默认 0（全图锐化）
   final double lutIntensity;
   final double lutIntensityB;
   final RgbCurves curves;
@@ -36,6 +39,9 @@ class AdjustmentParams {
     this.blacks = 0.0,
     this.saturation = 0.0,
     this.vibrance = 0.0,
+    this.sharpenAmount = 0.0,
+    this.sharpenRadius = 1.0,
+    this.sharpenMasking = 0.0,
     this.lutIntensity = 1.0,
     this.lutIntensityB = 1.0,
     this.curves = RgbCurves.identity,
@@ -57,6 +63,9 @@ class AdjustmentParams {
     double? blacks,
     double? saturation,
     double? vibrance,
+    double? sharpenAmount,
+    double? sharpenRadius,
+    double? sharpenMasking,
     double? lutIntensity,
     double? lutIntensityB,
     RgbCurves? curves,
@@ -74,6 +83,9 @@ class AdjustmentParams {
     blacks: blacks ?? this.blacks,
     saturation: saturation ?? this.saturation,
     vibrance: vibrance ?? this.vibrance,
+    sharpenAmount: sharpenAmount ?? this.sharpenAmount,
+    sharpenRadius: sharpenRadius ?? this.sharpenRadius,
+    sharpenMasking: sharpenMasking ?? this.sharpenMasking,
     lutIntensity: lutIntensity ?? this.lutIntensity,
     lutIntensityB: lutIntensityB ?? this.lutIntensityB,
     curves: curves ?? this.curves,
@@ -96,6 +108,9 @@ class AdjustmentParams {
           blacks == other.blacks &&
           saturation == other.saturation &&
           vibrance == other.vibrance &&
+          sharpenAmount == other.sharpenAmount &&
+          sharpenRadius == other.sharpenRadius &&
+          sharpenMasking == other.sharpenMasking &&
           lutIntensity == other.lutIntensity &&
           lutIntensityB == other.lutIntensityB &&
           curves == other.curves &&
@@ -115,6 +130,9 @@ class AdjustmentParams {
     blacks,
     saturation,
     vibrance,
+    sharpenAmount,
+    sharpenRadius,
+    sharpenMasking,
     lutIntensity,
     lutIntensityB,
     curves,
@@ -134,6 +152,9 @@ class AdjustmentParams {
     'blacks': blacks,
     'saturation': saturation,
     'vibrance': vibrance,
+    'sharpenAmount': sharpenAmount,
+    'sharpenRadius': sharpenRadius,
+    'sharpenMasking': sharpenMasking,
     'lutIntensity': lutIntensity,
     'lutIntensityB': lutIntensityB,
     'curves': curves.toJson(),
@@ -153,6 +174,9 @@ class AdjustmentParams {
     blacks: (j['blacks'] as num?)?.toDouble() ?? 0.0,
     saturation: (j['saturation'] as num?)?.toDouble() ?? 0.0,
     vibrance: (j['vibrance'] as num?)?.toDouble() ?? 0.0,
+    sharpenAmount: (j['sharpenAmount'] as num?)?.toDouble() ?? 0.0,
+    sharpenRadius: (j['sharpenRadius'] as num?)?.toDouble() ?? 1.0,
+    sharpenMasking: (j['sharpenMasking'] as num?)?.toDouble() ?? 0.0,
     lutIntensity: (j['lutIntensity'] as num?)?.toDouble() ?? 1.0,
     lutIntensityB: (j['lutIntensityB'] as num?)?.toDouble() ?? 1.0,
     curves: j['curves'] != null

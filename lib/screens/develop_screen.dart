@@ -245,6 +245,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             lutTextureB: lut.textureB,
             lutSizeB: lut.sizeB,
             curveTexture: ref.watch(effectiveCurveTextureProvider),
+            sharpenProgram: ref.read(sharpenShaderProgramProvider).value,
             maxEdge: await AISettings.getMaxEdge(),
           );
         },
@@ -413,6 +414,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           lutTextureB: lut.textureB,
           lutSizeB: lut.sizeB,
           curveTexture: ref.watch(effectiveCurveTextureProvider),
+          sharpenProgram: ref.read(sharpenShaderProgramProvider).value,
           jpegQuality: quality,
           onProgress: (f, s) {
             if (tasks.length == 1) {
@@ -1275,7 +1277,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     return SizedBox(
       height: 320,
       child: DefaultTabController(
-        length: 6,
+        length: 7,
         child: Container(
           color: const Color(0xFF14141A),
           child: Column(
@@ -1300,6 +1302,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                           Tab(text: tr("color"), height: 36),
                           Tab(text: tr("hsl"), height: 36),
                           Tab(text: 'LUT', height: 36),
+                          Tab(text: tr('detail'), height: 36),
                           Tab(text: tr("preset"), height: 36),
                           Tab(text: tr("local"), height: 36),
                         ],
@@ -1771,6 +1774,9 @@ class _PreviewArea extends ConsumerWidget {
     final hasLocals = params.locals.any(
       (l) => l.enabled && !l.params.isNeutral,
     );
+    final hasSharpen = params.sharpenAmount > 0.001;
+    final needFullPipeline = hasLocals || hasSharpen;
+
     final selectedLocalId = ref.watch(selectedLocalIdProvider);
 
     Widget wrapOverlay(Widget content, Size displaySize) {
@@ -1786,8 +1792,8 @@ class _PreviewArea extends ConsumerWidget {
       );
     }
 
-    // 带有local
-    if (hasLocals) {
+    // 完整管线 带有local
+    if (needFullPipeline) {
       final maskProgram = ref.watch(maskShaderProgramProvider).value;
       final develop = ref.watch(shaderProgramProvider).value;
       if (develop == null || maskProgram == null) {
@@ -1824,6 +1830,9 @@ class _PreviewArea extends ConsumerWidget {
                       lutTextureB: lutEnabled ? lut.textureB : null,
                       lutSizeB: lutEnabled ? lut.sizeB : 0,
                       curveTexture: ref.watch(effectiveCurveTextureProvider),
+                      sharpenProgram: ref
+                          .watch(sharpenShaderProgramProvider)
+                          .value,
                       idleMaxEdge: idle,
                       draggingMaxEdge: dragging,
                     ),
@@ -1837,7 +1846,7 @@ class _PreviewArea extends ConsumerWidget {
       );
     }
 
-    // 无local
+    // 无 local 无锐化
     final crop = params.crop;
     final image = state.uiImage;
 
@@ -1877,6 +1886,7 @@ class _PreviewArea extends ConsumerWidget {
       );
     }
 
+    // 无 local 无锐化 + 有裁剪：原 Transform 模拟裁剪（不变）
     return GestureDetector(
       onTap: () => ref.read(fullscreenPreviewProvider.notifier).state = true,
       child: Container(

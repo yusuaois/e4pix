@@ -91,6 +91,7 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
         lutTextureB: lutState.textureB,
         lutSizeB: lutState.sizeB,
         curveTexture: ref.read(effectiveCurveTextureProvider),
+        sharpenProgram: ref.read(sharpenShaderProgramProvider).value,
         maxEdge: await AISettings.getMaxEdge(),
       );
       final bytes = await File(tempPath).readAsBytes();

@@ -20,6 +20,7 @@ class AIInputRenderer {
     ui.Image? lutTextureB,
     int lutSizeB = 0,
     ui.Image? curveTexture,
+    ui.FragmentProgram? sharpenProgram,
     int maxEdge = 768,
     int jpegQuality = 85,
   }) async {
@@ -33,6 +34,7 @@ class AIInputRenderer {
       lutTextureB: lutTextureB,
       lutSizeB: lutSizeB,
       curveTexture: curveTexture,
+      sharpenProgram: sharpenProgram,
       targetWidth: sourceImage.width,
       targetHeight: sourceImage.height,
     );

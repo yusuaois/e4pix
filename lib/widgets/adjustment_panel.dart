@@ -40,6 +40,8 @@ class AdjustmentPanel extends ConsumerWidget {
         );
       case DevelopTool.lut:
         return LutSection();
+      case DevelopTool.detail:
+        return DetailSection(params: params, onChanged: onChanged);
       case DevelopTool.preset:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -190,6 +192,12 @@ class _ToolRail extends StatelessWidget {
               tooltip: tr('preset'),
               selected: selected == DevelopTool.preset,
               onTap: () => onSelect(DevelopTool.preset),
+            ),
+            _RailItem(
+              icon: Icons.deblur,
+              tooltip: tr('detail'),
+              selected: selected == DevelopTool.detail,
+              onTap: () => onSelect(DevelopTool.detail),
             ),
             _RailItem(
               icon: Icons.brush_outlined,

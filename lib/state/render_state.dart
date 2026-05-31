@@ -7,12 +7,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/lut/cube_lut.dart';
 
-// Shader program (load once)
+// Shader program
 final shaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
   return ui.FragmentProgram.fromAsset('shaders/develop.frag');
 });
 final maskShaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
   return ui.FragmentProgram.fromAsset('shaders/develop_mask.frag');
+});
+final sharpenShaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
+  return await ui.FragmentProgram.fromAsset('shaders/sharpen.frag');
 });
 
 // 1Hz ticker

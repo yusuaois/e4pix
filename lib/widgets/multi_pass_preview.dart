@@ -9,6 +9,7 @@ import '../core/models/adjustment_params.dart';
 import '../render/full_pipeline_renderer.dart';
 import '../render/mask_cache.dart';
 import '../state/interaction_state.dart';
+import '../state/providers.dart';
 
 /// 离屏多 pass 预览
 class MultiPassPreview extends ConsumerStatefulWidget {
@@ -21,6 +22,7 @@ class MultiPassPreview extends ConsumerStatefulWidget {
   final ui.Image? lutTextureB;
   final int lutSizeB;
   final ui.Image? curveTexture;
+  final ui.FragmentProgram? sharpenProgram;
   final int idleMaxEdge;
   final int draggingMaxEdge;
 
@@ -35,6 +37,7 @@ class MultiPassPreview extends ConsumerStatefulWidget {
     this.lutTextureB,
     this.lutSizeB = 0,
     this.curveTexture,
+    this.sharpenProgram,
     this.idleMaxEdge = 2400,
     this.draggingMaxEdge = 800,
   });
@@ -80,6 +83,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         old.lutTextureB != widget.lutTextureB ||
         old.lutSizeB != widget.lutSizeB ||
         old.curveTexture != widget.curveTexture ||
+        old.sharpenProgram != widget.sharpenProgram ||
         old.idleMaxEdge != widget.idleMaxEdge ||
         old.draggingMaxEdge != widget.draggingMaxEdge) {
       _scheduleRender();
@@ -144,6 +148,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         lutTextureB: widget.lutTextureB,
         lutSizeB: widget.lutSizeB,
         curveTexture: widget.curveTexture,
+        sharpenProgram: widget.sharpenProgram,
         targetWidth: tw,
         targetHeight: th,
         developCache: _developCache,

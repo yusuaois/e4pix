@@ -32,6 +32,7 @@ class FullPipelineRenderer {
   static Future<ui.Image> render({
     required ui.FragmentProgram developProgram,
     required ui.FragmentProgram maskProgram,
+    ui.FragmentProgram? sharpenProgram,
     required ui.Image sourceImage,
     required AdjustmentParams params,
     ui.Image? lutTexture,
@@ -57,7 +58,13 @@ class FullPipelineRenderer {
     if (useCache) {
       final key = (
         identityHashCode(sourceImage),
-        params.copyWith(crop: CropParams.identity, locals: const []),
+        params.copyWith(
+          crop: CropParams.identity,
+          locals: const [],
+          sharpenAmount: 0,
+          sharpenRadius: 1,
+          sharpenMasking: 0,
+        ),
         identityHashCode(lutTexture),
         lutSize,
         identityHashCode(lutTextureB),
@@ -130,7 +137,13 @@ class FullPipelineRenderer {
         guideH = current.height;
         guideEpoch = Object.hash(
           identityHashCode(sourceImage),
-          params.copyWith(crop: CropParams.identity, locals: const []),
+          params.copyWith(
+            crop: CropParams.identity,
+            locals: const [],
+            sharpenAmount: 0,
+            sharpenRadius: 1,
+            sharpenMasking: 0,
+          ),
           identityHashCode(lutTexture),
           lutSize,
           identityHashCode(lutTextureB),
@@ -198,10 +211,24 @@ class FullPipelineRenderer {
       }
     }
 
-    if (!currentOwned) {
-      return _copyImage(current);
+    if (sharpenProgram != null && params.sharpenAmount > 0.001) {
+      try {
+        final sharpened = await _runSharpenPass(
+          program: sharpenProgram,
+          input: current,
+          amount: params.sharpenAmount / 100.0,
+          radius: params.sharpenRadius,
+          masking: params.sharpenMasking / 100.0,
+        );
+        if (currentOwned) current.dispose();
+        current = sharpened;
+        currentOwned = true;
+      } catch (e) {
+        debugPrint('Sharpen pass failed: $e');
+      }
     }
 
+    if (!currentOwned) return _copyImage(current);
     return current;
   }
 
@@ -310,5 +337,34 @@ class FullPipelineRenderer {
     shader.setFloat(i++, p.tint);
     shader.setFloat(i++, p.saturation);
     shader.setFloat(i++, p.vibrance);
+  }
+
+  static Future<ui.Image> _runSharpenPass({
+    required ui.FragmentProgram program,
+    required ui.Image input,
+    required double amount,
+    required double radius,
+    required double masking,
+  }) async {
+    final shader = program.fragmentShader();
+    final w = input.width, h = input.height;
+    int i = 0;
+    shader.setFloat(i++, w.toDouble());
+    shader.setFloat(i++, h.toDouble());
+    shader.setFloat(i++, amount);
+    shader.setFloat(i++, radius);
+    shader.setFloat(i++, masking);
+    shader.setImageSampler(0, input);
+
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    canvas.drawRect(
+      ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+      ui.Paint()..shader = shader,
+    );
+    final pic = recorder.endRecording();
+    final result = await pic.toImage(w, h);
+    pic.dispose();
+    return result;
   }
 }
