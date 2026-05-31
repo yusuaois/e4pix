@@ -847,131 +847,94 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final shots = ref.watch(shotsNotifierProvider);
     final hist = ref.watch(historyNotifierProvider);
     final notifier = ref.read(historyNotifierProvider.notifier);
+    final filterActive = ref.watch(shotFilterProvider).isActive;
 
     final hasImage = image != null && program != null;
     final isVertical = MediaQuery.of(context).size.shortestSide < 600;
+    final primary = Theme.of(context).colorScheme.primary;
 
-    // 紧凑模式
-    Widget compactIcon({
-      required IconData icon,
-      required String tooltip,
-      VoidCallback? onPressed,
-      VoidCallback? onLongPress,
-      Color? color,
-      double size = 20,
-    }) {
-      final button = IconButton(
-        icon: Icon(icon, size: isVertical ? 17 : size, color: color),
-        tooltip: tooltip,
-        onPressed: onPressed,
-        visualDensity: isVertical
-            ? VisualDensity.compact
-            : VisualDensity.standard,
-        padding: isVertical ? const EdgeInsets.all(3) : const EdgeInsets.all(8),
-        constraints: isVertical
-            ? const BoxConstraints(minWidth: 30, minHeight: 30)
-            : const BoxConstraints(minWidth: 40, minHeight: 40),
-      );
-      if (onLongPress == null) return button;
-      return GestureDetector(onLongPress: onLongPress, child: button);
-    }
+    // 自适应区
+    final actions = <_BarAction>[
+      if (hasImage)
+        _BarAction(
+          icon: Icons.crop,
+          tooltip: tr('crop'),
+          menuKey: 'crop',
+          onPressed: () => enterCropMode(ref),
+          priority: 95,
+        ),
+      if (hasImage)
+        _BarAction(
+          icon: Icons.ios_share_rounded,
+          tooltip: tr('export'),
+          menuKey: 'export',
+          onPressed: _showExportDialog,
+          alwaysVisible: true,
+          priority: 100,
+        ),
+      if (hasImage)
+        _BarAction(
+          icon: selection.multiSelectMode
+              ? Icons.checklist_rtl_rounded
+              : Icons.checklist_rounded,
+          tooltip: selection.multiSelectMode
+              ? tr('multiSelectExit')
+              : tr('multiSelect'),
+          menuKey: 'multiselect',
+          color: selection.multiSelectMode ? primary : null,
+          onPressed: shots.isEmpty
+              ? null
+              : () => ref
+                    .read(exportSelectionNotifierProvider.notifier)
+                    .toggleMode(),
+          priority: 90,
+        ),
 
-    // 折到溢出菜单
-    final overflowItems = <PopupMenuEntry<String>>[];
-    if (hasImage) {
-      overflowItems.add(
-        PopupMenuItem(
-          value: 'ai',
-          child: Row(
-            children: [
-              Icon(
-                Icons.auto_awesome,
-                size: 18,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 12),
-              Text(tr('aiColorSuggestion')),
-            ],
-          ),
+      if (hasImage)
+        _BarAction(
+          icon: Icons.auto_awesome,
+          tooltip: tr('aiColorSuggestionHint'),
+          menuKey: 'ai',
+          color: primary,
+          onPressed: _showAISuggestion,
+          onLongPress: _showAISettings,
+          priority: 60,
         ),
-      );
-    }
-    if (!cameraState.isActive && session == null) {
-      overflowItems.add(
-        PopupMenuItem(
-          value: 'tether_camera',
-          child: Row(
-            children: [
-              const Icon(Icons.photo_camera_outlined, size: 18),
-              const SizedBox(width: 12),
-              Text(tr('tetherCamera')),
-            ],
-          ),
+      if (hasImage)
+        _BarAction(
+          icon: Icons.fullscreen,
+          tooltip: tr('fullscreenPreviewBtnHint'),
+          menuKey: 'fullscreen',
+          onPressed: () =>
+              ref.read(fullscreenPreviewProvider.notifier).state = true,
+          priority: 40,
         ),
-      );
-    }
-    if (session == null) {
-      overflowItems.add(
-        PopupMenuItem(
-          value: 'tether_folder',
-          child: Row(
-            children: [
-              const Icon(Icons.cable_rounded, size: 18),
-              const SizedBox(width: 12),
-              Text(tr('tetherFolderMonitor')),
-            ],
-          ),
+      if (session == null)
+        _BarAction(
+          icon: Icons.cable_rounded,
+          tooltip: tr('tetherFolderMonitor'),
+          menuKey: 'tether_folder',
+          onPressed: _startFolderTether,
+          priority: 35,
         ),
-      );
-    }
-    if (hasImage) {
-      overflowItems.add(
-        PopupMenuItem(
-          value: 'fullscreen',
-          child: Row(
-            children: [
-              Icon(Icons.fullscreen, size: 18),
-              SizedBox(width: 12),
-              Text(tr("fullscreenPreview")),
-            ],
-          ),
+      if (!cameraState.isActive && session == null)
+        _BarAction(
+          icon: Icons.photo_camera_outlined,
+          tooltip: tr('tetherCamera'),
+          menuKey: 'tether_camera',
+          onPressed: _startCameraTether,
+          priority: 30,
         ),
-      );
-    }
-    overflowItems.add(
-      PopupMenuItem(
-        value: 'settings',
-        child: Row(
-          children: [
-            const Icon(Icons.settings_outlined, size: 18),
-            const SizedBox(width: 12),
-            Text(tr("settings")),
-          ],
-        ),
+      _BarAction(
+        icon: Icons.settings_outlined,
+        tooltip: tr('settings'),
+        menuKey: 'settings',
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
+        priority: 20,
       ),
-    );
-
-    void handleMenu(String key) {
-      switch (key) {
-        case 'ai':
-          _showAISuggestion();
-          break;
-        case 'tether_folder':
-          _startFolderTether();
-          break;
-        case 'tether_camera':
-          _startCameraTether();
-          break;
-        case 'fullscreen':
-          ref.read(fullscreenPreviewProvider.notifier).state = true;
-          break;
-        case 'settings':
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-          break;
-      }
-    }
+    ];
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -987,219 +950,51 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       child: Row(
         children: [
           if (hasImage) ...[
-            compactIcon(
-              icon: Icons.undo,
-              tooltip: tr('undo'),
-              onPressed: hist.canUndo ? notifier.undo : null,
+            _iconBtn(
+              Icons.undo,
+              tr('undo'),
+              hist.canUndo ? notifier.undo : null,
+              isVertical,
             ),
-            compactIcon(
-              icon: Icons.redo,
-              tooltip: tr('redo'),
-              onPressed: hist.canRedo ? notifier.redo : null,
+            _iconBtn(
+              Icons.redo,
+              tr('redo'),
+              hist.canRedo ? notifier.redo : null,
+              isVertical,
             ),
+            CompareButton(
+              boxSize: _barBtnSize(isVertical),
+              iconSize: _barIconSize(isVertical),
+            ),
+            if (shots.isNotEmpty)
+              _buildFilterButton(isVertical, primary, filterActive),
             if (!isVertical)
-              const VerticalDivider(width: 1)
-            else
-              compactIcon(
-                icon: Icons.crop,
-                tooltip: tr('crop'),
-                onPressed: () => enterCropMode(ref),
-              ),
-            const CompareButton(),
+              const VerticalDivider(width: 1, indent: 8, endIndent: 8),
           ],
-          // 相机活动状态始终显示
           if (cameraState.isActive)
-            compactIcon(
-              icon: Icons.photo_camera,
+            _iconBtn(
+              Icons.photo_camera,
+              tr(
+                'cameraConnected',
+                args: [cameraState.modelName ?? tr('cameraModelUnknown')],
+              ),
+              _stopAllTether,
+              isVertical,
               color: cameraState.shutterFlash
                   ? Colors.greenAccent
                   : Colors.greenAccent.withValues(alpha: 0.85),
-              tooltip: tr(
-                "cameraConnected",
-                args: [cameraState.modelName ?? tr("cameraModelUnknown")],
-              ),
-              onPressed: _stopAllTether,
             ),
-          if (hasImage) ...[
-            compactIcon(
-              icon: Icons.ios_share_rounded,
-              tooltip: tr("export"),
-              onPressed: _showExportDialog,
-            ),
-            compactIcon(
-              icon: selection.multiSelectMode
-                  ? Icons.checklist_rtl_rounded
-                  : Icons.checklist_rounded,
-              color: selection.multiSelectMode
-                  ? Theme.of(context).colorScheme.primary
-                  : Colors.white.withValues(alpha: 0.85),
-              tooltip: selection.multiSelectMode
-                  ? tr('multiSelectExit')
-                  : tr('multiSelect'),
-              onPressed: shots.isEmpty
-                  ? null
-                  : () => ref
-                        .read(exportSelectionNotifierProvider.notifier)
-                        .toggleMode(),
-            ),
-          ],
-          PopupMenuButton<String>(
-            icon: Icon(
-              Icons.filter_alt,
-              size: isVertical ? 17 : 20,
-              color: ref.watch(shotFilterProvider).isActive
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
-            ),
-            tooltip: tr('filter'),
-            itemBuilder: (_) => [
-              // 星级
-              for (int r = 0; r <= 5; r++)
-                CheckedPopupMenuItem(
-                  value: 'rating_$r',
-                  checked: ref.read(shotFilterProvider).minRating == r,
-                  child: Text(r == 0 ? tr('filterAllRatings') : '★ ≥ $r'),
-                ),
-              const PopupMenuDivider(),
-              CheckedPopupMenuItem(
-                value: 'flag_all',
-                checked: ref.read(shotFilterProvider).flag == FlagFilter.all,
-                child: Text(tr('filterAllFlags')),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (ctx, constraints) => _buildAdaptiveActions(
+                actions,
+                constraints.maxWidth,
+                isVertical,
               ),
-              CheckedPopupMenuItem(
-                value: 'flag_pick',
-                checked:
-                    ref.read(shotFilterProvider).flag == FlagFilter.pickOnly,
-                child: Text(tr('filterPickOnly')),
-              ),
-              CheckedPopupMenuItem(
-                value: 'flag_hidereject',
-                checked:
-                    ref.read(shotFilterProvider).flag ==
-                    FlagFilter.rejectHidden,
-                child: Text(tr('filterHideReject')),
-              ),
-            ],
-            onSelected: (key) {
-              final n = ref.read(shotFilterProvider.notifier);
-              if (key.startsWith('rating_')) {
-                n.setMinRating(int.parse(key.split('_')[1]));
-              } else if (key == 'flag_all') {
-                n.setFlag(FlagFilter.all);
-              } else if (key == 'flag_pick') {
-                n.setFlag(FlagFilter.pickOnly);
-              } else if (key == 'flag_hidereject') {
-                n.setFlag(FlagFilter.rejectHidden);
-              }
-            },
+            ),
           ),
-          // 水平直接展示，垂直布局折到菜单
-          if (!isVertical) ...[
-            if (session == null)
-              compactIcon(
-                icon: Icons.cable_rounded,
-                tooltip: tr("tetherFolderMonitor"),
-                onPressed: _startFolderTether,
-              ),
-            if (!cameraState.isActive && session == null)
-              compactIcon(
-                icon: Icons.photo_camera_outlined,
-                tooltip: tr("tetherCamera"),
-                onPressed: _startCameraTether,
-              ),
-            if (hasImage) ...[
-              compactIcon(
-                icon: Icons.auto_awesome,
-                color: Theme.of(context).colorScheme.primary,
-                tooltip: tr("aiColorSuggestionHint"),
-                onPressed: _showAISuggestion,
-                onLongPress: _showAISettings,
-              ),
-              compactIcon(
-                icon: Icons.fullscreen,
-                tooltip: tr("fullscreenPreviewBtnHint"),
-                onPressed: () =>
-                    ref.read(fullscreenPreviewProvider.notifier).state = true,
-              ),
-            ],
-            compactIcon(
-              icon: Icons.settings_outlined,
-              tooltip: tr("settings"),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                );
-              },
-            ),
-          ],
-          // 垂直布局"更多"按钮
-          if (isVertical && overflowItems.isNotEmpty)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, size: 18),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              itemBuilder: (_) => overflowItems,
-              onSelected: handleMenu,
-            ),
-          // 多选信息条
-          if (selection.multiSelectMode) ...[
-            if (selection.selectedPaths.isNotEmpty) ...[
-              compactIcon(
-                icon: Icons.sync,
-                tooltip: tr('syncAdjustments'),
-                color: Theme.of(context).colorScheme.primary,
-                onPressed: _syncToSelected,
-              ),
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    tr(
-                      'selectedShots',
-                      args: ['${selection.selectedPaths.length}'],
-                    ),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ],
-            TextButton(
-              onPressed: () {
-                final n = ref.read(exportSelectionNotifierProvider.notifier);
-                if (selection.selectedPaths.length == shots.length) {
-                  n.clearSelection();
-                } else {
-                  n.selectAll(shots.map((s) => s.path));
-                }
-              },
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                minimumSize: Size.zero,
-              ),
-              child: Text(
-                selection.selectedPaths.length == shots.length
-                    ? tr('selectNone')
-                    : tr('selectAll'),
-                style: const TextStyle(fontSize: 10),
-              ),
-            ),
-          ],
+          if (selection.multiSelectMode)
+            ..._buildMultiSelectBar(selection, shots, isVertical),
         ],
       ),
     );
@@ -1431,6 +1226,216 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     );
   }
 
+  Widget _buildFilterButton(bool isVertical, Color primary, bool filterActive) {
+    return SizedBox(
+      width: _barBtnSize(isVertical),
+      height: _barBtnSize(isVertical),
+      child: PopupMenuButton<String>(
+        icon: Icon(
+          Icons.filter_alt,
+          size: _barIconSize(isVertical),
+          color: filterActive ? primary : null,
+        ),
+        padding: EdgeInsets.zero,
+        tooltip: tr('filter'),
+        itemBuilder: (_) => [
+          for (int r = 0; r <= 5; r++)
+            CheckedPopupMenuItem(
+              value: 'rating_$r',
+              checked: ref.read(shotFilterProvider).minRating == r,
+              child: Text(r == 0 ? tr('filterAllRatings') : '★ ≥ $r'),
+            ),
+          const PopupMenuDivider(),
+          CheckedPopupMenuItem(
+            value: 'flag_all',
+            checked: ref.read(shotFilterProvider).flag == FlagFilter.all,
+            child: Text(tr('filterAllFlags')),
+          ),
+          CheckedPopupMenuItem(
+            value: 'flag_pick',
+            checked: ref.read(shotFilterProvider).flag == FlagFilter.pickOnly,
+            child: Text(tr('filterPickOnly')),
+          ),
+          CheckedPopupMenuItem(
+            value: 'flag_hidereject',
+            checked:
+                ref.read(shotFilterProvider).flag == FlagFilter.rejectHidden,
+            child: Text(tr('filterHideReject')),
+          ),
+        ],
+        onSelected: (key) {
+          final n = ref.read(shotFilterProvider.notifier);
+          if (key.startsWith('rating_')) {
+            n.setMinRating(int.parse(key.split('_')[1]));
+          } else if (key == 'flag_all') {
+            n.setFlag(FlagFilter.all);
+          } else if (key == 'flag_pick') {
+            n.setFlag(FlagFilter.pickOnly);
+          } else if (key == 'flag_hidereject') {
+            n.setFlag(FlagFilter.rejectHidden);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _iconBtn(
+    IconData icon,
+    String tooltip,
+    VoidCallback? onPressed,
+    bool isVertical, {
+    VoidCallback? onLongPress,
+    Color? color,
+  }) {
+    final box = _barBtnSize(isVertical);
+    final btn = IconButton(
+      icon: Icon(icon, size: _barIconSize(isVertical), color: color),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.standard,
+      constraints: BoxConstraints(
+        minWidth: box,
+        minHeight: box,
+        maxWidth: box,
+        maxHeight: box,
+      ),
+    );
+    return onLongPress == null
+        ? btn
+        : GestureDetector(onLongPress: onLongPress, child: btn);
+  }
+
+  Widget _buildAdaptiveActions(
+    List<_BarAction> actions,
+    double maxWidth,
+    bool isVertical,
+  ) {
+    final btnW = isVertical ? 34.0 : 48.0;
+    const menuW = 44.0;
+
+    final always = actions.where((a) => a.alwaysVisible).toList();
+    final rest = actions.where((a) => !a.alwaysVisible).toList()
+      ..sort((a, b) => b.priority.compareTo(a.priority));
+
+    final budget = maxWidth - always.length * btnW - menuW;
+    final canShow = rest.isEmpty
+        ? 0
+        : (budget / btnW).floor().clamp(0, rest.length);
+
+    final shownRest = rest.take(canShow).toList();
+    final overflow = rest.skip(canShow).toList();
+
+    final shown = [...always, ...shownRest]
+      ..sort((a, b) => b.priority.compareTo(a.priority));
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final a in shown)
+          _iconBtn(
+            a.icon,
+            a.tooltip,
+            a.onPressed,
+            isVertical,
+            onLongPress: a.onLongPress,
+            color: a.color,
+          ),
+        if (overflow.isNotEmpty)
+          SizedBox(
+            width: _barBtnSize(isVertical),
+            height: _barBtnSize(isVertical),
+            child: PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert, size: _barIconSize(isVertical)),
+              padding: EdgeInsets.zero,
+              tooltip: '',
+              itemBuilder: (_) => [
+                for (final a in overflow)
+                  PopupMenuItem(
+                    value: a.menuKey,
+                    enabled: a.onPressed != null,
+                    child: Row(
+                      children: [
+                        Icon(a.icon, size: 18, color: a.color),
+                        const SizedBox(width: 12),
+                        Text(a.tooltip),
+                      ],
+                    ),
+                  ),
+              ],
+              onSelected: (key) {
+                final a = overflow.firstWhere((x) => x.menuKey == key);
+                a.onPressed?.call();
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  double _barBtnSize(bool isVertical) => isVertical ? 30 : 40;
+  double _barIconSize(bool isVertical) => isVertical ? 17 : 20;
+
+  List<Widget> _buildMultiSelectBar(
+    ExportSelection selection,
+    List<TetheredShot> shots,
+    bool isVertical,
+  ) {
+    return [
+      if (selection.selectedPaths.isNotEmpty) ...[
+        _iconBtn(
+          Icons.sync,
+          tr('syncAdjustments'),
+          _syncToSelected,
+          isVertical,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              tr('selectedShots', args: ['${selection.selectedPaths.length}']),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+      TextButton(
+        onPressed: () {
+          final n = ref.read(exportSelectionNotifierProvider.notifier);
+          if (selection.selectedPaths.length == shots.length) {
+            n.clearSelection();
+          } else {
+            n.selectAll(shots.map((s) => s.path));
+          }
+        },
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          minimumSize: Size.zero,
+        ),
+        child: Text(
+          selection.selectedPaths.length == shots.length
+              ? tr('selectNone')
+              : tr('selectAll'),
+          style: const TextStyle(fontSize: 10),
+        ),
+      ),
+    ];
+  }
+
   Future<void> _syncToSelected() async {
     final selection = ref.read(exportSelectionNotifierProvider);
     if (selection.selectedPaths.isEmpty) {
@@ -1530,6 +1535,28 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       }
     }
   }
+}
+
+class _BarAction {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final VoidCallback? onLongPress;
+  final Color? color;
+  final bool alwaysVisible; // 固定可见
+  final int priority; // 图标优先级
+  final String menuKey; // 折叠进菜单时的标识
+
+  const _BarAction({
+    required this.icon,
+    required this.tooltip,
+    required this.menuKey,
+    this.onPressed,
+    this.onLongPress,
+    this.color,
+    this.alwaysVisible = false,
+    this.priority = 0,
+  });
 }
 
 class _RatingFlagBar extends ConsumerWidget {
