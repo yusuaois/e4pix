@@ -27,6 +27,7 @@ import '../state/curve_state.dart';
 import '../state/filter_state.dart';
 import '../state/providers.dart';
 import '../state/quality_state.dart';
+import '../state/sidecar_writer.dart';
 import '../widgets/adjustment_panel.dart';
 import '../widgets/ai_settings_dialog.dart';
 import '../widgets/ai_suggestion_dialog.dart';
@@ -509,6 +510,22 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       });
     }
     final isFullscreen = ref.watch(fullscreenPreviewProvider);
+    // 持久化
+    ref.listen(currentParamsNotifierProvider, (prev, next) {
+      if (!ref.read(sidecarEnabledProvider)) return;
+      final activePath = ref.read(activeShotPathProvider);
+      if (activePath == null) return;
+      final active = ref.read(activeShotProvider);
+      ref
+          .read(sidecarWriterProvider)
+          .schedule(
+            activePath,
+            next, // 最新参数
+            active?.rating ?? 0,
+            active?.flag ?? ShotFlag.none,
+          );
+    });
+    // 监听过滤条件变化
     ref.listen(filteredShotsProvider, (prev, next) {
       final active = ref.read(activeShotPathProvider);
       if (next.isEmpty) return;
@@ -518,12 +535,14 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         ref.read(activeFilePathProvider.notifier).set(first.path);
       }
     });
+    // 监听曲线变化
     ref.listen(currentParamsNotifierProvider.select((p) => p.curves), (
       prev,
       next,
     ) {
       ref.read(curveTextureProvider.notifier).update(next);
     });
+    // 监听相机错误
     ref.listen(cameraNotifierProvider, (prev, next) {
       if (next.lastError != null && prev?.lastError != next.lastError) {
         _snack(tr('cameraError', args: [next.lastError!]));
@@ -591,6 +610,17 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           }
         }
 
+        void writeSidecarNow(String path) {
+          if (!ref.read(sidecarEnabledProvider)) return;
+          final shots = ref.read(shotsNotifierProvider);
+          final idx = shots.indexWhere((s) => s.path == path);
+          if (idx < 0) return;
+          final s = shots[idx];
+          ref
+              .read(sidecarWriterProvider)
+              .writeNow(path, s.params, s.rating, s.flag);
+        }
+
         // 打分/旗标（非裁剪模式）
         if (event is KeyDownEvent && !ref.read(cropEditModeProvider)) {
           final active = ref.read(activeShotPathProvider);
@@ -599,12 +629,14 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             final key = event.logicalKey;
             if (key == LogicalKeyboardKey.digit0) {
               n.updateRating(active, 0);
+              writeSidecarNow(active);
               return KeyEventResult.handled;
             }
             for (int d = 1; d <= 5; d++) {
               if (key ==
                   LogicalKeyboardKey(LogicalKeyboardKey.digit1.keyId + d - 1)) {
                 n.updateRating(active, d);
+                writeSidecarNow(active);
                 return KeyEventResult.handled;
               }
             }
@@ -614,6 +646,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                 active,
                 cur?.flag == ShotFlag.pick ? ShotFlag.none : ShotFlag.pick,
               );
+              writeSidecarNow(active);
               return KeyEventResult.handled;
             }
             if (key == LogicalKeyboardKey.keyX) {
@@ -622,6 +655,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                 active,
                 cur?.flag == ShotFlag.reject ? ShotFlag.none : ShotFlag.reject,
               );
+              writeSidecarNow(active);
               return KeyEventResult.handled;
             }
           }
@@ -1508,9 +1542,24 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     );
 
     if (ok != true) return;
+
+    // 1) 更新状态
     ref
         .read(shotsNotifierProvider.notifier)
         .syncParamsToPaths(selection.selectedPaths, src, items);
+
+    // 2) 持久化被同步的图（若开启）
+    if (ref.read(sidecarEnabledProvider)) {
+      final writer = ref.read(sidecarWriterProvider);
+      final shots = ref.read(shotsNotifierProvider);
+      for (final path in selection.selectedPaths) {
+        final idx = shots.indexWhere((s) => s.path == path);
+        if (idx < 0) continue;
+        final shot = shots[idx];
+        writer.writeNow(path, shot.params, shot.rating, shot.flag);
+      }
+    }
+
     _snack(
       tr('syncDone', args: ['${selection.selectedPaths.length}']),
       floating: true,
@@ -1574,10 +1623,22 @@ class _RatingFlagBar extends ConsumerWidget {
         // 5 颗星
         for (int i = 1; i <= 5; i++)
           GestureDetector(
-            onTap: () => notifier.updateRating(
-              active.path,
-              active.rating == i ? i - 1 : i,
-            ),
+            onTap: () {
+              notifier.updateRating(
+                active.path,
+                active.rating == i ? i - 1 : i,
+              );
+              if (ref.read(sidecarEnabledProvider)) {
+                final shots = ref.read(shotsNotifierProvider);
+                final idx = shots.indexWhere((s) => s.path == active.path);
+                if (idx >= 0) {
+                  final s = shots[idx];
+                  ref
+                      .read(sidecarWriterProvider)
+                      .writeNow(active.path, s.params, s.rating, s.flag);
+                }
+              }
+            },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 1),
               child: Icon(
@@ -1601,10 +1662,22 @@ class _RatingFlagBar extends ConsumerWidget {
           ),
           tooltip: tr('flagPick'),
           visualDensity: VisualDensity.compact,
-          onPressed: () => notifier.updateFlag(
-            active.path,
-            active.flag == ShotFlag.pick ? ShotFlag.none : ShotFlag.pick,
-          ),
+          onPressed: () {
+            notifier.updateFlag(
+              active.path,
+              active.flag == ShotFlag.pick ? ShotFlag.none : ShotFlag.pick,
+            );
+            if (ref.read(sidecarEnabledProvider)) {
+              final shots = ref.read(shotsNotifierProvider);
+              final idx = shots.indexWhere((s) => s.path == active.path);
+              if (idx >= 0) {
+                final s = shots[idx];
+                ref
+                    .read(sidecarWriterProvider)
+                    .writeNow(active.path, s.params, s.rating, s.flag);
+              }
+            }
+          },
         ),
         IconButton(
           icon: Icon(
@@ -1616,10 +1689,22 @@ class _RatingFlagBar extends ConsumerWidget {
           ),
           tooltip: tr('flagReject'),
           visualDensity: VisualDensity.compact,
-          onPressed: () => notifier.updateFlag(
-            active.path,
-            active.flag == ShotFlag.reject ? ShotFlag.none : ShotFlag.reject,
-          ),
+          onPressed: () {
+            notifier.updateFlag(
+              active.path,
+              active.flag == ShotFlag.reject ? ShotFlag.none : ShotFlag.reject,
+            );
+            if (ref.read(sidecarEnabledProvider)) {
+              final shots = ref.read(shotsNotifierProvider);
+              final idx = shots.indexWhere((s) => s.path == active.path);
+              if (idx >= 0) {
+                final s = shots[idx];
+                ref
+                    .read(sidecarWriterProvider)
+                    .writeNow(active.path, s.params, s.rating, s.flag);
+              }
+            }
+          },
         ),
       ],
     );

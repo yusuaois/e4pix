@@ -18,10 +18,8 @@ class CurrentParamsNotifier extends Notifier<AdjustmentParams> {
 
   void update(AdjustmentParams newParams) {
     state = newParams;
-
     final session = ref.read(tetherSessionNotifierProvider);
     final preserve = ref.read(preserveParamsProvider);
-
     if (session != null && preserve) {
       ref.read(shotsNotifierProvider.notifier).updateAllParams(newParams);
     } else {

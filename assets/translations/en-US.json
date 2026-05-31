@@ -252,5 +252,8 @@
   "detail": "Detail",
   "sharpenAmount": "Sharpen Amount",
   "sharpenRadius": "Sharpen Radius",
-  "sharpenMasking": "Sharpen Masking"
+  "sharpenMasking": "Sharpen Masking",
+  "settingsEditing": "Editing",
+  "settingsSidecar": "Auto Save Edits",
+  "settingsSidecarHint": "Save edits, ratings, and flags to a .e4pix.json file next to the photo, so they are automatically restored next time you open it."
 }

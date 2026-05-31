@@ -24,7 +24,7 @@
 - RAW 实时调色：曝光、对比、高光阴影、白平衡、HSL 色相、LUT (.cube)
 - RGB曲线
 - 图片筛选：星标与旗标
-- 参数同步
+- 参数同步，持久化
 - 裁剪 / 旋转 / 翻转 / 拉直
 - 锐化
 - 局部调整：线性 / 径向渐变，画笔（流量、硬度、加擦、自动蒙版）
@@ -87,7 +87,7 @@ Cross-platform RAW editing tool, connect your camera for real-time color grading
 - Real-time RAW color grading: exposure, contrast, highlights/shadows, white balance, HSL hue, LUT (.cube)
 - RGB curves
 - Photo filtering: star ratings and flags
-- Parameter syncing
+- Parameter syncing and persistence
 - Crop / rotate / flip / straighten
 - Sharpening
 - Local adjustments: linear / radial gradients, brush (flow, hardness, add/erase, auto-mask)

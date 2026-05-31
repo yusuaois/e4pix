@@ -8,9 +8,9 @@ import 'package:path/path.dart' as p;
 import '../core/models/adjustment_params.dart';
 import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
+import '../services/sidecar_service.dart';
 import '../services/tether_watcher.dart';
-import 'ai_auto_state.dart';
-import 'image_state.dart';
+import 'providers.dart';
 
 // Tether 会话
 @immutable
@@ -111,13 +111,23 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
         ? activeShot.params
         : AdjustmentParams.neutral;
 
-    final shot = TetheredShot(
+    var shot = TetheredShot(
       path: file.path,
       filename: p.basename(file.path),
       detectedAt: DateTime.now(),
       params: inherited,
     );
-
+    // 读 sidecar
+    if (ref.read(sidecarEnabledProvider)) {
+      final data = await SidecarService.read(file.path);
+      if (data != null) {
+        shot = shot.copyWith(
+          params: data.params,
+          rating: data.rating,
+          flag: data.flag,
+        );
+      }
+    }
     state = [...state, shot];
 
     ref.read(activeShotPathProvider.notifier).set(shot.path);
@@ -145,15 +155,29 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
       return;
     }
 
-    final newShots = [
-      for (final path in fresh)
-        TetheredShot(
-          path: path,
-          filename: p.basename(path),
-          detectedAt: DateTime.now(),
-          params: AdjustmentParams.neutral,
-        ),
-    ];
+    final sidecarOn = ref.read(sidecarEnabledProvider);
+
+    final newShots = <TetheredShot>[];
+    for (final path in fresh) {
+      var shot = TetheredShot(
+        path: path,
+        filename: p.basename(path),
+        detectedAt: DateTime.now(),
+        params: AdjustmentParams.neutral,
+      );
+      // 读 sidecar
+      if (sidecarOn) {
+        final data = await SidecarService.read(path);
+        if (data != null) {
+          shot = shot.copyWith(
+            params: data.params,
+            rating: data.rating,
+            flag: data.flag,
+          );
+        }
+      }
+      newShots.add(shot);
+    }
     state = [...state, ...newShots];
 
     final first = newShots.first;

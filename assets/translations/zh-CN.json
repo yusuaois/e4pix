@@ -252,5 +252,8 @@
   "detail": "细节",
   "sharpenAmount": "锐化数量",
   "sharpenRadius": "锐化半径",
-  "sharpenMasking": "锐化蒙版"
+  "sharpenMasking": "锐化蒙版",
+  "settingsEditing": "编辑",
+  "settingsSidecar": "自动保存编辑",
+  "settingsSidecarHint": "将调整、星级、旗标保存到照片旁的 .e4pix.json，下次打开自动恢复"
 }

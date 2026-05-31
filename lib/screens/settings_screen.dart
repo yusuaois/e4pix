@@ -44,6 +44,10 @@ class SettingsScreen extends ConsumerWidget {
           const _QualityTiles(),
           SizedBox(height: 16),
 
+          _SectionHeader(tr("settingsEditing")),
+          const _EditingTiles(),
+          SizedBox(height: 16),
+
           _SectionHeader(tr("settingsAbout")),
           _AboutTiles(),
         ],
@@ -312,15 +316,24 @@ class _QualityTiles extends ConsumerWidget {
             segments: [
               ButtonSegment(
                 value: PreviewQuality.low,
-                label: Text(tr("qualityLow"), style: const TextStyle(fontSize: 12)),
+                label: Text(
+                  tr("qualityLow"),
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
               ButtonSegment(
                 value: PreviewQuality.medium,
-                label: Text(tr("qualityMedium"), style: const TextStyle(fontSize: 12)),
+                label: Text(
+                  tr("qualityMedium"),
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
               ButtonSegment(
                 value: PreviewQuality.high,
-                label: Text(tr("qualityHigh"), style: const TextStyle(fontSize: 12)),
+                label: Text(
+                  tr("qualityHigh"),
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ],
             selected: {pq},
@@ -341,7 +354,10 @@ class _QualityTiles extends ConsumerWidget {
           trailing: Text(
             '$eq',
             style: const TextStyle(
-              fontSize: 12, fontFamily: 'monospace', color: Colors.white70),
+              fontSize: 12,
+              fontFamily: 'monospace',
+              color: Colors.white70,
+            ),
           ),
         ),
         Padding(
@@ -353,6 +369,31 @@ class _QualityTiles extends ConsumerWidget {
             onChanged: (v) =>
                 ref.read(exportQualityProvider.notifier).set(v.round()),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EditingTiles extends ConsumerWidget {
+  const _EditingTiles();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        SwitchListTile(
+          secondary: const Icon(Icons.save_outlined, size: 20),
+          title: Text(
+            tr("settingsSidecar"),
+            style: const TextStyle(fontSize: 13.5),
+          ),
+          subtitle: Text(
+            tr("settingsSidecarHint"),
+            style: const TextStyle(fontSize: 11, color: Colors.white54),
+          ),
+          value: ref.watch(sidecarEnabledProvider),
+          onChanged: (v) => ref.read(sidecarEnabledProvider.notifier).set(v),
         ),
       ],
     );
