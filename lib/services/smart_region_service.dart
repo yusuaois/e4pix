@@ -6,8 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../render/crop_transform.dart';
 import '../render/mask_cache.dart';
 import '../render/render_engine.dart';
-import '../state/brush_state.dart';
-import '../state/curve_state.dart';
 import '../state/providers.dart';
 
 class SmartRegionService {

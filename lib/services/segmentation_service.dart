@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/models/crop_params.dart';
 import '../render/crop_transform.dart';
 import '../render/render_engine.dart';
-import '../state/curve_state.dart';
 import '../state/providers.dart';
 import 'sam_session.dart';
 

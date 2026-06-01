@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/tethered_shot.dart';
 import '../state/providers.dart';
-import '../state/sidecar_writer.dart';
 
 // 星级 + 旗标条
 class RatingFlagBar extends ConsumerWidget {
