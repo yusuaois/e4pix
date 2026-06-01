@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/models/rgb_curves.dart';
+import 'providers.dart';
 
 /// 持有当前曲线烘出的 256×4 纹理（行0=主 行1=R 行2=G 行3=B）
 class CurveTextureNotifier extends Notifier<ui.Image?> {
@@ -78,5 +79,11 @@ class CurveTextureNotifier extends Notifier<ui.Image?> {
   }
 }
 
-final curveTextureProvider =
-    NotifierProvider<CurveTextureNotifier, ui.Image?>(CurveTextureNotifier.new);
+final curveTextureProvider = NotifierProvider<CurveTextureNotifier, ui.Image?>(
+  CurveTextureNotifier.new,
+);
+
+final effectiveCurveTextureProvider = Provider<ui.Image?>((ref) {
+  if (ref.watch(compareBypassProvider)) return null;
+  return ref.watch(curveTextureProvider);
+});

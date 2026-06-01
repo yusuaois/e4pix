@@ -1,30 +1,25 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../core/constants/raw_formats.dart';
 import '../core/keybindings/app_action.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
 import '../native/raw_bridge.dart';
 import '../render/exporter.dart';
-import '../render/preview_renderer.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
 import '../services/app_settings.dart';
 import '../services/update_service.dart';
-import '../state/curve_state.dart';
 import '../state/filter_state.dart';
 import '../state/providers.dart';
 import '../state/quality_state.dart';
@@ -34,14 +29,12 @@ import '../widgets/ai_settings_dialog.dart';
 import '../widgets/ai_suggestion_dialog.dart';
 import '../widgets/camera_picker_dialog.dart';
 import '../widgets/compare_button.dart';
-import '../widgets/crop_overlay.dart';
-import '../widgets/crop_panel.dart';
+import '../widgets/develop_misc_widgets.dart';
 import '../widgets/develop_sections.dart';
+import '../widgets/preview_area.dart';
 import 'folder_import_screen.dart';
 import '../widgets/histogram_panel.dart';
-import '../widgets/local_mask_overlay.dart';
 import '../widgets/local_panel.dart';
-import '../widgets/multi_pass_preview.dart';
 import '../widgets/preset_bar.dart';
 import '../widgets/tether_widgets.dart';
 import 'settings_screen.dart';
@@ -584,13 +577,13 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               child: GestureDetector(
                 onDoubleTap: () =>
                     ref.read(fullscreenPreviewProvider.notifier).state = false,
-                child: const _PreviewArea(),
+                child: const PreviewArea(),
               ),
             ),
             Positioned(
               top: MediaQuery.of(context).padding.top + 8,
               right: 8,
-              child: _FullscreenExitButton(),
+              child: FullscreenExitButton(),
             ),
           ],
         ),
@@ -615,7 +608,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         _buildTopBar(),
         if (session != null)
           _buildTetherStatusBar(session, shots.length, preserve, cameraState),
-        const _AIBanner(),
+        const AIBanner(),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -625,7 +618,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               );
               return Stack(
                 children: [
-                  const Positioned.fill(child: _PreviewArea()),
+                  const Positioned.fill(child: PreviewArea()),
                   if (hasImage)
                     Positioned(
                       left: _histogramPosition.dx,
@@ -694,7 +687,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         _buildTopBar(),
         if (session != null)
           _buildTetherStatusBar(session, shots.length, preserve, cameraState),
-        const _AIBanner(),
+        const AIBanner(),
         Expanded(
           child: Row(
             children: [
@@ -709,7 +702,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       .toList(),
                   axis: Axis.vertical,
                 ),
-              const Expanded(child: _PreviewArea()),
+              const Expanded(child: PreviewArea()),
               if (image != null)
                 AdjustmentPanel(
                   params: params,
@@ -988,7 +981,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               ],
             ],
           ),
-          if (image != null) _RatingFlagBar(),
+          if (image != null) RatingFlagBar(),
         ],
       ),
     );
@@ -1128,7 +1121,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             ),
           ],
           const SizedBox(height: 6),
-          _RatingFlagBar(),
+          RatingFlagBar(),
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
@@ -1620,808 +1613,104 @@ class _BarAction {
   });
 }
 
-class _RatingFlagBar extends ConsumerWidget {
-  const _RatingFlagBar();
+@override
+Widget build(BuildContext context, WidgetRef ref) {
+  final ai = ref.watch(aiAutoNotifierProvider);
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final active = ref.watch(activeShotProvider);
-    if (active == null) return const SizedBox.shrink();
-    final notifier = ref.read(shotsNotifierProvider.notifier);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // 5 颗星
-        for (int i = 1; i <= 5; i++)
-          GestureDetector(
-            onTap: () {
-              notifier.updateRating(
-                active.path,
-                active.rating == i ? i - 1 : i,
-              );
-              if (ref.read(sidecarEnabledProvider)) {
-                final shots = ref.read(shotsNotifierProvider);
-                final idx = shots.indexWhere((s) => s.path == active.path);
-                if (idx >= 0) {
-                  final s = shots[idx];
-                  ref
-                      .read(sidecarWriterProvider)
-                      .writeNow(active.path, s.params, s.rating, s.flag);
-                }
-              }
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1),
-              child: Icon(
-                i <= active.rating ? Icons.star : Icons.star_border,
-                size: 18,
-                color: i <= active.rating
-                    ? Colors.amberAccent
-                    : Colors.white.withValues(alpha: 0.3),
-              ),
-            ),
-          ),
-        const SizedBox(width: 8),
-        // 旗标
-        IconButton(
-          icon: Icon(
-            Icons.flag,
-            size: 16,
-            color: active.flag == ShotFlag.pick
-                ? Colors.greenAccent
-                : Colors.white.withValues(alpha: 0.4),
-          ),
-          tooltip: tr('flagPick'),
-          visualDensity: VisualDensity.compact,
-          onPressed: () {
-            notifier.updateFlag(
-              active.path,
-              active.flag == ShotFlag.pick ? ShotFlag.none : ShotFlag.pick,
-            );
-            if (ref.read(sidecarEnabledProvider)) {
-              final shots = ref.read(shotsNotifierProvider);
-              final idx = shots.indexWhere((s) => s.path == active.path);
-              if (idx >= 0) {
-                final s = shots[idx];
-                ref
-                    .read(sidecarWriterProvider)
-                    .writeNow(active.path, s.params, s.rating, s.flag);
-              }
-            }
-          },
-        ),
-        IconButton(
-          icon: Icon(
-            Icons.block,
-            size: 16,
-            color: active.flag == ShotFlag.reject
-                ? Colors.redAccent
-                : Colors.white.withValues(alpha: 0.4),
-          ),
-          tooltip: tr('flagReject'),
-          visualDensity: VisualDensity.compact,
-          onPressed: () {
-            notifier.updateFlag(
-              active.path,
-              active.flag == ShotFlag.reject ? ShotFlag.none : ShotFlag.reject,
-            );
-            if (ref.read(sidecarEnabledProvider)) {
-              final shots = ref.read(shotsNotifierProvider);
-              final idx = shots.indexWhere((s) => s.path == active.path);
-              if (idx >= 0) {
-                final s = shots[idx];
-                ref
-                    .read(sidecarWriterProvider)
-                    .writeNow(active.path, s.params, s.rating, s.flag);
-              }
-            }
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _FullscreenExitButton extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.4),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () => ref.read(fullscreenPreviewProvider.notifier).state = false,
-        child: const Padding(
-          padding: EdgeInsets.all(8),
-          child: Icon(Icons.fullscreen_exit, size: 22, color: Colors.white),
-        ),
-      ),
-    );
-  }
-}
-
-// Preview area
-class _PreviewArea extends ConsumerWidget {
-  const _PreviewArea();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final imageAsync = ref.watch(imageNotifierProvider);
-    final params = ref.watch(effectiveParamsProvider);
-    final lutState = ref.watch(lutNotifierProvider);
-    final lutEnabled = ref.watch(effectiveLutEnabledProvider);
-    final cropEditMode = ref.watch(cropEditModeProvider);
-
-    return imageAsync.when(
-      loading: () => imageAsync.value == null
-          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-          : _buildBody(
-              imageAsync.value!,
-              params,
-              lutState,
-              lutEnabled,
-              cropEditMode,
-              ref,
-            ),
-      error: (e, _) => _CenterMessage(
-        icon: Icons.warning_amber_rounded,
-        color: Colors.orangeAccent,
-        title: tr("decodeFailed"),
-        body: e.toString(),
-      ),
-      data: (state) {
-        if (state == null) return _buildEmpty(context, ref);
-        return _buildBody(
-          state,
-          params,
-          lutState,
-          lutEnabled,
-          cropEditMode,
-          ref,
-        );
-      },
-    );
-  }
-
-  Widget _buildBody(
-    DecodedImageState state,
-    AdjustmentParams params,
-    LutState lut,
-    bool lutEnabled,
-    bool cropMode,
-    WidgetRef ref,
-  ) {
-    if (cropMode) return _buildCropEdit(state, params, lut, lutEnabled, ref);
-    return _buildCroppedPreview(state, params, lut, lutEnabled, ref);
-  }
-
-  Widget _buildCropEdit(
-    DecodedImageState state,
-    AdjustmentParams params,
-    LutState lut,
-    bool lutEnabled,
-    WidgetRef ref,
-  ) {
-    final draft = ref.watch(cropDraftProvider);
-
+  if (ai.inProgress && ai.pendingSuggestion == null) {
     return Container(
-      color: Colors.black,
-      child: Column(
+      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
         children: [
-          Expanded(
-            child: LayoutBuilder(
-              builder: (ctx, constraints) {
-                final imgW = state.uiImage.width.toDouble();
-                final imgH = state.uiImage.height.toDouble();
-
-                // oriented 后的尺寸
-                final orientedW = draft.orientationSwapsAxes ? imgH : imgW;
-                final orientedH = draft.orientationSwapsAxes ? imgW : imgH;
-                final fit = applyBoxFit(
-                  BoxFit.contain,
-                  Size(orientedW, orientedH),
-                  constraints.biggest,
-                );
-                final displaySize = fit.destination;
-
-                // Transform: 把"未变换的源"画到 oriented 视图里
-                final scale = displaySize.width / orientedW;
-                final matrix = Matrix4.identity()
-                  ..translate(displaySize.width / 2, displaySize.height / 2, 0)
-                  ..rotateZ(
-                    draft.orientation * math.pi / 2 +
-                        draft.straighten * math.pi / 180,
-                  )
-                  ..scale(draft.flipH ? -1.0 : 1.0, draft.flipV ? -1.0 : 1.0)
-                  ..translate(-imgW * scale / 2, -imgH * scale / 2);
-
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox.fromSize(
-                      size: displaySize,
-                      child: ClipRect(
-                        child: Transform(
-                          transform: matrix,
-                          child: OverflowBox(
-                            minWidth: imgW * scale,
-                            maxWidth: imgW * scale,
-                            minHeight: imgH * scale,
-                            maxHeight: imgH * scale,
-                            alignment: Alignment.topLeft,
-                            child: SizedBox(
-                              width: imgW * scale,
-                              height: imgH * scale,
-                              child: PreviewRenderer(
-                                image: state.uiImage,
-                                params: params,
-                                lutTexture: lutEnabled ? lut.textureA : null,
-                                lutSize: lutEnabled ? lut.sizeA : 0,
-                                lutTextureB: lutEnabled ? lut.textureB : null,
-                                lutSizeB: lutEnabled ? lut.sizeB : 0,
-                                curveTexture: ref.watch(
-                                  effectiveCurveTextureProvider,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox.fromSize(
-                      size: displaySize,
-                      child: CropOverlay(imageDisplaySize: displaySize),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(8, 4, 8, 8),
-            child: CropPanel(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 普通模式：显示已裁剪的画面（OverflowBox + Transform 模拟裁剪）
-  Widget _buildCroppedPreview(
-    DecodedImageState state,
-    AdjustmentParams params,
-    LutState lut,
-    bool lutEnabled,
-    WidgetRef ref,
-  ) {
-    final hasLocals = params.locals.any(
-      (l) => l.enabled && !l.params.isNeutral,
-    );
-    final hasSharpen = params.sharpenAmount > 0.001;
-    final needFullPipeline = hasLocals || hasSharpen;
-
-    final selectedLocalId = ref.watch(selectedLocalIdProvider);
-
-    Widget wrapOverlay(Widget content, Size displaySize) {
-      if (selectedLocalId == null) return content;
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          content,
-          Positioned.fill(
-            child: LocalMaskOverlay(imageDisplaySize: displaySize),
-          ),
-        ],
-      );
-    }
-
-    // 完整管线 带有local
-    if (needFullPipeline) {
-      final maskProgram = ref.watch(maskShaderProgramProvider).value;
-      final develop = ref.watch(shaderProgramProvider).value;
-      if (develop == null || maskProgram == null) {
-        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-      }
-      return GestureDetector(
-        onTap: () => ref.read(fullscreenPreviewProvider.notifier).state = true,
-        child: LayoutBuilder(
-          builder: (ctx, constraints) {
-            final imgW = state.uiImage.width.toDouble();
-            final imgH = state.uiImage.height.toDouble();
-            final outAspect = params.crop.outAspectFor(imgW, imgH);
-            final isVertical = MediaQuery.of(ctx).size.shortestSide < 600;
-            final previewQ = ref.watch(previewQualityProvider);
-            final (idle, dragging) = previewQ.edges(isVertical: isVertical);
-            final box = applyBoxFit(
-              BoxFit.contain,
-              Size(outAspect, 1.0),
-              constraints.biggest,
-            ).destination;
-            return Container(
-              color: Colors.black,
-              child: Center(
-                child: SizedBox.fromSize(
-                  size: box,
-                  child: wrapOverlay(
-                    MultiPassPreview(
-                      developProgram: develop,
-                      maskProgram: maskProgram,
-                      sourceImage: state.uiImage,
-                      params: params,
-                      lutTexture: lutEnabled ? lut.textureA : null,
-                      lutSize: lutEnabled ? lut.sizeA : 0,
-                      lutTextureB: lutEnabled ? lut.textureB : null,
-                      lutSizeB: lutEnabled ? lut.sizeB : 0,
-                      curveTexture: ref.watch(effectiveCurveTextureProvider),
-                      sharpenProgram: ref
-                          .watch(sharpenShaderProgramProvider)
-                          .value,
-                      idleMaxEdge: idle,
-                      draggingMaxEdge: dragging,
-                    ),
-                    box,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    }
-
-    // 无 local 无锐化
-    final crop = params.crop;
-    final image = state.uiImage;
-
-    if (crop.isIdentity) {
-      return LayoutBuilder(
-        builder: (ctx, constraints) {
-          final fit = applyBoxFit(
-            BoxFit.contain,
-            Size(image.width.toDouble(), image.height.toDouble()),
-            constraints.biggest,
-          );
-          return GestureDetector(
-            onTap: () =>
-                ref.read(fullscreenPreviewProvider.notifier).state = true,
-            child: Container(
-              color: Colors.black,
-              child: Center(
-                child: SizedBox.fromSize(
-                  size: fit.destination,
-                  child: wrapOverlay(
-                    PreviewRenderer(
-                      image: image,
-                      params: params,
-                      lutTexture: lutEnabled ? lut.textureA : null,
-                      lutSize: lutEnabled ? lut.sizeA : 0,
-                      lutTextureB: lutEnabled ? lut.textureB : null,
-                      lutSizeB: lutEnabled ? lut.sizeB : 0,
-                      curveTexture: ref.watch(effectiveCurveTextureProvider),
-                    ),
-                    fit.destination,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    }
-
-    // 无 local 无锐化 + 有裁剪：原 Transform 模拟裁剪（不变）
-    return GestureDetector(
-      onTap: () => ref.read(fullscreenPreviewProvider.notifier).state = true,
-      child: Container(
-        color: Colors.black,
-        child: LayoutBuilder(
-          builder: (ctx, constraints) {
-            final imgW = image.width.toDouble();
-            final imgH = image.height.toDouble();
-            final outAspect = crop.outAspectFor(imgW, imgH);
-            final box = applyBoxFit(
-              BoxFit.contain,
-              Size(outAspect, 1.0),
-              constraints.biggest,
-            ).destination;
-
-            // orientation 后的尺寸
-            final orientedW = crop.orientationSwapsAxes ? imgH : imgW;
-            final orientedH = crop.orientationSwapsAxes ? imgW : imgH;
-
-            // 让crop rect 区域刚好等于 box
-            // box.width = orientedW * crop.width * scale → scale = box.width / (orientedW * crop.width)
-            final scale = box.width / (orientedW * crop.width);
-            final renderedFullW = imgW * scale;
-            final renderedFullH = imgH * scale;
-            final renderedOrientedW = orientedW * scale;
-            final renderedOrientedH = orientedH * scale;
-
-            // Transform 矩阵
-            // 1) 移动到 box 的中心
-            // 2) 旋转 90°×orientation + straighten
-            // 3) flip
-            // 4) 平移回到 oriented 坐标的中心
-            // 5) 减去 crop 偏移
-            final matrix = Matrix4.identity()
-              ..translate(box.width / 2, box.height / 2, 0)
-              ..rotateZ(
-                crop.orientation * math.pi / 2 +
-                    crop.straighten * math.pi / 180,
-              )
-              ..scale(crop.flipH ? -1.0 : 1.0, crop.flipV ? -1.0 : 1.0)
-              // 此时坐标系原点在 box 中心，方向跟 oriented 一致
-              // 把 oriented 图像放在它的 (crop.x..crop.x+crop.width) 的中心
-              ..translate(
-                -(crop.x + crop.width / 2) * renderedOrientedW,
-                -(crop.y + crop.height / 2) * renderedOrientedH,
-              );
-
-            return Center(
-              child: SizedBox.fromSize(
-                size: box,
-                child: wrapOverlay(
-                  ClipRect(
-                    child: Transform(
-                      transform: matrix,
-                      child: OverflowBox(
-                        minWidth: renderedFullW,
-                        maxWidth: renderedFullW,
-                        minHeight: renderedFullH,
-                        maxHeight: renderedFullH,
-                        alignment: Alignment.topLeft,
-                        child: SizedBox(
-                          width: renderedFullW,
-                          height: renderedFullH,
-                          child: PreviewRenderer(
-                            image: image,
-                            params: params,
-                            lutTexture: lutEnabled ? lut.textureA : null,
-                            lutSize: lutEnabled ? lut.sizeA : 0,
-                            lutTextureB: lutEnabled ? lut.textureB : null,
-                            lutSizeB: lutEnabled ? lut.sizeB : 0,
-                            curveTexture: ref.watch(
-                              effectiveCurveTextureProvider,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  box,
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmpty(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.photo_library_outlined,
-            size: 64,
-            color: Colors.white.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: () async {
-              if (Platform.isAndroid) {
-                final paths = await openFolderImport(context);
-                if (paths != null && paths.isNotEmpty) {
-                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
-                }
-              } else {
-                final result = await FilePicker.platform.pickFiles(
-                  allowMultiple: true,
-                );
-                if (result == null || result.files.isEmpty) return;
-                final paths = result.files
-                    .map((f) => f.path)
-                    .whereType<String>()
-                    .toList();
-                if (paths.isNotEmpty) {
-                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
-                }
-              }
-            },
-            icon: Icon(
-              Platform.isAndroid
-                  ? Icons.folder_copy_outlined
-                  : Icons.folder_open,
-            ),
-            label: Text(
-              Platform.isAndroid ? tr("folderImport") : tr("imageChoose"),
-            ),
-          ),
-          const SizedBox(height: 8),
           SizedBox(
-            width: MediaQuery.of(context).size.width * 0.8,
-            child: _FormatMarquee(text: RawFormats.displayList),
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.5,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            tr("aiColorInProgress"),
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
     );
   }
-}
+  if (ai.pendingSuggestion == null) return const SizedBox.shrink();
 
-class _FormatMarquee extends StatefulWidget {
-  final String text;
-  const _FormatMarquee({required this.text});
-
-  @override
-  State<_FormatMarquee> createState() => _FormatMarqueeState();
-}
-
-class _FormatMarqueeState extends State<_FormatMarquee>
-    with SingleTickerProviderStateMixin {
-  final _scroll = ScrollController();
-  late final Ticker _ticker;
-  double _offset = 0;
-  Duration? _last;
-
-  static const _speed = 30.0;
-  static const _gap = ' · ';
-
-  static final _style = TextStyle(
-    fontSize: 11,
-    color: Colors.white.withValues(alpha: 0.4), // white alpha .4
-    fontFamily: 'monospace',
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = createTicker(_onTick)..start();
-  }
-
-  void _onTick(Duration elapsed) {
-    if (!_scroll.hasClients) return;
-    final max = _scroll.position.maxScrollExtent;
-    if (max <= 0) {
-      _last = null;
-      return;
-    }
-    final dt = _last == null ? 0.0 : (elapsed - _last!).inMicroseconds / 1e6;
-    _last = elapsed;
-    _offset += _speed * dt;
-    if (_offset > max) _offset -= max;
-    _scroll.jumpTo(_offset);
-  }
-
-  double _measure(String s, double maxWidth) {
-    final tp = TextPainter(
-      text: TextSpan(text: s, style: _style),
-      maxLines: 1,
-      textDirection: ui.TextDirection.ltr,
-    )..layout();
-    return tp.width;
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 18,
-      child: LayoutBuilder(
-        builder: (ctx, constraints) {
-          final avail = constraints.maxWidth;
-          final textW = _measure(widget.text, avail);
-          final overflow = textW > avail;
-
-          if (!overflow) {
-            return Center(child: Text(widget.text, style: _style, maxLines: 1));
-          }
-          final doubled = '${widget.text}$_gap${widget.text}$_gap';
-          return ListView(
-            controller: _scroll,
-            scrollDirection: Axis.horizontal,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [Text(doubled, style: _style, maxLines: 1)],
-          );
-        },
-      ),
-    );
-  }
-}
-
-// AI Banner
-class _AIBanner extends ConsumerWidget {
-  const _AIBanner();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ai = ref.watch(aiAutoNotifierProvider);
-
-    if (ai.inProgress && ai.pendingSuggestion == null) {
-      return Container(
-        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+  final s = ai.pendingSuggestion!;
+  return Material(
+    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+    child: InkWell(
+      onTap: () {
+        ref.read(aiAutoNotifierProvider.notifier).applyPending();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
-            SizedBox(
-              width: 12,
-              height: 12,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.5,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+            Icon(
+              Icons.auto_awesome,
+              size: 14,
+              color: Theme.of(context).colorScheme.primary,
             ),
-            const SizedBox(width: 10),
-            Text(
-              tr("aiColorInProgress"),
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    if (ai.pendingSuggestion == null) return const SizedBox.shrink();
-
-    final s = ai.pendingSuggestion!;
-    return Material(
-      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-      child: InkWell(
-        onTap: () {
-          ref.read(aiAutoNotifierProvider.notifier).applyPending();
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              Icon(
-                Icons.auto_awesome,
-                size: 14,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: tr("aiColorSuggestionLabel"),
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                        ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: tr("aiColorSuggestionLabel"),
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
                       ),
-                      TextSpan(
-                        text: s.mood.isNotEmpty
-                            ? s.mood
-                            : tr("aiColorSuggestionReady"),
-                        style: const TextStyle(fontSize: 11.5),
-                      ),
-                    ],
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                    ),
+                    TextSpan(
+                      text: s.mood.isNotEmpty
+                          ? s.mood
+                          : tr("aiColorSuggestionReady"),
+                      style: const TextStyle(fontSize: 11.5),
+                    ),
+                  ],
                 ),
-              ),
-              TextButton(
-                onPressed: () =>
-                    ref.read(aiAutoNotifierProvider.notifier).applyPending(),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                ),
-                child: Text(tr("apply"), style: const TextStyle(fontSize: 11)),
-              ),
-              TextButton(
-                onPressed: () =>
-                    ref.read(aiAutoNotifierProvider.notifier).dismissPending(),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                ),
-                child: Text(
-                  tr("ignore"),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CenterMessage extends ConsumerWidget {
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String body;
-  const _CenterMessage({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.body,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 48, color: color),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: color,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(height: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: SelectableText(
-                body,
-                textAlign: TextAlign.center,
+            TextButton(
+              onPressed: () =>
+                  ref.read(aiAutoNotifierProvider.notifier).applyPending(),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+              child: Text(tr("apply"), style: const TextStyle(fontSize: 11)),
+            ),
+            TextButton(
+              onPressed: () =>
+                  ref.read(aiAutoNotifierProvider.notifier).dismissPending(),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+              child: Text(
+                tr("ignore"),
                 style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.6),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: () async {
-                if (Platform.isAndroid) {
-                  final paths = await openFolderImport(context);
-                  if (paths != null && paths.isNotEmpty) {
-                    ref.read(shotsNotifierProvider.notifier).addFiles(paths);
-                  }
-                } else {
-                  final result = await FilePicker.platform.pickFiles(
-                    allowMultiple: true,
-                  );
-                  if (result == null || result.files.isEmpty) return;
-                  final paths = result.files
-                      .map((f) => f.path)
-                      .whereType<String>()
-                      .toList();
-                  if (paths.isNotEmpty) {
-                    ref.read(shotsNotifierProvider.notifier).addFiles(paths);
-                  }
-                }
-              },
-              icon: Icon(
-                Platform.isAndroid
-                    ? Icons.folder_copy_outlined
-                    : Icons.folder_open,
-              ),
-              label: Text(
-                Platform.isAndroid ? tr("folderImport") : tr("imageChoose"),
-              ),
-            ),
-            const SizedBox(height: 8),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }
