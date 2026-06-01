@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/constants/raw_formats.dart';
+import '../core/keybindings/app_action.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
@@ -510,6 +511,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       });
     }
     final isFullscreen = ref.watch(fullscreenPreviewProvider);
+    final keys = ref.watch(keybindingServiceProvider);
     // 持久化
     ref.listen(currentParamsNotifierProvider, (prev, next) {
       if (!ref.read(sidecarEnabledProvider)) return;
@@ -554,115 +556,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
     return Focus(
       autofocus: true,
-      onKeyEvent: (node, event) {
-        final ctrl =
-            HardwareKeyboard.instance.isControlPressed ||
-            HardwareKeyboard.instance.isMetaPressed;
-
-        // Ctrl+Z / Ctrl+Shift+Z
-        if (event is KeyDownEvent &&
-            ctrl &&
-            event.logicalKey == LogicalKeyboardKey.keyZ) {
-          final shift = HardwareKeyboard.instance.isShiftPressed;
-          final n = ref.read(historyNotifierProvider.notifier);
-          if (shift) {
-            n.redo();
-          } else {
-            n.undo();
-          }
-          return KeyEventResult.handled;
-        }
-
-        // F11
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.f11) {
-          final cur = ref.read(fullscreenPreviewProvider);
-          ref.read(fullscreenPreviewProvider.notifier).state = !cur;
-          return KeyEventResult.handled;
-        }
-
-        // \ 键 hold-to-compare
-        if (event.logicalKey == LogicalKeyboardKey.backslash) {
-          if (event is KeyDownEvent) {
-            ref.read(compareBypassProvider.notifier).state = true;
-            return KeyEventResult.handled;
-          } else if (event is KeyUpEvent) {
-            ref.read(compareBypassProvider.notifier).state = false;
-            return KeyEventResult.handled;
-          }
-        }
-
-        // Crop R/Esc/Enter
-        if (event is KeyDownEvent) {
-          final inCrop = ref.read(cropEditModeProvider);
-
-          if (event.logicalKey == LogicalKeyboardKey.keyR && !inCrop) {
-            enterCropMode(ref);
-            return KeyEventResult.handled;
-          }
-          if (inCrop && event.logicalKey == LogicalKeyboardKey.escape) {
-            cancelCrop(ref);
-            return KeyEventResult.handled;
-          }
-          if (inCrop && event.logicalKey == LogicalKeyboardKey.enter) {
-            commitCrop(ref);
-            return KeyEventResult.handled;
-          }
-        }
-
-        void writeSidecarNow(String path) {
-          if (!ref.read(sidecarEnabledProvider)) return;
-          final shots = ref.read(shotsNotifierProvider);
-          final idx = shots.indexWhere((s) => s.path == path);
-          if (idx < 0) return;
-          final s = shots[idx];
-          ref
-              .read(sidecarWriterProvider)
-              .writeNow(path, s.params, s.rating, s.flag);
-        }
-
-        // 打分/旗标（非裁剪模式）
-        if (event is KeyDownEvent && !ref.read(cropEditModeProvider)) {
-          final active = ref.read(activeShotPathProvider);
-          if (active != null) {
-            final n = ref.read(shotsNotifierProvider.notifier);
-            final key = event.logicalKey;
-            if (key == LogicalKeyboardKey.digit0) {
-              n.updateRating(active, 0);
-              writeSidecarNow(active);
-              return KeyEventResult.handled;
-            }
-            for (int d = 1; d <= 5; d++) {
-              if (key ==
-                  LogicalKeyboardKey(LogicalKeyboardKey.digit1.keyId + d - 1)) {
-                n.updateRating(active, d);
-                writeSidecarNow(active);
-                return KeyEventResult.handled;
-              }
-            }
-            if (key == LogicalKeyboardKey.keyP) {
-              final cur = ref.read(activeShotProvider);
-              n.updateFlag(
-                active,
-                cur?.flag == ShotFlag.pick ? ShotFlag.none : ShotFlag.pick,
-              );
-              writeSidecarNow(active);
-              return KeyEventResult.handled;
-            }
-            if (key == LogicalKeyboardKey.keyX) {
-              final cur = ref.read(activeShotProvider);
-              n.updateFlag(
-                active,
-                cur?.flag == ShotFlag.reject ? ShotFlag.none : ShotFlag.reject,
-              );
-              writeSidecarNow(active);
-              return KeyEventResult.handled;
-            }
-          }
-        }
-
-        return KeyEventResult.ignored;
-      },
+      onKeyEvent: (node, event) => _handleKeyEvent(event, keys),
       child: Scaffold(
         body: SafeArea(
           child: isVertical ? _buildVerticalLayout() : _buildHorizontalLayout(),
@@ -1468,6 +1362,124 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         ),
       ),
     ];
+  }
+
+  KeyEventResult _handleKeyEvent(KeyEvent event, KeybindingState keys) {
+    final ctrl =
+        HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed;
+
+    // Ctrl+Z / Ctrl+Shift+Z
+    if (event is KeyDownEvent &&
+        ctrl &&
+        event.logicalKey == LogicalKeyboardKey.keyZ) {
+      final n = ref.read(historyNotifierProvider.notifier);
+      HardwareKeyboard.instance.isShiftPressed ? n.redo() : n.undo();
+      return KeyEventResult.handled;
+    }
+
+    final inCrop = ref.read(cropEditModeProvider);
+
+    // Esc/Enter
+    if (inCrop && event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        cancelCrop(ref);
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.enter) {
+        commitCrop(ref);
+        return KeyEventResult.handled;
+      }
+    }
+
+    // 有修饰键时不单键绑定
+    if (ctrl ||
+        HardwareKeyboard.instance.isShiftPressed ||
+        HardwareKeyboard.instance.isAltPressed) {
+      return KeyEventResult.ignored;
+    }
+
+    // 自定义动作
+    final action = keys.actionFor(event.logicalKey);
+    if (action == null) return KeyEventResult.ignored;
+
+    return _handleAction(action, event, inCrop);
+  }
+
+  KeyEventResult _handleAction(AppAction action, KeyEvent event, bool inCrop) {
+    // hold：down 设 true、up 设 false
+    if (action == AppAction.compareHold) {
+      if (event is KeyDownEvent) {
+        ref.read(compareBypassProvider.notifier).state = true;
+        return KeyEventResult.handled;
+      } else if (event is KeyUpEvent) {
+        ref.read(compareBypassProvider.notifier).state = false;
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    // KeyDown 触发
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    switch (action) {
+      case AppAction.toggleFullscreen:
+        final cur = ref.read(fullscreenPreviewProvider);
+        ref.read(fullscreenPreviewProvider.notifier).state = !cur;
+        return KeyEventResult.handled;
+
+      case AppAction.enterCrop:
+        if (!inCrop) {
+          enterCropMode(ref);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+
+      // 打星/旗标
+      case AppAction.rate0:
+      case AppAction.rate1:
+      case AppAction.rate2:
+      case AppAction.rate3:
+      case AppAction.rate4:
+      case AppAction.rate5:
+        if (inCrop) return KeyEventResult.ignored;
+        final active = ref.read(activeShotPathProvider);
+        if (active == null) return KeyEventResult.ignored;
+        final rating = action.index - AppAction.rate0.index; // 0..5
+        ref.read(shotsNotifierProvider.notifier).updateRating(active, rating);
+        _writeSidecarNow(active);
+        return KeyEventResult.handled;
+
+      case AppAction.flagPick:
+        if (inCrop) return KeyEventResult.ignored;
+        return _toggleFlag(ShotFlag.pick);
+
+      case AppAction.flagReject:
+        if (inCrop) return KeyEventResult.ignored;
+        return _toggleFlag(ShotFlag.reject);
+
+      case AppAction.compareHold:
+        return KeyEventResult.ignored;
+    }
+  }
+
+  KeyEventResult _toggleFlag(ShotFlag flag) {
+    final active = ref.read(activeShotPathProvider);
+    if (active == null) return KeyEventResult.ignored;
+    final cur = ref.read(activeShotProvider);
+    final next = cur?.flag == flag ? ShotFlag.none : flag;
+    ref.read(shotsNotifierProvider.notifier).updateFlag(active, next);
+    _writeSidecarNow(active);
+    return KeyEventResult.handled;
+  }
+
+  void _writeSidecarNow(String path) {
+    if (!ref.read(sidecarEnabledProvider)) return;
+    final shots = ref.read(shotsNotifierProvider);
+    final idx = shots.indexWhere((s) => s.path == path);
+    if (idx < 0) return;
+    final s = shots[idx];
+    ref.read(sidecarWriterProvider).writeNow(path, s.params, s.rating, s.flag);
   }
 
   Future<void> _syncToSelected() async {

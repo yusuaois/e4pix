@@ -13,6 +13,7 @@ import '../widgets/ai_settings_dialog.dart';
 import '../state/theme_state.dart';
 import '../widgets/theme_color_picker.dart';
 import '../services/update_service.dart';
+import 'keybinding_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -395,6 +396,22 @@ class _EditingTiles extends ConsumerWidget {
           value: ref.watch(sidecarEnabledProvider),
           onChanged: (v) => ref.read(sidecarEnabledProvider.notifier).set(v),
         ),
+
+        ListTile(
+      leading: const Icon(Icons.keyboard_outlined, size: 20),
+      title: Text(
+        tr('settingsKeybindings'),
+        style: const TextStyle(fontSize: 13.5),
+      ),
+      subtitle: Text(
+        tr('settingsKeybindingsHint'),
+        style: const TextStyle(fontSize: 11, color: Colors.white54),
+      ),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const KeybindingSettingsScreen()),
+      ),
+    ),
       ],
     );
   }

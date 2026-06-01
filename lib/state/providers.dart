@@ -15,3 +15,4 @@ export 'app_settings_state.dart';
 export 'fullscreen_state.dart';
 export 'interaction_state.dart';
 export 'develop_tool_state.dart';
+export '../core/keybindings/keybinding_service.dart';
