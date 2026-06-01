@@ -23,6 +23,7 @@ class MultiPassPreview extends ConsumerStatefulWidget {
   final int lutSizeB;
   final ui.Image? curveTexture;
   final ui.FragmentProgram? sharpenProgram;
+  final ui.FragmentProgram? denoiseProgram;
   final int idleMaxEdge;
   final int draggingMaxEdge;
 
@@ -38,6 +39,7 @@ class MultiPassPreview extends ConsumerStatefulWidget {
     this.lutSizeB = 0,
     this.curveTexture,
     this.sharpenProgram,
+    this.denoiseProgram,
     this.idleMaxEdge = 2400,
     this.draggingMaxEdge = 800,
   });
@@ -84,6 +86,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         old.lutSizeB != widget.lutSizeB ||
         old.curveTexture != widget.curveTexture ||
         old.sharpenProgram != widget.sharpenProgram ||
+        old.denoiseProgram != widget.denoiseProgram ||
         old.idleMaxEdge != widget.idleMaxEdge ||
         old.draggingMaxEdge != widget.draggingMaxEdge) {
       _scheduleRender();
@@ -149,6 +152,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         lutSizeB: widget.lutSizeB,
         curveTexture: widget.curveTexture,
         sharpenProgram: widget.sharpenProgram,
+        denoiseProgram: widget.denoiseProgram,
         targetWidth: tw,
         targetHeight: th,
         developCache: _developCache,

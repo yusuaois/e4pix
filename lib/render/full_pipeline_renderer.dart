@@ -33,6 +33,7 @@ class FullPipelineRenderer {
     required ui.FragmentProgram developProgram,
     required ui.FragmentProgram maskProgram,
     ui.FragmentProgram? sharpenProgram,
+    ui.FragmentProgram? denoiseProgram,
     required ui.Image sourceImage,
     required AdjustmentParams params,
     ui.Image? lutTexture,
@@ -52,12 +53,37 @@ class FullPipelineRenderer {
     final hasEnabledMasks = enabledLocals.isNotEmpty;
     final useCache = developCache != null && hasEnabledMasks;
 
+    // Pass -1: 降噪
+    ui.Image developInput = sourceImage;
+    bool developInputOwned = false;
+    final wantDenoise =
+        denoiseProgram != null &&
+        (params.denoiseLuma > 0.001 || params.denoiseColor > 0.001);
+    if (wantDenoise) {
+      try {
+        final denoised = await _runDenoisePass(
+          program: denoiseProgram,
+          input: sourceImage,
+          targetWidth: targetWidth,
+          targetHeight: targetHeight,
+          luma: params.denoiseLuma / 100.0,
+          color: params.denoiseColor / 100.0,
+        );
+        developInput = denoised;
+        developInputOwned = true;
+      } catch (e) {
+        debugPrint('Denoise pass failed: $e');
+        developInput = sourceImage;
+        developInputOwned = false;
+      }
+    }
+
     // Pass 0: global develop
     ui.Image develop;
     bool developOwned;
     if (useCache) {
       final key = (
-        identityHashCode(sourceImage),
+        identityHashCode(sourceImage), // 原图
         params.copyWith(
           crop: CropParams.identity,
           locals: const [],
@@ -77,7 +103,7 @@ class FullPipelineRenderer {
         key,
         () => RenderEngine.renderToImage(
           program: developProgram,
-          sourceImage: sourceImage,
+          sourceImage: developInput, // 降噪后
           params: params,
           lutTexture: lutTexture,
           lutSize: lutSize,
@@ -92,7 +118,7 @@ class FullPipelineRenderer {
     } else {
       develop = await RenderEngine.renderToImage(
         program: developProgram,
-        sourceImage: sourceImage,
+        sourceImage: developInput, // 降噪后
         params: params,
         lutTexture: lutTexture,
         lutSize: lutSize,
@@ -103,6 +129,11 @@ class FullPipelineRenderer {
         targetHeight: targetHeight,
       );
       developOwned = true;
+    }
+
+    if (developInputOwned) {
+      developInput.dispose();
+      developInputOwned = false;
     }
 
     ui.Image current = develop;
@@ -136,7 +167,7 @@ class FullPipelineRenderer {
         guideW = current.width;
         guideH = current.height;
         guideEpoch = Object.hash(
-          identityHashCode(sourceImage),
+          identityHashCode(sourceImage), // 原图
           params.copyWith(
             crop: CropParams.identity,
             locals: const [],
@@ -240,6 +271,34 @@ class FullPipelineRenderer {
     final out = await pic.toImage(src.width, src.height);
     pic.dispose();
     return out;
+  }
+
+  static Future<ui.Image> _runDenoisePass({
+    required ui.FragmentProgram program,
+    required ui.Image input,
+    required int targetWidth,
+    required int targetHeight,
+    required double luma,
+    required double color,
+  }) async {
+    final shader = program.fragmentShader();
+    int i = 0;
+    shader.setFloat(i++, targetWidth.toDouble());
+    shader.setFloat(i++, targetHeight.toDouble());
+    shader.setFloat(i++, luma);
+    shader.setFloat(i++, color);
+    shader.setImageSampler(0, input);
+
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    canvas.drawRect(
+      ui.Rect.fromLTWH(0, 0, targetWidth.toDouble(), targetHeight.toDouble()),
+      ui.Paint()..shader = shader,
+    );
+    final pic = recorder.endRecording();
+    final result = await pic.toImage(targetWidth, targetHeight);
+    pic.dispose();
+    return result;
   }
 
   static Future<ui.Image> _runMaskPass({

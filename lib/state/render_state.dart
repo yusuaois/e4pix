@@ -17,6 +17,9 @@ final maskShaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async
 final sharpenShaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
   return await ui.FragmentProgram.fromAsset('shaders/sharpen.frag');
 });
+final denoiseShaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
+  return await ui.FragmentProgram.fromAsset('shaders/denoise.frag');
+});
 
 // 1Hz ticker
 final tickerProvider = StreamProvider<int>((ref) async* {

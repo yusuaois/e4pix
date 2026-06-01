@@ -111,3 +111,4 @@ flutter:
     - shaders/develop.frag
     - shaders/develop_mask.frag
     - shaders/sharpen.frag
+    - shaders/denoise.frag

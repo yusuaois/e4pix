@@ -232,6 +232,9 @@ class PreviewArea extends ConsumerWidget {
                       sharpenProgram: ref
                           .watch(sharpenShaderProgramProvider)
                           .value,
+                      denoiseProgram: ref
+                          .watch(denoiseShaderProgramProvider)
+                          .value,
                       idleMaxEdge: idle,
                       draggingMaxEdge: dragging,
                     ),
