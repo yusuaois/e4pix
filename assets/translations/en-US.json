@@ -279,5 +279,7 @@
   "keyConflictBody": "\"{}\" is already bound to \"{}\". Continuing will unbind it from that action.",
   "keyConflictOverride": "Continue",
   "keyResetTitle": "Reset Shortcuts",
-  "keyResetBody": "Reset all shortcuts to their default values?"
+  "keyResetBody": "Reset all shortcuts to their default values?",
+  "denoiseLuma": "Luma Denoise",
+  "denoiseColor": "Color Denoise"
 }

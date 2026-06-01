@@ -1067,6 +1067,21 @@ class DetailSection extends StatelessWidget {
           max: 100,
           onChanged: (v) => onChanged(params.copyWith(sharpenMasking: v)),
         ),
+        const SectionLabel(title: 'Denoise'),
+        _slider(
+          label: tr('denoiseLuma'),
+          value: params.denoiseLuma,
+          min: 0,
+          max: 100,
+          onChanged: (v) => onChanged(params.copyWith(denoiseLuma: v)),
+        ),
+        _slider(
+          label: tr('denoiseColor'),
+          value: params.denoiseColor,
+          min: 0,
+          max: 100,
+          onChanged: (v) => onChanged(params.copyWith(denoiseColor: v)),
+        ),
       ],
     );
   }

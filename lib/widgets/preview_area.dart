@@ -174,7 +174,8 @@ class PreviewArea extends ConsumerWidget {
       (l) => l.enabled && !l.params.isNeutral,
     );
     final hasSharpen = params.sharpenAmount > 0.001;
-    final needFullPipeline = hasLocals || hasSharpen;
+    final hasDenoise = params.denoiseLuma > 0.001 || params.denoiseColor > 0.001;
+    final needFullPipeline = hasLocals || hasSharpen || hasDenoise;
 
     final selectedLocalId = ref.watch(selectedLocalIdProvider);
 
