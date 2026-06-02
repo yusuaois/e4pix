@@ -6,10 +6,12 @@ import 'dart:ui' as ui;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:image/image.dart' as img_pkg;
+import 'package:path/path.dart' as p;
 
 import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
 import 'cpu_denoise.dart';
+import 'export_template.dart';
 import 'full_pipeline_renderer.dart';
 import 'pixel_convert.dart';
 
@@ -26,18 +28,28 @@ typedef ExportProgress = void Function(double fraction, String stage);
 
 /// 全分辨率导出
 ///
-/// 解码 RAW → （可选）降噪 → 转 8-bit sRGB → 渲染完整管线 → 编码 → 写文件。
+/// 解码 RAW →（可选）降噪 → 转 8-bit sRGB → 渲染完整管线 → 编码 → 写文件
+///
+/// 文件名由 [ExportTemplate] 模板生成：解码后 metadata 可用，填充占位符
+/// （日期/相机/ISO 等），经非法字符清理与批量去重（[usedNames]）后得到最终路径。
 ///
 /// 降噪两路互斥：
-/// - [DenoiseEngine.cpu]：在 16-bit 线性域用 CPU 并行降噪（[PixelConvert.rawToImageWithDenoise]），
-///   渲染时不传 denoiseProgram。
-/// - [DenoiseEngine.gpu]：转换走普通路径，渲染时传 denoiseProgram，由 GPU pass 全尺寸降噪。
+/// - [DenoiseEngine.cpu]：16-bit 线性域 CPU 并行降噪，渲染时不传 denoiseProgram。
+/// - [DenoiseEngine.gpu]：普通转换，渲染时传 denoiseProgram，由 GPU pass 降噪。
 class Exporter {
   Exporter._();
 
+  /// 导出单张，返回写出的文件。
+  ///
+  /// [outputDir] 输出目录；[filenameTemplate] 文件名模板（见 [ExportTemplate]）；
+  /// [seq] 1-based 序号（批量用）；[usedNames] 跨多次调用累积的已用文件名集合，
+  /// 用于批量去重（单张可传新的空集）。
   static Future<File> exportFullRes({
     required String inputRawPath,
-    required String outputPath,
+    required String outputDir,
+    required String filenameTemplate,
+    required int seq,
+    required Set<String> usedNames,
     required ExportFormat format,
     required ui.FragmentProgram shaderProgram,
     required ui.FragmentProgram maskProgram,
@@ -77,13 +89,28 @@ class Exporter {
       lutSizeB: lutSizeB,
       curveTexture: curveTexture,
       sharpenProgram: sharpenProgram,
-      // GPU 降噪仅在选 GPU 引擎且有降噪时启用；CPU 路已在 sourceImage 降噪
       denoiseProgram: _wantGpuDenoise(params, denoiseEngine)
           ? denoiseProgram
           : null,
       targetWidth: sourceImage.width,
       targetHeight: sourceImage.height,
     );
+
+    // 文件名：模板 + metadata + 去重
+    final base = ExportTemplate.apply(
+      template: filenameTemplate,
+      originalName: ExportTemplate.stripExtension(p.basename(inputRawPath)),
+      seq: seq,
+      metadata: raw.metadata,
+      outWidth: output.width,
+      outHeight: output.height,
+    );
+    final filename = ExportTemplate.ensureUnique(
+      base: base,
+      extension: format.extension,
+      used: usedNames,
+    );
+    final outputPath = p.join(outputDir, filename);
 
     final bytes = await _encode(output, format, jpegQuality);
     output.dispose();
@@ -94,7 +121,6 @@ class Exporter {
     onProgress?.call(1.0, tr('completed'));
     return file;
   }
-
 
   /// 解码后 → 渲染前：准备 develop 用的 8-bit sRGB 源图（按需 CPU 降噪）。
   static Future<ui.Image> _prepareSourceImage({
@@ -117,12 +143,11 @@ class Exporter {
         parallelism: denoiseParallelism,
       );
     }
-    // 无降噪 或 GPU 降噪：普通转换
     onProgress?.call(0.40, tr('exportTransformingColorSpace'));
     return PixelConvert.rawToImage(raw);
   }
 
-  /// 渲染输出 ui.Image → 编码字节
+  /// 渲染输出 → 编码字节（PNG 直接编码，JPEG 在 isolate 用 image 包）
   static Future<Uint8List> _encode(
     ui.Image output,
     ExportFormat format,

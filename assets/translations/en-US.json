@@ -290,5 +290,8 @@
   "denoiseEngineGpuHint": "GPU-accelerated. Matches preview rendering, faster speed.",
   "denoiseParallelism": "CPU Threads",
   "denoiseParallelismDesc": "Number of concurrent threads for CPU denoising. Higher values improve speed but consume more memory.",
-  "auto": "Auto"
+  "auto": "Auto",
+  "exportFilename": "File Name",
+  "exportFilenamePreview": "Preview",
+  "exportFilenameBatchWarn": "For batch export, it is recommended to include {seq} or {name} to avoid automatic numbering."
 }

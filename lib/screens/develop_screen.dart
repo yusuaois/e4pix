@@ -14,6 +14,7 @@ import '../core/models/adjustment_params.dart';
 import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
 import '../native/raw_bridge.dart';
+import '../render/export_template.dart';
 import '../render/exporter.dart';
 import '../render/cpu_denoise.dart';
 import '../services/ai/ai_color_service.dart';
@@ -269,10 +270,13 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     ExportFormat format = ExportFormat.png;
     int quality = ref.read(exportQualityProvider);
     DenoiseEngine denoiseEngine = DenoiseEngine.cpu;
-
-    final isBatch = tasks.length > 1;
     final hasDenoise = tasks.any(
       (t) => t.params.denoiseLuma > 0.001 || t.params.denoiseColor > 0.001,
+    );
+    String template = ref.read(exportTemplateProvider); // ⭐
+    final isBatch = tasks.length > 1;
+    final firstName = ExportTemplate.stripExtension(
+      p.basename(tasks.first.path),
     );
 
     final ok = await showDialog<bool>(
@@ -311,6 +315,62 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   onChanged: (v) => setS(() => quality = v.round()),
                 ),
               ],
+              const SizedBox(height: 14),
+              Text(tr('exportFilename'), style: const TextStyle(fontSize: 12)),
+              const SizedBox(height: 6),
+              TextFormField(
+                initialValue: template,
+                style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                  hintText: ExportTemplate.defaultTemplate,
+                  suffixText: '.${format.extension}',
+                ),
+                onChanged: (v) => setS(() => template = v),
+              ),
+              const SizedBox(height: 4),
+              // 实时预览
+              Text(
+                '${tr('exportFilenamePreview')}: '
+                '${ExportTemplate.apply(template: template.isEmpty ? ExportTemplate.defaultTemplate : template, originalName: firstName, seq: 1)}.${format.extension}',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontFamily: 'monospace',
+                  color: Colors.greenAccent.withValues(alpha: 0.7),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (isBatch &&
+                  !ExportTemplate.hasDistinctToken(
+                    template.isEmpty
+                        ? ExportTemplate.defaultTemplate
+                        : template,
+                  )) ...[
+                const SizedBox(height: 4),
+                Text(
+                  tr(
+                    'exportFilenameBatchWarn',
+                  ), // "批量导出建议含 {seq} 或 {name}，否则自动加序号"
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.orangeAccent.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+              // 占位符
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '{name} {seq} {seq3} {date} {camera} {iso}',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontFamily: 'monospace',
+                    color: Colors.white.withValues(alpha: 0.35),
+                  ),
+                ),
+              ),
               if (hasDenoise) ...[
                 const SizedBox(height: 14),
                 Text(tr('denoiseEngine'), style: const TextStyle(fontSize: 12)),
@@ -371,12 +431,23 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       ),
     );
     if (ok != true) return;
-
+    ref
+        .read(exportTemplateProvider.notifier)
+        .set(
+          template.isEmpty ? ExportTemplate.defaultTemplate : template,
+        ); // 记住
     final folder = await FilePicker.platform.getDirectoryPath(
       dialogTitle: tr('saveTo'),
     );
     if (folder == null) return;
-    await _runExport(folder, format, quality, tasks, denoiseEngine);
+    await _runExport(
+      folder,
+      format,
+      quality,
+      tasks,
+      denoiseEngine,
+      template,
+    ); // ⭐ +template
   }
 
   Future<void> _runExport(
@@ -385,11 +456,11 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     int quality,
     List<ExportTask> tasks,
     DenoiseEngine denoiseEngine,
+    String template,
   ) async {
     final program = ref.read(shaderProgramProvider).value;
     if (program == null) return;
     final lut = ref.read(lutNotifierProvider);
-
     final messenger = ScaffoldMessenger.of(context);
     final progressNotifier = ValueNotifier<(double, String)>((
       0,
@@ -417,29 +488,29 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final stopwatch = Stopwatch()..start();
     String? lastOutPath;
     int doneCount = 0;
+    final effectiveTemplate = template.isEmpty
+        ? ExportTemplate.defaultTemplate
+        : template;
+    final usedNames = <String>{};
 
     try {
       for (int i = 0; i < tasks.length; i++) {
         final task = tasks[i];
-        final outName = task.filename.replaceAll(
-          RegExp(r'\.[^.]+$'),
-          '_edited.${fmt.extension}',
-        );
-        final outPath = p.join(folder, outName);
-        lastOutPath = outPath;
-
+        // ❌ 删掉 outName/outPath 手动拼接
         final baseFrac = i / tasks.length;
         final span = 1 / tasks.length;
-
         final maskProgram = ref.read(maskShaderProgramProvider).value;
         if (maskProgram == null) {
           _snack('Mask shader loading...');
           return;
         }
 
-        await Exporter.exportFullRes(
+        final file = await Exporter.exportFullRes(
           inputRawPath: task.path,
-          outputPath: outPath,
+          outputDir: folder, // ⭐ 目录
+          filenameTemplate: effectiveTemplate, // ⭐
+          seq: i + 1, // ⭐ 1-based
+          usedNames: usedNames, // ⭐ 去重
           format: fmt,
           shaderProgram: program,
           maskProgram: maskProgram,
@@ -452,7 +523,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           sharpenProgram: ref.read(sharpenShaderProgramProvider).value,
           denoiseProgram: ref.read(denoiseShaderProgramProvider).value,
           denoiseEngine: denoiseEngine,
-          denoiseParallelism: ref.read(denoiseParallelismProvider),
+          denoiseParallelism: ref.read(denoiseParallelismProvider), // 若接了并行度
           jpegQuality: quality,
           onProgress: (f, s) {
             if (tasks.length == 1) {
@@ -468,6 +539,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             }
           },
         );
+        lastOutPath = file.path; // ⭐ 用返回的 file.path
         doneCount = i + 1;
       }
       stopwatch.stop();

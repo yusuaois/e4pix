@@ -290,5 +290,8 @@
   "denoiseEngineGpuHint": "GPU 加速，与预览效果一致，快速",
   "denoiseParallelism": "降噪并行度",
   "denoiseParallelismDesc": "CPU 降噪同时使用的线程数，更高更快但占用更多内存",
-  "auto": "自动"
+  "auto": "自动",
+  "exportFilename": "文件名",
+  "exportFilenamePreview": "预览",
+  "exportFilenameBatchWarn": "批量导出建议包含 {seq} 或 {name}，否则将自动追加序号"
 }

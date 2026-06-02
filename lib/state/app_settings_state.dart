@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../render/export_template.dart';
 import '../services/app_settings.dart';
 
 final sidecarEnabledProvider = NotifierProvider<SidecarEnabledNotifier, bool>(
@@ -12,6 +13,9 @@ final denoiseParallelismProvider =
     );
 final tetherFolderProvider = NotifierProvider<TetherFolderNotifier, String?>(
   TetherFolderNotifier.new,
+);
+final exportTemplateProvider = NotifierProvider<ExportTemplateNotifier, String>(
+  ExportTemplateNotifier.new,
 );
 
 class TetherFolderNotifier extends Notifier<String?> {
@@ -70,5 +74,25 @@ class DenoiseParallelismNotifier extends Notifier<int> {
     state = v;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('denoise_parallelism', v);
+  }
+}
+
+class ExportTemplateNotifier extends Notifier<String> {
+  @override
+  String build() {
+    _load();
+    return ExportTemplate.defaultTemplate; // '{name}_edited'
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getString('export_template');
+    if (v != null && v.isNotEmpty) state = v;
+  }
+
+  Future<void> set(String v) async {
+    state = v;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('export_template', v);
   }
 }
