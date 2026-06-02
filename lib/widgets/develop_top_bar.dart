@@ -248,31 +248,37 @@ class DevelopTopBar extends ConsumerWidget {
   }
 
   Widget _iconBtn(
-    IconData icon,
-    String tooltip,
-    VoidCallback? onPressed,
-    bool isVertical, {
-    VoidCallback? onLongPress,
-    Color? color,
-  }) {
-    final box = _barBtnSize(isVertical);
-    final btn = IconButton(
+  IconData icon,
+  String tooltip,
+  VoidCallback? onPressed,
+  bool isVertical, {
+  VoidCallback? onLongPress,
+  Color? color,
+}) {
+  final box = _barBtnSize(isVertical);
+  final btn = SizedBox(
+    width: box,
+    height: box,
+    child: IconButton(
       icon: Icon(icon, size: _barIconSize(isVertical), color: color),
       tooltip: tooltip,
       onPressed: onPressed,
       padding: EdgeInsets.zero,
-      visualDensity: VisualDensity.standard,
+      style: const ButtonStyle(
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
       constraints: BoxConstraints(
         minWidth: box,
         minHeight: box,
         maxWidth: box,
         maxHeight: box,
       ),
-    );
-    return onLongPress == null
-        ? btn
-        : GestureDetector(onLongPress: onLongPress, child: btn);
-  }
+    ),
+  );
+  return onLongPress == null
+      ? btn
+      : GestureDetector(onLongPress: onLongPress, child: btn);
+}
 
   Widget _buildAdaptiveActions(
     List<_BarAction> actions,
