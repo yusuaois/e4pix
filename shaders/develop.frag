@@ -104,40 +104,65 @@ float hueDist(float h, float c) {
     return min(d, 1.0 - d);
 }
 
-// 单段权重：在该色相中心附近平滑权重，灰色不响应
+// 单段权重 高斯型衰减
 float bandWeight(float h, float s, float center) {
-    const float RADIUS = 0.083; // ~30°
-    float distW = 1.0 - smoothstep(0.0, RADIUS * 1.5, hueDist(h, center));
-    float satW  = smoothstep(0.05, 0.3, s);
+    float dist = hueDist(h, center);
+    float sigma = 0.09;
+    float distW = exp(-(dist * dist) / (2.0 * sigma * sigma));
+    float satW  = smoothstep(0.02, 0.20, s);
     return distW * satW;
 }
 
 // ============================================================================
 // HSL 8 段应用
 // ============================================================================
+// 红 橙 黄 绿 青 蓝 紫 品红
+const float HC0 = 0.0;     // R   0°
+const float HC1 = 0.0833;  // O   30°
+const float HC2 = 0.1667;  // Y   60°
+const float HC3 = 0.3333;  // G   120°
+const float HC4 = 0.5;     // C   180°
+const float HC5 = 0.6667;  // B   240°
+const float HC6 = 0.792;    // P   285°
+const float HC7 = 0.903;  // M   325°
+
+// 按索引(0..7)从两个 vec4 取分量:0-3=ROYG, 4-7=CBPM
+float pickBand(vec4 a, vec4 b, int i) {
+    if (i == 0) return a.x;
+    if (i == 1) return a.y;
+    if (i == 2) return a.z;
+    if (i == 3) return a.w;
+    if (i == 4) return b.x;
+    if (i == 5) return b.y;
+    if (i == 6) return b.z;
+    return b.w;
+}
+
 vec3 applyHsl8(vec3 rgb) {
     vec3 hsl = rgb2hsl(rgb);
+    float h = hsl.x;
 
-    // 8 个色相中心
-    float wR = bandWeight(hsl.x, hsl.y, 0.0);
-    float wO = bandWeight(hsl.x, hsl.y, 0.0833);
-    float wY = bandWeight(hsl.x, hsl.y, 0.1667);
-    float wG = bandWeight(hsl.x, hsl.y, 0.3333);
-    float wC = bandWeight(hsl.x, hsl.y, 0.5);
-    float wB = bandWeight(hsl.x, hsl.y, 0.6667);
-    float wP = bandWeight(hsl.x, hsl.y, 0.75);
-    float wM = bandWeight(hsl.x, hsl.y, 0.9167);
+    int iA; int iB; float t;
+    if      (h < HC1) { iA = 0; iB = 1; t = (h - HC0) / (HC1 - HC0); }
+    else if (h < HC2) { iA = 1; iB = 2; t = (h - HC1) / (HC2 - HC1); }
+    else if (h < HC3) { iA = 2; iB = 3; t = (h - HC2) / (HC3 - HC2); }
+    else if (h < HC4) { iA = 3; iB = 4; t = (h - HC3) / (HC4 - HC3); }
+    else if (h < HC5) { iA = 4; iB = 5; t = (h - HC4) / (HC5 - HC4); }
+    else if (h < HC6) { iA = 5; iB = 6; t = (h - HC5) / (HC6 - HC5); }
+    else if (h < HC7) { iA = 6; iB = 7; t = (h - HC6) / (HC7 - HC6); }
+    else              { iA = 7; iB = 0; t = (h - HC7) / (1.0  - HC7); }
 
-    float hAdj = uHueROYG.x*wR + uHueROYG.y*wO + uHueROYG.z*wY + uHueROYG.w*wG
-               + uHueCBPM.x*wC + uHueCBPM.y*wB + uHueCBPM.z*wP + uHueCBPM.w*wM;
-    float sAdj = uSatROYG.x*wR + uSatROYG.y*wO + uSatROYG.z*wY + uSatROYG.w*wG
-               + uSatCBPM.x*wC + uSatCBPM.y*wB + uSatCBPM.z*wP + uSatCBPM.w*wM;
-    float lAdj = uLumROYG.x*wR + uLumROYG.y*wO + uLumROYG.z*wY + uLumROYG.w*wG
-               + uLumCBPM.x*wC + uLumCBPM.y*wB + uLumCBPM.z*wP + uLumCBPM.w*wM;
+    // 相邻两段权重 (1-t)、t
+    float hAdj = mix(pickBand(uHueROYG, uHueCBPM, iA),
+                    pickBand(uHueROYG, uHueCBPM, iB), t);
+    float sAdj = mix(pickBand(uSatROYG, uSatCBPM, iA),
+                    pickBand(uSatROYG, uSatCBPM, iB), t);
+    float lAdj = mix(pickBand(uLumROYG, uLumCBPM, iA),
+                    pickBand(uLumROYG, uLumCBPM, iB), t);
 
-    hsl.x = mod(hsl.x + hAdj * 0.083, 1.0);     // 最大 ±30°
-    hsl.y = clamp(hsl.y * (1.0 + sAdj), 0.0, 1.0);
-    hsl.z = clamp(hsl.z + lAdj * 0.3, 0.0, 1.0); // 最大 ±0.3 亮度
+    hsl.x = mod(hsl.x + hAdj * 0.083, 1.0);          // 色相 ±~30°
+    hsl.y = clamp(hsl.y * (1.0 + sAdj), 0.0, 1.0);   // 饱和度
+    hsl.z = clamp(hsl.z + lAdj * 0.3,  0.0, 1.0);    // 明度
 
     return hsl2rgb(hsl);
 }
