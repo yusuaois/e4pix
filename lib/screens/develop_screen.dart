@@ -15,6 +15,7 @@ import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
 import '../native/raw_bridge.dart';
 import '../render/exporter.dart';
+import '../render/cpu_denoise.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
@@ -451,6 +452,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           sharpenProgram: ref.read(sharpenShaderProgramProvider).value,
           denoiseProgram: ref.read(denoiseShaderProgramProvider).value,
           denoiseEngine: denoiseEngine,
+          denoiseParallelism: ref.read(denoiseParallelismProvider),
           jpegQuality: quality,
           onProgress: (f, s) {
             if (tasks.length == 1) {
