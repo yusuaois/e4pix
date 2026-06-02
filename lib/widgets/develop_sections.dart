@@ -998,6 +998,7 @@ class DetailSection extends StatelessWidget {
     required double min,
     required double max,
     required ValueChanged<double> onChanged,
+    required double resetValue,
     int fractionDigits = 0,
   }) {
     return Builder(
@@ -1010,12 +1011,17 @@ class DetailSection extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(label, style: const TextStyle(fontSize: 12)),
-                Text(
-                  value.toStringAsFixed(fractionDigits),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                    color: Colors.white.withValues(alpha: 0.6),
+                GestureDetector(
+                  onDoubleTap: () => onChanged(resetValue),
+                  child: Text(
+                    value.toStringAsFixed(fractionDigits),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                      color: (value - resetValue).abs() < 0.001
+                          ? Colors.white.withValues(alpha: 0.4)
+                          : Colors.greenAccent.withValues(alpha: 0.85),
+                    ),
                   ),
                 ),
               ],
@@ -1050,6 +1056,7 @@ class DetailSection extends StatelessWidget {
           value: params.sharpenAmount,
           min: 0,
           max: 100,
+          resetValue: 0,
           onChanged: (v) => onChanged(params.copyWith(sharpenAmount: v)),
         ),
         _slider(
@@ -1058,6 +1065,7 @@ class DetailSection extends StatelessWidget {
           min: 0.5,
           max: 3.0,
           fractionDigits: 1,
+          resetValue: 1.0,
           onChanged: (v) => onChanged(params.copyWith(sharpenRadius: v)),
         ),
         _slider(
@@ -1065,7 +1073,25 @@ class DetailSection extends StatelessWidget {
           value: params.sharpenMasking,
           min: 0,
           max: 100,
+          resetValue: 0,
           onChanged: (v) => onChanged(params.copyWith(sharpenMasking: v)),
+        ),
+        const SectionLabel(title: 'Denoise'),
+        _slider(
+          label: tr('denoiseLuma'),
+          value: params.denoiseLuma,
+          min: 0,
+          max: 100,
+          resetValue: 0,
+          onChanged: (v) => onChanged(params.copyWith(denoiseLuma: v)),
+        ),
+        _slider(
+          label: tr('denoiseColor'),
+          value: params.denoiseColor,
+          min: 0,
+          max: 100,
+          resetValue: 0,
+          onChanged: (v) => onChanged(params.copyWith(denoiseColor: v)),
         ),
       ],
     );

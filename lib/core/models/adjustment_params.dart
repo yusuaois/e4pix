@@ -18,9 +18,11 @@ class AdjustmentParams {
   final double blacks;
   final double saturation;
   final double vibrance;
-  final double sharpenAmount;   // 0-100，默认 0（不锐化）
-  final double sharpenRadius;   // 0.5-3.0 像素，默认 1.0
-  final double sharpenMasking;  // 0-100，默认 0（全图锐化）
+  final double sharpenAmount; // 0-100，默认 0（不锐化）
+  final double sharpenRadius; // 0.5-3.0 像素，默认 1.0
+  final double sharpenMasking; // 0-100，默认 0（全图锐化）
+  final double denoiseLuma; // 明度降噪 0-100，默认 0
+  final double denoiseColor; // 颜色降噪 0-100，默认 0
   final double lutIntensity;
   final double lutIntensityB;
   final RgbCurves curves;
@@ -42,6 +44,8 @@ class AdjustmentParams {
     this.sharpenAmount = 0.0,
     this.sharpenRadius = 1.0,
     this.sharpenMasking = 0.0,
+    this.denoiseLuma = 0.0,
+    this.denoiseColor = 0.0,
     this.lutIntensity = 1.0,
     this.lutIntensityB = 1.0,
     this.curves = RgbCurves.identity,
@@ -66,6 +70,8 @@ class AdjustmentParams {
     double? sharpenAmount,
     double? sharpenRadius,
     double? sharpenMasking,
+    double? denoiseLuma,
+    double? denoiseColor,
     double? lutIntensity,
     double? lutIntensityB,
     RgbCurves? curves,
@@ -86,6 +92,8 @@ class AdjustmentParams {
     sharpenAmount: sharpenAmount ?? this.sharpenAmount,
     sharpenRadius: sharpenRadius ?? this.sharpenRadius,
     sharpenMasking: sharpenMasking ?? this.sharpenMasking,
+    denoiseLuma: denoiseLuma ?? this.denoiseLuma,
+    denoiseColor: denoiseColor ?? this.denoiseColor,
     lutIntensity: lutIntensity ?? this.lutIntensity,
     lutIntensityB: lutIntensityB ?? this.lutIntensityB,
     curves: curves ?? this.curves,
@@ -111,6 +119,8 @@ class AdjustmentParams {
           sharpenAmount == other.sharpenAmount &&
           sharpenRadius == other.sharpenRadius &&
           sharpenMasking == other.sharpenMasking &&
+          denoiseLuma == other.denoiseLuma &&
+          denoiseColor == other.denoiseColor &&
           lutIntensity == other.lutIntensity &&
           lutIntensityB == other.lutIntensityB &&
           curves == other.curves &&
@@ -119,7 +129,7 @@ class AdjustmentParams {
           listEquals(locals, other.locals);
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     exposure,
     temperature,
     tint,
@@ -133,13 +143,15 @@ class AdjustmentParams {
     sharpenAmount,
     sharpenRadius,
     sharpenMasking,
+    denoiseLuma,
+    denoiseColor,
     lutIntensity,
     lutIntensityB,
     curves,
     hsl,
     crop,
     locals,
-  );
+  ]);
 
   Map<String, dynamic> toJson() => {
     'exposure': exposure,
@@ -155,6 +167,8 @@ class AdjustmentParams {
     'sharpenAmount': sharpenAmount,
     'sharpenRadius': sharpenRadius,
     'sharpenMasking': sharpenMasking,
+    'denoiseLuma': denoiseLuma,
+    'denoiseColor': denoiseColor,
     'lutIntensity': lutIntensity,
     'lutIntensityB': lutIntensityB,
     'curves': curves.toJson(),
@@ -177,6 +191,8 @@ class AdjustmentParams {
     sharpenAmount: (j['sharpenAmount'] as num?)?.toDouble() ?? 0.0,
     sharpenRadius: (j['sharpenRadius'] as num?)?.toDouble() ?? 1.0,
     sharpenMasking: (j['sharpenMasking'] as num?)?.toDouble() ?? 0.0,
+    denoiseLuma: (j['denoiseLuma'] as num?)?.toDouble() ?? 0.0,
+    denoiseColor: (j['denoiseColor'] as num?)?.toDouble() ?? 0.0,
     lutIntensity: (j['lutIntensity'] as num?)?.toDouble() ?? 1.0,
     lutIntensityB: (j['lutIntensityB'] as num?)?.toDouble() ?? 1.0,
     curves: j['curves'] != null

@@ -3,6 +3,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/app_settings.dart';
 
+final sidecarEnabledProvider = NotifierProvider<SidecarEnabledNotifier, bool>(
+  SidecarEnabledNotifier.new,
+);
+final denoiseParallelismProvider =
+    NotifierProvider<DenoiseParallelismNotifier, int>(
+      DenoiseParallelismNotifier.new,
+    );
+final tetherFolderProvider = NotifierProvider<TetherFolderNotifier, String?>(
+  TetherFolderNotifier.new,
+);
+
 class TetherFolderNotifier extends Notifier<String?> {
   @override
   String? build() {
@@ -19,10 +30,6 @@ class TetherFolderNotifier extends Notifier<String?> {
 
   Future<void> clear() => set(null);
 }
-
-final tetherFolderProvider = NotifierProvider<TetherFolderNotifier, String?>(
-  TetherFolderNotifier.new,
-);
 
 class SidecarEnabledNotifier extends Notifier<bool> {
   static const _key = 'sidecar_enabled';
@@ -46,6 +53,22 @@ class SidecarEnabledNotifier extends Notifier<bool> {
   }
 }
 
-final sidecarEnabledProvider = NotifierProvider<SidecarEnabledNotifier, bool>(
-  SidecarEnabledNotifier.new,
-);
+class DenoiseParallelismNotifier extends Notifier<int> {
+  @override
+  int build() {
+    _load();
+    return 4; // 默认 4
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getInt('denoise_parallelism');
+    if (v != null) state = v;
+  }
+
+  Future<void> set(int v) async {
+    state = v;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('denoise_parallelism', v);
+  }
+}

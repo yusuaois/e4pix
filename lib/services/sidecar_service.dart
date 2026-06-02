@@ -4,7 +4,7 @@ import 'dart:io';
 import '../core/models/adjustment_params.dart';
 import '../core/models/tethered_shot.dart';
 
-/// 每张 RAW 旁的编辑 sidecar：<rawpath>.e4pix.json
+/// 每张 RAW 旁的编辑 sidecar：rawpath.e4pix.json
 class SidecarService {
   SidecarService._();
 
