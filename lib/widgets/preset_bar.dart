@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:easy_localization/easy_localization.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../state/preset_state.dart';
+import '../services/xmp_import.dart';
+import '../state/providers.dart';
 
 // 桌面端：横向 chip 滚动条
 class PresetBar extends ConsumerStatefulWidget {
@@ -86,6 +90,13 @@ class _PresetBarState extends ConsumerState<PresetBar> {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             ),
+            IconButton(
+              icon: const Icon(Icons.input, size: 18),
+              tooltip: tr("xmpImport"),
+              onPressed: () => _importXmp(context, ref),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            ),
           ],
         ),
       ),
@@ -109,16 +120,28 @@ class PresetTabContent extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.bookmark_add, size: 16),
-                label: Text(
-                  tr("saveCurrentAsPreset"),
-                  style: TextStyle(fontSize: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.bookmark_add, size: 16),
+                    label: Text(
+                      tr("saveCurrentAsPreset"),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () => showSavePresetDialog(context, notifier),
+                  ),
                 ),
-                onPressed: () => showSavePresetDialog(context, notifier),
-              ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.input, size: 16),
+                  label: Text(
+                    tr("xmpImport"),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onPressed: () => _importXmp(context, ref),
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -282,5 +305,40 @@ Future<void> _showPresetOptions(
           .read(presetNotifierProvider.notifier)
           .rename(preset.id, newName);
     }
+  }
+}
+
+Future<void> _importXmp(BuildContext ctx, WidgetRef ref) async {
+  final messenger = ScaffoldMessenger.of(ctx);
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['xmp'],
+  );
+  if (result == null || result.files.isEmpty) return;
+  final path = result.files.first.path;
+  if (path == null) return;
+
+  try {
+    final content = await File(path).readAsString();
+    final base = ref.read(currentParamsNotifierProvider);
+    final (newParams, hit) = XmpImport.parse(content, base);
+    if (hit.isEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(tr('xmpNoFields'))));
+      return;
+    }
+    ref.read(currentParamsNotifierProvider.notifier).update(newParams);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          tr('xmpImported', args: ['${hit.length}', hit.join('、')]),
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  } catch (e) {
+    messenger.showSnackBar(
+      SnackBar(content: Text(tr('xmpImportFailed', args: [e.toString()]))),
+    );
   }
 }

@@ -50,6 +50,7 @@ dependencies:
   flutter_onnxruntime: ^1.6.3
   dynamic_color: ^1.8.1
   flutter_markdown_plus: ^1.0.7
+  xml: ^7.0.1
 
 dev_dependencies:
   flutter_test:

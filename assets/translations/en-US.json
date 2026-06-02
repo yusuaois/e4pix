@@ -295,5 +295,9 @@
   "exportFilenamePreview": "Preview",
   "exportFilenameBatchWarn": "For batch export, it is recommended to include {seq} or {name} to avoid automatic numbering.",
   "exportWriteExif": "Write EXIF Information",
-  "exportWriteExifDesc": "Write camera, lens, and exposure parameters as EXIF data to the exported JPEG"
+  "exportWriteExifDesc": "Write camera, lens, and exposure parameters as EXIF data to the exported JPEG",
+  "xmpImport": "Import XMP",
+  "xmpImported": "Imported {} adjustments: {}",
+  "xmpNoFields": "No importable parameters found",
+  "xmpImportFailed": "XMP import failed: {}"
 }
