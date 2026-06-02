@@ -281,5 +281,6 @@
   "keyResetTitle": "重置快捷键",
   "keyResetBody": "将所有快捷键恢复为默认值？",
   "denoiseLuma": "明度降噪",
-  "denoiseColor": "颜色降噪"
+  "denoiseColor": "颜色降噪",
+  "exportDenoising": "降噪处理中"
 }

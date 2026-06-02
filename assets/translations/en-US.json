@@ -281,5 +281,6 @@
   "keyResetTitle": "Reset Shortcuts",
   "keyResetBody": "Reset all shortcuts to their default values?",
   "denoiseLuma": "Luma Denoise",
-  "denoiseColor": "Color Denoise"
+  "denoiseColor": "Color Denoise",
+  "exportDenoising": "Denoising in progress"
 }

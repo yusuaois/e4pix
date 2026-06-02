@@ -1,5 +1,6 @@
 ## 🚀 新功能 (New Features)
 * **按键自定义**: 支持自定义按键
+* **降噪**：支持自定义GPU（8bit）/CPU（16bit）降噪
 
 ## 🐛 问题修复 (Bug Fixes)
 
