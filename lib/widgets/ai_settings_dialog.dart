@@ -89,150 +89,155 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
       title: Text(tr("aiColorSettings")),
       content: SizedBox(
         width: 460,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // —— 1. Provider —— //
-            Text(
-              tr("aiProvider"),
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<AIProviderId>(
-              initialValue: _providerId,
-              isDense: true,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
-                ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // —— 1. Provider —— //
+              Text(
+                tr("aiProvider"),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
-              items: AIProvider.all
-                  .map(
-                    (p) => DropdownMenuItem(
-                      value: p.id,
-                      child: Text(
-                        p.displayName,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: _onProviderChanged,
-            ),
-            const SizedBox(height: 14),
-
-            // —— 2. Model —— //
-            Text(
-              tr("model"),
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
-              initialValue: effectiveModelId,
-              isDense: true,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
-                ),
-              ),
-              items: provider.models
-                  .map(
-                    (m) => DropdownMenuItem(
-                      value: m.id,
-                      child: Text(
-                        m.label,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (v) =>
-                  setState(() => _modelId = v ?? provider.defaultModelId),
-            ),
-            const SizedBox(height: 14),
-
-            // —— 3. API Key —— //
-            Text(
-              '${provider.displayName} ${tr("apiKey")}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _keyController,
-              obscureText: _obscure,
-              decoration: InputDecoration(
-                hintText: _keyHintFor(_providerId),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<AIProviderId>(
+                initialValue: _providerId,
                 isDense: true,
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
-                ),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscure ? Icons.visibility : Icons.visibility_off,
-                    size: 16,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
                   ),
-                  onPressed: () => setState(() => _obscure = !_obscure),
                 ),
-              ),
-              style: const TextStyle(fontSize: 11.5, fontFamily: 'monospace'),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _keyOriginFor(_providerId),
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.white.withValues(alpha: 0.5),
-              ),
-            ),
-
-            const Divider(height: 28),
-
-            // —— 联机自动建议 —— //
-            InkWell(
-              onTap: () => setState(() => _autoAI = !_autoAI),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Checkbox(
-                      value: _autoAI,
-                      onChanged: (v) => setState(() => _autoAI = v ?? false),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            tr("aiColorSuggestionTetherAuto"),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            tr("aiColorSuggestionTetherAutoDescription"),
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: Colors.white60,
-                            ),
-                          ),
-                        ],
+                items: AIProvider.all
+                    .map(
+                      (p) => DropdownMenuItem(
+                        value: p.id,
+                        child: Text(
+                          p.displayName,
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       ),
-                    ),
-                  ],
+                    )
+                    .toList(),
+                onChanged: _onProviderChanged,
+              ),
+              const SizedBox(height: 14),
+
+              // —— 2. Model —— //
+              Text(
+                tr("model"),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                initialValue: effectiveModelId,
+                isDense: true,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                ),
+                items: provider.models
+                    .map(
+                      (m) => DropdownMenuItem(
+                        value: m.id,
+                        child: Text(
+                          m.label,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) =>
+                    setState(() => _modelId = v ?? provider.defaultModelId),
+              ),
+              const SizedBox(height: 14),
+
+              // —— 3. API Key —— //
+              Text(
+                '${provider.displayName} ${tr("apiKey")}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              TextField(
+                controller: _keyController,
+                obscureText: _obscure,
+                decoration: InputDecoration(
+                  hintText: _keyHintFor(_providerId),
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscure ? Icons.visibility : Icons.visibility_off,
+                      size: 16,
+                    ),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
+                ),
+                style: const TextStyle(fontSize: 11.5, fontFamily: 'monospace'),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _keyOriginFor(_providerId),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
+              ),
+
+              const Divider(height: 28),
+
+              // —— 联机自动建议 —— //
+              InkWell(
+                onTap: () => setState(() => _autoAI = !_autoAI),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: _autoAI,
+                        onChanged: (v) => setState(() => _autoAI = v ?? false),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tr("aiColorSuggestionTetherAuto"),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              tr("aiColorSuggestionTetherAutoDescription"),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: Colors.white60,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [

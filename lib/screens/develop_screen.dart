@@ -289,156 +289,167 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                 ? '${tr('exportBatch')}  ·  ${tasks.length}'
                 : tr('exportImage'),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(tr('format'), style: const TextStyle(fontSize: 12)),
-              const SizedBox(height: 8),
-              SegmentedButton<ExportFormat>(
-                segments: const [
-                  ButtonSegment(value: ExportFormat.png, label: Text('PNG')),
-                  ButtonSegment(value: ExportFormat.jpeg, label: Text('JPEG')),
-                ],
-                selected: {format},
-                onSelectionChanged: (s) => setS(() => format = s.first),
-              ),
-              if (format == ExportFormat.jpeg) ...[
-                const SizedBox(height: 14),
-                Text(
-                  '${tr('quality')}: $quality',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                Slider(
-                  value: quality.toDouble(),
-                  min: 50,
-                  max: 100,
-                  onChanged: (v) => setS(() => quality = v.round()),
-                ),
-              ],
-              const SizedBox(height: 14),
-              Text(tr('exportFilename'), style: const TextStyle(fontSize: 12)),
-              const SizedBox(height: 6),
-              TextFormField(
-                initialValue: template,
-                style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
-                decoration: InputDecoration(
-                  isDense: true,
-                  border: const OutlineInputBorder(),
-                  hintText: ExportTemplate.defaultTemplate,
-                  suffixText: '.${format.extension}',
-                ),
-                onChanged: (v) => setS(() => template = v),
-              ),
-              const SizedBox(height: 4),
-              // 实时预览
-              Text(
-                '${tr('exportFilenamePreview')}: '
-                '${ExportTemplate.apply(template: template.isEmpty ? ExportTemplate.defaultTemplate : template, originalName: firstName, seq: 1)}.${format.extension}',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontFamily: 'monospace',
-                  color: Colors.greenAccent.withValues(alpha: 0.7),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (isBatch &&
-                  !ExportTemplate.hasDistinctToken(
-                    template.isEmpty
-                        ? ExportTemplate.defaultTemplate
-                        : template,
-                  )) ...[
-                const SizedBox(height: 4),
-                Text(
-                  tr(
-                    'exportFilenameBatchWarn',
-                  ), // "批量导出建议含 {seq} 或 {name}，否则自动加序号"
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.orangeAccent.withValues(alpha: 0.8),
-                  ),
-                ),
-              ],
-              // 占位符
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  '{name} {seq} {seq3} {date} {camera} {iso}',
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    fontFamily: 'monospace',
-                    color: Colors.white.withValues(alpha: 0.35),
-                  ),
-                ),
-              ),
-              if (hasDenoise) ...[
-                const SizedBox(height: 14),
-                Text(tr('denoiseEngine'), style: const TextStyle(fontSize: 12)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr('format'), style: const TextStyle(fontSize: 12)),
                 const SizedBox(height: 8),
-                SegmentedButton<DenoiseEngine>(
-                  segments: [
+                SegmentedButton<ExportFormat>(
+                  segments: const [
+                    ButtonSegment(value: ExportFormat.png, label: Text('PNG')),
                     ButtonSegment(
-                      value: DenoiseEngine.cpu,
-                      label: Text(
-                        tr('denoiseEngineCpu'),
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                    ),
-                    ButtonSegment(
-                      value: DenoiseEngine.gpu,
-                      label: Text(
-                        tr('denoiseEngineGpu'),
-                        style: const TextStyle(fontSize: 11),
-                      ),
+                      value: ExportFormat.jpeg,
+                      label: Text('JPEG'),
                     ),
                   ],
-                  selected: {denoiseEngine},
-                  onSelectionChanged: (s) =>
-                      setS(() => denoiseEngine = s.first),
+                  selected: {format},
+                  onSelectionChanged: (s) => setS(() => format = s.first),
+                ),
+                if (format == ExportFormat.jpeg) ...[
+                  const SizedBox(height: 14),
+                  Text(
+                    '${tr('quality')}: $quality',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  Slider(
+                    value: quality.toDouble(),
+                    min: 50,
+                    max: 100,
+                    onChanged: (v) => setS(() => quality = v.round()),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Text(
+                  tr('exportFilename'),
+                  style: const TextStyle(fontSize: 12),
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  initialValue: template,
+                  style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                    hintText: ExportTemplate.defaultTemplate,
+                    suffixText: '.${format.extension}',
+                  ),
+                  onChanged: (v) => setS(() => template = v),
                 ),
                 const SizedBox(height: 4),
+                // 实时预览
                 Text(
-                  denoiseEngine == DenoiseEngine.cpu
-                      ? tr('denoiseEngineCpuHint')
-                      : tr('denoiseEngineGpuHint'),
+                  '${tr('exportFilenamePreview')}: '
+                  '${ExportTemplate.apply(template: template.isEmpty ? ExportTemplate.defaultTemplate : template, originalName: firstName, seq: 1)}.${format.extension}',
                   style: TextStyle(
                     fontSize: 10.5,
-                    color: Colors.white.withValues(alpha: 0.5),
+                    fontFamily: 'monospace',
+                    color: Colors.greenAccent.withValues(alpha: 0.7),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (isBatch &&
+                    !ExportTemplate.hasDistinctToken(
+                      template.isEmpty
+                          ? ExportTemplate.defaultTemplate
+                          : template,
+                    )) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    tr(
+                      'exportFilenameBatchWarn',
+                    ), // "批量导出建议含 {seq} 或 {name}，否则自动加序号"
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.orangeAccent.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+                // 占位符
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '{name} {seq} {seq3} {date} {camera} {iso}',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontFamily: 'monospace',
+                      color: Colors.white.withValues(alpha: 0.35),
+                    ),
                   ),
                 ),
-              ],
-              const SizedBox(height: 8),
-              Text(
-                tr('exportDescription'),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(height: 4),
-              if (format == ExportFormat.jpeg) ...[
-                const SizedBox(height: 8),
-                CheckboxListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: writeExif,
-                  title: Text(
-                    tr('exportWriteExif'),
-                    style: const TextStyle(fontSize: 12.5),
+                if (hasDenoise) ...[
+                  const SizedBox(height: 14),
+                  Text(
+                    tr('denoiseEngine'),
+                    style: const TextStyle(fontSize: 12),
                   ),
-                  subtitle: Text(
-                    tr('exportWriteExifDesc'),
+                  const SizedBox(height: 8),
+                  SegmentedButton<DenoiseEngine>(
+                    segments: [
+                      ButtonSegment(
+                        value: DenoiseEngine.cpu,
+                        label: Text(
+                          tr('denoiseEngineCpu'),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: DenoiseEngine.gpu,
+                        label: Text(
+                          tr('denoiseEngineGpu'),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ],
+                    selected: {denoiseEngine},
+                    onSelectionChanged: (s) =>
+                        setS(() => denoiseEngine = s.first),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    denoiseEngine == DenoiseEngine.cpu
+                        ? tr('denoiseEngineCpuHint')
+                        : tr('denoiseEngineGpuHint'),
                     style: TextStyle(
                       fontSize: 10.5,
                       color: Colors.white.withValues(alpha: 0.5),
                     ),
                   ),
-                  onChanged: (v) => setS(() => writeExif = v ?? true),
+                ],
+                const SizedBox(height: 8),
+                Text(
+                  tr('exportDescription'),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
                 ),
+                const SizedBox(height: 4),
+                if (format == ExportFormat.jpeg) ...[
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: writeExif,
+                    title: Text(
+                      tr('exportWriteExif'),
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                    subtitle: Text(
+                      tr('exportWriteExifDesc'),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    onChanged: (v) => setS(() => writeExif = v ?? true),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           actions: [
             TextButton(

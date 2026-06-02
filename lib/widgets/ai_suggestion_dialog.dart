@@ -94,76 +94,81 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
       ),
       content: SizedBox(
         width: 480,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _intentController,
-              enabled: !_loading,
-              decoration: InputDecoration(
-                hintText: tr("aiColorSuggestionPrompt"),
-                hintStyle: const TextStyle(fontSize: 11.5),
-                isDense: true,
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _intentController,
+                enabled: !_loading,
+                decoration: InputDecoration(
+                  hintText: tr("aiColorSuggestionPrompt"),
+                  hintStyle: const TextStyle(fontSize: 11.5),
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                 ),
+                style: const TextStyle(fontSize: 12),
+                maxLines: 2,
               ),
-              style: const TextStyle(fontSize: 12),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 14),
-            if (_loading)
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                        tr("aiColorInProgress"),
-                        style: TextStyle(fontSize: 11.5),
-                      ),
-                    ],
+              const SizedBox(height: 14),
+              if (_loading)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          tr("aiColorInProgress"),
+                          style: TextStyle(fontSize: 11.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (_error != null)
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: Colors.redAccent.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.redAccent,
+                    ),
+                  ),
+                )
+              else if (_suggestion != null)
+                _SuggestionView(suggestion: _suggestion!)
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    tr("aiColorSuggestionDescription"),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
                   ),
                 ),
-              )
-            else if (_error != null)
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: Colors.redAccent.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(fontSize: 11, color: Colors.redAccent),
-                ),
-              )
-            else if (_suggestion != null)
-              _SuggestionView(suggestion: _suggestion!)
-            else
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(
-                  tr("aiColorSuggestionDescription"),
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: Colors.white.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [

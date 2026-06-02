@@ -428,7 +428,7 @@ class _EditingTiles extends ConsumerWidget {
           trailing: DropdownButton<int>(
             value: ref.watch(denoiseParallelismProvider),
             items: [
-              DropdownMenuItem(value: 0, child: Text(tr('auto'))),
+              DropdownMenuItem(value: 0, child: Text(tr('auto'), style: TextStyle(fontSize: 12))),
               for (final n in [1, 2, 4, 6, 8, 12, 16])
                 DropdownMenuItem(value: n, child: Text('$n')),
             ],
