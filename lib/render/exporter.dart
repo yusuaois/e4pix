@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
 import 'cpu_denoise.dart';
+import 'exif_writer.dart';
 import 'export_template.dart';
 import 'full_pipeline_renderer.dart';
 import 'pixel_convert.dart';
@@ -64,6 +65,7 @@ class Exporter {
     DenoiseEngine denoiseEngine = DenoiseEngine.cpu,
     int denoiseParallelism = 4,
     int jpegQuality = 95,
+    bool writeExif = true,
     ExportProgress? onProgress,
   }) async {
     onProgress?.call(0.05, tr('exportDecodingImage'));
@@ -112,7 +114,12 @@ class Exporter {
     );
     final outputPath = p.join(outputDir, filename);
 
-    final bytes = await _encode(output, format, jpegQuality);
+    final bytes = await _encode(
+      output,
+      format,
+      jpegQuality,
+      writeExif ? raw.metadata : null,
+    );
     output.dispose();
 
     onProgress?.call(0.95, tr('writingFile'));
@@ -152,6 +159,7 @@ class Exporter {
     ui.Image output,
     ExportFormat format,
     int jpegQuality,
+    RawMetadata? exifMetadata,
   ) async {
     switch (format) {
       case ExportFormat.png:
@@ -168,6 +176,9 @@ class Exporter {
             bytes: buffer,
             order: img_pkg.ChannelOrder.rgba,
           );
+          if (exifMetadata != null) {
+            writeExifToImage(image, exifMetadata);
+          }
           return img_pkg.encodeJpg(image, quality: jpegQuality);
         });
     }

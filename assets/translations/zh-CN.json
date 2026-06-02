@@ -293,5 +293,7 @@
   "auto": "自动",
   "exportFilename": "文件名",
   "exportFilenamePreview": "预览",
-  "exportFilenameBatchWarn": "批量导出建议包含 {seq} 或 {name}，否则将自动追加序号"
+  "exportFilenameBatchWarn": "批量导出建议包含 {seq} 或 {name}，否则将自动追加序号",
+  "exportWriteExif": "写入拍摄信息",
+  "exportWriteExifDesc": "将相机、镜头、曝光参数等 EXIF 写入导出的 JPEG"
 }

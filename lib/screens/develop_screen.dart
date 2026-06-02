@@ -273,8 +273,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final hasDenoise = tasks.any(
       (t) => t.params.denoiseLuma > 0.001 || t.params.denoiseColor > 0.001,
     );
-    String template = ref.read(exportTemplateProvider); // ⭐
+    String template = ref.read(exportTemplateProvider);
     final isBatch = tasks.length > 1;
+    bool writeExif = true;
     final firstName = ExportTemplate.stripExtension(
       p.basename(tasks.first.path),
     );
@@ -415,6 +416,28 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   color: Colors.white.withValues(alpha: 0.6),
                 ),
               ),
+              const SizedBox(height: 4),
+              if (format == ExportFormat.jpeg) ...[
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: writeExif,
+                  title: Text(
+                    tr('exportWriteExif'),
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
+                  subtitle: Text(
+                    tr('exportWriteExifDesc'),
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  onChanged: (v) => setS(() => writeExif = v ?? true),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -447,7 +470,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       tasks,
       denoiseEngine,
       template,
-    ); // ⭐ +template
+      writeExif,
+    );
   }
 
   Future<void> _runExport(
@@ -457,6 +481,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     List<ExportTask> tasks,
     DenoiseEngine denoiseEngine,
     String template,
+    bool writeExif,
   ) async {
     final program = ref.read(shaderProgramProvider).value;
     if (program == null) return;
@@ -496,7 +521,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     try {
       for (int i = 0; i < tasks.length; i++) {
         final task = tasks[i];
-        // ❌ 删掉 outName/outPath 手动拼接
         final baseFrac = i / tasks.length;
         final span = 1 / tasks.length;
         final maskProgram = ref.read(maskShaderProgramProvider).value;
@@ -507,10 +531,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
         final file = await Exporter.exportFullRes(
           inputRawPath: task.path,
-          outputDir: folder, // ⭐ 目录
-          filenameTemplate: effectiveTemplate, // ⭐
-          seq: i + 1, // ⭐ 1-based
-          usedNames: usedNames, // ⭐ 去重
+          outputDir: folder,
+          filenameTemplate: effectiveTemplate,
+          seq: i + 1,
+          usedNames: usedNames,
           format: fmt,
           shaderProgram: program,
           maskProgram: maskProgram,
@@ -525,6 +549,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           denoiseEngine: denoiseEngine,
           denoiseParallelism: ref.read(denoiseParallelismProvider), // 若接了并行度
           jpegQuality: quality,
+          writeExif: writeExif,
           onProgress: (f, s) {
             if (tasks.length == 1) {
               progressNotifier.value = (f, s);
@@ -539,7 +564,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             }
           },
         );
-        lastOutPath = file.path; // ⭐ 用返回的 file.path
+        lastOutPath = file.path;
         doneCount = i + 1;
       }
       stopwatch.stop();

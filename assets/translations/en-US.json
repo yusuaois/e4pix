@@ -293,5 +293,7 @@
   "auto": "Auto",
   "exportFilename": "File Name",
   "exportFilenamePreview": "Preview",
-  "exportFilenameBatchWarn": "For batch export, it is recommended to include {seq} or {name} to avoid automatic numbering."
+  "exportFilenameBatchWarn": "For batch export, it is recommended to include {seq} or {name} to avoid automatic numbering.",
+  "exportWriteExif": "Write EXIF Information",
+  "exportWriteExifDesc": "Write camera, lens, and exposure parameters as EXIF data to the exported JPEG"
 }

@@ -22,7 +22,7 @@ class CompareButton extends ConsumerWidget {
         child: Tooltip(
           message: tr('compareHint'),
           child: SizedBox(
-            width: boxSize,           // ⭐ 固定 box，和 _iconBtn 一致
+            width: boxSize,
             height: boxSize,
             child: Center(
               child: AnimatedContainer(
