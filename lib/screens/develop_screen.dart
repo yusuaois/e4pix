@@ -267,7 +267,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
     ExportFormat format = ExportFormat.png;
     int quality = ref.read(exportQualityProvider);
+    DenoiseEngine denoiseEngine = DenoiseEngine.cpu;
+
     final isBatch = tasks.length > 1;
+    final hasDenoise = tasks.any(
+      (t) => t.params.denoiseLuma > 0.001 || t.params.denoiseColor > 0.001,
+    );
 
     final ok = await showDialog<bool>(
       context: context,
@@ -305,6 +310,42 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   onChanged: (v) => setS(() => quality = v.round()),
                 ),
               ],
+              if (hasDenoise) ...[
+                const SizedBox(height: 14),
+                Text(tr('denoiseEngine'), style: const TextStyle(fontSize: 12)),
+                const SizedBox(height: 8),
+                SegmentedButton<DenoiseEngine>(
+                  segments: [
+                    ButtonSegment(
+                      value: DenoiseEngine.cpu,
+                      label: Text(
+                        tr('denoiseEngineCpu'),
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+                    ButtonSegment(
+                      value: DenoiseEngine.gpu,
+                      label: Text(
+                        tr('denoiseEngineGpu'),
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
+                  selected: {denoiseEngine},
+                  onSelectionChanged: (s) =>
+                      setS(() => denoiseEngine = s.first),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  denoiseEngine == DenoiseEngine.cpu
+                      ? tr('denoiseEngineCpuHint')
+                      : tr('denoiseEngineGpuHint'),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               Text(
                 tr('exportDescription'),
@@ -334,7 +375,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       dialogTitle: tr('saveTo'),
     );
     if (folder == null) return;
-    await _runExport(folder, format, quality, tasks);
+    await _runExport(folder, format, quality, tasks, denoiseEngine);
   }
 
   Future<void> _runExport(
@@ -342,6 +383,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     ExportFormat fmt,
     int quality,
     List<ExportTask> tasks,
+    DenoiseEngine denoiseEngine,
   ) async {
     final program = ref.read(shaderProgramProvider).value;
     if (program == null) return;
@@ -407,6 +449,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           lutSizeB: lut.sizeB,
           curveTexture: ref.watch(effectiveCurveTextureProvider),
           sharpenProgram: ref.read(sharpenShaderProgramProvider).value,
+          denoiseProgram: ref.read(denoiseShaderProgramProvider).value,
+          denoiseEngine: denoiseEngine,
           jpegQuality: quality,
           onProgress: (f, s) {
             if (tasks.length == 1) {
@@ -1230,106 +1274,4 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       }
     }
   }
-}
-
-@override
-Widget build(BuildContext context, WidgetRef ref) {
-  final ai = ref.watch(aiAutoNotifierProvider);
-
-  if (ai.inProgress && ai.pendingSuggestion == null) {
-    return Container(
-      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(
-              strokeWidth: 1.5,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            tr("aiColorInProgress"),
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  if (ai.pendingSuggestion == null) return const SizedBox.shrink();
-
-  final s = ai.pendingSuggestion!;
-  return Material(
-    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-    child: InkWell(
-      onTap: () {
-        ref.read(aiAutoNotifierProvider.notifier).applyPending();
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Icon(
-              Icons.auto_awesome,
-              size: 14,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: tr("aiColorSuggestionLabel"),
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    TextSpan(
-                      text: s.mood.isNotEmpty
-                          ? s.mood
-                          : tr("aiColorSuggestionReady"),
-                      style: const TextStyle(fontSize: 11.5),
-                    ),
-                  ],
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            TextButton(
-              onPressed: () =>
-                  ref.read(aiAutoNotifierProvider.notifier).applyPending(),
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-              ),
-              child: Text(tr("apply"), style: const TextStyle(fontSize: 11)),
-            ),
-            TextButton(
-              onPressed: () =>
-                  ref.read(aiAutoNotifierProvider.notifier).dismissPending(),
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-              ),
-              child: Text(
-                tr("ignore"),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.6),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }

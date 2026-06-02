@@ -397,21 +397,48 @@ class _EditingTiles extends ConsumerWidget {
           onChanged: (v) => ref.read(sidecarEnabledProvider.notifier).set(v),
         ),
 
+        // 键位设置
         ListTile(
-      leading: const Icon(Icons.keyboard_outlined, size: 20),
-      title: Text(
-        tr('settingsKeybindings'),
-        style: const TextStyle(fontSize: 13.5),
-      ),
-      subtitle: Text(
-        tr('settingsKeybindingsHint'),
-        style: const TextStyle(fontSize: 11, color: Colors.white54),
-      ),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const KeybindingSettingsScreen()),
-      ),
-    ),
+          leading: const Icon(Icons.keyboard_outlined, size: 20),
+          title: Text(
+            tr('settingsKeybindings'),
+            style: const TextStyle(fontSize: 13.5),
+          ),
+          subtitle: Text(
+            tr('settingsKeybindingsHint'),
+            style: const TextStyle(fontSize: 11, color: Colors.white54),
+          ),
+          trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const KeybindingSettingsScreen()),
+          ),
+        ),
+
+        // 降噪并行度
+        ListTile(
+          leading: const Icon(Icons.memory, size: 20),
+          title: Text(
+            tr('denoiseParallelism'),
+            style: const TextStyle(fontSize: 13.5),
+          ),
+          subtitle: Text(
+            tr('denoiseParallelismDesc'),
+            style: const TextStyle(fontSize: 11, color: Colors.white54),
+          ),
+          trailing: DropdownButton<int>(
+            value: ref.watch(denoiseParallelismProvider),
+            items: [
+              DropdownMenuItem(value: 0, child: Text(tr('auto'))),
+              for (final n in [1, 2, 4, 6, 8, 12, 16])
+                DropdownMenuItem(value: n, child: Text('$n')),
+            ],
+            onChanged: (v) {
+              if (v != null) {
+                ref.read(denoiseParallelismProvider.notifier).set(v);
+              }
+            },
+          ),
+        ),
       ],
     );
   }

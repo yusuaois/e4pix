@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:isolate';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img_pkg;
 import '../core/color/srgb_lut.dart';
 import '../core/models/adjustment_params.dart';
@@ -12,6 +13,8 @@ import '../native/raw_bridge.dart';
 import 'full_pipeline_renderer.dart';
 
 enum ExportFormat { png, jpeg }
+
+enum DenoiseEngine { gpu, cpu }
 
 extension ExportFormatExt on ExportFormat {
   String get extension => switch (this) {
@@ -37,6 +40,8 @@ class Exporter {
     int lutSizeB = 0,
     ui.Image? curveTexture,
     ui.FragmentProgram? sharpenProgram,
+    ui.FragmentProgram? denoiseProgram,
+    DenoiseEngine denoiseEngine = DenoiseEngine.cpu,
     int jpegQuality = 95,
     ExportProgress? onProgress,
   }) async {
@@ -45,8 +50,10 @@ class Exporter {
 
     final wantDenoise =
         params.denoiseLuma > 0.001 || params.denoiseColor > 0.001;
+    final useCpuDenoise = wantDenoise && denoiseEngine == DenoiseEngine.cpu;
+
     final ui.Image sourceImage;
-    if (wantDenoise) {
+    if (useCpuDenoise) {
       // CPU 16-bit 线性降噪 + 转换
       sourceImage = await _rawToUiImageWithDenoise(
         raw,
@@ -57,7 +64,7 @@ class Exporter {
         0.78,
       );
     } else {
-      // 无降噪
+      // 无降噪 或 GPU 降噪
       onProgress?.call(0.40, tr("exportTransformingColorSpace"));
       sourceImage = await _rawToUiImage(raw);
     }
@@ -74,6 +81,10 @@ class Exporter {
       lutSizeB: lutSizeB,
       curveTexture: curveTexture,
       sharpenProgram: sharpenProgram,
+      // GPU 降噪
+      denoiseProgram: (wantDenoise && denoiseEngine == DenoiseEngine.gpu)
+          ? denoiseProgram
+          : null,
       targetWidth: sourceImage.width,
       targetHeight: sourceImage.height,
     );
@@ -114,50 +125,64 @@ class Exporter {
     double progressStart,
     double progressEnd,
   ) async {
-    final receivePort = ReceivePort();
-    final completer = Completer<Uint8List>();
+    final src = raw.pixels as Uint16List;
+    final w = raw.width, h = raw.height;
 
-    receivePort.listen((msg) {
-      if (msg is double) {
-        // 转换进度
-        onProgress?.call(
-          progressStart + (progressEnd - progressStart) * msg,
-          tr("exportDenoising"),
-        );
-      } else if (msg is Uint8List) {
-        completer.complete(msg);
-        receivePort.close();
-      }
-    });
+    final denoiseEnd = progressStart + (progressEnd - progressStart) * 0.85;
 
-    await Isolate.spawn(
-      _denoiseConvertIsolate,
-      _DenoiseConvertParams(
-        sendPort: receivePort.sendPort,
-        pixels: raw.pixels as Uint16List,
-        width: raw.width,
-        height: raw.height,
-        channels: raw.channels,
-        luma: luma,
-        color: color,
-        srgbLut: Uint8List.fromList(srgbLut16To8),
+    // 降噪
+    final denoised = await _cpuDenoiseParallel(
+      src,
+      w,
+      h,
+      luma,
+      color,
+      onProgress: (f) => onProgress?.call(
+        progressStart + (denoiseEnd - progressStart) * f,
+        tr("exportDenoising"),
       ),
     );
 
-    final rgba = await completer.future;
+    onProgress?.call(denoiseEnd, tr("exportTransformingColorSpace"));
 
-    final imgCompleter = Completer<ui.Image>();
+    final rgba = await _convertDenoisedToRgba(denoised, w, h);
+
+    onProgress?.call(progressEnd, tr("exportTransformingColorSpace"));
+
+    final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
       rgba,
-      raw.width,
-      raw.height,
+      w,
+      h,
       ui.PixelFormat.rgba8888,
-      imgCompleter.complete,
+      completer.complete,
     );
-    return imgCompleter.future;
+    return completer.future;
   }
 
-  // 16-bit linear RGB → sRGB-encoded ui.Image
+  static Future<Uint8List> _convertDenoisedToRgba(
+    Uint16List denoised,
+    int w,
+    int h,
+  ) async {
+    return Isolate.run(() => _convert16ToRgba(denoised, w, h));
+  }
+
+  // 16-bit 线性 → 8-bit sRGB rgba
+  static Uint8List _convert16ToRgba(Uint16List denoised, int w, int h) {
+    final lut = Uint8List.fromList(srgbLut16To8);
+    final out = Uint8List(w * h * 4);
+    final total = w * h;
+    for (int i = 0, j = 0; i < total; i++, j += 4) {
+      final si = i * 3;
+      out[j] = lut[denoised[si]];
+      out[j + 1] = lut[denoised[si + 1]];
+      out[j + 2] = lut[denoised[si + 2]];
+      out[j + 3] = 255;
+    }
+    return out;
+  }
+
   static Future<ui.Image> _rawToUiImage(RawDecodedImage raw) async {
     final bytes = await Isolate.run(() {
       final lutCopy = Uint8List.fromList(srgbLut16To8);
@@ -198,62 +223,127 @@ class Exporter {
   }
 }
 
-// 传给 isolate 的参数包
-class _DenoiseConvertParams {
-  final SendPort sendPort;
-  final Uint16List pixels; // 16-bit RGB 交错线性
-  final int width;
-  final int height;
-  final int channels;
-  final double luma; // 0-1
-  final double color; // 0-1
-  final Uint8List srgbLut; // 16→8 sRGB 查表
+// 最大邻域半径（颜色满强度 ±24）
+const int _kMaxDenoiseRadius = 24;
 
-  _DenoiseConvertParams({
-    required this.sendPort,
+// 并行降噪
+Future<Uint16List> _cpuDenoiseParallel(
+  Uint16List src,
+  int w,
+  int h,
+  double luma,
+  double color, {
+  required void Function(double) onProgress,
+  int parallelism = 4,
+}) async {
+  int nBands = parallelism <= 0
+      ? Platform
+            .numberOfProcessors // 0 = 自动
+      : parallelism;
+  if (nBands > 16) nBands = 16;
+  if (nBands < 1) nBands = 1;
+  if (h < nBands * (2 * _kMaxDenoiseRadius + 4)) nBands = 1;
+  debugPrint('[denoise] nBands=$nBands, prep tasks...');
+
+  final rowsPerBand = (h / nBands).ceil();
+
+  final tasks = <_BandTask>[];
+  for (int b = 0; b < nBands; b++) {
+    final startRow = b * rowsPerBand;
+    if (startRow >= h) continue;
+    final endRow = math.min(startRow + rowsPerBand, h);
+    final bandRows = endRow - startRow;
+    final haloStart = math.max(0, startRow - _kMaxDenoiseRadius);
+    final haloEnd = math.min(h, endRow + _kMaxDenoiseRadius);
+    final haloTop = startRow - haloStart;
+    final totalRows = haloEnd - haloStart;
+
+    final bandLen = totalRows * w * 3;
+    final bandPixels = Uint16List(bandLen);
+    bandPixels.setRange(0, bandLen, src, haloStart * w * 3);
+
+    tasks.add(
+      _BandTask(
+        bandId: b,
+        pixels: bandPixels,
+        width: w,
+        totalRows: totalRows,
+        bandRows: bandRows,
+        haloTop: haloTop,
+        luma: luma,
+        color: color,
+      ),
+    );
+  }
+
+  // 启动
+  final futures = <Future<_BandOut>>[];
+  for (final task in tasks) {
+    futures.add(_runBandIsolate(task));
+  }
+
+  int completed = 0;
+  final total = futures.length;
+  final outs = <_BandOut>[];
+  for (final f in futures) {
+    final out = await f;
+    outs.add(out);
+    completed++;
+    onProgress(completed / total);
+  }
+
+  final result = Uint16List(w * h * 3);
+  outs.sort((a, b) => a.bandId.compareTo(b.bandId));
+  int offset = 0;
+  for (final o in outs) {
+    result.setRange(offset, offset + o.pixels.length, o.pixels);
+    offset += o.pixels.length;
+  }
+  return result;
+}
+
+Future<_BandOut> _runBandIsolate(_BandTask task) {
+  return Isolate.run(() => _denoiseBandTask(task));
+}
+
+class _BandTask {
+  final int bandId;
+  final Uint16List pixels;
+  final int width;
+  final int totalRows;
+  final int bandRows;
+  final int haloTop;
+  final double luma;
+  final double color;
+  _BandTask({
+    required this.bandId,
     required this.pixels,
     required this.width,
-    required this.height,
-    required this.channels,
+    required this.totalRows,
+    required this.bandRows,
+    required this.haloTop,
     required this.luma,
     required this.color,
-    required this.srgbLut,
   });
 }
 
-// 降噪（16-bit 线性）→ 转 8-bit sRGB → 回传
-void _denoiseConvertIsolate(_DenoiseConvertParams p) {
-  final send = p.sendPort;
-  final w = p.width, h = p.height;
-  final src = p.pixels;
+class _BandOut {
+  final int bandId;
+  final Uint16List pixels;
+  _BandOut(this.bandId, this.pixels);
+}
 
-  // 进度
-  void progress(double f) => send.send(f);
-
-  // 降噪 Uint16List
+_BandOut _denoiseBandTask(_BandTask t) {
   final denoised = _cpuDenoise16(
-    src,
-    w,
-    h,
-    p.luma,
-    p.color,
-    onProgress: (f) => progress(f * 0.85),
+    t.pixels,
+    t.width,
+    t.totalRows,
+    t.luma,
+    t.color,
   );
-
-  // 8-bit sRGB rgba
-  final lut = p.srgbLut;
-  final rgba = Uint8List(w * h * 4);
-  final total = w * h;
-  for (int i = 0, j = 0; i < total; i++, j += 4) {
-    final si = i * 3;
-    rgba[j] = lut[denoised[si]];
-    rgba[j + 1] = lut[denoised[si + 1]];
-    rgba[j + 2] = lut[denoised[si + 2]];
-    rgba[j + 3] = 255;
-    if ((i & 0x3FFFF) == 0) progress(0.85 + 0.15 * (i / total));
-  }
-
-  send.send(rgba);
+  final result = Uint16List(t.width * t.bandRows * 3);
+  result.setRange(0, result.length, denoised, t.haloTop * t.width * 3);
+  return _BandOut(t.bandId, result);
 }
 
 // 16-bit 线性 RGB 交错 → 降噪 → 16-bit 线性 RGB 交错
@@ -263,7 +353,7 @@ Uint16List _cpuDenoise16(
   int h,
   double luma,
   double color, {
-  required void Function(double) onProgress,
+  void Function(double)? onProgress,
 }) {
   final out = Uint16List(src.length);
   final n = w * h;
@@ -283,17 +373,57 @@ Uint16List _cpuDenoise16(
     Cr[i] = (r - y) * 0.6350 + 0.5;
   }
 
-  // sigma线性域
   final sigmaY = _lerp(0.003, 0.05, luma);
   final sigmaC = _lerp(0.02, 0.35, color);
-
-  // 半径
-  const int RY = 2; // 明度 5x5
-  final double radiusC = _lerp(6.0, 24.0, color); // 颜色半径，满强度 ±24
-  final int stepsC = 4; // 颜色稀疏 9x9
+  const int RY = 2;
+  final double radiusC = _lerp(6.0, 24.0, color);
+  final int stepsC = 4;
   final double stepC = radiusC / stepsC;
-  final double spatialY2 = 4.0; // 明度空间 sigma^2
+  final double spatialY2 = 4.0;
   final double spatialC2 = radiusC * radiusC * 0.35;
+
+  // 预计算 exp 衰减查找表
+  const int kLutSize = 2048;
+  const double kLutMax = 10.0;
+  final expLut = Float32List(kLutSize);
+  for (int i = 0; i < kLutSize; i++) {
+    expLut[i] = math.exp(-(i / kLutSize) * kLutMax);
+  }
+
+  // 预计算明度空间权重 (5x5)
+  final int wy = 2 * RY + 1;
+  final spatialYLut = Float32List(wy * wy);
+  {
+    int k = 0;
+    for (int dy = -RY; dy <= RY; dy++) {
+      for (int dx = -RY; dx <= RY; dx++) {
+        spatialYLut[k++] = math.exp(-(dx * dx + dy * dy) / (2.0 * spatialY2));
+      }
+    }
+  }
+
+  // 预计算颜色空间权重 + 整数偏移 (9x9)
+  final int wc = 2 * stepsC + 1;
+  final spatialCLut = Float32List(wc * wc);
+  final offCx = Int32List(wc * wc);
+  final offCy = Int32List(wc * wc);
+  {
+    int k = 0;
+    for (int sy = -stepsC; sy <= stepsC; sy++) {
+      for (int sx = -stepsC; sx <= stepsC; sx++) {
+        final ox = sx * stepC, oy = sy * stepC;
+        spatialCLut[k] = math.exp(-(ox * ox + oy * oy) / (2.0 * spatialC2));
+        offCx[k] = ox.round();
+        offCy[k] = oy.round();
+        k++;
+      }
+    }
+  }
+
+  // range 权重的归一化系数（把 d² 映射到 LUT 索引）
+  final double invDenomY = 1.0 / (2.0 * sigmaY * sigmaY);
+  final double invDenomC = 1.0 / (2.0 * sigmaC * sigmaC);
+  final double lutScale = kLutSize / kLutMax;
 
   final outY = Float32List(n);
   final outCb = Float32List(n);
@@ -310,16 +440,21 @@ Uint16List _cpuDenoise16(
       // 明度 5x5
       if (doLuma) {
         double acc = 0, sum = 0;
+        int k = 0;
         for (int dy = -RY; dy <= RY; dy++) {
           final yy = y0 + dy;
-          if (yy < 0 || yy >= h) continue;
           for (int dx = -RY; dx <= RY; dx++) {
             final xx = x0 + dx;
-            if (xx < 0 || xx >= w) continue;
+            if (yy < 0 || yy >= h || xx < 0 || xx >= w) {
+              k++;
+              continue;
+            }
             final si = yy * w + xx;
-            final spatial = _expf(-(dx * dx + dy * dy) / (2.0 * spatialY2));
+            final spatial = spatialYLut[k++];
             final dY = Y[si] - cY;
-            final range = _expf(-(dY * dY) / (2.0 * sigmaY * sigmaY));
+            // range 查表
+            final e = dY * dY * invDenomY * lutScale;
+            final range = e >= kLutSize ? 0.0 : expLut[e.toInt()];
             final wgt = spatial * range;
             acc += Y[si] * wgt;
             sum += wgt;
@@ -330,27 +465,22 @@ Uint16List _cpuDenoise16(
         outY[ci] = cY;
       }
 
-      // 颜色
+      // 颜色 9x9 稀疏
       if (doColor) {
         double accCb = 0, accCr = 0, sum = 0;
-        for (int sy = -stepsC; sy <= stepsC; sy++) {
-          final yy = (y0 + (sy * stepC)).round();
-          if (yy < 0 || yy >= h) continue;
-          for (int sx = -stepsC; sx <= stepsC; sx++) {
-            final xx = (x0 + (sx * stepC)).round();
-            if (xx < 0 || xx >= w) continue;
-            final si = yy * w + xx;
-            final ox = sx * stepC, oy = sy * stepC;
-            final spatial = _expf(-(ox * ox + oy * oy) / (2.0 * spatialC2));
-            final dCb = Cb[si] - cCb, dCr = Cr[si] - cCr;
-            final range = _expf(
-              -(dCb * dCb + dCr * dCr) / (2.0 * sigmaC * sigmaC),
-            );
-            final wgt = spatial * range;
-            accCb += Cb[si] * wgt;
-            accCr += Cr[si] * wgt;
-            sum += wgt;
-          }
+        for (int k = 0; k < wc * wc; k++) {
+          final yy = y0 + offCy[k];
+          final xx = x0 + offCx[k];
+          if (yy < 0 || yy >= h || xx < 0 || xx >= w) continue;
+          final si = yy * w + xx;
+          final spatial = spatialCLut[k];
+          final dCb = Cb[si] - cCb, dCr = Cr[si] - cCr;
+          final e = (dCb * dCb + dCr * dCr) * invDenomC * lutScale;
+          final range = e >= kLutSize ? 0.0 : expLut[e.toInt()];
+          final wgt = spatial * range;
+          accCb += Cb[si] * wgt;
+          accCr += Cr[si] * wgt;
+          sum += wgt;
         }
         if (sum > 0) {
           outCb[ci] = cCb + (accCb / sum - cCb) * color;
@@ -364,10 +494,9 @@ Uint16List _cpuDenoise16(
         outCr[ci] = cCr;
       }
     }
-    if ((y0 & 0x1F) == 0) onProgress(y0 / h); // 每 32 行更新进度
+    if ((y0 & 0x1F) == 0) onProgress?.call(y0 / h);
   }
 
-  // YCbCr → RGB → 16-bit
   for (int i = 0; i < n; i++) {
     final yv = outY[i];
     final cb = outCb[i] - 0.5;
@@ -384,7 +513,6 @@ Uint16List _cpuDenoise16(
 }
 
 double _lerp(double a, double b, double t) => a + (b - a) * t;
-double _expf(double x) => math.exp(x);
 int _clamp16(double v) {
   final i = (v * 65535.0).round();
   return i < 0 ? 0 : (i > 65535 ? 65535 : i);

@@ -282,5 +282,13 @@
   "keyResetBody": "将所有快捷键恢复为默认值？",
   "denoiseLuma": "明度降噪",
   "denoiseColor": "颜色降噪",
-  "exportDenoising": "降噪处理中"
+  "exportDenoising": "降噪处理中",
+  "denoiseEngine": "降噪方式",
+  "denoiseEngineCpu": "精确",
+  "denoiseEngineGpu": "快速",
+  "denoiseEngineCpuHint": "16 位线性域处理，质量最佳，速度较慢",
+  "denoiseEngineGpuHint": "GPU 加速，与预览效果一致，快速",
+  "denoiseParallelism": "降噪并行度",
+  "denoiseParallelismDesc": "CPU 降噪同时使用的线程数，更高更快但占用更多内存",
+  "auto": "自动"
 }
