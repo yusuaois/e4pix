@@ -51,7 +51,7 @@ jobs:
       - name: ⬇️ Checkout Repository
         uses: actions/checkout@v4
         with:
-          submodules: 'true'
+          submodules: "true"
 
       - name: 🐦 Setup Flutter
         uses: subosito/flutter-action@v2
@@ -87,10 +87,11 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
-      - name: 📝 Inject SHA into Release Body
+      - name: 📝 Clean Changelog & Inject SHA
         run: |
           SHA_VALUE="${{ github.sha }}"
-          sed "s|__SHA__|${SHA_VALUE}|g" ./CHANGELOG.md > release_body.md
+          sed "s|__SHA__|${SHA_VALUE}|g" ./CHANGELOG.md > temp_changelog.md
+          perl -0777 -pe 's/^##[^\n]*\s+(?=^##|^---)//gms' temp_changelog.md > release_body.md
 
       - name: ✅ Publish Release
         uses: softprops/action-gh-release@v2
