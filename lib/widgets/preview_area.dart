@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/gestures.dart';
 
 import '../core/constants/raw_formats.dart';
 import '../core/models/adjustment_params.dart';
@@ -174,21 +175,25 @@ class PreviewArea extends ConsumerWidget {
       (l) => l.enabled && !l.params.isNeutral,
     );
     final hasSharpen = params.sharpenAmount > 0.001;
-    final hasDenoise = params.denoiseLuma > 0.001 || params.denoiseColor > 0.001;
+    final hasDenoise =
+        params.denoiseLuma > 0.001 || params.denoiseColor > 0.001;
     final needFullPipeline = hasLocals || hasSharpen || hasDenoise;
 
     final selectedLocalId = ref.watch(selectedLocalIdProvider);
 
     Widget wrapOverlay(Widget content, Size displaySize) {
       if (selectedLocalId == null) return content;
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          content,
-          Positioned.fill(
-            child: LocalMaskOverlay(imageDisplaySize: displaySize),
-          ),
-        ],
+      return SizedBox.fromSize(
+        size: displaySize,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            content,
+            Positioned.fill(
+              child: LocalMaskOverlay(imageDisplaySize: displaySize),
+            ),
+          ],
+        ),
       );
     }
 
@@ -199,53 +204,64 @@ class PreviewArea extends ConsumerWidget {
       if (develop == null || maskProgram == null) {
         return const Center(child: CircularProgressIndicator(strokeWidth: 2));
       }
-      return GestureDetector(
-        onTap: () => ref.read(fullscreenPreviewProvider.notifier).state = true,
-        child: LayoutBuilder(
-          builder: (ctx, constraints) {
-            final imgW = state.uiImage.width.toDouble();
-            final imgH = state.uiImage.height.toDouble();
-            final outAspect = params.crop.outAspectFor(imgW, imgH);
-            final isVertical = MediaQuery.of(ctx).size.shortestSide < 600;
-            final previewQ = ref.watch(previewQualityProvider);
-            final (idle, dragging) = previewQ.edges(isVertical: isVertical);
-            final box = applyBoxFit(
-              BoxFit.contain,
-              Size(outAspect, 1.0),
-              constraints.biggest,
-            ).destination;
+      return LayoutBuilder(
+        builder: (ctx, constraints) {
+          final isVertical = MediaQuery.of(ctx).size.shortestSide < 600;
+          final previewQ = ref.watch(previewQualityProvider);
+          final (idle, dragging) = previewQ.edges(isVertical: isVertical);
+          final imgW = state.uiImage.width.toDouble();
+          final imgH = state.uiImage.height.toDouble();
+          final outAspect = params.crop.outAspectFor(imgW, imgH);
+          final box = applyBoxFit(
+            BoxFit.contain,
+            Size(outAspect, 1.0),
+            constraints.biggest,
+          ).destination;
+
+          final preview = MultiPassPreview(
+            developProgram: develop,
+            maskProgram: maskProgram,
+            sourceImage: state.uiImage,
+            params: params,
+            lutTexture: lutEnabled ? lut.textureA : null,
+            lutSize: lutEnabled ? lut.sizeA : 0,
+            lutTextureB: lutEnabled ? lut.textureB : null,
+            lutSizeB: lutEnabled ? lut.sizeB : 0,
+            curveTexture: ref.watch(effectiveCurveTextureProvider),
+            sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
+            denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
+            idleMaxEdge: idle,
+            draggingMaxEdge: dragging,
+          );
+
+          final content = SizedBox.fromSize(size: box, child: preview);
+
+          // 蒙版编辑中
+          if (selectedLocalId != null) {
             return Container(
               color: Colors.black,
               child: Center(
-                child: SizedBox.fromSize(
-                  size: box,
-                  child: wrapOverlay(
-                    MultiPassPreview(
-                      developProgram: develop,
-                      maskProgram: maskProgram,
-                      sourceImage: state.uiImage,
-                      params: params,
-                      lutTexture: lutEnabled ? lut.textureA : null,
-                      lutSize: lutEnabled ? lut.sizeA : 0,
-                      lutTextureB: lutEnabled ? lut.textureB : null,
-                      lutSizeB: lutEnabled ? lut.sizeB : 0,
-                      curveTexture: ref.watch(effectiveCurveTextureProvider),
-                      sharpenProgram: ref
-                          .watch(sharpenShaderProgramProvider)
-                          .value,
-                      denoiseProgram: ref
-                          .watch(denoiseShaderProgramProvider)
-                          .value,
-                      idleMaxEdge: idle,
-                      draggingMaxEdge: dragging,
-                    ),
-                    box,
-                  ),
+                child: GestureDetector(
+                  onTap: () =>
+                      ref.read(fullscreenPreviewProvider.notifier).state = true,
+                  child: wrapOverlay(content, box),
                 ),
               ),
             );
-          },
-        ),
+          }
+
+          // 纯查看
+          return Container(
+            color: Colors.black,
+            child: Center(
+              child: _ZoomableView(
+                onTapNoZoom: () =>
+                    ref.read(fullscreenPreviewProvider.notifier).state = true,
+                child: content,
+              ),
+            ),
+          );
+        },
       );
     }
 
@@ -261,27 +277,43 @@ class PreviewArea extends ConsumerWidget {
             Size(image.width.toDouble(), image.height.toDouble()),
             constraints.biggest,
           );
-          return GestureDetector(
-            onTap: () =>
-                ref.read(fullscreenPreviewProvider.notifier).state = true,
-            child: Container(
+          final imageWidget = PreviewRenderer(
+            image: image,
+            params: params,
+            lutTexture: lutEnabled ? lut.textureA : null,
+            lutSize: lutEnabled ? lut.sizeA : 0,
+            lutTextureB: lutEnabled ? lut.textureB : null,
+            lutSizeB: lutEnabled ? lut.sizeB : 0,
+            curveTexture: ref.watch(effectiveCurveTextureProvider),
+          );
+
+          final content = SizedBox.fromSize(
+            size: fit.destination,
+            child: imageWidget,
+          );
+
+          // 蒙版编辑中
+          if (selectedLocalId != null) {
+            return Container(
               color: Colors.black,
               child: Center(
-                child: SizedBox.fromSize(
-                  size: fit.destination,
-                  child: wrapOverlay(
-                    PreviewRenderer(
-                      image: image,
-                      params: params,
-                      lutTexture: lutEnabled ? lut.textureA : null,
-                      lutSize: lutEnabled ? lut.sizeA : 0,
-                      lutTextureB: lutEnabled ? lut.textureB : null,
-                      lutSizeB: lutEnabled ? lut.sizeB : 0,
-                      curveTexture: ref.watch(effectiveCurveTextureProvider),
-                    ),
-                    fit.destination,
-                  ),
+                child: GestureDetector(
+                  onTap: () =>
+                      ref.read(fullscreenPreviewProvider.notifier).state = true,
+                  child: wrapOverlay(content, fit.destination),
                 ),
+              ),
+            );
+          }
+
+          // 纯查看
+          return Container(
+            color: Colors.black,
+            child: Center(
+              child: _ZoomableView(
+                onTapNoZoom: () =>
+                    ref.read(fullscreenPreviewProvider.notifier).state = true,
+                child: content,
               ),
             ),
           );
@@ -290,79 +322,89 @@ class PreviewArea extends ConsumerWidget {
     }
 
     // 无 local 无锐化 + 有裁剪：原 Transform 模拟裁剪
-    return GestureDetector(
-      onTap: () => ref.read(fullscreenPreviewProvider.notifier).state = true,
-      child: Container(
-        color: Colors.black,
-        child: LayoutBuilder(
-          builder: (ctx, constraints) {
-            final imgW = image.width.toDouble();
-            final imgH = image.height.toDouble();
-            final outAspect = crop.outAspectFor(imgW, imgH);
-            final box = applyBoxFit(
-              BoxFit.contain,
-              Size(outAspect, 1.0),
-              constraints.biggest,
-            ).destination;
+    // 无 local 无锐化 + 有裁剪
+    return Container(
+      color: Colors.black,
+      child: LayoutBuilder(
+        builder: (ctx, constraints) {
+          final imgW = image.width.toDouble();
+          final imgH = image.height.toDouble();
+          final outAspect = crop.outAspectFor(imgW, imgH);
+          final box = applyBoxFit(
+            BoxFit.contain,
+            Size(outAspect, 1.0),
+            constraints.biggest,
+          ).destination;
 
-            final orientedW = crop.orientationSwapsAxes ? imgH : imgW;
-            final orientedH = crop.orientationSwapsAxes ? imgW : imgH;
+          final orientedW = crop.orientationSwapsAxes ? imgH : imgW;
+          final orientedH = crop.orientationSwapsAxes ? imgW : imgH;
 
-            final scale = box.width / (orientedW * crop.width);
-            final renderedFullW = imgW * scale;
-            final renderedFullH = imgH * scale;
-            final renderedOrientedW = orientedW * scale;
-            final renderedOrientedH = orientedH * scale;
+          final scale = box.width / (orientedW * crop.width);
+          final renderedFullW = imgW * scale;
+          final renderedFullH = imgH * scale;
+          final renderedOrientedW = orientedW * scale;
+          final renderedOrientedH = orientedH * scale;
 
-            final matrix = Matrix4.identity()
-              ..translate(box.width / 2, box.height / 2, 0)
-              ..rotateZ(
-                crop.orientation * math.pi / 2 +
-                    crop.straighten * math.pi / 180,
-              )
-              ..scale(crop.flipH ? -1.0 : 1.0, crop.flipV ? -1.0 : 1.0)
-              ..translate(
-                -(crop.x + crop.width / 2) * renderedOrientedW,
-                -(crop.y + crop.height / 2) * renderedOrientedH,
-              );
+          final matrix = Matrix4.identity()
+            ..translate(box.width / 2, box.height / 2, 0)
+            ..rotateZ(
+              crop.orientation * math.pi / 2 + crop.straighten * math.pi / 180,
+            )
+            ..scale(crop.flipH ? -1.0 : 1.0, crop.flipV ? -1.0 : 1.0)
+            ..translate(
+              -(crop.x + crop.width / 2) * renderedOrientedW,
+              -(crop.y + crop.height / 2) * renderedOrientedH,
+            );
 
-            return Center(
-              child: SizedBox.fromSize(
-                size: box,
-                child: wrapOverlay(
-                  ClipRect(
-                    child: Transform(
-                      transform: matrix,
-                      child: OverflowBox(
-                        minWidth: renderedFullW,
-                        maxWidth: renderedFullW,
-                        minHeight: renderedFullH,
-                        maxHeight: renderedFullH,
-                        alignment: Alignment.topLeft,
-                        child: SizedBox(
-                          width: renderedFullW,
-                          height: renderedFullH,
-                          child: PreviewRenderer(
-                            image: image,
-                            params: params,
-                            lutTexture: lutEnabled ? lut.textureA : null,
-                            lutSize: lutEnabled ? lut.sizeA : 0,
-                            lutTextureB: lutEnabled ? lut.textureB : null,
-                            lutSizeB: lutEnabled ? lut.sizeB : 0,
-                            curveTexture: ref.watch(
-                              effectiveCurveTextureProvider,
-                            ),
-                          ),
-                        ),
-                      ),
+          final croppedContent = SizedBox.fromSize(
+            size: box,
+            child: ClipRect(
+              child: Transform(
+                transform: matrix,
+                child: OverflowBox(
+                  minWidth: renderedFullW,
+                  maxWidth: renderedFullW,
+                  minHeight: renderedFullH,
+                  maxHeight: renderedFullH,
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: renderedFullW,
+                    height: renderedFullH,
+                    child: PreviewRenderer(
+                      image: image,
+                      params: params,
+                      lutTexture: lutEnabled ? lut.textureA : null,
+                      lutSize: lutEnabled ? lut.sizeA : 0,
+                      lutTextureB: lutEnabled ? lut.textureB : null,
+                      lutSizeB: lutEnabled ? lut.sizeB : 0,
+                      curveTexture: ref.watch(effectiveCurveTextureProvider),
                     ),
                   ),
-                  box,
                 ),
               ),
+            ),
+          );
+
+          // 蒙版编辑中
+          if (selectedLocalId != null) {
+            return Center(
+              child: GestureDetector(
+                onTap: () =>
+                    ref.read(fullscreenPreviewProvider.notifier).state = true,
+                child: wrapOverlay(croppedContent, box),
+              ),
             );
-          },
-        ),
+          }
+
+          // 纯查看
+          return Center(
+            child: _ZoomableView(
+              onTapNoZoom: () =>
+                  ref.read(fullscreenPreviewProvider.notifier).state = true,
+              child: croppedContent,
+            ),
+          );
+        },
       ),
     );
   }
@@ -583,6 +625,80 @@ class _CenterMessage extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ZoomableView extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTapNoZoom; // 未缩放时单击 → 全屏
+  const _ZoomableView({required this.child, required this.onTapNoZoom});
+
+  @override
+  State<_ZoomableView> createState() => _ZoomableViewState();
+}
+
+class _ZoomableViewState extends State<_ZoomableView> {
+  final _tc = TransformationController();
+  static const _min = 1.0;
+  static const _max = 8.0;
+
+  double get _scale => _tc.value.getMaxScaleOnAxis();
+
+  void _handleScroll(PointerScrollEvent e, Size viewport) {
+    // 以鼠标位置为中心缩放
+    final delta = -e.scrollDelta.dy;
+    final factor = delta > 0 ? 1.15 : 1 / 1.15;
+    final newScale = (_scale * factor).clamp(_min, _max);
+    final actualFactor = newScale / _scale;
+    if (actualFactor == 1.0) return;
+
+    final focal = e.localPosition;
+    final m = _tc.value.clone();
+    // 焦点处缩放
+    m
+      ..translate(focal.dx, focal.dy)
+      ..scale(actualFactor)
+      ..translate(-focal.dx, -focal.dy);
+    _tc.value = m;
+    setState(() {});
+  }
+
+  void _reset() {
+    _tc.value = Matrix4.identity();
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _tc.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        return Listener(
+          onPointerSignal: (s) {
+            if (s is PointerScrollEvent) _handleScroll(s, constraints.biggest);
+          },
+          child: GestureDetector(
+            onDoubleTap: _scale > 1.01 ? _reset : null, // 放大状态双击复位
+            onTap: _scale <= 1.01 ? widget.onTapNoZoom : null, // 未放大进全屏
+            child: InteractiveViewer(
+              transformationController: _tc,
+              minScale: _min,
+              maxScale: _max,
+              panEnabled: true,
+              scaleEnabled: true,
+              clipBehavior: Clip.hardEdge,
+              onInteractionEnd: (_) => setState(() {}),
+              child: widget.child,
+            ),
+          ),
+        );
+      },
     );
   }
 }
