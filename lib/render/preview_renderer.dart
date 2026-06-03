@@ -89,7 +89,7 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
   Future<void> _load() async {
     try {
       final program = await ui.FragmentProgram.fromAsset(
-        'shaders/develop.frag',
+        'assets/shaders/develop.shader',
       );
       if (!mounted) return;
       setState(() => _shader = program.fragmentShader());

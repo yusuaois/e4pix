@@ -299,5 +299,19 @@
   "xmpImport": "导入 XMP",
   "xmpImported": "已导入 {} 项调整：{}",
   "xmpNoFields": "未识别到可导入的参数",
-  "xmpImportFailed": "XMP 导入失败：{}"
+  "xmpImportFailed": "XMP 导入失败：{}",
+  "grain": "颗粒",
+  "grainAmount": "颗粒强度",
+  "grainSize": "颗粒大小",
+  "grainAdvanced": "高级颗粒选项",
+  "grainShadowThreshold": "阴影阈值",
+  "grainHighlightThreshold": "高光阈值",
+  "grainShadowStrength": "阴影强度",
+  "grainHighlightStrength": "高光强度",
+  "grainShadowSize": "阴影颗粒大小",
+  "grainHighlightSize": "高光颗粒大小",
+  "grainRedChannel": "红通道强度",
+  "grainBlueChannel": "蓝通道强度",
+  "grainCorrelation": "通道相关性",
+  "grainColorPreservation": "色彩保护"
 }

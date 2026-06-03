@@ -15,6 +15,7 @@ void applyDevelopUniforms({
 }) {
   final p = params;
   final h = p.hsl;
+  final g = p.grain;
   int i = 0;
   shader.setFloat(i++, renderSize.width);
   shader.setFloat(i++, renderSize.height);
@@ -60,6 +61,20 @@ void applyDevelopUniforms({
 
   final hasCurve = curveTexture != null;
   shader.setFloat(i++, hasCurve ? 1.0 : 0.0); // 42
+
+  // 颗粒 43-54
+  shader.setFloat(i++, g.amount / 100.0); // 43
+  shader.setFloat(i++, g.size); // 44
+  shader.setFloat(i++, g.shadowThreshold / 255.0); // 45
+  shader.setFloat(i++, g.highlightThreshold / 255.0); // 46
+  shader.setFloat(i++, g.shadowStrength); // 47
+  shader.setFloat(i++, g.highlightStrength); // 48
+  shader.setFloat(i++, g.shadowSize); // 49
+  shader.setFloat(i++, g.highlightSize); // 50
+  shader.setFloat(i++, g.redRatio); // 51
+  shader.setFloat(i++, g.blueRatio); // 52
+  shader.setFloat(i++, g.correlation); // 53
+  shader.setFloat(i++, g.colorPreservation); // 54
 
   shader.setImageSampler(0, image);
   shader.setImageSampler(1, lutTexture ?? image);

@@ -9,16 +9,16 @@ import '../core/lut/cube_lut.dart';
 
 // Shader program
 final shaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
-  return ui.FragmentProgram.fromAsset('shaders/develop.frag');
+  return ui.FragmentProgram.fromAsset('assets/shaders/develop.shader');
 });
 final maskShaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
-  return ui.FragmentProgram.fromAsset('shaders/develop_mask.frag');
+  return ui.FragmentProgram.fromAsset('assets/shaders/develop_mask.shader');
 });
 final sharpenShaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
-  return await ui.FragmentProgram.fromAsset('shaders/sharpen.frag');
+  return await ui.FragmentProgram.fromAsset('assets/shaders/sharpen.shader');
 });
 final denoiseShaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
-  return await ui.FragmentProgram.fromAsset('shaders/denoise.frag');
+  return await ui.FragmentProgram.fromAsset('assets/shaders/denoise.shader');
 });
 
 // 1Hz ticker

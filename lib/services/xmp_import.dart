@@ -188,6 +188,15 @@ class XmpImport {
       hit.add('曲线');
     }
 
+    // 颗粒 GrainAmount
+    final grain = _d(values, 'GrainAmount');
+    if (grain != null) {
+      p = p.copyWith(
+        grain: base.grain.copyWith(amount: grain.clamp(0.0, 100.0)),
+      );
+      hit.add('颗粒');
+    }
+
     return (p, hit);
   }
 

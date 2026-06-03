@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.7.9+82
+version: 2.8.0+83
 environment:
   sdk: ^3.11.0
 
@@ -80,6 +80,7 @@ flutter:
   assets:
     - assets/translations/
     - assets/models/
+    - assets/shaders/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -106,10 +107,3 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-
-  # Add custom shaders
-  shaders:
-    - shaders/develop.frag
-    - shaders/develop_mask.frag
-    - shaders/sharpen.frag
-    - shaders/denoise.frag

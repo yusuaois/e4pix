@@ -1,5 +1,6 @@
 import 'package:e4pix/core/models/hsl_bands.dart';
 import 'package:e4pix/core/models/crop_params.dart';
+import 'package:e4pix/core/models/grain_params.dart';
 import 'package:flutter/foundation.dart';
 
 import 'local_adjustment.dart';
@@ -27,6 +28,7 @@ class AdjustmentParams {
   final double lutIntensityB;
   final RgbCurves curves;
   final HslBands hsl;
+  final GrainParams grain; // 胶片颗粒
   final CropParams crop;
   final List<LocalAdjustment> locals;
 
@@ -50,6 +52,7 @@ class AdjustmentParams {
     this.lutIntensityB = 1.0,
     this.curves = RgbCurves.identity,
     this.hsl = HslBands.neutral,
+    this.grain = GrainParams.neutral,
     this.crop = CropParams.identity,
     this.locals = const [],
   });
@@ -76,6 +79,7 @@ class AdjustmentParams {
     double? lutIntensityB,
     RgbCurves? curves,
     HslBands? hsl,
+    GrainParams? grain,
     CropParams? crop,
     List<LocalAdjustment>? locals,
   }) => AdjustmentParams(
@@ -98,6 +102,7 @@ class AdjustmentParams {
     lutIntensityB: lutIntensityB ?? this.lutIntensityB,
     curves: curves ?? this.curves,
     hsl: hsl ?? this.hsl,
+    grain: grain ?? this.grain,
     crop: crop ?? this.crop,
     locals: locals ?? this.locals,
   );
@@ -125,6 +130,7 @@ class AdjustmentParams {
           lutIntensityB == other.lutIntensityB &&
           curves == other.curves &&
           hsl == other.hsl &&
+          grain == other.grain &&
           crop == other.crop &&
           listEquals(locals, other.locals);
 
@@ -149,6 +155,7 @@ class AdjustmentParams {
     lutIntensityB,
     curves,
     hsl,
+    grain,
     crop,
     locals,
   ]);
@@ -173,6 +180,7 @@ class AdjustmentParams {
     'lutIntensityB': lutIntensityB,
     'curves': curves.toJson(),
     'hsl': hsl.toJson(),
+    'grain': grain.toJson(),
     'crop': crop.toJson(),
     'locals': locals.map((e) => e.toJson()).toList(),
   };
@@ -207,6 +215,9 @@ class AdjustmentParams {
     hsl: j['hsl'] != null
         ? HslBands.fromJson(j['hsl'] as Map<String, dynamic>)
         : HslBands.neutral,
+    grain: j['grain'] != null
+        ? GrainParams.fromJson(j['grain'] as Map<String, dynamic>)
+        : GrainParams.neutral,
     crop: j['crop'] != null
         ? CropParams.fromJson(j['crop'] as Map<String, dynamic>)
         : CropParams.identity,

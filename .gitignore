@@ -30,3 +30,4 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /build_native
+e4pix_shader/

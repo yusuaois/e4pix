@@ -299,5 +299,19 @@
   "xmpImport": "Import XMP",
   "xmpImported": "Imported {} adjustments: {}",
   "xmpNoFields": "No importable parameters found",
-  "xmpImportFailed": "XMP import failed: {}"
+  "xmpImportFailed": "XMP import failed: {}",
+  "grain": "Grain",
+  "grainAmount": "Amount",
+  "grainSize": "Size",
+  "grainAdvanced": "Advanced Grain Options",
+  "grainShadowThreshold": "Shadow Threshold",
+  "grainHighlightThreshold": "Highlight Threshold",
+  "grainShadowStrength": "Shadow Strength",
+  "grainHighlightStrength": "Highlight Strength",
+  "grainShadowSize": "Shadow Grain Size",
+  "grainHighlightSize": "Highlight Grain Size",
+  "grainRedChannel": "Red Channel",
+  "grainBlueChannel": "Blue Channel",
+  "grainCorrelation": "Channel Correlation",
+  "grainColorPreservation": "Color Preservation"
 }
