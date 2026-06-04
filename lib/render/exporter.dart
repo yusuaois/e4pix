@@ -13,6 +13,7 @@ import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
 import '../services/image_loader.dart';
 import 'cpu_denoise.dart';
+import 'curve_baker.dart';
 import 'exif_writer.dart';
 import 'export_template.dart';
 import 'full_pipeline_renderer.dart';
@@ -29,24 +30,32 @@ extension ExportFormatExt on ExportFormat {
 
 typedef ExportProgress = void Function(double fraction, String stage);
 
+/// 取消检查回调：返回 true 表示该任务已被取消，应中止
+typedef CancelCheck = bool Function();
+
+/// 导出被取消时抛出
+class ExportCancelledException implements Exception {
+  const ExportCancelledException();
+  @override
+  String toString() => 'ExportCancelledException';
+}
+
 /// 全分辨率导出
 ///
 /// 解码 RAW →（可选）降噪 → 转 8-bit sRGB → 渲染完整管线 → 编码 → 写文件
 ///
-/// 文件名由 [ExportTemplate] 模板生成：解码后 metadata 可用，填充占位符
-/// （日期/相机/ISO 等），经非法字符清理与批量去重（[usedNames]）后得到最终路径。
+/// curve：每张图按自身 [AdjustmentParams.curves] 现生成纹理
+/// LUT：由调用方传入纹理引用
 ///
-/// 降噪两路互斥：
-/// - [DenoiseEngine.cpu]：16-bit 线性域 CPU 并行降噪，渲染时不传 denoiseProgram。
-/// - [DenoiseEngine.gpu]：普通转换，渲染时传 denoiseProgram，由 GPU pass 降噪。
+/// 中断：[isCancelled] 在各阶段之间检查；命中则抛 [ExportCancelledException]
+/// 中断粒度为阶段间（解码后 / 渲染后 / 编码后），最坏等当前阶段结束。
 class Exporter {
   Exporter._();
 
-  /// 导出单张，返回写出的文件。
-  ///
-  /// [outputDir] 输出目录；[filenameTemplate] 文件名模板（见 [ExportTemplate]）；
-  /// [seq] 1-based 序号（批量用）；[usedNames] 跨多次调用累积的已用文件名集合，
-  /// 用于批量去重（单张可传新的空集）。
+  static void _checkCancel(CancelCheck? isCancelled) {
+    if (isCancelled?.call() ?? false) throw const ExportCancelledException();
+  }
+
   static Future<File> exportFullRes({
     required String inputPath,
     required String outputDir,
@@ -61,7 +70,6 @@ class Exporter {
     int lutSize = 0,
     ui.Image? lutTextureB,
     int lutSizeB = 0,
-    ui.Image? curveTexture,
     ui.FragmentProgram? sharpenProgram,
     ui.FragmentProgram? denoiseProgram,
     DenoiseEngine denoiseEngine = DenoiseEngine.cpu,
@@ -69,7 +77,9 @@ class Exporter {
     int jpegQuality = 95,
     bool writeExif = true,
     ExportProgress? onProgress,
+    CancelCheck? isCancelled,
   }) async {
+    _checkCancel(isCancelled);
     onProgress?.call(0.05, tr('exportDecodingImage'));
 
     final ui.Image sourceImage;
@@ -94,56 +104,79 @@ class Exporter {
       );
     }
 
-    onProgress?.call(0.80, tr('exportRenderingImage'));
-    final passDenoiseProgram = isStandard
-        ? (_wantDenoise(params) ? denoiseProgram : null)
-        : (_wantGpuDenoise(params, denoiseEngine) ? denoiseProgram : null);
+    _checkCancel(isCancelled); // 解码后检查点
 
-    final output = await FullPipelineRenderer.render(
-      developProgram: shaderProgram,
-      maskProgram: maskProgram,
-      sourceImage: sourceImage,
-      params: params,
-      lutTexture: lutTexture,
-      lutSize: lutSize,
-      lutTextureB: lutTextureB,
-      lutSizeB: lutSizeB,
-      curveTexture: curveTexture,
-      sharpenProgram: sharpenProgram,
-      denoiseProgram: passDenoiseProgram,
-      targetWidth: sourceImage.width,
-      targetHeight: sourceImage.height,
-    );
+    // curve 纹理
+    ui.Image? curveTexture;
+    try {
+      curveTexture = await bakeCurveTexture(params.curves);
 
-    // 文件名：模板 + metadata + 去重
-    final base = ExportTemplate.apply(
-      template: filenameTemplate,
-      originalName: ExportTemplate.stripExtension(p.basename(inputPath)),
-      seq: seq,
-      metadata: metadata,
-      outWidth: output.width,
-      outHeight: output.height,
-    );
-    final filename = ExportTemplate.ensureUnique(
-      base: base,
-      extension: format.extension,
-      used: usedNames,
-    );
-    final outputPath = p.join(outputDir, filename);
+      onProgress?.call(0.80, tr('exportRenderingImage'));
+      final passDenoiseProgram = isStandard
+          ? (_wantDenoise(params) ? denoiseProgram : null)
+          : (_wantGpuDenoise(params, denoiseEngine) ? denoiseProgram : null);
 
-    final bytes = await _encode(
-      output,
-      format,
-      jpegQuality,
-      (writeExif && _hasValidMetadata(metadata)) ? metadata : null,
-    );
-    output.dispose();
+      final output = await FullPipelineRenderer.render(
+        developProgram: shaderProgram,
+        maskProgram: maskProgram,
+        sourceImage: sourceImage,
+        params: params,
+        lutTexture: lutTexture,
+        lutSize: lutSize,
+        lutTextureB: lutTextureB,
+        lutSizeB: lutSizeB,
+        curveTexture: curveTexture,
+        sharpenProgram: sharpenProgram,
+        denoiseProgram: passDenoiseProgram,
+        targetWidth: sourceImage.width,
+        targetHeight: sourceImage.height,
+      );
 
-    onProgress?.call(0.95, tr('writingFile'));
-    final file = File(outputPath);
-    await file.writeAsBytes(bytes);
-    onProgress?.call(1.0, tr('completed'));
-    return file;
+      // 源图与 curve 纹理渲染后即可释放
+      sourceImage.dispose();
+      curveTexture?.dispose();
+      curveTexture = null;
+
+      _checkCancel(isCancelled); // 渲染后检查点
+
+      try {
+        // 文件名：模板 + metadata + 去重
+        final base = ExportTemplate.apply(
+          template: filenameTemplate,
+          originalName: ExportTemplate.stripExtension(p.basename(inputPath)),
+          seq: seq,
+          metadata: metadata,
+          outWidth: output.width,
+          outHeight: output.height,
+        );
+        final filename = ExportTemplate.ensureUnique(
+          base: base,
+          extension: format.extension,
+          used: usedNames,
+        );
+        final outputPath = p.join(outputDir, filename);
+
+        final bytes = await _encode(
+          output,
+          format,
+          jpegQuality,
+          (writeExif && _hasValidMetadata(metadata)) ? metadata : null,
+        );
+
+        _checkCancel(isCancelled); // 编码后检查点（写文件前）
+
+        onProgress?.call(0.95, tr('writingFile'));
+        final file = File(outputPath);
+        await file.writeAsBytes(bytes);
+        onProgress?.call(1.0, tr('completed'));
+        return file;
+      } finally {
+        output.dispose();
+      }
+    } catch (_) {
+      curveTexture?.dispose();
+      rethrow;
+    }
   }
 
   static bool _hasValidMetadata(RawMetadata m) =>

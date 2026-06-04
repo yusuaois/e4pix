@@ -11,12 +11,11 @@ import 'package:path/path.dart' as p;
 
 import '../core/keybindings/app_action.dart';
 import '../core/models/adjustment_params.dart';
+import '../core/models/export_config.dart';
+import '../core/models/export_job.dart';
 import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
 import '../native/raw_bridge.dart';
-import '../render/export_template.dart';
-import '../render/exporter.dart';
-import '../render/cpu_denoise.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
@@ -30,6 +29,7 @@ import '../widgets/camera_picker_dialog.dart';
 import '../widgets/develop_misc_widgets.dart';
 import '../widgets/develop_sections.dart';
 import '../widgets/develop_top_bar.dart';
+import '../widgets/export_dialog.dart';
 import '../widgets/preview_area.dart';
 import 'folder_import_screen.dart';
 import '../widgets/histogram_panel.dart';
@@ -256,7 +256,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     }
   }
 
-  // Export
+  // Export：弹配置对话框 → 选目录 → 组装 jobs → 入队
   Future<void> _showExportDialog() async {
     final program = ref.read(shaderProgramProvider).value;
     if (program == null) return;
@@ -267,357 +267,63 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       return;
     }
 
-    ExportFormat format = ExportFormat.png;
-    int quality = ref.read(exportQualityProvider);
-    DenoiseEngine denoiseEngine = DenoiseEngine.cpu;
-    final hasDenoise = tasks.any(
-      (t) => t.params.denoiseLuma > 0.001 || t.params.denoiseColor > 0.001,
+    final result = await showExportDialog(
+      context,
+      tasks: tasks,
+      initialQuality: ref.read(exportQualityProvider),
+      initialTemplate: ref.read(exportTemplateProvider),
     );
-    String template = ref.read(exportTemplateProvider);
-    final isBatch = tasks.length > 1;
-    bool writeExif = true;
-    final firstName = ExportTemplate.stripExtension(
-      p.basename(tasks.first.path),
-    );
+    if (result == null) return;
 
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: Text(
-            isBatch
-                ? '${tr('exportBatch')}  ·  ${tasks.length}'
-                : tr('exportImage'),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(tr('format'), style: const TextStyle(fontSize: 12)),
-                const SizedBox(height: 8),
-                SegmentedButton<ExportFormat>(
-                  segments: const [
-                    ButtonSegment(value: ExportFormat.png, label: Text('PNG')),
-                    ButtonSegment(
-                      value: ExportFormat.jpeg,
-                      label: Text('JPEG'),
-                    ),
-                  ],
-                  selected: {format},
-                  onSelectionChanged: (s) => setS(() => format = s.first),
-                ),
-                if (format == ExportFormat.jpeg) ...[
-                  const SizedBox(height: 14),
-                  Text(
-                    '${tr('quality')}: $quality',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  Slider(
-                    value: quality.toDouble(),
-                    min: 50,
-                    max: 100,
-                    onChanged: (v) => setS(() => quality = v.round()),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                Text(
-                  tr('exportFilename'),
-                  style: const TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 6),
-                TextFormField(
-                  initialValue: template,
-                  style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    border: const OutlineInputBorder(),
-                    hintText: ExportTemplate.defaultTemplate,
-                    suffixText: '.${format.extension}',
-                  ),
-                  onChanged: (v) => setS(() => template = v),
-                ),
-                const SizedBox(height: 4),
-                // 实时预览
-                Text(
-                  '${tr('exportFilenamePreview')}: '
-                  '${ExportTemplate.apply(template: template.isEmpty ? ExportTemplate.defaultTemplate : template, originalName: firstName, seq: 1)}.${format.extension}',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontFamily: 'monospace',
-                    color: Colors.greenAccent.withValues(alpha: 0.7),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (isBatch &&
-                    !ExportTemplate.hasDistinctToken(
-                      template.isEmpty
-                          ? ExportTemplate.defaultTemplate
-                          : template,
-                    )) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    tr(
-                      'exportFilenameBatchWarn',
-                    ), // "批量导出建议含 {seq} 或 {name}，否则自动加序号"
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.orangeAccent.withValues(alpha: 0.8),
-                    ),
-                  ),
-                ],
-                // 占位符
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    '{name} {seq} {seq3} {date} {camera} {iso}',
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      fontFamily: 'monospace',
-                      color: Colors.white.withValues(alpha: 0.35),
-                    ),
-                  ),
-                ),
-                if (hasDenoise) ...[
-                  const SizedBox(height: 14),
-                  Text(
-                    tr('denoiseEngine'),
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  const SizedBox(height: 8),
-                  SegmentedButton<DenoiseEngine>(
-                    segments: [
-                      ButtonSegment(
-                        value: DenoiseEngine.cpu,
-                        label: Text(
-                          tr('denoiseEngineCpu'),
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                      ),
-                      ButtonSegment(
-                        value: DenoiseEngine.gpu,
-                        label: Text(
-                          tr('denoiseEngineGpu'),
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                      ),
-                    ],
-                    selected: {denoiseEngine},
-                    onSelectionChanged: (s) =>
-                        setS(() => denoiseEngine = s.first),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    denoiseEngine == DenoiseEngine.cpu
-                        ? tr('denoiseEngineCpuHint')
-                        : tr('denoiseEngineGpuHint'),
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: Colors.white.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                Text(
-                  tr('exportDescription'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.6),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                if (format == ExportFormat.jpeg) ...[
-                  const SizedBox(height: 8),
-                  CheckboxListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    value: writeExif,
-                    title: Text(
-                      tr('exportWriteExif'),
-                      style: const TextStyle(fontSize: 12.5),
-                    ),
-                    subtitle: Text(
-                      tr('exportWriteExifDesc'),
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    onChanged: (v) => setS(() => writeExif = v ?? true),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(tr('cancel')),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(tr('export')),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (ok != true) return;
-    ref
-        .read(exportTemplateProvider.notifier)
-        .set(
-          template.isEmpty ? ExportTemplate.defaultTemplate : template,
-        ); // 记住
+    // 记住模板
+    ref.read(exportTemplateProvider.notifier).set(result.filenameTemplate);
+
+    if (!mounted) return;
     final folder = await FilePicker.getDirectoryPath(dialogTitle: tr('saveTo'));
     if (folder == null) return;
-    await _runExport(
-      folder,
-      format,
-      quality,
-      tasks,
-      denoiseEngine,
-      template,
-      writeExif,
-    );
-  }
 
-  Future<void> _runExport(
-    String folder,
-    ExportFormat fmt,
-    int quality,
-    List<ExportTask> tasks,
-    DenoiseEngine denoiseEngine,
-    String template,
-    bool writeExif,
-  ) async {
-    final program = ref.read(shaderProgramProvider).value;
-    if (program == null) return;
+    // 快照当前全局 LUT（队列延迟执行时全局 LUT 可能已变）
     final lut = ref.read(lutNotifierProvider);
-    final messenger = ScaffoldMessenger.of(context);
-    final progressNotifier = ValueNotifier<(double, String)>((
-      0,
-      tr('progressNotifier'),
-    ));
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        content: ValueListenableBuilder(
-          valueListenable: progressNotifier,
-          builder: (ctx, value, _) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              LinearProgressIndicator(value: value.$1),
-              const SizedBox(height: 12),
-              Text(value.$2, style: const TextStyle(fontSize: 12)),
-            ],
-          ),
-        ),
-      ),
+    final config = ExportConfig(
+      format: result.format,
+      jpegQuality: result.jpegQuality,
+      filenameTemplate: result.filenameTemplate,
+      outputDir: folder,
+      writeExif: result.writeExif,
+      denoiseEngine: result.denoiseEngine,
+      denoiseParallelism: ref.read(denoiseParallelismProvider),
+      lutTexture: lut.textureA,
+      lutSize: lut.sizeA,
+      lutTextureB: lut.textureB,
+      lutSizeB: lut.sizeB,
     );
 
-    final stopwatch = Stopwatch()..start();
-    String? lastOutPath;
-    int doneCount = 0;
-    final effectiveTemplate = template.isEmpty
-        ? ExportTemplate.defaultTemplate
-        : template;
-    final usedNames = <String>{};
-
-    try {
-      for (int i = 0; i < tasks.length; i++) {
-        final task = tasks[i];
-        final baseFrac = i / tasks.length;
-        final span = 1 / tasks.length;
-        final maskProgram = ref.read(maskShaderProgramProvider).value;
-        if (maskProgram == null) {
-          _snack('Mask shader loading...');
-          return;
-        }
-
-        final file = await Exporter.exportFullRes(
-          inputPath: task.path,
-          outputDir: folder,
-          filenameTemplate: effectiveTemplate,
+    // 组装 jobs
+    final baseId = DateTime.now().microsecondsSinceEpoch;
+    final jobs = <ExportJob>[
+      for (int i = 0; i < tasks.length; i++)
+        ExportJob(
+          id: '${baseId}_$i',
+          inputPath: tasks[i].path,
+          displayName: p.basename(tasks[i].path),
+          params: tasks[i].params,
+          config: config,
           seq: i + 1,
-          usedNames: usedNames,
-          format: fmt,
-          shaderProgram: program,
-          maskProgram: maskProgram,
-          params: task.params,
-          lutTexture: lut.textureA,
-          lutSize: lut.sizeA,
-          lutTextureB: lut.textureB,
-          lutSizeB: lut.sizeB,
-          curveTexture: ref.watch(effectiveCurveTextureProvider),
-          sharpenProgram: ref.read(sharpenShaderProgramProvider).value,
-          denoiseProgram: ref.read(denoiseShaderProgramProvider).value,
-          denoiseEngine: denoiseEngine,
-          denoiseParallelism: ref.read(denoiseParallelismProvider), // 若接了并行度
-          jpegQuality: quality,
-          writeExif: writeExif,
-          onProgress: (f, s) {
-            if (tasks.length == 1) {
-              progressNotifier.value = (f, s);
-            } else {
-              progressNotifier.value = (
-                baseFrac + f * span,
-                tr(
-                  'exportBatchProgress',
-                  args: ['${i + 1}', '${tasks.length}', s],
-                ),
-              );
-            }
-          },
-        );
-        lastOutPath = file.path;
-        doneCount = i + 1;
-      }
-      stopwatch.stop();
-      if (mounted) Navigator.pop(context);
-
-      if (tasks.length == 1) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              '${tr('exportCompleted')} · ${stopwatch.elapsed.inSeconds}s · $lastOutPath',
-            ),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      } else {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              tr(
-                'exportBatchCompleted',
-                args: ['${tasks.length}', '${stopwatch.elapsed.inSeconds}'],
-              ),
-            ),
-            action: SnackBarAction(label: tr('exportBatch'), onPressed: () {}),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-        // 退出多选
-        ref.read(exportSelectionNotifierProvider.notifier).toggleMode();
-      }
-    } catch (e) {
-      if (mounted) Navigator.pop(context);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            tasks.length == 1
-                ? '${tr('exportFailed')}: $e'
-                : '${tr('exportFailed')} ($doneCount / ${tasks.length}): $e',
-          ),
         ),
-      );
-    } finally {
-      progressNotifier.dispose();
+    ];
+
+    ref.read(exportQueueProvider.notifier).enqueue(jobs);
+
+    // 退出多选（若批量）
+    if (tasks.length > 1) {
+      ref.read(exportSelectionNotifierProvider.notifier).toggleMode();
     }
+
+    _snack(
+      tr('exportQueued', args: ['${jobs.length}']),
+      floating: true,
+      seconds: 2,
+    );
   }
 
   void _snack(String msg, {bool floating = false, int seconds = 4}) {

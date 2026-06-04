@@ -24,4 +24,5 @@ export 'quality_state.dart';
 export 'theme_state.dart';
 export 'sidecar_writer.dart';
 export 'image_cache_state.dart';
+export 'export_queue_state.dart';
 export '../core/keybindings/keybinding_service.dart';

@@ -325,5 +325,12 @@
   "imageCacheCapacity": "Image Cache Capacity",
   "imageCacheCapacityHint": "Cache recently viewed images to speed up re-viewing (memory usage)",
   "disabled": "Disabled",
-  "colorPicker": "Color Picker"
+  "colorPicker": "Color Picker",
+  "exportQueued": "Queued for export ({})",
+  "exportQueueTitle": "Export Queue",
+  "exportQueueRemaining": "{} remaining",
+  "exportQueueEmpty": "Queue is empty",
+  "exportQueueClearFinished": "Clear finished",
+  "exportQueueCancelAll": "Cancel all",
+  "exportCancelling": "Cancelling…"
 }

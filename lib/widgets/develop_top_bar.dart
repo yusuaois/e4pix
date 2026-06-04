@@ -6,6 +6,7 @@ import '../core/models/tethered_shot.dart';
 import '../screens/settings_screen.dart';
 import '../state/providers.dart';
 import 'compare_button.dart';
+import 'export_queue_panel.dart';
 
 class DevelopTopBar extends ConsumerWidget {
   final VoidCallback onExport;
@@ -69,7 +70,9 @@ class DevelopTopBar extends ConsumerWidget {
           menuKey: 'export',
           onPressed: onExport,
           alwaysVisible: true,
+          onLongPress: () => _showQueuePanel(context),
           priority: 100,
+          badgeCount: ref.watch(exportQueuePendingCountProvider),
         ),
       if (hasImage)
         _BarAction(
@@ -256,6 +259,15 @@ class DevelopTopBar extends ConsumerWidget {
     );
   }
 
+  void _showQueuePanel(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A20),
+      showDragHandle: true,
+      builder: (_) => const ExportQueuePanel(),
+    );
+  }
+
   Widget _iconBtn(
     IconData icon,
     String tooltip,
@@ -263,13 +275,29 @@ class DevelopTopBar extends ConsumerWidget {
     bool isVertical, {
     VoidCallback? onLongPress,
     Color? color,
+    int badgeCount = 0,
   }) {
     final box = _barBtnSize(isVertical);
+    Widget iconWidget = Icon(
+      icon,
+      size: _barIconSize(isVertical),
+      color: color,
+    );
+
+    // 角标
+    if (badgeCount > 0) {
+      iconWidget = Badge(
+        label: Text('$badgeCount', style: const TextStyle(fontSize: 9)),
+        backgroundColor: Colors.orangeAccent,
+        child: iconWidget,
+      );
+    }
+
     final btn = SizedBox(
       width: box,
       height: box,
       child: IconButton(
-        icon: Icon(icon, size: _barIconSize(isVertical), color: color),
+        icon: iconWidget,
         tooltip: tooltip,
         onPressed: onPressed,
         padding: EdgeInsets.zero,
@@ -323,6 +351,7 @@ class DevelopTopBar extends ConsumerWidget {
             isVertical,
             onLongPress: a.onLongPress,
             color: a.color,
+            badgeCount: a.badgeCount,
           ),
         if (overflow.isNotEmpty)
           SizedBox(
@@ -431,6 +460,7 @@ class _BarAction {
   final bool alwaysVisible;
   final int priority;
   final String menuKey;
+  final int badgeCount;
 
   const _BarAction({
     required this.icon,
@@ -441,5 +471,6 @@ class _BarAction {
     this.color,
     this.alwaysVisible = false,
     this.priority = 0,
+    this.badgeCount = 0,
   });
 }
