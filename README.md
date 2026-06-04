@@ -6,7 +6,7 @@
 
 <img src="docs/screenshot_android_horizontal.png" alt="e4pix Screenshot"/>
 
-联机拍摄 + 实时 RAW 调色
+一个能与相机联机拍摄的调色修图工具
 
 [简体中文](#简体中文) | [English](#english)
 
@@ -16,106 +16,97 @@
 
 ## 简体中文
 
-跨平台的 RAW 修图工具，连接相机即可实时调色。
+一个跨平台的修图工具。最初是为联机拍摄做的——相机拍一张，设备上立刻能调。后来把常见图片格式也加了进来，所以现在 RAW、JPEG、PNG 都能改。
 
 ### 功能
 
-- 联机拍摄（USB）；文件夹监控
-- RAW 实时调色：曝光、对比、高光阴影、白平衡、HSL 色相、LUT (.cube)
-- RGB曲线
-- 图片筛选：星标与旗标
-- 参数同步，持久化
-- 裁剪 / 旋转 / 翻转 / 拉直
-- 锐化
-- 局部调整：线性 / 径向渐变，画笔（流量、硬度、加擦、自动蒙版）
-- 智能区域：相近色选择
-- 主体分割：可自动区分主体，正负点细化
-- AI 调色建议：目前适配 Claude / GPT / DeepSeek
-- Material You：跟随系统壁纸 / 强调色，也可自选种子色
-- 预设、撤销重做、直方图、前后对比、批量导出
+调色这块是核心：曝光、对比度、高光阴影、白平衡、HSL、RGB 曲线，外加 LUT（`.cube` / `.vlt`，支持 A、B 双槽串联，每张图各自记忆）。降噪分明度和颜色两路，导出时可选 CPU 并行或 GPU。还有锐化和胶片颗粒。
+
+局部调整支持线性和径向渐变，以及画笔（流量、硬度、加擦、自动蒙版）。选区有两种：智能区域按相近色扩选，主体分割能自动抠出主体、再用正负点细化。
+
+裁剪、旋转、翻转、拉直都有。取色器可以读任意像素的 RGB 和 HEX。
+
+联机方面，USB 直连或监控文件夹都行；RAW+JPEG 同时传时，可以只保留 RAW。多张图能批量同步参数，调好的参数随图持久化（`.e4pix.json` 边车文件），换台机器也带得走。
+
+导出走后台队列，排着慢慢跑，不挡着你继续修别的；支持批量、文件名模板、随时取消。
+
+其余：预设、撤销重做、星标旗标筛选、直方图、前后对比、解码缓存（切回看过的图秒开）、AI 调色建议（Claude / GPT / DeepSeek）、Material You 主题（跟随壁纸或自选种子色）、应用内更新、自定义键位。
 
 ### 平台
 
-Windows、Android 已测。macOS / Linux / iOS 未适配。
+Windows、Android 已测。macOS / Linux / iOS 还没适配。
 
 ### 编译
 
-LibRaw 走 submodule：
+LibRaw 是 submodule，clone 时带上 `--recursive`：
 
 ```bash
-git clone --recursive [https://github.com/yusuaois/e4pix.git](https://github.com/yusuaois/e4pix.git)
+git clone --recursive https://github.com/yusuaois/e4pix.git
 cd e4pix
-
 ```
 
-已经 clone 过：
+已经 clone 过的：
 
 ```bash
 git submodule update --init --recursive
-
 ```
 
-依赖：
+需要：
 
 - Flutter SDK
-- Windows：Visual Studio 2022 + C++ 桌面开发
+- Windows：Visual Studio 2022 + “使用 C++ 的桌面开发”
 - Android：Android Studio + NDK
 
-LibRaw 在 `flutter run` 时自动编译进项目。EdgeSAM 模型已打包在 `assets/models/`。
+LibRaw 会在 `flutter run` 时自动编译。EdgeSAM 模型已经打包在 `assets/models/`。
 
 ```bash
 flutter pub get
 flutter run -d windows   # 或 -d android
-
 ```
 
-AI 功能在「设置 → AI 配置」里填 Key，仅本地存。
+AI 功能在「设置 → AI 配置」里填 Key，只存在本地。
 
 ### 许可证
 
-[Apache License 2.0](https://www.google.com/search?q=LICENSE)
+[GPL v3](LICENSE)
 
 ---
 
 ## English
 
-Cross-platform RAW editing tool, connect your camera for real-time color grading.
+A cross-platform photo editor. It started out for tethered shooting—shoot on the camera, edit on the computer right away. Common image formats came later, so these days it handles RAW, JPEG, and PNG alike.
 
 ### Features
 
-- Tethered shooting (USB); folder monitoring
-- Real-time RAW color grading: exposure, contrast, highlights/shadows, white balance, HSL hue, LUT (.cube)
-- RGB curves
-- Photo filtering: star ratings and flags
-- Parameter syncing and persistence
-- Crop / rotate / flip / straighten
-- Sharpening
-- Local adjustments: linear / radial gradients, brush (flow, hardness, add/erase, auto-mask)
-- Smart Region: selection by color similarity
-- Subject Segmentation: automatic subject identification with positive/negative points for refinement
-- AI color grading suggestions: currently supports Claude / GPT / DeepSeek
-- Material You: follows system wallpaper / accent color, or choose your own seed color
-- Presets, undo/redo, histogram, before/after comparison, batch export
+Color grading is the heart of it: exposure, contrast, highlights/shadows, white balance, HSL, RGB curves, plus LUTs (`.cube` / `.vlt`, with A and B slots that chain together, remembered per image). Denoise splits into luma and color, with a choice of CPU (parallel) or GPU at export. There's sharpening and film grain too.
+
+Local adjustments cover linear and radial gradients, plus a brush (flow, hardness, add/erase, auto-mask). Two ways to make selections: Smart Region grows by color similarity, and Subject Segmentation pulls out the subject automatically, then lets you refine with positive/negative points.
+
+Crop, rotate, flip, straighten—all there. The color picker reads RGB and HEX off any pixel.
+
+For tethering, USB or folder watching both work; when RAW+JPEG come in together, you can keep just the RAW. Edits sync across multiple shots and persist with each image (`.e4pix.json` sidecar files), so they travel with you to another machine.
+
+Export runs through a background queue—it chugs along without blocking the rest of your work; batch, filename templates, cancel anytime.
+
+The rest: presets, undo/redo, star/flag filtering, histogram, before/after compare, a decode cache (revisited images open instantly), AI grading suggestions (Claude / GPT / DeepSeek), Material You theming (follows wallpaper or pick your own seed color), in-app updates, custom keybindings.
 
 ### Platforms
 
-Tested on Windows and Android. macOS / Linux / iOS are not supported yet.
+Tested on Windows and Android. macOS / Linux / iOS aren't supported yet.
 
 ### Build
 
-LibRaw uses a submodule — clone with `--recursive`:
+LibRaw is a submodule—clone with `--recursive`:
 
 ```bash
-git clone --recursive [https://github.com/yusuaois/e4pix.git](https://github.com/yusuaois/e4pix.git)
+git clone --recursive https://github.com/yusuaois/e4pix.git
 cd e4pix
-
 ```
 
-If already cloned:
+If you've already cloned:
 
 ```bash
 git submodule update --init --recursive
-
 ```
 
 Requirements:
@@ -124,16 +115,15 @@ Requirements:
 - Windows: Visual Studio 2022 + Desktop development with C++
 - Android: Android Studio + NDK
 
-LibRaw builds automatically during `flutter run`. EdgeSAM models are already bundled in `assets/models/`.
+LibRaw builds automatically during `flutter run`. EdgeSAM models are bundled in `assets/models/`.
 
 ```bash
 flutter pub get
 flutter run -d windows   # or -d android
-
 ```
 
-For AI features, fill in your API key in **Settings → AI Configuration**. It is only stored locally.
+For AI features, add your API key under **Settings → AI Configuration**. It's stored locally only.
 
 ### License
 
-[Apache License 2.0](https://www.google.com/search?q=LICENSE)
+[GPL v3](LICENSE)

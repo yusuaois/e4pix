@@ -332,5 +332,6 @@
   "exportQueueEmpty": "队列为空",
   "exportQueueClearFinished": "清除已完成",
   "exportQueueCancelAll": "全部取消",
-  "exportCancelling": "正在取消…"
+  "exportCancelling": "正在取消…",
+  "lutMissing": "LUT「{}」未找到，请重新导入"
 }

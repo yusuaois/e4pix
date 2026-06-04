@@ -282,8 +282,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final folder = await FilePicker.getDirectoryPath(dialogTitle: tr('saveTo'));
     if (folder == null) return;
 
-    // 快照当前全局 LUT（队列延迟执行时全局 LUT 可能已变）
-    final lut = ref.read(lutNotifierProvider);
+    // 快照当前全局 LUT
     final config = ExportConfig(
       format: result.format,
       jpegQuality: result.jpegQuality,
@@ -292,10 +291,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       writeExif: result.writeExif,
       denoiseEngine: result.denoiseEngine,
       denoiseParallelism: ref.read(denoiseParallelismProvider),
-      lutTexture: lut.textureA,
-      lutSize: lut.sizeA,
-      lutTextureB: lut.textureB,
-      lutSizeB: lut.sizeB,
     );
 
     // 组装 jobs

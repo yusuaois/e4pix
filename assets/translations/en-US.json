@@ -332,5 +332,6 @@
   "exportQueueEmpty": "Queue is empty",
   "exportQueueClearFinished": "Clear finished",
   "exportQueueCancelAll": "Cancel all",
-  "exportCancelling": "Cancelling…"
+  "exportCancelling": "Cancelling…",
+  "lutMissing": "LUT \"{}\" not found, please re-import"
 }

@@ -24,7 +24,9 @@ class AdjustmentParams {
   final double sharpenMasking; // 0-100，默认 0（全图锐化）
   final double denoiseLuma; // 明度降噪 0-100，默认 0
   final double denoiseColor; // 颜色降噪 0-100，默认 0
+  final String lutNameA;
   final double lutIntensity;
+  final String lutNameB;
   final double lutIntensityB;
   final RgbCurves curves;
   final HslBands hsl;
@@ -48,7 +50,9 @@ class AdjustmentParams {
     this.sharpenMasking = 0.0,
     this.denoiseLuma = 0.0,
     this.denoiseColor = 0.0,
+    this.lutNameA = '',
     this.lutIntensity = 1.0,
+    this.lutNameB = '',
     this.lutIntensityB = 1.0,
     this.curves = RgbCurves.identity,
     this.hsl = HslBands.neutral,
@@ -75,7 +79,9 @@ class AdjustmentParams {
     double? sharpenMasking,
     double? denoiseLuma,
     double? denoiseColor,
+    String? lutNameA,
     double? lutIntensity,
+    String? lutNameB,
     double? lutIntensityB,
     RgbCurves? curves,
     HslBands? hsl,
@@ -98,7 +104,9 @@ class AdjustmentParams {
     sharpenMasking: sharpenMasking ?? this.sharpenMasking,
     denoiseLuma: denoiseLuma ?? this.denoiseLuma,
     denoiseColor: denoiseColor ?? this.denoiseColor,
+    lutNameA: lutNameA ?? this.lutNameA,
     lutIntensity: lutIntensity ?? this.lutIntensity,
+    lutNameB: lutNameB ?? this.lutNameB,
     lutIntensityB: lutIntensityB ?? this.lutIntensityB,
     curves: curves ?? this.curves,
     hsl: hsl ?? this.hsl,
@@ -126,7 +134,9 @@ class AdjustmentParams {
           sharpenMasking == other.sharpenMasking &&
           denoiseLuma == other.denoiseLuma &&
           denoiseColor == other.denoiseColor &&
+          lutNameA == other.lutNameA &&
           lutIntensity == other.lutIntensity &&
+          lutNameB == other.lutNameB &&
           lutIntensityB == other.lutIntensityB &&
           curves == other.curves &&
           hsl == other.hsl &&
@@ -151,7 +161,9 @@ class AdjustmentParams {
     sharpenMasking,
     denoiseLuma,
     denoiseColor,
+    lutNameA,
     lutIntensity,
+    lutNameB,
     lutIntensityB,
     curves,
     hsl,
@@ -176,7 +188,9 @@ class AdjustmentParams {
     'sharpenMasking': sharpenMasking,
     'denoiseLuma': denoiseLuma,
     'denoiseColor': denoiseColor,
+    'lutNameA': lutNameA,
     'lutIntensity': lutIntensity,
+    'lutNameB': lutNameB,
     'lutIntensityB': lutIntensityB,
     'curves': curves.toJson(),
     'hsl': hsl.toJson(),
@@ -201,7 +215,9 @@ class AdjustmentParams {
     sharpenMasking: (j['sharpenMasking'] as num?)?.toDouble() ?? 0.0,
     denoiseLuma: (j['denoiseLuma'] as num?)?.toDouble() ?? 0.0,
     denoiseColor: (j['denoiseColor'] as num?)?.toDouble() ?? 0.0,
+    lutNameA: j['lutNameA'] as String? ?? '',
     lutIntensity: (j['lutIntensity'] as num?)?.toDouble() ?? 1.0,
+    lutNameB: j['lutNameB'] as String? ?? '',
     lutIntensityB: (j['lutIntensityB'] as num?)?.toDouble() ?? 1.0,
     curves: j['curves'] != null
         ? RgbCurves.fromJson(j['curves'] as Map<String, dynamic>)

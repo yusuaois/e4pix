@@ -2,10 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/export_job.dart';
 import '../render/exporter.dart';
+import '../render/lut_texture_cache.dart';
 import 'providers.dart';
 
 /// 导出队列：串行执行，后台运行，可取消
-///
 /// - enqueue 后立即返回，任务在后台串行跑
 /// - 取消：排队中的直接标记 cancelled；正在跑的靠 exporter 的阶段检查点中止
 /// - programs 执行时 ref.read（全局不变）；LUT 从 job.config 取（enqueue 快照）
@@ -143,6 +143,19 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
     final denoiseProgram = ref.read(denoiseShaderProgramProvider).value;
     final cfg = job.config;
 
+    // per-image LUT：按本 job 的 params.lutNameA/B 从缓存加载 texture
+    final cache = LutTextureCache.instance;
+    LutTexture? lutA;
+    LutTexture? lutB;
+    try {
+      if (job.params.lutNameA.isNotEmpty) {
+        lutA = await cache.load(job.params.lutNameA);
+      }
+      if (job.params.lutNameB.isNotEmpty) {
+        lutB = await cache.load(job.params.lutNameB);
+      }
+    } catch (_) {}
+
     try {
       final file = await Exporter.exportFullRes(
         inputPath: job.inputPath,
@@ -154,10 +167,10 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
         shaderProgram: program,
         maskProgram: maskProgram,
         params: job.params,
-        lutTexture: cfg.lutTexture,
-        lutSize: cfg.lutSize,
-        lutTextureB: cfg.lutTextureB,
-        lutSizeB: cfg.lutSizeB,
+        lutTexture: lutA?.texture,
+        lutSize: lutA?.size ?? 0,
+        lutTextureB: lutB?.texture,
+        lutSizeB: lutB?.size ?? 0,
         sharpenProgram: sharpenProgram,
         denoiseProgram: denoiseProgram,
         denoiseEngine: cfg.denoiseEngine,

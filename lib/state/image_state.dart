@@ -5,15 +5,46 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/constants/raw_formats.dart';
+import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
 import '../render/decoded_image_cache.dart';
+import '../render/lut_texture_cache.dart';
 import '../render/raw_to_ui_image.dart';
 import '../services/image_loader.dart';
+import 'providers.dart';
+// tether_state.dart/params_state.dart
 
 class ActiveFilePathNotifier extends Notifier<String?> {
   @override
   String? build() => null;
-  void set(String? newPath) => state = newPath;
+
+  /// 切图：先预加载目标图的 LUT 进缓存（避免 LutNotifier 派生时闪烁），再切。
+  /// set 为 async；调用方可不 await（fire-and-forget）。预加载完成后才更新 state，
+  /// 确保 LutNotifier 重建时缓存已命中、同步出图、无闪烁。
+  Future<void> set(String? newPath) async {
+    if (newPath == null) {
+      state = null;
+      return;
+    }
+    await _preloadLut(newPath);
+    state = newPath;
+  }
+
+  Future<void> _preloadLut(String path) async {
+    final shots = ref.read(shotsNotifierProvider);
+    AdjustmentParams params = ref.read(currentParamsNotifierProvider); // 默认当前
+    for (final s in shots) {
+      if (s.path == path) {
+        params = s.params;
+        break;
+      }
+    }
+    final cache = LutTextureCache.instance;
+    try {
+      if (params.lutNameA.isNotEmpty) await cache.load(params.lutNameA);
+      if (params.lutNameB.isNotEmpty) await cache.load(params.lutNameB);
+    } catch (_) {}
+  }
 }
 
 final activeFilePathProvider =

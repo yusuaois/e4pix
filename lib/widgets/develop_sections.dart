@@ -7,6 +7,7 @@ import '../core/models/grain_params.dart';
 import '../core/models/hsl_bands.dart';
 import '../core/models/rgb_curves.dart';
 import '../core/models/tone_curve.dart';
+import '../render/lut_texture_cache.dart';
 import '../services/lut_library.dart';
 import '../state/lut_library_state.dart';
 import '../state/params_state.dart';
@@ -691,7 +692,6 @@ class _BandRow extends StatelessWidget {
   }
 }
 
-// LUT Section
 // LUT Section — 双槽 (A → B 串联)，自取 provider
 class LutSection extends ConsumerWidget {
   const LutSection({super.key});
@@ -763,15 +763,21 @@ class _LutSlot extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final loaded = lutName != null;
     final selected = _findSelected();
+    final missing = loaded && selected == null;
+
+    void writeLutName(String name) {
+      final p = ref.read(currentParamsNotifierProvider);
+      final np = slot == 0
+          ? p.copyWith(lutNameA: name)
+          : p.copyWith(lutNameB: name);
+      ref.read(currentParamsNotifierProvider.notifier).update(np);
+    }
 
     Future<void> onSelect(LutEntry? entry) async {
-      if (entry == null) {
-        ref.read(lutNotifierProvider.notifier).clear(slot: slot);
-      } else {
-        await ref
-            .read(lutNotifierProvider.notifier)
-            .loadFromCubeFile(entry.filePath, slot: slot);
+      if (entry != null) {
+        await LutTextureCache.instance.load(entry.name);
       }
+      writeLutName(entry?.name ?? '');
     }
 
     Future<void> onImport() async {
@@ -779,26 +785,31 @@ class _LutSlot extends ConsumerWidget {
           .read(lutLibraryNotifierProvider.notifier)
           .importFromFile();
       if (entry != null) {
-        await ref
-            .read(lutNotifierProvider.notifier)
-            .loadFromCubeFile(entry.filePath, slot: slot);
+        await LutTextureCache.instance.load(entry.name);
+        writeLutName(entry.name);
       }
     }
 
     Future<void> onDelete(LutEntry entry) async {
-      // 若该 entry 正用于任一槽，先清该槽
-      final cur = ref.read(lutNotifierProvider);
-      if (_stripExt(cur.nameA ?? '').toLowerCase() ==
-          entry.name.toLowerCase()) {
-        ref.read(lutNotifierProvider.notifier).clear(slot: 0);
+      // 若该 entry 正用于当前图任一槽，先清该槽
+      final cur = ref.read(currentParamsNotifierProvider);
+      final target = entry.name.toLowerCase();
+      var np = cur;
+      if (cur.lutNameA.toLowerCase() == target) {
+        np = np.copyWith(lutNameA: '');
       }
-      if (_stripExt(cur.nameB ?? '').toLowerCase() ==
-          entry.name.toLowerCase()) {
-        ref.read(lutNotifierProvider.notifier).clear(slot: 1);
+      if (cur.lutNameB.toLowerCase() == target) {
+        np = np.copyWith(lutNameB: '');
       }
+      if (!identical(np, cur)) {
+        ref.read(currentParamsNotifierProvider.notifier).update(np);
+      }
+      // 缓存失效 + 删库文件
+      LutTextureCache.instance.invalidate(entry.name);
       await ref.read(lutLibraryNotifierProvider.notifier).delete(entry);
     }
 
+    // onIntensityChanged 不变
     void onIntensityChanged(double v) {
       final p = ref.read(currentParamsNotifierProvider);
       final np = slot == 0
@@ -900,6 +911,30 @@ class _LutSlot extends ConsumerWidget {
             ],
           ),
         ),
+        if (missing)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 13,
+                  color: Colors.orangeAccent.withValues(alpha: 0.85),
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    tr('lutMissing', args: [lutName!]),
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: Colors.orangeAccent.withValues(alpha: 0.85),
+                    ),
+                    maxLines: 2,
+                  ),
+                ),
+              ],
+            ),
+          ),
         // .vlt 提示
         if (_isVlt)
           Padding(
