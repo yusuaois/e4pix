@@ -51,6 +51,7 @@ dependencies:
   dynamic_color: ^1.8.1
   flutter_markdown_plus: ^1.0.7
   xml: ^7.0.1
+  device_info_plus: ^13.1.0
 
 dev_dependencies:
   flutter_test:

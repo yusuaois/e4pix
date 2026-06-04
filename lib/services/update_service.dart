@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,11 +36,17 @@ class UpdateInfo {
     required this.hasUpdate,
   });
 
-  UpdateAsset? get assetForPlatform {
-    String? kw;
+  /// 选出适配当前平台的下载资源。
+  ///
+  /// Android：分架构发布（arm64-v8a / armeabi-v7a / x86_64 / universal）。
+  /// 按设备支持的 ABI 优先级选对应 apk，找不到则回退 universal（文件名不含 ABI 关键词）。
+  /// 异步：需要查询设备 ABI。
+  Future<UpdateAsset?> assetForPlatform() async {
     if (Platform.isAndroid) {
-      kw = '.apk';
-    } else if (Platform.isWindows) {
+      return _androidApk();
+    }
+    String? kw;
+    if (Platform.isWindows) {
       kw = 'windows';
     } else if (Platform.isMacOS) {
       kw = 'macos';
@@ -49,6 +56,44 @@ class UpdateInfo {
     if (kw == null) return null;
     for (final a in assets) {
       if (a.name.toLowerCase().contains(kw)) return a;
+    }
+    return null;
+  }
+
+  Future<UpdateAsset?> _androidApk() async {
+    // 设备支持的 ABI，按优先级（首个为主 ABI）
+    List<String> abis = const [];
+    try {
+      final info = await DeviceInfoPlugin().androidInfo;
+      abis = info.supportedAbis;
+    } catch (_) {}
+
+    // 1) 按设备 ABI 优先级找对应 apk（arm64 设备优先 arm64 包）
+    for (final abi in abis) {
+      final key = abi.toLowerCase(); // arm64-v8a / armeabi-v7a / x86_64
+      for (final a in assets) {
+        final n = a.name.toLowerCase();
+        if (n.endsWith('.apk') && n.contains(key)) {
+          return a;
+        }
+      }
+    }
+
+    // 2) 回退 universal：apk 且不含任何 ABI 关键词
+    for (final a in assets) {
+      final n = a.name.toLowerCase();
+      if (n.endsWith('.apk') &&
+          !n.contains('arm64') &&
+          !n.contains('armeabi') &&
+          !n.contains('v7a') &&
+          !n.contains('x86')) {
+        return a;
+      }
+    }
+
+    // 3) 兜底：任意 apk
+    for (final a in assets) {
+      if (a.name.toLowerCase().endsWith('.apk')) return a;
     }
     return null;
   }
@@ -95,13 +140,17 @@ class UpdateService {
       );
     }
 
+    final rawBody = (json['body'] as String?) ?? '';
+    final sepIdx = rawBody.indexOf('---');
+    final body = sepIdx >= 0
+        ? rawBody.substring(0, sepIdx).trimRight()
+        : rawBody.trimRight();
+
     return UpdateInfo(
       latestVersion: latest,
       tagName: tag,
       releaseUrl: (json['html_url'] as String?) ?? '',
-      body: ((json['body'] as String?) ?? '')
-          .substring(0, ((json['body'] as String?) ?? '').indexOf('---'))
-          .trimRight(),
+      body: body,
       assets: assets,
       hasUpdate: _isNewer(latest, current),
     );

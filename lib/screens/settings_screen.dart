@@ -641,9 +641,28 @@ class UpdateDialog extends StatelessWidget {
   final bool showIgnore;
   const UpdateDialog({super.key, required this.info, this.showIgnore = false});
 
+  Future<void> _download(BuildContext context) async {
+    final asset = await info.assetForPlatform();
+    if (asset == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(tr("updateNoAsset"))));
+      }
+      url_launcher.launchUrl(
+        Uri.parse(info.releaseUrl),
+        mode: url_launcher.LaunchMode.externalApplication,
+      );
+      return;
+    }
+    url_launcher.launchUrl(
+      Uri.parse(asset.url),
+      mode: url_launcher.LaunchMode.externalApplication,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final asset = info.assetForPlatform;
     return AlertDialog(
       backgroundColor: const Color(0xFF1A1A20),
       title: Text(
@@ -710,16 +729,10 @@ class UpdateDialog extends StatelessWidget {
           },
           child: Text(tr("updateOpenPage")),
         ),
-        if (asset != null)
-          FilledButton(
-            onPressed: () {
-              url_launcher.launchUrl(
-                Uri.parse(asset.url),
-                mode: url_launcher.LaunchMode.externalApplication,
-              );
-            },
-            child: Text(tr("updateDownload")),
-          ),
+        FilledButton(
+          onPressed: () => _download(context),
+          child: Text(tr("updateDownload")),
+        ),
       ],
     );
   }

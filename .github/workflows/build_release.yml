@@ -31,19 +31,27 @@ jobs:
 
       - name: 🏗️ Build APK & AAB
         run: |
+          flutter build apk --release --split-per-abi
           flutter build apk --release
           flutter build appbundle --release
 
       - name: 🏷️ Rename Artifacts
         run: |
-          mv build/app/outputs/flutter-apk/app-release.apk e4pix_${{ github.ref_name }}_Android.apk
-          mv build/app/outputs/bundle/release/app-release.aab e4pix_${{ github.ref_name }}_Android.aab
+          cd build/app/outputs/flutter-apk
+          mv app-arm64-v8a-release.apk   e4pix_${{ github.ref_name }}_Android_arm64-v8a.apk
+          mv app-armeabi-v7a-release.apk e4pix_${{ github.ref_name }}_Android_armeabi-v7a.apk
+          mv app-x86_64-release.apk      e4pix_${{ github.ref_name }}_Android_x86_64.apk
+          mv app-release.apk             e4pix_${{ github.ref_name }}_Android_universal.apk
+          cd "$GITHUB_WORKSPACE"
+          # mv build/app/outputs/bundle/release/app-release.aab e4pix_${{ github.ref_name }}_Android.aab
 
       - name: 📤 Upload Android Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: android-release
-          path: e4pix_*.*
+          path: |
+            build/app/outputs/flutter-apk/e4pix_*.apk
+            # e4pix_*.aab
 
   build-windows:
     runs-on: windows-latest
