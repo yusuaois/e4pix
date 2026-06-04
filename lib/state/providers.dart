@@ -22,4 +22,5 @@ export 'filter_state.dart';
 export 'quality_state.dart';
 export 'theme_state.dart';
 export 'sidecar_writer.dart';
+export 'image_cache_state.dart';
 export '../core/keybindings/keybinding_service.dart';

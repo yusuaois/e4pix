@@ -321,5 +321,8 @@
   "importModeRawOnly": "仅 RAW",
   "importModeRawOnlyDesc": "只导入 RAW 文件，忽略 JPG/PNG",
   "importModeAll": "全部",
-  "importModeAllDesc": "RAW 和 JPG/PNG 都导入，各自独立"
+  "importModeAllDesc": "RAW 和 JPG/PNG 都导入，各自独立",
+  "imageCacheCapacity": "预览缓存",
+  "imageCacheCapacityHint": "缓存最近浏览图片以加快回看（占用内存）",
+  "disabled": "禁用"
 }

@@ -1,7 +1,4 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'core/cache/raw_cache_cleaner.dart';
 import 'screens/develop_screen.dart';
 import 'state/theme_state.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -11,7 +8,6 @@ import 'package:dynamic_color/dynamic_color.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
-  unawaited(RawCacheCleaner.cleanOld());
 
   runApp(
     ProviderScope(

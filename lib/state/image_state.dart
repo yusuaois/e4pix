@@ -4,24 +4,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/cache/raw_cache_cleaner.dart';
 import '../core/constants/raw_formats.dart';
 import '../native/raw_bridge.dart';
+import '../render/decoded_image_cache.dart';
 import '../render/raw_to_ui_image.dart';
 import '../services/image_loader.dart';
 
 class ActiveFilePathNotifier extends Notifier<String?> {
   @override
   String? build() => null;
-
-  void set(String? newPath) {
-    final old = state;
-    state = newPath;
-    // 删掉缓存副本
-    if (old != null && old != newPath) {
-      RawCacheCleaner.deleteIfCached(old);
-    }
-  }
+  void set(String? newPath) => state = newPath;
 }
 
 final activeFilePathProvider =
@@ -29,7 +21,6 @@ final activeFilePathProvider =
       ActiveFilePathNotifier.new,
     );
 
-// 解码结果
 @immutable
 class DecodedImageState {
   final String path;
@@ -37,7 +28,6 @@ class DecodedImageState {
   final ui.Image uiImage;
   final Duration decodeTime;
   final Duration convertTime;
-
   final bool isPreliminary;
 
   const DecodedImageState({
@@ -52,16 +42,18 @@ class DecodedImageState {
 
 class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
   ui.Image? _held;
-
-  /// 每次 build 增 1, 异步链判断最新请求
   int _generation = 0;
 
+  final _cache = DecodedImageCache.instance;
+
+  /// dispose 旧持有图——若已被缓存接管则跳过（缓存负责其生命周期）。
   void _scheduleDispose(ui.Image old) {
+    if (_cache.ownsImage(old)) return; // 缓存持有，不能 dispose
     SchedulerBinding.instance.addPostFrameCallback((_) {
       SchedulerBinding.instance.addPostFrameCallback((_) {
         try {
           old.dispose();
-        } finally {}
+        } catch (_) {}
       });
     });
   }
@@ -69,7 +61,7 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
   void _swapHeld(ui.Image newImage) {
     final old = _held;
     _held = newImage;
-    if (old != null && old != newImage) _scheduleDispose(old);
+    if (old != null && !identical(old, newImage)) _scheduleDispose(old);
   }
 
   @override
@@ -84,11 +76,32 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
 
     final gen = ++_generation;
 
+    // 缓存命中：纯内存，秒开，零解码
+    final hit = _cache.get(path);
+    if (hit != null) {
+      _swapHeld(hit.image);
+      return DecodedImageState(
+        path: path,
+        decoded: RawDecodedImage(
+          width: hit.width,
+          height: hit.height,
+          channels: 4,
+          bitsPerChannel: hit.bitsPerChannel,
+          pixels: Uint8List(0),
+          metadata: hit.metadata,
+        ),
+        uiImage: hit.image,
+        decodeTime: Duration.zero,
+        convertTime: Duration.zero,
+        isPreliminary: false,
+      );
+    }
+
     if (RawFormats.isStandard(path)) {
       return _buildStandard(path, gen);
     }
 
-    // half_size + PPG
+    // RAW phase1: 快速预览
     final sw1 = Stopwatch()..start();
     final fastDecoded = await RawBridge.decodePreviewFast(path);
     sw1.stop();
@@ -112,29 +125,19 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
       isPreliminary: true,
     );
 
-    // print('[Build] phase1 done, scheduling phase2 gen=$gen');
     _runPhase2(path, gen);
     return fastState;
   }
 
   Future<void> _runPhase2(String path, int gen) async {
-    // ignore: avoid_print
-    // print('[Phase2] enter gen=$gen _gen=$_generation');
-
     await Future.delayed(const Duration(milliseconds: 16));
-    if (gen != _generation) {
-      // print('[Phase2] bail: stale gen $gen != $_generation');
-      return;
-    }
-
-    // print('[Phase2] calling RawBridge.decodePreview');
+    if (gen != _generation) return;
 
     try {
       final sw1 = Stopwatch()..start();
       final fullDecoded = await RawBridge.decodePreview(path);
       sw1.stop();
       if (gen != _generation) return;
-      // print('[Phase2] decode ${sw1.elapsedMilliseconds}ms');
 
       final sw2 = Stopwatch()..start();
       final fullImage = await rawToUiImage(fullDecoded);
@@ -143,9 +146,20 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
         _scheduleDispose(fullImage);
         return;
       }
-      // print('[Phase2] convert ${sw2.elapsedMilliseconds}ms');
 
       _swapHeld(fullImage);
+      // HD 图存入缓存（缓存接管生命周期）
+      _cache.put(
+        path,
+        CachedDecode(
+          image: fullImage,
+          metadata: fullDecoded.metadata,
+          width: fullDecoded.width,
+          height: fullDecoded.height,
+          bitsPerChannel: fullDecoded.bitsPerChannel,
+        ),
+      );
+
       state = AsyncData(
         DecodedImageState(
           path: path,
@@ -156,11 +170,7 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
           isPreliminary: false,
         ),
       );
-      // print('[Phase2] HD ready');
-    } catch (e) {
-      //st
-      // print('[Phase2] ERROR: $e\n$st');
-    }
+    } catch (_) {}
   }
 
   Future<DecodedImageState?> _buildStandard(String path, int gen) async {
@@ -172,17 +182,27 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
       return null;
     }
     _swapHeld(image);
-    final decoded = RawDecodedImage(
-      width: image.width,
-      height: image.height,
-      channels: 4,
-      bitsPerChannel: 8,
-      pixels: Uint8List(0),
-      metadata: meta,
+    _cache.put(
+      path,
+      CachedDecode(
+        image: image,
+        metadata: meta,
+        width: image.width,
+        height: image.height,
+        bitsPerChannel: 8,
+      ),
     );
+
     return DecodedImageState(
       path: path,
-      decoded: decoded,
+      decoded: RawDecodedImage(
+        width: image.width,
+        height: image.height,
+        channels: 4,
+        bitsPerChannel: 8,
+        pixels: Uint8List(0),
+        metadata: meta,
+      ),
       uiImage: image,
       decodeTime: sw.elapsed,
       convertTime: Duration.zero,

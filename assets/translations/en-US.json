@@ -321,5 +321,8 @@
   "importModeRawOnly": "RAW Only",
   "importModeRawOnlyDesc": "Only import RAW files, ignore JPG/PNG",
   "importModeAll": "All",
-  "importModeAllDesc": "RAW and JPG/PNG both imported, independently"
+  "importModeAllDesc": "RAW and JPG/PNG both imported, independently",
+  "imageCacheCapacity": "Image Cache Capacity",
+  "imageCacheCapacityHint": "Cache recently viewed images to speed up re-viewing (memory usage)",
+  "disabled": "Disabled"
 }

@@ -429,6 +429,36 @@ class _QualityTiles extends ConsumerWidget {
                 ref.read(exportQualityProvider.notifier).set(v.round()),
           ),
         ),
+        ListTile(
+          leading: const Icon(Icons.cached, size: 20),
+          title: Text(
+            tr('imageCacheCapacity'),
+            style: const TextStyle(fontSize: 13.5),
+          ),
+          subtitle: Text(
+            tr('imageCacheCapacityHint'),
+            style: const TextStyle(fontSize: 11, color: Colors.white54),
+          ),
+          trailing: DropdownButton<int>(
+            value: ref.watch(imageCacheCapacityProvider),
+            items: [
+              DropdownMenuItem(
+                value: 0,
+                child: Text(
+                  tr('disabled'),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              for (final n in [2, 3, 5, 8])
+                DropdownMenuItem(value: n, child: Text('$n')),
+            ],
+            onChanged: (v) {
+              if (v != null) {
+                ref.read(imageCacheCapacityProvider.notifier).set(v);
+              }
+            },
+          ),
+        ),
       ],
     );
   }
