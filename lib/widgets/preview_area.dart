@@ -14,6 +14,7 @@ import '../core/models/adjustment_params.dart';
 import '../render/preview_renderer.dart';
 import '../screens/folder_import_screen.dart';
 import '../state/providers.dart';
+import 'color_picker_overlay.dart';
 import 'crop_overlay.dart';
 import 'crop_panel.dart';
 import 'local_mask_overlay.dart';
@@ -163,6 +164,92 @@ class PreviewArea extends ConsumerWidget {
     );
   }
 
+  /// 取色模式包装：把预览内容 + 取色层 + 读数浮层组合。
+  /// [content] 该路径的预览内容；[displaySize] 图片实际显示矩形（裁剪后比例）。
+  /// 非取色模式返回 null（调用方走原 _ZoomableView 分支）。
+  Widget? _wrapColorPicker({
+    required WidgetRef ref,
+    required Widget content,
+    required Size displaySize,
+    required DecodedImageState state,
+    required AdjustmentParams params,
+    required LutState lut,
+    required bool lutEnabled,
+  }) {
+    final pickerOn = ref.watch(colorPickerModeProvider);
+    if (!pickerOn) return null;
+
+    final develop = ref.watch(shaderProgramProvider).value;
+    final maskProgram = ref.watch(maskShaderProgramProvider).value;
+    if (develop == null || maskProgram == null) {
+      return Container(
+        color: Colors.black,
+        child: Center(child: content),
+      );
+    }
+
+    final picked = ref.watch(pickedColorProvider);
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: SizedBox.fromSize(
+          size: displaySize,
+          child: Stack(
+            children: [
+              Positioned.fill(child: content),
+              Positioned.fill(
+                child: ColorPickerOverlay(
+                  developProgram: develop,
+                  maskProgram: maskProgram,
+                  sourceImage: state.uiImage,
+                  params: params,
+                  lutTexture: lutEnabled ? lut.textureA : null,
+                  lutSize: lutEnabled ? lut.sizeA : 0,
+                  lutTextureB: lutEnabled ? lut.textureB : null,
+                  lutSizeB: lutEnabled ? lut.sizeB : 0,
+                  curveTexture: ref.watch(effectiveCurveTextureProvider),
+                  sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
+                  denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
+                  displaySize: displaySize,
+                ),
+              ),
+              if (picked != null)
+                Builder(
+                  builder: (_) {
+                    const readoutW = 140.0;
+                    const readoutH = 56.0;
+                    const gap = 16.0;
+                    final cursorX = picked.nx * displaySize.width;
+                    final cursorY = picked.ny * displaySize.height;
+
+                    final placeLeft = cursorX > displaySize.width / 2;
+                    final placeAbove = cursorY > displaySize.height / 2;
+
+                    final left = placeLeft
+                        ? cursorX -
+                              gap -
+                              readoutW
+                        : cursorX + gap;
+                    final top = placeAbove
+                        ? cursorY -
+                              gap -
+                              readoutH
+                        : cursorY + gap;
+
+                    return Positioned(
+                      left: left.clamp(0.0, displaySize.width - readoutW),
+                      top: top.clamp(0.0, displaySize.height - readoutH),
+                      child: _ColorReadout(picked: picked),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 普通模式：显示已裁剪的画面（OverflowBox + Transform 模拟裁剪）
   Widget _buildCroppedPreview(
     DecodedImageState state,
@@ -197,7 +284,7 @@ class PreviewArea extends ConsumerWidget {
       );
     }
 
-    // 完整管线 带有local
+    // ============ 完整管线（local / 锐化 / 降噪）============
     if (needFullPipeline) {
       final maskProgram = ref.watch(maskShaderProgramProvider).value;
       final develop = ref.watch(shaderProgramProvider).value;
@@ -250,6 +337,18 @@ class PreviewArea extends ConsumerWidget {
             );
           }
 
+          // 取色模式
+          final picker = _wrapColorPicker(
+            ref: ref,
+            content: preview,
+            displaySize: box,
+            state: state,
+            params: params,
+            lut: lut,
+            lutEnabled: lutEnabled,
+          );
+          if (picker != null) return picker;
+
           // 纯查看
           return Container(
             color: Colors.black,
@@ -265,10 +364,10 @@ class PreviewArea extends ConsumerWidget {
       );
     }
 
-    // 无 local 无锐化
     final crop = params.crop;
     final image = state.uiImage;
 
+    // ============ 无 local 无锐化 + 无裁剪 ============
     if (crop.isIdentity) {
       return LayoutBuilder(
         builder: (ctx, constraints) {
@@ -306,6 +405,18 @@ class PreviewArea extends ConsumerWidget {
             );
           }
 
+          // 取色模式
+          final picker = _wrapColorPicker(
+            ref: ref,
+            content: content,
+            displaySize: fit.destination,
+            state: state,
+            params: params,
+            lut: lut,
+            lutEnabled: lutEnabled,
+          );
+          if (picker != null) return picker;
+
           // 纯查看
           return Container(
             color: Colors.black,
@@ -321,8 +432,7 @@ class PreviewArea extends ConsumerWidget {
       );
     }
 
-    // 无 local 无锐化 + 有裁剪：原 Transform 模拟裁剪
-    // 无 local 无锐化 + 有裁剪
+    // ============ 无 local 无锐化 + 有裁剪 ============
     return Container(
       color: Colors.black,
       child: LayoutBuilder(
@@ -345,28 +455,24 @@ class PreviewArea extends ConsumerWidget {
           final renderedOrientedW = orientedW * scale;
           final renderedOrientedH = orientedH * scale;
 
-          final matrix = Matrix4.identity()
-            ..translate(box.width / 2, box.height / 2, 0)
-            ..rotateZ(
-              crop.orientation * math.pi / 2 + crop.straighten * math.pi / 180,
-            )
-            ..scale(crop.flipH ? -1.0 : 1.0, crop.flipV ? -1.0 : 1.0)
-            ..translate(
-              -(crop.x + crop.width / 2) * renderedOrientedW,
-              -(crop.y + crop.height / 2) * renderedOrientedH,
-            );
-
-          final croppedContent = SizedBox.fromSize(
-            size: box,
+          // 把原图旋转成"完整 oriented 图" renderedOrientedW × H
+          final orientedImage = SizedBox(
+            width: renderedOrientedW,
+            height: renderedOrientedH,
             child: ClipRect(
               child: Transform(
-                transform: matrix,
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..rotateZ(
+                    crop.orientation * math.pi / 2 +
+                        crop.straighten * math.pi / 180,
+                  )
+                  ..scale(crop.flipH ? -1.0 : 1.0, crop.flipV ? -1.0 : 1.0),
                 child: OverflowBox(
                   minWidth: renderedFullW,
                   maxWidth: renderedFullW,
                   minHeight: renderedFullH,
                   maxHeight: renderedFullH,
-                  alignment: Alignment.topLeft,
                   child: SizedBox(
                     width: renderedFullW,
                     height: renderedFullH,
@@ -385,6 +491,26 @@ class PreviewArea extends ConsumerWidget {
             ),
           );
 
+          // 在 oriented 图上切 crop 矩形 左上角 crop.x/y，大小 box
+          final croppedContent = SizedBox.fromSize(
+            size: box,
+            child: ClipRect(
+              child: OverflowBox(
+                minWidth: renderedOrientedW,
+                maxWidth: renderedOrientedW,
+                minHeight: renderedOrientedH,
+                maxHeight: renderedOrientedH,
+                alignment: Alignment.topLeft,
+                child: Transform.translate(
+                  offset: Offset(
+                    -crop.x * renderedOrientedW,
+                    -crop.y * renderedOrientedH,
+                  ),
+                  child: orientedImage,
+                ),
+              ),
+            ),
+          );
           // 蒙版编辑中
           if (selectedLocalId != null) {
             return Center(
@@ -395,6 +521,18 @@ class PreviewArea extends ConsumerWidget {
               ),
             );
           }
+
+          // 取色模式
+          final picker = _wrapColorPicker(
+            ref: ref,
+            content: croppedContent,
+            displaySize: box,
+            state: state,
+            params: params,
+            lut: lut,
+            lutEnabled: lutEnabled,
+          );
+          if (picker != null) return picker;
 
           // 纯查看
           return Center(
@@ -597,8 +735,7 @@ class _CenterMessage extends ConsumerWidget {
                     ref.read(shotsNotifierProvider.notifier).addFiles(paths);
                   }
                 } else {
-                  final result = await FilePicker.pickFiles(
-                  );
+                  final result = await FilePicker.pickFiles();
                   if (result == null || result.files.isEmpty) return;
                   final paths = result.files
                       .map((f) => f.path)
@@ -696,6 +833,61 @@ class _ZoomableViewState extends State<_ZoomableView> {
           ),
         );
       },
+    );
+  }
+}
+
+class _ColorReadout extends StatelessWidget {
+  final PickedColor picked;
+  const _ColorReadout({required this.picked});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 色块
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: Color.fromARGB(255, picked.r, picked.g, picked.b),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'R${picked.r} G${picked.g} B${picked.b}',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontFamily: 'monospace',
+                  color: Colors.white,
+                ),
+              ),
+              Text(
+                '${picked.hex}  L${picked.luma}',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontFamily: 'monospace',
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

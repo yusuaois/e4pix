@@ -4,6 +4,7 @@ export 'tether_state.dart';
 export 'params_state.dart';
 export 'export_state.dart';
 export 'camera_state.dart';
+export 'color_picker_state.dart';
 export 'ai_auto_state.dart';
 export 'history_state.dart';
 export 'preset_state.dart';

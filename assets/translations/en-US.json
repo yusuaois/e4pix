@@ -324,5 +324,6 @@
   "importModeAllDesc": "RAW and JPG/PNG both imported, independently",
   "imageCacheCapacity": "Image Cache Capacity",
   "imageCacheCapacityHint": "Cache recently viewed images to speed up re-viewing (memory usage)",
-  "disabled": "Disabled"
+  "disabled": "Disabled",
+  "colorPicker": "Color Picker"
 }

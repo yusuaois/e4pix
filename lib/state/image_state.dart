@@ -46,7 +46,7 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
 
   final _cache = DecodedImageCache.instance;
 
-  /// dispose 旧持有图——若已被缓存接管则跳过（缓存负责其生命周期）。
+  /// dispose 旧持有图——若已被缓存接管则跳过
   void _scheduleDispose(ui.Image old) {
     if (_cache.ownsImage(old)) return; // 缓存持有，不能 dispose
     SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -76,7 +76,7 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
 
     final gen = ++_generation;
 
-    // 缓存命中：纯内存，秒开，零解码
+    // 缓存命中
     final hit = _cache.get(path);
     if (hit != null) {
       _swapHeld(hit.image);
@@ -148,7 +148,7 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
       }
 
       _swapHeld(fullImage);
-      // HD 图存入缓存（缓存接管生命周期）
+      // HD 图存入缓存
       _cache.put(
         path,
         CachedDecode(
