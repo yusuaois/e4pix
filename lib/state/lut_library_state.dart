@@ -1,5 +1,4 @@
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/constants/lut_formats.dart';
@@ -17,7 +16,6 @@ class LutLibraryNotifier extends AsyncNotifier<List<LutEntry>> {
     if (src == null) return null;
 
     if (!LutFormats.isLut(src)) {
-      debugPrint('选中的文件不是 .cube / .vlt 格式');
       return null;
     }
 
@@ -29,7 +27,6 @@ class LutLibraryNotifier extends AsyncNotifier<List<LutEntry>> {
       state = AsyncData(next);
       return entry;
     } catch (e) {
-      debugPrint('Import LUT failed: $e');
       return null;
     }
   }
@@ -41,9 +38,7 @@ class LutLibraryNotifier extends AsyncNotifier<List<LutEntry>> {
       state = AsyncData(
         current.where((e) => e.filePath != entry.filePath).toList(),
       );
-    } catch (e) {
-      debugPrint('Delete LUT failed: $e');
-    }
+    } finally {}
   }
 }
 

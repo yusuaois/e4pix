@@ -120,6 +120,7 @@
   "deleteLUT": "Delete LUT",
   "confirmDeleteLUT": "Are you sure you want to delete \"{}\"? This action cannot be undone.",
   "lutVltHint": "Suitable for V-Log footage",
+  "intensity": "Intensity",
   "crop": "Crop",
   "exportDecodingImage": "Decoding RAW (Full Resolution)...",
   "exportTransformingColorSpace": "Converting Color Space...",

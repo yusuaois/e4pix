@@ -167,8 +167,6 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       final old = _rendered;
       setState(() => _rendered = result);
       old?.dispose();
-    } catch (e) {
-      debugPrint('MultiPassPreview render failed: $e');
     } finally {
       _isRendering = false;
       if (_pendingRender) {

@@ -470,9 +470,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         .set(
           template.isEmpty ? ExportTemplate.defaultTemplate : template,
         ); // 记住
-    final folder = await FilePicker.getDirectoryPath(
-      dialogTitle: tr('saveTo'),
-    );
+    final folder = await FilePicker.getDirectoryPath(dialogTitle: tr('saveTo'));
     if (folder == null) return;
     await _runExport(
       folder,
@@ -606,9 +604,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         // 退出多选
         ref.read(exportSelectionNotifierProvider.notifier).toggleMode();
       }
-    } catch (e, st) {
+    } catch (e) {
       if (mounted) Navigator.pop(context);
-      debugPrint('Export error: $e\n$st');
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -946,9 +943,11 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             children: [
               Expanded(
                 child: Text(
-                  m == null
-                      ? (path ?? tr('imageNotChosen'))
-                      : '${m.cameraModel} · ISO ${m.iso} · ${m.shutterDisplay} · f/${m.aperture.toStringAsFixed(1)}',
+                  m?.summary.isNotEmpty == true
+                      ? m!.summary
+                      : (path != null
+                            ? p.basename(path)
+                            : tr('imageNotChosen')),
                   style: const TextStyle(fontSize: 11),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -983,6 +982,25 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    Platform.isAndroid
+                        ? Icons.folder_copy_outlined
+                        : Icons.add_photo_alternate_outlined,
+                    size: 18,
+                  ),
+                  tooltip: Platform.isAndroid
+                      ? tr("folderImport")
+                      : tr("imageChoose"),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  onPressed: _importImages,
+                ),
               ],
             ],
           ),
@@ -1091,9 +1109,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            m == null
-                ? (path ?? tr('imageNotChosen'))
-                : '${m.cameraModel} · ISO ${m.iso} · ${m.shutterDisplay} · f/${m.aperture.toStringAsFixed(1)}',
+            m?.summary.isNotEmpty == true
+                ? m!.summary
+                : (path != null ? p.basename(path) : tr('imageNotChosen')),
             style: const TextStyle(fontSize: 11),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

@@ -69,6 +69,19 @@ class RawMetadata {
       '$cameraMake $cameraModel | ISO $iso | $shutterDisplay | f/$aperture | ${focalLength.toStringAsFixed(0)}mm';
 }
 
+extension RawMetadataSummary on RawMetadata {
+  String get summary {
+    final parts = <String>[];
+    final model = cameraModel.trim();
+    if (model.isNotEmpty) parts.add(model);
+    if (iso > 0) parts.add('ISO $iso');
+    if (shutter > 0) parts.add(shutterDisplay);
+    if (aperture > 0) parts.add('f/${aperture.toStringAsFixed(1)}');
+    if (focalLength > 0) parts.add('${focalLength.toStringAsFixed(0)}mm');
+    return parts.join(' · ');
+  }
+}
+
 class RawDecodeException implements Exception {
   final int code;
   final String message;

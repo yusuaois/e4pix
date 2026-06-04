@@ -179,8 +179,6 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
       } finally {
         rendered.dispose();
       }
-    } catch (e) {
-      debugPrint('Histogram recompute error: $e');
     } finally {
       _computing = false;
     }

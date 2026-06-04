@@ -61,9 +61,7 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
       SchedulerBinding.instance.addPostFrameCallback((_) {
         try {
           old.dispose();
-        } catch (e) {
-          debugPrint('Stale ui.Image dispose: $e');
-        }
+        } finally {}
       });
     });
   }
@@ -121,7 +119,7 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
 
   Future<void> _runPhase2(String path, int gen) async {
     // ignore: avoid_print
-    print('[Phase2] enter gen=$gen _gen=$_generation');
+    // print('[Phase2] enter gen=$gen _gen=$_generation');
 
     await Future.delayed(const Duration(milliseconds: 16));
     if (gen != _generation) {

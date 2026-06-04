@@ -918,9 +918,12 @@ class _LutSlot extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                const SizedBox(
+                SizedBox(
                   width: 64,
-                  child: Text('Intensity', style: TextStyle(fontSize: 11.5)),
+                  child: Text(
+                    tr("intensity"),
+                    style: TextStyle(fontSize: 11.5),
+                  ),
                 ),
                 Expanded(
                   child: SliderTheme(
