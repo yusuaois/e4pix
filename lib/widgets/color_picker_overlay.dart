@@ -140,15 +140,40 @@ class _ColorPickerOverlayState extends ConsumerState<ColorPickerOverlay> {
       children: [
         MouseRegion(
           cursor: SystemMouseCursors.precise,
+          // 处理电脑端鼠标悬停
           onHover: (e) {
             _cursor = e.localPosition;
             _updateReadingAt(e.localPosition);
           },
+          // 处理鼠标移出区域
           onExit: (_) {
             _cursor = null;
             ref.read(pickedColorProvider.notifier).set(null);
           },
-          child: const SizedBox.expand(),
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            // 处理手机端手指按下 / 电脑端鼠标点击
+            onPointerDown: (e) {
+              _cursor = e.localPosition;
+              _updateReadingAt(e.localPosition);
+            },
+            // 处理手机端手指拖拽滑动 / 电脑端鼠标点击拖拽
+            onPointerMove: (e) {
+              _cursor = e.localPosition;
+              _updateReadingAt(e.localPosition);
+            },
+            // 处理手指抬起
+            onPointerUp: (_) {
+              // _cursor = null;
+              // ref.read(pickedColorProvider.notifier).set(null);
+            },
+            // 处理触摸被系统取消
+            onPointerCancel: (_) {
+              // _cursor = null;
+              // ref.read(pickedColorProvider.notifier).set(null);
+            },
+            child: const SizedBox.expand(),
+          ),
         ),
       ],
     );
