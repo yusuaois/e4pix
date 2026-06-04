@@ -7,10 +7,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 import '../core/constants/app_info.dart';
-import '../state/app_settings_state.dart';
-import '../state/quality_state.dart';
+import '../state/providers.dart';
 import '../widgets/ai_settings_dialog.dart';
-import '../state/theme_state.dart';
 import '../widgets/theme_color_picker.dart';
 import '../services/update_service.dart';
 import 'keybinding_settings_screen.dart';
@@ -31,6 +29,7 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           _SectionHeader(tr("settingsTether")),
           _TetherFolderTile(),
+          const _ImportModeTiles(),
           SizedBox(height: 16),
 
           _SectionHeader(tr("aiColor")),
@@ -86,7 +85,7 @@ class _TetherFolderTile extends ConsumerWidget {
     final folder = ref.watch(tetherFolderProvider);
 
     Future<void> pick() async {
-      final path = await FilePicker.platform.getDirectoryPath(
+      final path = await FilePicker.getDirectoryPath(
         dialogTitle: tr("settingsTetherFolderChoose"),
       );
       if (path != null && path.isNotEmpty) {
@@ -121,6 +120,65 @@ class _TetherFolderTile extends ConsumerWidget {
             onPressed: pick,
             child: Text(tr("browse"), style: TextStyle(fontSize: 12)),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImportModeTiles extends ConsumerWidget {
+  const _ImportModeTiles();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(importModeProvider);
+    final notifier = ref.read(importModeProvider.notifier);
+
+    Widget tile(ImportMode value, String title, String desc) {
+      return RadioListTile<ImportMode>(
+        value: value,
+        dense: true,
+        controlAffinity: ListTileControlAffinity.leading,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        title: Text(title, style: const TextStyle(fontSize: 13)),
+        subtitle: Text(
+          desc,
+          style: const TextStyle(fontSize: 11, color: Colors.white54),
+        ),
+      );
+    }
+
+    return RadioGroup<ImportMode>(
+      groupValue: mode,
+      onChanged: (v) => v != null ? notifier.set(v) : null,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                const Icon(Icons.filter_alt_outlined, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    tr('importMode'),
+                    style: const TextStyle(fontSize: 13.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          tile(
+            ImportMode.rawPriority,
+            tr('importModeRawPriority'),
+            tr('importModeRawPriorityDesc'),
+          ),
+          tile(
+            ImportMode.rawOnly,
+            tr('importModeRawOnly'),
+            tr('importModeRawOnlyDesc'),
+          ),
+          tile(ImportMode.all, tr('importModeAll'), tr('importModeAllDesc')),
         ],
       ),
     );
@@ -428,7 +486,10 @@ class _EditingTiles extends ConsumerWidget {
           trailing: DropdownButton<int>(
             value: ref.watch(denoiseParallelismProvider),
             items: [
-              DropdownMenuItem(value: 0, child: Text(tr('auto'), style: TextStyle(fontSize: 12))),
+              DropdownMenuItem(
+                value: 0,
+                child: Text(tr('auto'), style: TextStyle(fontSize: 12)),
+              ),
               for (final n in [1, 2, 4, 6, 8, 12, 16])
                 DropdownMenuItem(value: n, child: Text('$n')),
             ],

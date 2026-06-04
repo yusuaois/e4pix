@@ -12,7 +12,7 @@ class LutLibraryNotifier extends AsyncNotifier<List<LutEntry>> {
   /// 弹文件选择对话框，把选中的 .cube 复制到 app 私有目录
   /// 成功返回新条目，失败返回 null
   Future<LutEntry?> importFromFile() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.any);
+    final result = await FilePicker.pickFiles(type: FileType.any);
     final src = result?.files.firstOrNull?.path;
     if (src == null) return null;
 

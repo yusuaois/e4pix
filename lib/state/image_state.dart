@@ -5,8 +5,10 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/cache/raw_cache_cleaner.dart';
+import '../core/constants/raw_formats.dart';
 import '../native/raw_bridge.dart';
 import '../render/raw_to_ui_image.dart';
+import '../services/image_loader.dart';
 
 class ActiveFilePathNotifier extends Notifier<String?> {
   @override
@@ -84,6 +86,10 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
 
     final gen = ++_generation;
 
+    if (RawFormats.isStandard(path)) {
+      return _buildStandard(path, gen);
+    }
+
     // half_size + PPG
     final sw1 = Stopwatch()..start();
     final fastDecoded = await RawBridge.decodePreviewFast(path);
@@ -157,6 +163,33 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
       //st
       // print('[Phase2] ERROR: $e\n$st');
     }
+  }
+
+  Future<DecodedImageState?> _buildStandard(String path, int gen) async {
+    final sw = Stopwatch()..start();
+    final (image, meta) = await ImageLoader.decodeFull(path);
+    sw.stop();
+    if (gen != _generation) {
+      _scheduleDispose(image);
+      return null;
+    }
+    _swapHeld(image);
+    final decoded = RawDecodedImage(
+      width: image.width,
+      height: image.height,
+      channels: 4,
+      bitsPerChannel: 8,
+      pixels: Uint8List(0),
+      metadata: meta,
+    );
+    return DecodedImageState(
+      path: path,
+      decoded: decoded,
+      uiImage: image,
+      decodeTime: sw.elapsed,
+      convertTime: Duration.zero,
+      isPreliminary: false,
+    );
   }
 }
 

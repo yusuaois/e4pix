@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/constants/raw_formats.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
@@ -41,11 +43,16 @@ class AIAutoState {
 }
 
 class AIAutoNotifier extends Notifier<AIAutoState> {
+  Timer? _debounce;
+  int _retryCount = 0;
+  static const _maxRetries = 20;
+
   @override
   AIAutoState build() {
     AISettings.getAutoAI().then((v) {
       if (ref.mounted) state = state.copyWith(enabled: v);
     });
+    ref.onDispose(() => _debounce?.cancel());
     return const AIAutoState();
   }
 
@@ -54,9 +61,52 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
     await AISettings.setAutoAI(v);
   }
 
-  /// 联机模式下，由 ShotsNotifier 在新 shot 到达时调用
-  Future<void> onNewShotArrived() async {
+  Future<void> onNewShotArrived(String shotPath) async {
     if (!state.enabled) return;
+
+    final isRaw = RawFormats.isRaw(shotPath);
+    final mode = ref.read(importModeProvider);
+
+    if (mode == ImportMode.rawPriority && !isRaw) {
+      debugPrint('[AI] skip JPG in rawPriority mode: $shotPath');
+      return;
+    }
+
+    _debounce?.cancel();
+    _retryCount = 0;
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _runSuggestionForActive(shotPath);
+    });
+  }
+
+  Future<void> _runSuggestionForActive(String triggerPath) async {
+    if (!state.enabled || state.inProgress) return;
+
+    if (ref.read(activeFilePathProvider) != triggerPath) {
+      debugPrint('[AI] skip: activeFile changed');
+      _retryCount = 0;
+      return;
+    }
+
+    final imageState = ref.read(imageNotifierProvider).value;
+    if (imageState == null ||
+        imageState.isPreliminary ||
+        imageState.path != triggerPath) {
+      if (_retryCount >= _maxRetries) {
+        debugPrint('[AI] give up after $_maxRetries retries (image not ready)');
+        _retryCount = 0;
+        return;
+      }
+      _retryCount++;
+      _debounce?.cancel();
+      _debounce = Timer(
+        const Duration(milliseconds: 400),
+        () => _runSuggestionForActive(triggerPath),
+      );
+      return;
+    }
+
+    _retryCount = 0;
     await _runSuggestion();
   }
 
@@ -70,9 +120,12 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
     final imageState = ref.read(imageNotifierProvider).value;
     if (program == null || maskProgram == null || imageState == null) return;
 
+    final shotPath = ref.read(activeFilePathProvider);
+    if (imageState.path != shotPath) return;
+    if (imageState.isPreliminary) return;
+
     final params = ref.read(currentParamsNotifierProvider);
     final lutState = ref.read(lutNotifierProvider);
-    final shotPath = ref.read(activeFilePathProvider);
 
     state = state.copyWith(inProgress: true);
 

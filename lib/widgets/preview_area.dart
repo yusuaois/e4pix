@@ -428,9 +428,7 @@ class PreviewArea extends ConsumerWidget {
                   ref.read(shotsNotifierProvider.notifier).addFiles(paths);
                 }
               } else {
-                final result = await FilePicker.platform.pickFiles(
-                  allowMultiple: true,
-                );
+                final result = await FilePicker.pickFiles();
                 if (result == null || result.files.isEmpty) return;
                 final paths = result.files
                     .map((f) => f.path)
@@ -599,8 +597,7 @@ class _CenterMessage extends ConsumerWidget {
                     ref.read(shotsNotifierProvider.notifier).addFiles(paths);
                   }
                 } else {
-                  final result = await FilePicker.platform.pickFiles(
-                    allowMultiple: true,
+                  final result = await FilePicker.pickFiles(
                   );
                   if (result == null || result.files.isEmpty) return;
                   final paths = result.files

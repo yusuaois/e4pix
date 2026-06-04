@@ -313,5 +313,12 @@
   "grainRedChannel": "Red Channel",
   "grainBlueChannel": "Blue Channel",
   "grainCorrelation": "Channel Correlation",
-  "grainColorPreservation": "Color Preservation"
+  "grainColorPreservation": "Color Preservation",
+  "importMode": "Import Mode",
+  "importModeRawPriority": "RAW Priority",
+  "importModeRawPriorityDesc": "When both RAW and JPG are present, only import the RAW file; normal import for JPG/PNG without RAW",
+  "importModeRawOnly": "RAW Only",
+  "importModeRawOnlyDesc": "Only import RAW files, ignore JPG/PNG",
+  "importModeAll": "All",
+  "importModeAllDesc": "RAW and JPG/PNG both imported, independently"
 }

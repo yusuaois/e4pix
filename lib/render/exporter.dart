@@ -8,8 +8,10 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:image/image.dart' as img_pkg;
 import 'package:path/path.dart' as p;
 
+import '../core/constants/raw_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
+import '../services/image_loader.dart';
 import 'cpu_denoise.dart';
 import 'exif_writer.dart';
 import 'export_template.dart';
@@ -46,7 +48,7 @@ class Exporter {
   /// [seq] 1-based 序号（批量用）；[usedNames] 跨多次调用累积的已用文件名集合，
   /// 用于批量去重（单张可传新的空集）。
   static Future<File> exportFullRes({
-    required String inputRawPath,
+    required String inputPath,
     required String outputDir,
     required String filenameTemplate,
     required int seq,
@@ -69,17 +71,34 @@ class Exporter {
     ExportProgress? onProgress,
   }) async {
     onProgress?.call(0.05, tr('exportDecodingImage'));
-    final raw = await RawBridge.decodeFull(inputRawPath);
 
-    final sourceImage = await _prepareSourceImage(
-      raw: raw,
-      params: params,
-      denoiseEngine: denoiseEngine,
-      denoiseParallelism: denoiseParallelism,
-      onProgress: onProgress,
-    );
+    final ui.Image sourceImage;
+    final RawMetadata metadata;
+    final bool isStandard = RawFormats.isStandard(inputPath);
+
+    if (isStandard) {
+      // 标准图片：8-bit sRGB 无 16-bit、无 CPU 降噪
+      final (image, meta) = await ImageLoader.decodeFull(inputPath);
+      sourceImage = image;
+      metadata = meta;
+    } else {
+      // RAW：解码 16-bit linear → (可选 CPU 降噪) → 8-bit sRGB
+      final raw = await RawBridge.decodeFull(inputPath);
+      metadata = raw.metadata;
+      sourceImage = await _prepareSourceImage(
+        raw: raw,
+        params: params,
+        denoiseEngine: denoiseEngine,
+        denoiseParallelism: denoiseParallelism,
+        onProgress: onProgress,
+      );
+    }
 
     onProgress?.call(0.80, tr('exportRenderingImage'));
+    final passDenoiseProgram = isStandard
+        ? (_wantDenoise(params) ? denoiseProgram : null)
+        : (_wantGpuDenoise(params, denoiseEngine) ? denoiseProgram : null);
+
     final output = await FullPipelineRenderer.render(
       developProgram: shaderProgram,
       maskProgram: maskProgram,
@@ -91,9 +110,7 @@ class Exporter {
       lutSizeB: lutSizeB,
       curveTexture: curveTexture,
       sharpenProgram: sharpenProgram,
-      denoiseProgram: _wantGpuDenoise(params, denoiseEngine)
-          ? denoiseProgram
-          : null,
+      denoiseProgram: passDenoiseProgram,
       targetWidth: sourceImage.width,
       targetHeight: sourceImage.height,
     );
@@ -101,9 +118,9 @@ class Exporter {
     // 文件名：模板 + metadata + 去重
     final base = ExportTemplate.apply(
       template: filenameTemplate,
-      originalName: ExportTemplate.stripExtension(p.basename(inputRawPath)),
+      originalName: ExportTemplate.stripExtension(p.basename(inputPath)),
       seq: seq,
-      metadata: raw.metadata,
+      metadata: metadata,
       outWidth: output.width,
       outHeight: output.height,
     );
@@ -118,7 +135,7 @@ class Exporter {
       output,
       format,
       jpegQuality,
-      writeExif ? raw.metadata : null,
+      (writeExif && _hasValidMetadata(metadata)) ? metadata : null,
     );
     output.dispose();
 
@@ -129,7 +146,12 @@ class Exporter {
     return file;
   }
 
-  /// 解码后 → 渲染前：准备 develop 用的 8-bit sRGB 源图（按需 CPU 降噪）。
+  static bool _hasValidMetadata(RawMetadata m) =>
+      m.cameraModel.trim().isNotEmpty ||
+      m.cameraMake.trim().isNotEmpty ||
+      m.iso > 0 ||
+      m.timestamp != null;
+
   static Future<ui.Image> _prepareSourceImage({
     required RawDecodedImage raw,
     required AdjustmentParams params,
@@ -154,7 +176,6 @@ class Exporter {
     return PixelConvert.rawToImage(raw);
   }
 
-  /// 渲染输出 → 编码字节（PNG 直接编码，JPEG 在 isolate 用 image 包）
   static Future<Uint8List> _encode(
     ui.Image output,
     ExportFormat format,

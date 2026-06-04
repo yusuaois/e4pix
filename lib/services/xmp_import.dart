@@ -204,7 +204,7 @@ class XmpImport {
   ///
   /// 兼容两种写法：
   /// 1. 作为 rdf:Description 的 XML 属性：crs:Exposure2012="+1.00"
-  /// 2. 作为子元素：<crs:Exposure2012>+1.00</crs:Exposure2012>
+  /// 2. 作为子元素：<crs:Exposure2012>+1.00<crs:Exposure2012>
   static Map<String, String> _extractCrsValues(XmlDocument doc) {
     final out = <String, String>{};
 
@@ -239,7 +239,7 @@ class XmpImport {
 
   /// 清理 XMP 文本，提高 XmlDocument.parse 的成功率：
   /// - 去除 UTF-8 BOM 和前后空白
-  /// - 若被 <?xpacket?> 包裹，裁出 <x:xmpmeta>…</x:xmpmeta> 主体
+  /// - 若被 <?xpacket?> 包裹，裁出 x:xmpmeta…x:xmpmeta 主体
   ///   （xpacket 处理指令本身合法，但去掉更稳，避免某些尾部填充空白问题）
   static String _sanitizeXmp(String s) {
     var out = s;

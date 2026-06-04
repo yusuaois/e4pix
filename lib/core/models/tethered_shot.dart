@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 
 import '../../native/raw_bridge.dart';
+import '../constants/raw_formats.dart';
 import 'adjustment_params.dart';
 
 enum ShotFlag { none, pick, reject }
@@ -52,6 +54,15 @@ class TetheredShot {
 
   static Future<TetheredShot> loadWithThumbnail(TetheredShot shot) async {
     try {
+      // 标准图片
+      if (RawFormats.isStandard(shot.path)) {
+        final bytes = await File(shot.path).readAsBytes();
+        final codec = await ui.instantiateImageCodec(bytes, targetWidth: 512);
+        final frame = await codec.getNextFrame();
+        return shot.copyWith(thumbnail: frame.image);
+      }
+
+      // RAW
       final raw = await RawBridge.extractThumbnail(shot.path);
       ui.Image? thumb;
       if (raw.isJpegEncoded) {

@@ -15,11 +15,13 @@ void main() async {
 
   runApp(
     ProviderScope(
-      child: EasyLocalization(
-        supportedLocales: [Locale('en', 'US'), Locale('zh', 'CN')],
-        path: 'assets/translations',
-        fallbackLocale: Locale('en', 'US'),
-        child: E4pixApp(),
+      child: ExcludeSemantics(
+        child: EasyLocalization(
+          supportedLocales: [Locale('en', 'US'), Locale('zh', 'CN')],
+          path: 'assets/translations',
+          fallbackLocale: Locale('en', 'US'),
+          child: E4pixApp(),
+        ),
       ),
     ),
   );

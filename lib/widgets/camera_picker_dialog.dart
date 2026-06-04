@@ -66,7 +66,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
   }
 
   Future<void> _pickFolder() async {
-    final folder = await FilePicker.platform.getDirectoryPath(
+    final folder = await FilePicker.getDirectoryPath(
       dialogTitle: tr("saveFolderChoose"),
     );
     if (folder != null) {

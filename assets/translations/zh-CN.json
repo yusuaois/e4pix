@@ -313,5 +313,12 @@
   "grainRedChannel": "红通道强度",
   "grainBlueChannel": "蓝通道强度",
   "grainCorrelation": "通道相关性",
-  "grainColorPreservation": "色彩保护"
+  "grainColorPreservation": "色彩保护",
+  "importMode": "导入模式",
+  "importModeRawPriority": "RAW 优先",
+  "importModeRawPriorityDesc": "同时存在 RAW 和 JPG 时只导入 RAW；无 RAW 的 JPG/PNG 正常导入",
+  "importModeRawOnly": "仅 RAW",
+  "importModeRawOnlyDesc": "只导入 RAW 文件，忽略 JPG/PNG",
+  "importModeAll": "全部",
+  "importModeAllDesc": "RAW 和 JPG/PNG 都导入，各自独立"
 }

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../core/constants/raw_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
@@ -94,6 +95,42 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
   }
 
   Future<void> onNewShot(File file) async {
+    final mode = ref.read(importModeProvider);
+    final path = file.path;
+
+    // 模式过滤 / 去重
+    if (mode == ImportMode.rawOnly && !RawFormats.isRaw(path)) {
+      return; // 仅 RAW，标准图直接忽略
+    }
+    if (!RawFormats.isSupported(path)) return; // 非图片忽略
+
+    if (mode == ImportMode.rawPriority) {
+      final base = RawFormats.baseKey(path);
+      final isRaw = RawFormats.isRaw(path);
+      // 已存在的同基名 shot
+      final existing = state
+          .where((s) => RawFormats.baseKey(s.path) == base)
+          .toList();
+      if (isRaw) {
+        // 新来 RAW：移除同名的标准图（RAW 优先）
+        final standardDupes = existing
+            .where((s) => RawFormats.isStandard(s.path))
+            .toList();
+        if (standardDupes.isNotEmpty) {
+          for (final dup in standardDupes) {
+            dup.disposeThumbnail();
+          }
+          state = state.where((s) => !standardDupes.contains(s)).toList();
+          // 如果被移除的是当前激活图，激活新 RAW
+        }
+      } else {
+        // 新来标准图：若已有同名 RAW，跳过
+        if (existing.any((s) => RawFormats.isRaw(s.path))) {
+          return; // RAW 已在，丢弃 JPG
+        }
+      }
+    }
+
     final preserve = ref.read(preserveParamsProvider);
     final activePath = ref.read(activeShotPathProvider);
 
@@ -141,10 +178,13 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
     }
 
     state = [for (final s in state) s.path == shot.path ? loaded : s];
-    ref.read(aiAutoNotifierProvider.notifier).onNewShotArrived();
+    ref.read(aiAutoNotifierProvider.notifier).onNewShotArrived(shot.path);
   }
 
   Future<void> addFiles(List<String> paths) async {
+    if (paths.isEmpty) return;
+    final mode = ref.read(importModeProvider);
+    paths = filterByImportMode(paths, mode);
     if (paths.isEmpty) return;
 
     final existing = state.map((s) => s.path).toSet();

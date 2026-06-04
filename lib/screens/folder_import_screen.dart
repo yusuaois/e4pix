@@ -12,7 +12,7 @@ import '../core/constants/raw_formats.dart';
 import '../native/raw_bridge.dart';
 
 Future<List<String>?> openFolderImport(BuildContext context) async {
-  final dir = await FilePicker.platform.getDirectoryPath(
+  final dir = await FilePicker.getDirectoryPath(
     dialogTitle: tr('folderImportPickDir'),
   );
   if (dir == null || dir.isEmpty || dir == '/') return null;
@@ -55,7 +55,7 @@ class _FolderImportScreenState extends State<_FolderImportScreen> {
       }
       final paths = <String>[];
       await for (final e in dir.list(recursive: false, followLinks: false)) {
-        if (e is File && RawFormats.isRaw(e.path)) {
+        if (e is File && RawFormats.isSupported(e.path)) {
           paths.add(e.path);
         }
       }
@@ -183,7 +183,7 @@ class _RawGridTile extends StatefulWidget {
 
 class _RawGridTileState extends State<_RawGridTile>
     with AutomaticKeepAliveClientMixin {
-  Future<RawDecodedImage>? _thumbFuture;
+  Future<ui.Image>? _thumbFuture;
 
   @override
   bool get wantKeepAlive => true;
@@ -191,7 +191,49 @@ class _RawGridTileState extends State<_RawGridTile>
   @override
   void initState() {
     super.initState();
-    _thumbFuture = RawBridge.extractThumbnail(widget.path);
+    _thumbFuture = _loadThumb(widget.path);
+  }
+
+  /// 缩略图加载
+  Future<ui.Image> _loadThumb(String path) async {
+    if (RawFormats.isStandard(path)) {
+      // 标准图片：原生解码 + targetWidth
+      final bytes = await File(path).readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes, targetWidth: 320);
+      final frame = await codec.getNextFrame();
+      return frame.image;
+    }
+    // RAW：LibRaw 内嵌缩略图 → ui.Image
+    final raw = await RawBridge.extractThumbnail(path);
+    if (raw.isJpegEncoded) {
+      final codec = await ui.instantiateImageCodec(raw.pixels as Uint8List);
+      return (await codec.getNextFrame()).image;
+    }
+    // RGB 裸数据 → 补 alpha → ui.Image
+    final px = raw.pixels as Uint8List;
+    final rgba = Uint8List(raw.width * raw.height * 4);
+    for (int i = 0, j = 0; i < px.length; i += 3, j += 4) {
+      rgba[j] = px[i];
+      rgba[j + 1] = px[i + 1];
+      rgba[j + 2] = px[i + 2];
+      rgba[j + 3] = 255;
+    }
+    final c = Completer<ui.Image>();
+    ui.decodeImageFromPixels(
+      rgba,
+      raw.width,
+      raw.height,
+      ui.PixelFormat.rgba8888,
+      c.complete,
+    );
+    return c.future;
+  }
+
+  @override
+  void dispose() {
+    // 释放已解码缩略图
+    _thumbFuture?.then((img) => img.dispose()).catchError((_) {});
+    super.dispose();
   }
 
   @override
@@ -207,7 +249,7 @@ class _RawGridTileState extends State<_RawGridTile>
             borderRadius: BorderRadius.circular(6),
             child: Container(
               color: Colors.white.withValues(alpha: 0.04),
-              child: FutureBuilder<RawDecodedImage>(
+              child: FutureBuilder<ui.Image>(
                 future: _thumbFuture,
                 builder: (ctx, snap) {
                   if (snap.connectionState != ConnectionState.done) {
@@ -228,7 +270,7 @@ class _RawGridTileState extends State<_RawGridTile>
                       ),
                     );
                   }
-                  return _ThumbImage(raw: snap.data!);
+                  return RawImage(image: snap.data, fit: BoxFit.cover);
                 },
               ),
             ),
@@ -282,76 +324,5 @@ class _RawGridTileState extends State<_RawGridTile>
         ],
       ),
     );
-  }
-}
-
-class _ThumbImage extends StatefulWidget {
-  final RawDecodedImage raw;
-  const _ThumbImage({required this.raw});
-  @override
-  State<_ThumbImage> createState() => _ThumbImageState();
-}
-
-class _ThumbImageState extends State<_ThumbImage> {
-  ui.Image? _img;
-
-  @override
-  void initState() {
-    super.initState();
-    _decode();
-  }
-
-  Future<void> _decode() async {
-    final raw = widget.raw;
-    ui.Image? img;
-    try {
-      if (raw.isJpegEncoded) {
-        final codec = await ui.instantiateImageCodec(raw.pixels as Uint8List);
-        img = (await codec.getNextFrame()).image;
-      } else if (raw.pixels is Uint8List) {
-        final px = raw.pixels as Uint8List;
-        final rgba = Uint8List(raw.width * raw.height * 4);
-        for (int i = 0, j = 0; i < px.length; i += 3, j += 4) {
-          rgba[j] = px[i];
-          rgba[j + 1] = px[i + 1];
-          rgba[j + 2] = px[i + 2];
-          rgba[j + 3] = 255;
-        }
-        final c = Completer<ui.Image>();
-        ui.decodeImageFromPixels(
-          rgba,
-          raw.width,
-          raw.height,
-          ui.PixelFormat.rgba8888,
-          c.complete,
-        );
-        img = await c.future;
-      }
-    } catch (_) {}
-    if (!mounted) {
-      img?.dispose();
-      return;
-    }
-    setState(() => _img = img);
-  }
-
-  @override
-  void dispose() {
-    _img?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_img == null) {
-      return const Center(
-        child: SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 1.5),
-        ),
-      );
-    }
-    return RawImage(image: _img, fit: BoxFit.cover);
   }
 }

@@ -35,7 +35,7 @@ class TetherWatcher {
 
     // 标记已有RAW
     await for (final entity in dir.list(recursive: false)) {
-      if (entity is File && RawFormats.isRaw(entity.path)) {
+      if (entity is File && RawFormats.isSupported(entity.path)) {
         _seen.add(entity.path);
       }
     }
@@ -61,7 +61,7 @@ class TetherWatcher {
 
   Future<void> _onEvent(WatchEvent ev) async {
     if (ev.type != ChangeType.ADD && ev.type != ChangeType.MODIFY) return;
-    if (!RawFormats.isRaw(ev.path) || _seen.contains(ev.path)) return;
+    if (!RawFormats.isSupported(ev.path) || _seen.contains(ev.path)) return;
 
     final file = File(ev.path);
     final stable = await _waitUntilStable(file);

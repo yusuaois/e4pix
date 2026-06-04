@@ -310,7 +310,7 @@ Future<void> _showPresetOptions(
 
 Future<void> _importXmp(BuildContext ctx, WidgetRef ref) async {
   final messenger = ScaffoldMessenger.of(ctx);
-  final result = await FilePicker.platform.pickFiles(
+  final result = await FilePicker.pickFiles(
     type: FileType.custom,
     allowedExtensions: ['xmp'],
   );

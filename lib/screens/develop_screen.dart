@@ -108,7 +108,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     }
 
     if (folder == null) {
-      final picked = await FilePicker.platform.getDirectoryPath(
+      final picked = await FilePicker.getDirectoryPath(
         dialogTitle: tr('tetherFolderChoose'),
       );
       if (picked == null || picked.isEmpty) return;
@@ -470,7 +470,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         .set(
           template.isEmpty ? ExportTemplate.defaultTemplate : template,
         ); // 记住
-    final folder = await FilePicker.platform.getDirectoryPath(
+    final folder = await FilePicker.getDirectoryPath(
       dialogTitle: tr('saveTo'),
     );
     if (folder == null) return;
@@ -541,7 +541,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         }
 
         final file = await Exporter.exportFullRes(
-          inputRawPath: task.path,
+          inputPath: task.path,
           outputDir: folder,
           filenameTemplate: effectiveTemplate,
           seq: i + 1,
@@ -1061,6 +1061,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       ),
                     ),
                     SingleChildScrollView(child: LutSection()),
+                    SingleChildScrollView(
+                      child: DetailSection(
+                        params: params,
+                        onChanged: _onParamsChanged,
+                      ),
+                    ),
                     const PresetTabContent(),
                     const SingleChildScrollView(child: LocalPanel()),
                   ],
@@ -1373,7 +1379,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         ref.read(shotsNotifierProvider.notifier).addFiles(paths);
       }
     } else {
-      final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+      final result = await FilePicker.pickFiles();
       if (result == null || result.files.isEmpty) return;
       final paths = result.files
           .map((f) => f.path)
