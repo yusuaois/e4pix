@@ -1,3 +1,4 @@
+import 'package:e4pix/services/notifications/notification_manager.dart';
 import 'package:flutter/material.dart';
 import 'screens/develop_screen.dart';
 import 'state/theme_state.dart';
@@ -8,6 +9,7 @@ import 'package:dynamic_color/dynamic_color.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
+  await NotificationManager.instance.init();
 
   runApp(
     ProviderScope(

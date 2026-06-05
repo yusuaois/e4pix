@@ -14,7 +14,7 @@
   "cancel": "取消",
   "export": "导出",
   "save": "保存",
-  "saveTo": "保存到...",
+  "saveTo": "保存至",
   "notChosen": "未选择",
   "browse": "浏览",
   "saveFolderChoose": "选择保存文件夹",
@@ -333,5 +333,11 @@
   "exportQueueClearFinished": "清除已完成",
   "exportQueueCancelAll": "全部取消",
   "exportCancelling": "正在取消…",
-  "lutMissing": "LUT「{}」未找到，请重新导入"
+  "lutMissing": "LUT「{}」未找到，请重新导入",
+  "exportNotifyDoneTitle": "导出完成",
+  "exportNotifyBatchDoneTitle": "批量导出完成",
+  "exportNotifyBatchDoneBody": "已导出 {} 张",
+  "exportNotifyFailedTitle": "导出失败",
+  "tetherCameraNotificationTitle": "联机拍摄中",
+  "tetherWatcherNotificationTitle": "正在监听文件夹"
 }

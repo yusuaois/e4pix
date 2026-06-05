@@ -71,6 +71,7 @@ class DevelopTopBar extends ConsumerWidget {
           onPressed: onExport,
           alwaysVisible: true,
           onLongPress: () => _showQueuePanel(context),
+
           priority: 100,
           badgeCount: ref.watch(exportQueuePendingCountProvider),
         ),
@@ -298,7 +299,6 @@ class DevelopTopBar extends ConsumerWidget {
       height: box,
       child: IconButton(
         icon: iconWidget,
-        tooltip: tooltip,
         onPressed: onPressed,
         padding: EdgeInsets.zero,
         style: const ButtonStyle(
@@ -312,9 +312,18 @@ class DevelopTopBar extends ConsumerWidget {
         ),
       ),
     );
-    return onLongPress == null
-        ? btn
-        : GestureDetector(onLongPress: onLongPress, child: btn);
+    if (onLongPress != null) {
+      return GestureDetector(
+        onLongPress: onLongPress,
+        child: Tooltip(
+          message: tooltip,
+          triggerMode: TooltipTriggerMode.manual,
+          child: btn,
+        ),
+      );
+    } else {
+      return Tooltip(message: tooltip, child: btn);
+    }
   }
 
   Widget _buildAdaptiveActions(

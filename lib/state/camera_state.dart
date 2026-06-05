@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:e4pix/services/notifications/tether_notification_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,13 +33,12 @@ class CameraState {
     String? lastError,
     bool clearController = false,
     bool clearError = false,
-  }) =>
-      CameraState(
-        controller: clearController ? null : (controller ?? this.controller),
-        modelName: clearController ? null : (modelName ?? this.modelName),
-        shutterFlash: shutterFlash ?? this.shutterFlash,
-        lastError: clearError ? null : (lastError ?? this.lastError),
-      );
+  }) => CameraState(
+    controller: clearController ? null : (controller ?? this.controller),
+    modelName: clearController ? null : (modelName ?? this.modelName),
+    shutterFlash: shutterFlash ?? this.shutterFlash,
+    lastError: clearError ? null : (lastError ?? this.lastError),
+  );
 }
 
 class CameraNotifier extends Notifier<CameraState> {
@@ -69,7 +69,9 @@ class CameraNotifier extends Notifier<CameraState> {
   }) async {
     if (state.isActive) return;
 
-    await ref.read(tetherSessionNotifierProvider.notifier).start(saveFolder);
+    await ref
+        .read(tetherSessionNotifierProvider.notifier)
+        .start(saveFolder, suppressNotification: true);
 
     state = state.copyWith(
       controller: controller,
@@ -77,7 +79,16 @@ class CameraNotifier extends Notifier<CameraState> {
       clearError: true,
     );
 
-    final stream = controller.startTether(camera: camera, saveFolder: saveFolder);
+    // 通知
+    TetherNotificationService.instance.showCameraOngoing(
+      model: camera.model,
+      saveFolder: saveFolder,
+    );
+
+    final stream = controller.startTether(
+      camera: camera,
+      saveFolder: saveFolder,
+    );
     _sub = stream.listen(_onEvent);
   }
 
@@ -108,6 +119,9 @@ class CameraNotifier extends Notifier<CameraState> {
     state = state.copyWith(clearController: true);
     await ctrl?.stopTether();
     await ref.read(tetherSessionNotifierProvider.notifier).stop();
+
+    // 销毁通知
+    TetherNotificationService.instance.dismissCameraOngoing();
   }
 
   Future<void> triggerCapture() async {
@@ -118,5 +132,6 @@ class CameraNotifier extends Notifier<CameraState> {
   }
 }
 
-final cameraNotifierProvider =
-    NotifierProvider<CameraNotifier, CameraState>(CameraNotifier.new);
+final cameraNotifierProvider = NotifierProvider<CameraNotifier, CameraState>(
+  CameraNotifier.new,
+);

@@ -9,6 +9,7 @@ import '../core/constants/raw_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
+import '../services/notifications/tether_notification_service.dart';
 import '../services/sidecar_service.dart';
 import '../services/tether_watcher.dart';
 import 'providers.dart';
@@ -19,17 +20,20 @@ class TetherSession {
   final TetherWatcher watcher;
   final String watchPath;
   final DateTime? lastShotAt;
+  final bool suppressNotification;
 
   const TetherSession({
     required this.watcher,
     required this.watchPath,
     this.lastShotAt,
+    this.suppressNotification = false,
   });
 
   TetherSession copyWith({DateTime? lastShotAt}) => TetherSession(
     watcher: watcher,
     watchPath: watchPath,
     lastShotAt: lastShotAt ?? this.lastShotAt,
+    suppressNotification: suppressNotification,
   );
 }
 
@@ -45,7 +49,10 @@ class TetherSessionNotifier extends Notifier<TetherSession?> {
     return null;
   }
 
-  Future<void> start(String watchPath) async {
+  Future<void> start(
+    String watchPath, {
+    bool suppressNotification = false,
+  }) async {
     if (state != null) return;
     final watcher = TetherWatcher(watchPath);
     await watcher.start();
@@ -57,7 +64,18 @@ class TetherSessionNotifier extends Notifier<TetherSession?> {
       if (cur != null) state = cur.copyWith(lastShotAt: DateTime.now());
     });
 
-    state = TetherSession(watcher: watcher, watchPath: watchPath);
+    state = TetherSession(
+      watcher: watcher,
+      watchPath: watchPath,
+      suppressNotification: suppressNotification,
+    );
+
+    // 通知
+    if (!suppressNotification) {
+      TetherNotificationService.instance.showWatcherOngoing(
+        watchPath: watchPath,
+      );
+    }
   }
 
   Future<void> stop() async {
@@ -68,6 +86,11 @@ class TetherSessionNotifier extends Notifier<TetherSession?> {
     await session?.watcher.dispose();
     ref.read(shotsNotifierProvider.notifier).clear();
     ref.read(activeShotPathProvider.notifier).set(null);
+
+    // 销毁通知
+    if (session != null && !session.suppressNotification) {
+      TetherNotificationService.instance.dismissWatcherOngoing();
+    }
   }
 }
 

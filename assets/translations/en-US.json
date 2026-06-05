@@ -14,7 +14,7 @@
   "cancel": "Cancel",
   "export": "Export",
   "save": "Save",
-  "saveTo": "Save to...",
+  "saveTo": "Save to",
   "notChosen": "Not selected",
   "browse": "Browse",
   "saveFolderChoose": "Select Save Folder",
@@ -333,5 +333,11 @@
   "exportQueueClearFinished": "Clear finished",
   "exportQueueCancelAll": "Cancel all",
   "exportCancelling": "Cancelling…",
-  "lutMissing": "LUT \"{}\" not found, please re-import"
+  "lutMissing": "LUT \"{}\" not found, please re-import",
+  "exportNotifyDoneTitle": "Export complete",
+  "exportNotifyBatchDoneTitle": "Batch export complete",
+  "exportNotifyBatchDoneBody": "Exported {} photos",
+  "exportNotifyFailedTitle": "Export failed",
+  "tetherCameraNotificationTitle": "Camera connected",
+  "tetherWatcherNotificationTitle": "Folder Tethering"
 }

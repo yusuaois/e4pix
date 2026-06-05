@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/models/export_job.dart';
 import '../render/exporter.dart';
 import '../render/lut_texture_cache.dart';
+import '../services/notifications/export_notification_service.dart';
 import 'providers.dart';
 
 /// 导出队列：串行执行，后台运行，可取消
@@ -186,10 +187,36 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
         progress: 1.0,
         outputPath: file.path,
       );
+
+      final remaining = state
+          .where((j) => !j.isFinished && j.id != job.id)
+          .length;
+      if (remaining == 0) {
+        final doneCount = state
+            .where((j) => j.status == ExportJobStatus.done || j.id == job.id)
+            .length;
+        if (doneCount == 1) {
+          ExportNotificationService.instance.notifyDone(
+            filename: job.displayName,
+            outputPath: file.path,
+          );
+        } else {
+          ExportNotificationService.instance.notifyBatchDone(
+            count: doneCount,
+            outputDir: job.config.outputDir,
+          );
+        }
+      }
     } on ExportCancelledException {
       _patch(job.id, status: ExportJobStatus.cancelled);
     } catch (e) {
       _patch(job.id, status: ExportJobStatus.failed, error: e.toString());
+
+      ExportNotificationService.instance.notifyFailed(
+        filename: job.displayName,
+        error: e.toString(),
+        outputDir: job.config.outputDir,
+      );
     }
   }
 }
