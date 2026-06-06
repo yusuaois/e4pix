@@ -8,9 +8,9 @@ import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 import '../core/constants/app_info.dart';
 import '../state/providers.dart';
-import '../widgets/ai_settings_dialog.dart';
-import '../widgets/theme_color_picker.dart';
-import '../services/update_service.dart';
+import '../widgets/ai/ai_settings_dialog.dart';
+import '../widgets/app/theme_color_picker.dart';
+import '../services/app/update_service.dart';
 import 'keybinding_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {

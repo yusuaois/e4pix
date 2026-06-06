@@ -9,7 +9,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../core/keybindings/app_action.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/export_config.dart';
 import '../core/models/export_job.dart';
@@ -18,23 +17,24 @@ import '../core/models/tethered_shot.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
-import '../services/app_settings.dart';
-import '../services/update_service.dart';
+import '../services/app/app_settings.dart';
+import '../services/app/update_service.dart';
 import '../state/providers.dart';
-import '../widgets/horizontal_adjustment_panel.dart';
-import '../widgets/ai_settings_dialog.dart';
-import '../widgets/ai_suggestion_dialog.dart';
-import '../widgets/camera_picker_dialog.dart';
-import '../widgets/develop_misc_widgets.dart';
-import '../widgets/develop_top_bar.dart';
-import '../widgets/export_dialog.dart';
-import '../widgets/preview_area.dart';
+import '../widgets/develop/horizontal_adjustment_panel.dart';
+import '../widgets/ai/ai_settings_dialog.dart';
+import '../widgets/ai/ai_suggestion_dialog.dart';
+import '../widgets/tether/camera_picker_dialog.dart';
+import '../widgets/develop/develop_misc_widgets.dart';
+import '../widgets/develop/develop_top_bar.dart';
+import '../widgets/export/export_dialog.dart';
+import '../widgets/preview/preview_area.dart';
+import '../core/keybindings/develop_key_handler.dart';
 import 'folder_import_screen.dart';
-import '../widgets/histogram_panel.dart';
-import '../widgets/image_info_bar.dart';
-import '../widgets/vertical_adjustment_panel.dart';
-import '../widgets/preset_bar.dart';
-import '../widgets/tether_widgets.dart';
+import '../widgets/develop/histogram_panel.dart';
+import '../widgets/app/image_info_bar.dart';
+import '../widgets/develop/vertical_adjustment_panel.dart';
+import '../widgets/develop/preset_bar.dart';
+import '../widgets/tether/tether_widgets.dart';
 import 'settings_screen.dart';
 
 class DevelopScreen extends ConsumerStatefulWidget {
@@ -378,7 +378,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
     return Focus(
       autofocus: true,
-      onKeyEvent: (node, event) => _handleKeyEvent(event, keys),
+      onKeyEvent: (node, event) => handleDevelopKeyEvent(ref, event, keys),
       child: Scaffold(
         body: SafeArea(
           child: isVertical ? _buildVerticalLayout() : _buildHorizontalLayout(),
@@ -601,124 +601,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       lutSizeB: lutEnabled ? lut.sizeB : 0,
       curveTexture: ref.watch(effectiveCurveTextureProvider),
     );
-  }
-
-  KeyEventResult _handleKeyEvent(KeyEvent event, KeybindingState keys) {
-    final ctrl =
-        HardwareKeyboard.instance.isControlPressed ||
-        HardwareKeyboard.instance.isMetaPressed;
-
-    // Ctrl+Z / Ctrl+Shift+Z
-    if (event is KeyDownEvent &&
-        ctrl &&
-        event.logicalKey == LogicalKeyboardKey.keyZ) {
-      final n = ref.read(historyNotifierProvider.notifier);
-      HardwareKeyboard.instance.isShiftPressed ? n.redo() : n.undo();
-      return KeyEventResult.handled;
-    }
-
-    final inCrop = ref.read(cropEditModeProvider);
-
-    // Esc/Enter
-    if (inCrop && event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.escape) {
-        cancelCrop(ref);
-        return KeyEventResult.handled;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.enter) {
-        commitCrop(ref);
-        return KeyEventResult.handled;
-      }
-    }
-
-    // 有修饰键时不单键绑定
-    if (ctrl ||
-        HardwareKeyboard.instance.isShiftPressed ||
-        HardwareKeyboard.instance.isAltPressed) {
-      return KeyEventResult.ignored;
-    }
-
-    // 自定义动作
-    final action = keys.actionFor(event.logicalKey);
-    if (action == null) return KeyEventResult.ignored;
-
-    return _handleAction(action, event, inCrop);
-  }
-
-  KeyEventResult _handleAction(AppAction action, KeyEvent event, bool inCrop) {
-    // hold：down 设 true、up 设 false
-    if (action == AppAction.compareHold) {
-      if (event is KeyDownEvent) {
-        ref.read(compareBypassProvider.notifier).state = true;
-        return KeyEventResult.handled;
-      } else if (event is KeyUpEvent) {
-        ref.read(compareBypassProvider.notifier).state = false;
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
-    }
-
-    // KeyDown 触发
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-    switch (action) {
-      case AppAction.toggleFullscreen:
-        final cur = ref.read(fullscreenPreviewProvider);
-        ref.read(fullscreenPreviewProvider.notifier).state = !cur;
-        return KeyEventResult.handled;
-
-      case AppAction.enterCrop:
-        if (!inCrop) {
-          enterCropMode(ref);
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-
-      // 打星/旗标
-      case AppAction.rate0:
-      case AppAction.rate1:
-      case AppAction.rate2:
-      case AppAction.rate3:
-      case AppAction.rate4:
-      case AppAction.rate5:
-        if (inCrop) return KeyEventResult.ignored;
-        final active = ref.read(activeShotPathProvider);
-        if (active == null) return KeyEventResult.ignored;
-        final rating = action.index - AppAction.rate0.index; // 0..5
-        ref.read(shotsNotifierProvider.notifier).updateRating(active, rating);
-        _writeSidecarNow(active);
-        return KeyEventResult.handled;
-
-      case AppAction.flagPick:
-        if (inCrop) return KeyEventResult.ignored;
-        return _toggleFlag(ShotFlag.pick);
-
-      case AppAction.flagReject:
-        if (inCrop) return KeyEventResult.ignored;
-        return _toggleFlag(ShotFlag.reject);
-
-      case AppAction.compareHold:
-        return KeyEventResult.ignored;
-    }
-  }
-
-  KeyEventResult _toggleFlag(ShotFlag flag) {
-    final active = ref.read(activeShotPathProvider);
-    if (active == null) return KeyEventResult.ignored;
-    final cur = ref.read(activeShotProvider);
-    final next = cur?.flag == flag ? ShotFlag.none : flag;
-    ref.read(shotsNotifierProvider.notifier).updateFlag(active, next);
-    _writeSidecarNow(active);
-    return KeyEventResult.handled;
-  }
-
-  void _writeSidecarNow(String path) {
-    if (!ref.read(sidecarEnabledProvider)) return;
-    final shots = ref.read(shotsNotifierProvider);
-    final idx = shots.indexWhere((s) => s.path == path);
-    if (idx < 0) return;
-    final s = shots[idx];
-    ref.read(sidecarWriterProvider).writeNow(path, s.params, s.rating, s.flag);
   }
 
   Future<void> _syncToSelected() async {

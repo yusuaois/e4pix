@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import '../core/lut/cube_lut.dart';
-import '../services/lut_library.dart';
+import '../services/lut/lut_library.dart';
 
 /// 一个已加载的 LUT texture（HALD strip）+ size
 class LutTexture {

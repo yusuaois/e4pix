@@ -11,7 +11,7 @@ import 'package:path/path.dart' as p;
 import '../core/constants/raw_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../native/raw_bridge.dart';
-import '../services/image_loader.dart';
+import '../services/image/image_loader.dart';
 import 'cpu_denoise.dart';
 import 'curve_baker.dart';
 import 'exif_writer.dart';
