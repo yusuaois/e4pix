@@ -11,31 +11,31 @@ class LutTexture {
 }
 
 /// 按 LUT 名字缓存已加载的 texture，LRU
-///
-/// per-image LUT 下，切图频繁按名字加载 LUT；缓存避免重复解析 .cube + 生成 strip
-/// 缓存接管 texture 生命周期：淘汰时 dispose
 class LutTextureCache {
   LutTextureCache._();
   static final instance = LutTextureCache._();
 
   final _map = <String, LutTexture>{};
   final int _capacity = 8; // 缓存容量
+  final Set<String> _activeLuts = {}; // 受保护的活跃 LUT 名称集合
 
-  /// 按名字取已缓存的 texture（命中提升为最近使用）
-  /// 无则 null
+  /// 标记当前正在使用的 LUT，防止被意外淘汰
+  void protect(String? lutA, String? lutB) {
+    _activeLuts.clear();
+    if (lutA != null && lutA.isNotEmpty) _activeLuts.add(lutA);
+    if (lutB != null && lutB.isNotEmpty) _activeLuts.add(lutB);
+  }
+
   LutTexture? peek(String name) {
     final hit = _map.remove(name);
     if (hit != null) _map[name] = hit;
     return hit;
   }
 
-  /// 按名字加载 LUT texture（命中缓存直接返回，否则从库解析）
-  /// 名字在 LUT 库中找不到 → 返回 null
   Future<LutTexture?> load(String name) async {
     final cached = peek(name);
     if (cached != null) return cached;
 
-    // 在库中按名字找文件
     final library = await LutLibrary.listAll();
     LutEntry? entry;
     final target = name.toLowerCase();
@@ -45,7 +45,7 @@ class LutTextureCache {
         break;
       }
     }
-    if (entry == null) return null; // 库里没有该 LUT
+    if (entry == null) return null;
 
     try {
       final lut = await CubeLut.fromFile(entry.filePath);
@@ -64,14 +64,28 @@ class LutTextureCache {
       _disposeLater(existing.texture);
     }
     _map[name] = entry;
+
+    // 跳过受保护的活跃 LUT
     while (_map.length > _capacity) {
-      final oldestKey = _map.keys.first;
-      final old = _map.remove(oldestKey);
-      if (old != null) _disposeLater(old.texture);
+      String? keyToEvict;
+      // 从最旧的条目开始寻找第一个"不受保护"的 LUT
+      for (final key in _map.keys) {
+        if (!_activeLuts.contains(key)) {
+          keyToEvict = key;
+          break;
+        }
+      }
+
+      // 如果找到了可以淘汰的 LUT
+      if (keyToEvict != null) {
+        final old = _map.remove(keyToEvict);
+        if (old != null) _disposeLater(old.texture);
+      } else {
+        break;
+      }
     }
   }
 
-  /// 该 texture 是否由缓存持有
   bool ownsTexture(ui.Image tex) {
     for (final t in _map.values) {
       if (identical(t.texture, tex)) return true;
@@ -79,7 +93,6 @@ class LutTextureCache {
     return false;
   }
 
-  /// 名字对应的 LUT 文件已删除时调用
   void invalidate(String name) {
     final old = _map.remove(name);
     if (old != null) _disposeLater(old.texture);
@@ -93,7 +106,7 @@ class LutTextureCache {
   }
 
   void _disposeLater(ui.Image img) {
-    Future.microtask(() {
+    Future.delayed(const Duration(seconds: 1), () {
       try {
         img.dispose();
       } catch (_) {}

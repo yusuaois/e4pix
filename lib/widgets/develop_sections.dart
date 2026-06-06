@@ -1,17 +1,21 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import '../core/constants/lut_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/grain_params.dart';
 import '../core/models/hsl_bands.dart';
 import '../core/models/rgb_curves.dart';
 import '../core/models/tone_curve.dart';
+import '../render/render_engine.dart';
 import '../render/lut_texture_cache.dart';
 import '../services/lut_library.dart';
-import '../state/lut_library_state.dart';
-import '../state/params_state.dart';
-import '../state/render_state.dart';
+import '../state/providers.dart';
 import 'tracked_slider.dart';
 
 // 通用滑块 tile
@@ -692,15 +696,244 @@ class _BandRow extends StatelessWidget {
   }
 }
 
-// LUT Section — 双槽 (A → B 串联)，自取 provider
-class LutSection extends ConsumerWidget {
+// LUT Section
+class LutSection extends ConsumerStatefulWidget {
   const LutSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LutSection> createState() => _LutSectionState();
+}
+
+class _LutSectionState extends ConsumerState<LutSection> {
+  final Map<String, ui.Image> _thumbs = {};
+  final Set<String> _rendering = {};
+  bool _disposed = false;
+  int? _lastSourceKey;
+  final List<Map<String, dynamic>> _renderQueue = [];
+  bool _queueRunning = false;
+  int _queueGeneration = 0;
+  final Map<String, ui.Image> _pendingThumbs = {};
+  bool _batchScheduled = false;
+
+  static const _thumbW = 60;
+  static const _thumbH = 40;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _renderQueue.clear();
+    _pendingThumbs.clear();
+    for (final img in _thumbs.values) {
+      try {
+        img.dispose();
+      } catch (_) {}
+    }
+    _thumbs.clear();
+    super.dispose();
+  }
+
+  // LUT参数不影响
+  int _sourceKey(ui.Image src, AdjustmentParams params) {
+    final baseParams = params.copyWith(
+      lutNameA: '',
+      lutIntensity: 1.0,
+      lutNameB: '',
+      lutIntensityB: 1.0,
+    );
+    return Object.hash(identityHashCode(src), baseParams.hashCode);
+  }
+
+  void _triggerRenderForEntry({
+    required LutEntry entry,
+    required ui.Image sourceImage,
+    required AdjustmentParams params,
+    required ui.FragmentProgram developProgram,
+  }) {
+    if (_disposed ||
+        _thumbs.containsKey(entry.name) ||
+        _rendering.contains(entry.name)) {
+      return;
+    }
+
+    _rendering.add(entry.name);
+    _renderQueue.add({
+      'entry': entry,
+      'sourceImage': sourceImage,
+      'params': params,
+      'developProgram': developProgram,
+      'sourceKey': _sourceKey(sourceImage, params),
+    });
+
+    if (!_queueRunning) {
+      _processQueue();
+    }
+  }
+
+  void _flushBatch() {
+    if (_batchScheduled || _disposed || _pendingThumbs.isEmpty) return;
+    _batchScheduled = true;
+    // 使用 postFrameCallback 合并同一帧内的多次更新
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _batchScheduled = false;
+      if (_disposed || _pendingThumbs.isEmpty) return;
+      final batch = Map<String, ui.Image>.from(_pendingThumbs);
+      _pendingThumbs.clear();
+      setState(() => _thumbs.addAll(batch));
+    });
+  }
+
+  Future<void> _processQueue() async {
+    if (_queueRunning || _renderQueue.isEmpty) return;
+    _queueRunning = true;
+    final gen = _queueGeneration; // 捕获当前代数
+
+    while (_renderQueue.isNotEmpty) {
+      if (_disposed || gen != _queueGeneration) {
+        _renderQueue.clear();
+        break;
+      }
+
+      final task = _renderQueue.removeAt(0);
+      final entry = task['entry'] as LutEntry;
+      final sourceImage = task['sourceImage'] as ui.Image;
+      final params = task['params'] as AdjustmentParams;
+      final developProgram = task['developProgram'] as ui.FragmentProgram;
+      final sourceKey = task['sourceKey'] as int;
+
+      // 检查是否已过时
+      if (sourceKey != _lastSourceKey || gen != _queueGeneration) {
+        _rendering.remove(entry.name);
+        continue;
+      }
+
+      await _renderThumb(
+        entry: entry,
+        sourceImage: sourceImage,
+        params: params,
+        developProgram: developProgram,
+        sourceKey: sourceKey,
+      );
+    }
+
+    _queueRunning = false;
+  }
+
+  Future<void> _renderThumb({
+    required LutEntry entry,
+    required ui.Image sourceImage,
+    required AdjustmentParams params,
+    required ui.FragmentProgram developProgram,
+    required int sourceKey,
+  }) async {
+    // 让出事件循环，给切图操作留出时间
+    await Future.delayed(const Duration(milliseconds: 50));
+    // 检查是否已过时
+    if (_disposed || sourceKey != _lastSourceKey) {
+      _rendering.remove(entry.name);
+      return;
+    }
+    // 🛡️ 克隆图片以持有独立引用
+    final safeSource = sourceImage.clone();
+    try {
+      // 加载 LUT texture
+      final lutTex = await LutTextureCache.instance.load(entry.name);
+      if (_disposed || sourceKey != _lastSourceKey || lutTex == null) {
+        _rendering.remove(entry.name);
+        return;
+      }
+      // develop pass + LUT
+      final cleanParams = params.copyWith(
+        lutNameA: entry.name,
+        lutIntensity: 1.0,
+        lutNameB: '',
+        lutIntensityB: 1.0,
+        locals: const [], // 清空 local adjustments
+        sharpenAmount: 0, // 关掉锐化
+        denoiseLuma: 0, // 关掉降噪
+        denoiseColor: 0,
+      );
+
+      final result = await RenderEngine.renderToImage(
+        program: developProgram,
+        sourceImage: safeSource,
+        params: cleanParams,
+        lutTexture: lutTex.texture,
+        lutSize: lutTex.size,
+        targetWidth: _thumbW,
+        targetHeight: _thumbH,
+      );
+
+      if (_disposed || sourceKey != _lastSourceKey) {
+        result.dispose();
+        return;
+      }
+
+      final old = _thumbs[entry.name];
+      _pendingThumbs[entry.name] = result;
+      _flushBatch();
+      old?.dispose();
+    } catch (e, stack) {
+      debugPrint('[LUT] Error rendering thumbnail for ${entry.name}: $e');
+      debugPrint('[LUT] Stack trace: $stack');
+    } finally {
+      _rendering.remove(entry.name);
+      safeSource.dispose();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final lut = ref.watch(lutNotifierProvider);
     final params = ref.watch(currentParamsNotifierProvider);
     final library = ref.watch(lutLibraryNotifierProvider).value ?? const [];
+    final image = ref.watch(imageNotifierProvider).value;
+    final developProgram = ref.watch(shaderProgramProvider).value;
+
+    LutTextureCache.instance.protect(lut.nameA, lut.nameB);
+
+    if (image != null) {
+      final currentKey = _sourceKey(image.uiImage, params);
+      if (currentKey != _lastSourceKey) {
+        // 图片/参数变更：清空旧缩略图，取消所有排队中的渲染任务
+        if (_thumbs.isNotEmpty) {
+          final oldImages = List<ui.Image>.from(_thumbs.values);
+          _thumbs.clear();
+          // 延迟释放
+          Future.delayed(const Duration(milliseconds: 600), () {
+            for (final img in oldImages) {
+              try {
+                if (_disposed || !_thumbs.containsValue(img)) {
+                  img.dispose();
+                }
+              } catch (e) {
+                debugPrint('[LUT] Error disposing old thumb: $e');
+              }
+            }
+          });
+        }
+        // 清空渲染队列中所有过时的任务
+        _renderQueue.clear();
+        _pendingThumbs.clear();
+        _batchScheduled = false;
+        _queueGeneration++; // 递增代数，使旧 _processQueue 立即终止
+        for (final name in _rendering.toList()) {
+          _rendering.remove(name);
+        }
+
+        _lastSourceKey = currentKey;
+      }
+    }
+
+    void handleItemVisible(LutEntry entry) {
+      if (image != null && developProgram != null) {
+        _triggerRenderForEntry(
+          entry: entry,
+          sourceImage: image.uiImage,
+          params: params,
+          developProgram: developProgram,
+        );
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -713,6 +946,9 @@ class LutSection extends ConsumerWidget {
           lutName: lut.nameA,
           intensity: params.lutIntensity,
           library: library,
+          thumbs: _thumbs,
+          rendering: _rendering,
+          onItemVisible: handleItemVisible,
         ),
         const SizedBox(height: 10),
         _LutSlot(
@@ -721,18 +957,24 @@ class LutSection extends ConsumerWidget {
           lutName: lut.nameB,
           intensity: params.lutIntensityB,
           library: library,
+          thumbs: _thumbs,
+          rendering: _rendering,
+          onItemVisible: handleItemVisible,
         ),
       ],
     );
   }
 }
 
-class _LutSlot extends ConsumerWidget {
-  final int slot; // 0 = A, 1 = B
+class _LutSlot extends ConsumerStatefulWidget {
+  final int slot;
   final String label;
   final String? lutName;
   final double intensity;
   final List<LutEntry> library;
+  final Map<String, ui.Image> thumbs;
+  final Set<String> rendering;
+  final Function(LutEntry) onItemVisible;
 
   const _LutSlot({
     required this.slot,
@@ -740,13 +982,22 @@ class _LutSlot extends ConsumerWidget {
     required this.lutName,
     required this.intensity,
     required this.library,
+    required this.thumbs,
+    required this.rendering,
+    required this.onItemVisible,
   });
 
-  // 反查当前选中 entry：比较「不带扩展名的文件名」，兼容 .cube / .vlt
+  @override
+  ConsumerState<_LutSlot> createState() => _LutSlotState();
+}
+
+class _LutSlotState extends ConsumerState<_LutSlot> {
+  final MenuController _menuController = MenuController();
+
   LutEntry? _findSelected() {
-    if (lutName == null) return null;
-    final target = _stripExt(lutName!).toLowerCase();
-    for (final e in library) {
+    if (widget.lutName == null) return null;
+    final target = _stripExt(widget.lutName!).toLowerCase();
+    for (final e in widget.library) {
       if (e.name.toLowerCase() == target) return e;
     }
     return null;
@@ -757,23 +1008,25 @@ class _LutSlot extends ConsumerWidget {
     return dot < 0 ? n : n.substring(0, dot);
   }
 
-  bool get _isVlt => lutName != null && LutFormats.isVlt(lutName!);
+  bool get _isVlt =>
+      widget.lutName != null && LutFormats.isVlt(widget.lutName!);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final loaded = lutName != null;
+  Widget build(BuildContext context) {
+    final loaded = widget.lutName != null && widget.lutName!.isNotEmpty;
     final selected = _findSelected();
     final missing = loaded && selected == null;
 
     void writeLutName(String name) {
       final p = ref.read(currentParamsNotifierProvider);
-      final np = slot == 0
+      final np = widget.slot == 0
           ? p.copyWith(lutNameA: name)
           : p.copyWith(lutNameB: name);
       ref.read(currentParamsNotifierProvider.notifier).update(np);
     }
 
     Future<void> onSelect(LutEntry? entry) async {
+      _menuController.close();
       if (entry != null) {
         await LutTextureCache.instance.load(entry.name);
       }
@@ -781,6 +1034,7 @@ class _LutSlot extends ConsumerWidget {
     }
 
     Future<void> onImport() async {
+      _menuController.close();
       final entry = await ref
           .read(lutLibraryNotifierProvider.notifier)
           .importFromFile();
@@ -791,7 +1045,6 @@ class _LutSlot extends ConsumerWidget {
     }
 
     Future<void> onDelete(LutEntry entry) async {
-      // 若该 entry 正用于当前图任一槽，先清该槽
       final cur = ref.read(currentParamsNotifierProvider);
       final target = entry.name.toLowerCase();
       var np = cur;
@@ -804,15 +1057,13 @@ class _LutSlot extends ConsumerWidget {
       if (!identical(np, cur)) {
         ref.read(currentParamsNotifierProvider.notifier).update(np);
       }
-      // 缓存失效 + 删库文件
       LutTextureCache.instance.invalidate(entry.name);
       await ref.read(lutLibraryNotifierProvider.notifier).delete(entry);
     }
 
-    // onIntensityChanged 不变
     void onIntensityChanged(double v) {
       final p = ref.read(currentParamsNotifierProvider);
-      final np = slot == 0
+      final np = widget.slot == 0
           ? p.copyWith(lutIntensity: v)
           : p.copyWith(lutIntensityB: v);
       ref.read(currentParamsNotifierProvider.notifier).update(np);
@@ -824,7 +1075,7 @@ class _LutSlot extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 2),
           child: Text(
-            label,
+            widget.label,
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.bold,
@@ -838,60 +1089,84 @@ class _LutSlot extends ConsumerWidget {
           child: Row(
             children: [
               Expanded(
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<LutEntry?>(
-                    isExpanded: true,
-                    value: selected,
-                    hint: Text(
-                      library.isEmpty ? tr("notImportedLUT") : tr("notChosen"),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    style: const TextStyle(fontSize: 12, color: Colors.white),
-                    iconSize: 16,
-                    items: [
-                      DropdownMenuItem<LutEntry?>(
-                        value: null,
-                        child: Text(
-                          tr("notChosen"),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white54,
-                          ),
-                        ),
-                      ),
-                      ...library.map(
-                        (entry) => DropdownMenuItem<LutEntry?>(
-                          value: entry,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  entry.name,
-                                  style: const TextStyle(fontSize: 12),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                entry.ext.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 9.5,
-                                  fontFamily: 'monospace',
-                                  color: entry.ext == 'vlt'
-                                      ? Colors.orangeAccent.withValues(
-                                          alpha: 0.7,
-                                        )
-                                      : Colors.white.withValues(alpha: 0.4),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: onSelect,
+                child: MenuAnchor(
+                  controller: _menuController,
+                  style: MenuStyle(
+                    padding: WidgetStateProperty.all(EdgeInsets.zero),
+                    minimumSize: WidgetStateProperty.all(const Size(280, 0)),
+                    maximumSize: WidgetStateProperty.all(const Size(280, 360)),
                   ),
+                  builder: (context, controller, child) {
+                    return InkWell(
+                      onTap: () => controller.isOpen
+                          ? controller.close()
+                          : controller.open(),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                selected != null
+                                    ? selected.name
+                                    : (widget.library.isEmpty
+                                          ? tr("notImportedLUT")
+                                          : tr("notChosen")),
+                                style: const TextStyle(fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const Icon(
+                              Icons.arrow_drop_down,
+                              size: 18,
+                              color: Colors.white54,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  // 根据条件返回部件列表
+                  menuChildren: widget.library.isEmpty
+                      ? [
+                          Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Center(
+                              child: Text(
+                                tr("notImportedLUT"),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ),
+                        ]
+                      : [
+                          // 第一项：无LUT
+                          ListTile(
+                            dense: true,
+                            title: Text(
+                              tr("notChosen"),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white54,
+                              ),
+                            ),
+                            onTap: () => onSelect(null),
+                          ),
+                          //  map 生成剩余项
+                          ...widget.library.map((entry) {
+                            return _LutMenuItem(
+                              entry: entry,
+                              thumb: widget.thumbs[entry.name],
+                              isRendering: widget.rendering.contains(
+                                entry.name,
+                              ),
+                              onSelect: () => onSelect(entry),
+                              onVisible: () => widget.onItemVisible(entry),
+                            );
+                          }),
+                        ],
                 ),
               ),
               if (selected != null)
@@ -924,7 +1199,7 @@ class _LutSlot extends ConsumerWidget {
                 const SizedBox(width: 5),
                 Expanded(
                   child: Text(
-                    tr('lutMissing', args: [lutName!]),
+                    tr('lutMissing', args: [widget.lutName!]),
                     style: TextStyle(
                       fontSize: 10.5,
                       color: Colors.orangeAccent.withValues(alpha: 0.85),
@@ -935,12 +1210,11 @@ class _LutSlot extends ConsumerWidget {
               ],
             ),
           ),
-        // .vlt 提示
         if (_isVlt)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
             child: Text(
-              tr("lutVltHint"), // "适用于 V-Log 素材"
+              tr("lutVltHint"),
               style: TextStyle(
                 fontSize: 10.5,
                 color: Colors.orangeAccent.withValues(alpha: 0.75),
@@ -957,7 +1231,7 @@ class _LutSlot extends ConsumerWidget {
                   width: 64,
                   child: Text(
                     tr("intensity"),
-                    style: TextStyle(fontSize: 11.5),
+                    style: const TextStyle(fontSize: 11.5),
                   ),
                 ),
                 Expanded(
@@ -969,7 +1243,7 @@ class _LutSlot extends ConsumerWidget {
                       ),
                     ),
                     child: TrackedSlider(
-                      value: intensity.clamp(0.0, 1.0),
+                      value: widget.intensity.clamp(0.0, 1.0),
                       onChanged: onIntensityChanged,
                     ),
                   ),
@@ -977,7 +1251,7 @@ class _LutSlot extends ConsumerWidget {
                 SizedBox(
                   width: 36,
                   child: Text(
-                    '${(intensity * 100).round()}',
+                    '${(widget.intensity * 100).round()}',
                     textAlign: TextAlign.right,
                     style: TextStyle(
                       fontSize: 10.5,
@@ -1022,6 +1296,130 @@ class _LutSlot extends ConsumerWidget {
   }
 }
 
+class _LutMenuItem extends StatefulWidget {
+  final LutEntry entry;
+  final ui.Image? thumb;
+  final bool isRendering;
+  final VoidCallback onSelect;
+  final VoidCallback onVisible;
+
+  const _LutMenuItem({
+    required this.entry,
+    required this.thumb,
+    required this.isRendering,
+    required this.onSelect,
+    required this.onVisible,
+  });
+
+  @override
+  State<_LutMenuItem> createState() => _LutMenuItemState();
+}
+
+class _LutMenuItemState extends State<_LutMenuItem> {
+  // 记录当前组件是否在屏幕内可见
+  bool _isVisible = false;
+  Timer? _debounceTimer;
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _triggerVisible() {
+    // 如果用户在快速滑动列表，就不会触发渲染
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 200), () {
+      if (mounted && _isVisible) {
+        widget.onVisible();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _LutMenuItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.thumb != null && widget.thumb == null && _isVisible) {
+      _triggerVisible();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return VisibilityDetector(
+      key: Key('lut_menu_item_${widget.entry.name}'),
+      onVisibilityChanged: (VisibilityInfo info) {
+        if (!mounted) return;
+
+        final visible = info.visibleFraction > 0;
+
+        if (visible != _isVisible) {
+          _isVisible = visible;
+          if (!_isVisible) {
+            _debounceTimer?.cancel();
+          }
+        }
+
+        if (_isVisible && widget.thumb == null && !widget.isRendering) {
+          _triggerVisible(); // 防抖
+        }
+      },
+      child: InkWell(
+        onTap: widget.onSelect,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: SizedBox(
+                  width: 40,
+                  height: 27,
+                  child: widget.thumb != null
+                      ? RawImage(image: widget.thumb, fit: BoxFit.cover)
+                      : Container(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          child: widget.isRendering
+                              ? const Padding(
+                                  padding: EdgeInsets.all(6),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: Colors.white30,
+                                  ),
+                                )
+                              : null,
+                        ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.entry.name,
+                  style: const TextStyle(fontSize: 12, color: Colors.white),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                widget.entry.ext.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontFamily: 'monospace',
+                  color: widget.entry.ext == 'vlt'
+                      ? Colors.orangeAccent.withValues(alpha: 0.7)
+                      : Colors.white.withValues(alpha: 0.24),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Detail Section
 class DetailSection extends StatefulWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;

@@ -78,13 +78,19 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
   final _cache = DecodedImageCache.instance;
 
   /// dispose 旧持有图——若已被缓存接管则跳过
+  /// 使用 4 次 postFrameCallback 延迟（约 64ms@60fps）
+  /// 确保缩略图渲染等大量 setState 导致的 widget 重建有足够时间完成
   void _scheduleDispose(ui.Image old) {
     if (_cache.ownsImage(old)) return; // 缓存持有，不能 dispose
     SchedulerBinding.instance.addPostFrameCallback((_) {
       SchedulerBinding.instance.addPostFrameCallback((_) {
-        try {
-          old.dispose();
-        } catch (_) {}
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            try {
+              old.dispose();
+            } catch (_) {}
+          });
+        });
       });
     });
   }

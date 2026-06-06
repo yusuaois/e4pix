@@ -173,18 +173,24 @@ class _DevelopPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    applyDevelopUniforms(
-      shader: shader,
-      renderSize: size,
-      params: params,
-      image: image,
-      lutTexture: lut,
-      lutSize: lutSize,
-      lutTextureB: lutB,
-      lutSizeB: lutSizeB,
-      curveTexture: curve,
-    );
-    canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
+    try {
+      applyDevelopUniforms(
+        shader: shader,
+        renderSize: size,
+        params: params,
+        image: image,
+        lutTexture: lut,
+        lutSize: lutSize,
+        lutTextureB: lutB,
+        lutSizeB: lutSizeB,
+        curveTexture: curve,
+      );
+      canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
+    } catch (e) {
+      // 如果 image/lut 已被 dispose，静默跳过本帧渲染，避免崩溃
+      // 下一帧 Widget rebuild 会传入新的有效 image
+      debugPrint('[PreviewRenderer] Skipping paint due to disposed image: $e');
+    }
   }
 
   @override
