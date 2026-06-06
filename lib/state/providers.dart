@@ -9,6 +9,7 @@ export 'ai_auto_state.dart';
 export 'history_state.dart';
 export 'preset_state.dart';
 export 'lut_library_state.dart';
+export '../services/lut_thumbnail_service.dart';
 export 'crop_state.dart';
 export 'local_state.dart';
 export 'app_settings_state.dart';

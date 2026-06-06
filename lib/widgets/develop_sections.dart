@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../core/constants/lut_formats.dart';
@@ -12,7 +11,6 @@ import '../core/models/grain_params.dart';
 import '../core/models/hsl_bands.dart';
 import '../core/models/rgb_curves.dart';
 import '../core/models/tone_curve.dart';
-import '../render/render_engine.dart';
 import '../render/lut_texture_cache.dart';
 import '../services/lut_library.dart';
 import '../state/providers.dart';
@@ -697,243 +695,27 @@ class _BandRow extends StatelessWidget {
 }
 
 // LUT Section
-class LutSection extends ConsumerStatefulWidget {
+class LutSection extends ConsumerWidget {
   const LutSection({super.key});
 
   @override
-  ConsumerState<LutSection> createState() => _LutSectionState();
-}
-
-class _LutSectionState extends ConsumerState<LutSection> {
-  final Map<String, ui.Image> _thumbs = {};
-  final Set<String> _rendering = {};
-  bool _disposed = false;
-  int? _lastSourceKey;
-  final List<Map<String, dynamic>> _renderQueue = [];
-  bool _queueRunning = false;
-  int _queueGeneration = 0;
-  final Map<String, ui.Image> _pendingThumbs = {};
-  bool _batchScheduled = false;
-
-  static const _thumbW = 60;
-  static const _thumbH = 40;
-
-  @override
-  void dispose() {
-    _disposed = true;
-    _renderQueue.clear();
-    _pendingThumbs.clear();
-    for (final img in _thumbs.values) {
-      try {
-        img.dispose();
-      } catch (_) {}
-    }
-    _thumbs.clear();
-    super.dispose();
-  }
-
-  // LUT参数不影响
-  int _sourceKey(ui.Image src, AdjustmentParams params) {
-    final baseParams = params.copyWith(
-      lutNameA: '',
-      lutIntensity: 1.0,
-      lutNameB: '',
-      lutIntensityB: 1.0,
-    );
-    return Object.hash(identityHashCode(src), baseParams.hashCode);
-  }
-
-  void _triggerRenderForEntry({
-    required LutEntry entry,
-    required ui.Image sourceImage,
-    required AdjustmentParams params,
-    required ui.FragmentProgram developProgram,
-  }) {
-    if (_disposed ||
-        _thumbs.containsKey(entry.name) ||
-        _rendering.contains(entry.name)) {
-      return;
-    }
-
-    _rendering.add(entry.name);
-    _renderQueue.add({
-      'entry': entry,
-      'sourceImage': sourceImage,
-      'params': params,
-      'developProgram': developProgram,
-      'sourceKey': _sourceKey(sourceImage, params),
-    });
-
-    if (!_queueRunning) {
-      _processQueue();
-    }
-  }
-
-  void _flushBatch() {
-    if (_batchScheduled || _disposed || _pendingThumbs.isEmpty) return;
-    _batchScheduled = true;
-    // 使用 postFrameCallback 合并同一帧内的多次更新
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _batchScheduled = false;
-      if (_disposed || _pendingThumbs.isEmpty) return;
-      final batch = Map<String, ui.Image>.from(_pendingThumbs);
-      _pendingThumbs.clear();
-      setState(() => _thumbs.addAll(batch));
-    });
-  }
-
-  Future<void> _processQueue() async {
-    if (_queueRunning || _renderQueue.isEmpty) return;
-    _queueRunning = true;
-    final gen = _queueGeneration; // 捕获当前代数
-
-    while (_renderQueue.isNotEmpty) {
-      if (_disposed || gen != _queueGeneration) {
-        _renderQueue.clear();
-        break;
-      }
-
-      final task = _renderQueue.removeAt(0);
-      final entry = task['entry'] as LutEntry;
-      final sourceImage = task['sourceImage'] as ui.Image;
-      final params = task['params'] as AdjustmentParams;
-      final developProgram = task['developProgram'] as ui.FragmentProgram;
-      final sourceKey = task['sourceKey'] as int;
-
-      // 检查是否已过时
-      if (sourceKey != _lastSourceKey || gen != _queueGeneration) {
-        _rendering.remove(entry.name);
-        continue;
-      }
-
-      await _renderThumb(
-        entry: entry,
-        sourceImage: sourceImage,
-        params: params,
-        developProgram: developProgram,
-        sourceKey: sourceKey,
-      );
-    }
-
-    _queueRunning = false;
-  }
-
-  Future<void> _renderThumb({
-    required LutEntry entry,
-    required ui.Image sourceImage,
-    required AdjustmentParams params,
-    required ui.FragmentProgram developProgram,
-    required int sourceKey,
-  }) async {
-    // 让出事件循环，给切图操作留出时间
-    await Future.delayed(const Duration(milliseconds: 50));
-    // 检查是否已过时
-    if (_disposed || sourceKey != _lastSourceKey) {
-      _rendering.remove(entry.name);
-      return;
-    }
-    // 🛡️ 克隆图片以持有独立引用
-    final safeSource = sourceImage.clone();
-    try {
-      // 加载 LUT texture
-      final lutTex = await LutTextureCache.instance.load(entry.name);
-      if (_disposed || sourceKey != _lastSourceKey || lutTex == null) {
-        _rendering.remove(entry.name);
-        return;
-      }
-      // develop pass + LUT
-      final cleanParams = params.copyWith(
-        lutNameA: entry.name,
-        lutIntensity: 1.0,
-        lutNameB: '',
-        lutIntensityB: 1.0,
-        locals: const [], // 清空 local adjustments
-        sharpenAmount: 0, // 关掉锐化
-        denoiseLuma: 0, // 关掉降噪
-        denoiseColor: 0,
-      );
-
-      final result = await RenderEngine.renderToImage(
-        program: developProgram,
-        sourceImage: safeSource,
-        params: cleanParams,
-        lutTexture: lutTex.texture,
-        lutSize: lutTex.size,
-        targetWidth: _thumbW,
-        targetHeight: _thumbH,
-      );
-
-      if (_disposed || sourceKey != _lastSourceKey) {
-        result.dispose();
-        return;
-      }
-
-      final old = _thumbs[entry.name];
-      _pendingThumbs[entry.name] = result;
-      _flushBatch();
-      old?.dispose();
-    } catch (e, stack) {
-      debugPrint('[LUT] Error rendering thumbnail for ${entry.name}: $e');
-      debugPrint('[LUT] Stack trace: $stack');
-    } finally {
-      _rendering.remove(entry.name);
-      safeSource.dispose();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final lut = ref.watch(lutNotifierProvider);
     final params = ref.watch(currentParamsNotifierProvider);
     final library = ref.watch(lutLibraryNotifierProvider).value ?? const [];
     final image = ref.watch(imageNotifierProvider).value;
-    final developProgram = ref.watch(shaderProgramProvider).value;
 
     LutTextureCache.instance.protect(lut.nameA, lut.nameB);
 
-    if (image != null) {
-      final currentKey = _sourceKey(image.uiImage, params);
-      if (currentKey != _lastSourceKey) {
-        // 图片/参数变更：清空旧缩略图，取消所有排队中的渲染任务
-        if (_thumbs.isNotEmpty) {
-          final oldImages = List<ui.Image>.from(_thumbs.values);
-          _thumbs.clear();
-          // 延迟释放
-          Future.delayed(const Duration(milliseconds: 600), () {
-            for (final img in oldImages) {
-              try {
-                if (_disposed || !_thumbs.containsValue(img)) {
-                  img.dispose();
-                }
-              } catch (e) {
-                debugPrint('[LUT] Error disposing old thumb: $e');
-              }
-            }
-          });
-        }
-        // 清空渲染队列中所有过时的任务
-        _renderQueue.clear();
-        _pendingThumbs.clear();
-        _batchScheduled = false;
-        _queueGeneration++; // 递增代数，使旧 _processQueue 立即终止
-        for (final name in _rendering.toList()) {
-          _rendering.remove(name);
-        }
+    // 通知缩略图服务检测源图/参数变更并自动清空过时缩略图
+    ref.read(lutThumbnailProvider.notifier).syncSourceKey(
+      sourceImage: image?.uiImage,
+      params: params,
+    );
 
-        _lastSourceKey = currentKey;
-      }
-    }
-
-    void handleItemVisible(LutEntry entry) {
-      if (image != null && developProgram != null) {
-        _triggerRenderForEntry(
-          entry: entry,
-          sourceImage: image.uiImage,
-          params: params,
-          developProgram: developProgram,
-        );
-      }
-    }
+    final thumbState = ref.watch(lutThumbnailProvider);
+    final thumbs = thumbState.thumbs;
+    final rendering = thumbState.rendering;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -946,9 +728,10 @@ class _LutSectionState extends ConsumerState<LutSection> {
           lutName: lut.nameA,
           intensity: params.lutIntensity,
           library: library,
-          thumbs: _thumbs,
-          rendering: _rendering,
-          onItemVisible: handleItemVisible,
+          thumbs: thumbs,
+          rendering: rendering,
+          onItemVisible: (entry) =>
+              ref.read(lutThumbnailProvider.notifier).requestRender(entry),
         ),
         const SizedBox(height: 10),
         _LutSlot(
@@ -957,9 +740,10 @@ class _LutSectionState extends ConsumerState<LutSection> {
           lutName: lut.nameB,
           intensity: params.lutIntensityB,
           library: library,
-          thumbs: _thumbs,
-          rendering: _rendering,
-          onItemVisible: handleItemVisible,
+          thumbs: thumbs,
+          rendering: rendering,
+          onItemVisible: (entry) =>
+              ref.read(lutThumbnailProvider.notifier).requestRender(entry),
         ),
       ],
     );
