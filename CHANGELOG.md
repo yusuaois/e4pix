@@ -10,6 +10,8 @@
 * **性能优化**：直方图渲染分辨率减半 + DevelopPassCache 复用，减少直方图更新频率
 * **性能优化**：ShotsNotifier 参数更新改用 List.of + 索引定位，避免 list comprehension 的闭包分配；更新前检查索引不存在则跳过
 * **性能优化**：TetherStatusBar 改为 ConsumerWidget 内部 watch ticker，避免父级 develop_screen 每秒全局重建
+* **代码结构**：拆分 mask_cache，提取 CPU 光栅化+导向滤波到独立的 brush_rasterizer.dart
+* **代码结构**：合并 4 个微小 state 文件（fullscreen→interaction, import_mode→tether, compare→params, curve→render）
 
 ---
 

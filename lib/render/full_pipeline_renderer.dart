@@ -6,6 +6,7 @@ import '../core/models/adjustment_params.dart';
 import '../core/models/crop_params.dart';
 import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
+import 'brush_rasterizer.dart';
 import 'crop_transform.dart';
 import 'mask_cache.dart';
 import 'render_engine.dart';
