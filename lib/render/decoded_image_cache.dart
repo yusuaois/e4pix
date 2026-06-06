@@ -94,9 +94,9 @@ class DecodedImageCache {
     }
   }
 
-  // 延迟 dispose：避免当前帧正用该 image 渲染时立即释放
+  // 延迟 dispose：确保异步渲染引用已释放后再清理 GPU 资源
   void _disposeLater(ui.Image img) {
-    Future.microtask(() {
+    Future.delayed(const Duration(milliseconds: 100), () {
       try {
         img.dispose();
       } catch (_) {}

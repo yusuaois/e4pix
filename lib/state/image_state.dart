@@ -55,19 +55,29 @@ final activeFilePathProvider =
 @immutable
 class DecodedImageState {
   final String path;
-  final RawDecodedImage decoded;
   final ui.Image uiImage;
+  final int width;
+  final int height;
+  final int bitsPerChannel;
+  final RawMetadata? metadata;
   final Duration decodeTime;
   final Duration convertTime;
   final bool isPreliminary;
+  
+  /// RAW 解码后的原始像素数据；缓存命中或标准图为 null
+  final RawDecodedImage? decoded;
 
   const DecodedImageState({
     required this.path,
-    required this.decoded,
     required this.uiImage,
+    required this.width,
+    required this.height,
+    required this.bitsPerChannel,
+    this.metadata,
     required this.decodeTime,
     required this.convertTime,
     this.isPreliminary = false,
+    this.decoded,
   });
 }
 
@@ -113,15 +123,11 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
       _swapHeld(hit.image);
       return DecodedImageState(
         path: path,
-        decoded: RawDecodedImage(
-          width: hit.width,
-          height: hit.height,
-          channels: 4,
-          bitsPerChannel: hit.bitsPerChannel,
-          pixels: Uint8List(0),
-          metadata: hit.metadata,
-        ),
         uiImage: hit.image,
+        width: hit.width,
+        height: hit.height,
+        bitsPerChannel: hit.bitsPerChannel,
+        metadata: hit.metadata,
         decodeTime: Duration.zero,
         convertTime: Duration.zero,
         isPreliminary: false,
@@ -149,11 +155,15 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
     _swapHeld(fastImage);
     final fastState = DecodedImageState(
       path: path,
-      decoded: fastDecoded,
       uiImage: fastImage,
+      width: fastDecoded.width,
+      height: fastDecoded.height,
+      bitsPerChannel: fastDecoded.bitsPerChannel,
+      metadata: fastDecoded.metadata,
       decodeTime: sw1.elapsed,
       convertTime: sw2.elapsed,
       isPreliminary: true,
+      decoded: fastDecoded,
     );
 
     _runPhase2(path, gen);
@@ -194,11 +204,15 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
       state = AsyncData(
         DecodedImageState(
           path: path,
-          decoded: fullDecoded,
           uiImage: fullImage,
+          width: fullDecoded.width,
+          height: fullDecoded.height,
+          bitsPerChannel: fullDecoded.bitsPerChannel,
+          metadata: fullDecoded.metadata,
           decodeTime: sw1.elapsed,
           convertTime: sw2.elapsed,
           isPreliminary: false,
+          decoded: fullDecoded,
         ),
       );
     } catch (_) {}
@@ -226,15 +240,11 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
 
     return DecodedImageState(
       path: path,
-      decoded: RawDecodedImage(
-        width: image.width,
-        height: image.height,
-        channels: 4,
-        bitsPerChannel: 8,
-        pixels: Uint8List(0),
-        metadata: meta,
-      ),
       uiImage: image,
+      width: image.width,
+      height: image.height,
+      bitsPerChannel: 8,
+      metadata: meta,
       decodeTime: sw.elapsed,
       convertTime: Duration.zero,
       isPreliminary: false,

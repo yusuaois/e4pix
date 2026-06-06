@@ -45,9 +45,6 @@ class DevelopScreen extends ConsumerStatefulWidget {
 }
 
 class _DevelopScreenState extends ConsumerState<DevelopScreen> {
-  // —— 纯 UI-local 状态 ——
-  String _libRawVersion = '';
-  String? _libRawError;
   Offset _histogramPosition = const Offset(8, 8);
   bool _immersiveOn = false;
   static const _miniHistogramW = 140.0;
@@ -56,8 +53,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   @override
   void initState() {
     super.initState();
-    _libRawVersion = tr('loading');
-    _probeFfi();
     WidgetsBinding.instance.addPostFrameCallback((_) => _silentUpdateCheck());
   }
 
@@ -79,20 +74,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         builder: (_) => UpdateDialog(info: info, showIgnore: true),
       );
     } catch (_) {}
-  }
-
-  void _probeFfi() {
-    try {
-      final v = RawBridge.libRawVersion();
-      if (mounted) setState(() => _libRawVersion = v);
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _libRawVersion = tr('FFIFailed');
-          _libRawError = e.toString();
-        });
-      }
-    }
   }
 
   Future<void> _startFolderTether() async {
@@ -626,7 +607,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   Widget _buildVerticalInfoBar() {
     final image = ref.watch(imageNotifierProvider).value;
     final path = ref.watch(activeFilePathProvider);
-    final m = image?.decoded.metadata;
+    final m = image?.metadata;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
@@ -655,7 +636,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               ),
               if (image != null) ...[
                 Text(
-                  '${image.decoded.width}×${image.decoded.height}',
+                  '${image.width}×${image.height}',
                   style: TextStyle(
                     fontSize: 10,
                     fontFamily: 'monospace',
@@ -801,7 +782,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final image = ref.watch(imageNotifierProvider).value;
     final isLoading = ref.watch(imageNotifierProvider).isLoading;
     final path = ref.watch(activeFilePathProvider);
-    final m = image?.decoded.metadata;
+    final m = image?.metadata;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
@@ -822,8 +803,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    '${image.decoded.width}×${image.decoded.height} · '
-                    '${image.decoded.bitsPerChannel}-bit · '
+                    '${image.width}×${image.height} · '
+                    '${image.bitsPerChannel}-bit · '
                     'decode ${image.decodeTime.inMilliseconds}ms · '
                     'convert ${image.convertTime.inMilliseconds}ms',
                     style: TextStyle(

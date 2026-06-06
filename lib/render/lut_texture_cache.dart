@@ -106,7 +106,8 @@ class LutTextureCache {
   }
 
   void _disposeLater(ui.Image img) {
-    Future.delayed(const Duration(seconds: 1), () {
+    // 延迟释放 GPU 资源，与 DecodedImageCache 保持一致
+    Future.delayed(const Duration(milliseconds: 100), () {
       try {
         img.dispose();
       } catch (_) {}
