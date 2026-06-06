@@ -592,7 +592,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     bool preserve,
     CameraState cameraState,
   ) {
-    ref.watch(tickerProvider);
     return TetherStatusBar(
       watchPath: cameraState.modelName != null
           ? '${cameraState.modelName} → ${session.watchPath}'

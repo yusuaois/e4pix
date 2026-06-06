@@ -259,18 +259,8 @@ class FullPipelineRenderer {
       }
     }
 
-    if (!currentOwned) return _copyImage(current);
+    if (!currentOwned) return current.clone();
     return current;
-  }
-
-  static Future<ui.Image> _copyImage(ui.Image src) async {
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-    canvas.drawImage(src, ui.Offset.zero, ui.Paint());
-    final pic = recorder.endRecording();
-    final out = await pic.toImage(src.width, src.height);
-    pic.dispose();
-    return out;
   }
 
   static Future<ui.Image> _runDenoisePass({

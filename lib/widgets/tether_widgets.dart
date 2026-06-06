@@ -3,10 +3,12 @@ import 'dart:ui';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/models/tethered_shot.dart';
+import '../state/render_state.dart';
 
 // 顶部状态条
-class TetherStatusBar extends StatelessWidget {
+class TetherStatusBar extends ConsumerWidget {
   final String watchPath;
   final int shotCount;
   final DateTime? lastShotAt;
@@ -35,7 +37,8 @@ class TetherStatusBar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(tickerProvider);
     final isPhone = MediaQuery.of(context).size.shortestSide < 600;
     return isPhone ? _buildPhone(context) : _buildDesktop(context);
   }

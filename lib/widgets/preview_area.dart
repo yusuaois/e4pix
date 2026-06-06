@@ -266,24 +266,6 @@ class PreviewArea extends ConsumerWidget {
         params.denoiseLuma > 0.001 || params.denoiseColor > 0.001;
     final needFullPipeline = hasLocals || hasSharpen || hasDenoise;
 
-    final selectedLocalId = ref.watch(selectedLocalIdProvider);
-
-    Widget wrapOverlay(Widget content, Size displaySize) {
-      if (selectedLocalId == null) return content;
-      return SizedBox.fromSize(
-        size: displaySize,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            content,
-            Positioned.fill(
-              child: LocalMaskOverlay(imageDisplaySize: displaySize),
-            ),
-          ],
-        ),
-      );
-    }
-
     // ============ 完整管线（local / 锐化 / 降噪）============
     if (needFullPipeline) {
       final maskProgram = ref.watch(maskShaderProgramProvider).value;
@@ -321,44 +303,14 @@ class PreviewArea extends ConsumerWidget {
             draggingMaxEdge: dragging,
           );
 
-          final content = SizedBox.fromSize(size: box, child: preview);
-
-          // 蒙版编辑中
-          if (selectedLocalId != null) {
-            return Container(
-              color: Colors.black,
-              child: Center(
-                child: GestureDetector(
-                  onTap: () =>
-                      ref.read(fullscreenPreviewProvider.notifier).state = true,
-                  child: wrapOverlay(content, box),
-                ),
-              ),
-            );
-          }
-
-          // 取色模式
-          final picker = _wrapColorPicker(
+          return _wrapPreviewContent(
             ref: ref,
-            content: preview,
+            content: SizedBox.fromSize(size: box, child: preview),
             displaySize: box,
             state: state,
             params: params,
             lut: lut,
             lutEnabled: lutEnabled,
-          );
-          if (picker != null) return picker;
-
-          // 纯查看
-          return Container(
-            color: Colors.black,
-            child: Center(
-              child: _ZoomableView(
-                onTapNoZoom: () =>
-                    ref.read(fullscreenPreviewProvider.notifier).state = true,
-                child: content,
-              ),
-            ),
           );
         },
       );
@@ -376,57 +328,25 @@ class PreviewArea extends ConsumerWidget {
             Size(image.width.toDouble(), image.height.toDouble()),
             constraints.biggest,
           );
-          final imageWidget = PreviewRenderer(
-            image: image,
-            params: params,
-            lutTexture: lutEnabled ? lut.textureA : null,
-            lutSize: lutEnabled ? lut.sizeA : 0,
-            lutTextureB: lutEnabled ? lut.textureB : null,
-            lutSizeB: lutEnabled ? lut.sizeB : 0,
-            curveTexture: ref.watch(effectiveCurveTextureProvider),
-          );
-
-          final content = SizedBox.fromSize(
-            size: fit.destination,
-            child: imageWidget,
-          );
-
-          // 蒙版编辑中
-          if (selectedLocalId != null) {
-            return Container(
-              color: Colors.black,
-              child: Center(
-                child: GestureDetector(
-                  onTap: () =>
-                      ref.read(fullscreenPreviewProvider.notifier).state = true,
-                  child: wrapOverlay(content, fit.destination),
-                ),
-              ),
-            );
-          }
-
-          // 取色模式
-          final picker = _wrapColorPicker(
+          return _wrapPreviewContent(
             ref: ref,
-            content: content,
+            content: SizedBox.fromSize(
+              size: fit.destination,
+              child: PreviewRenderer(
+                image: image,
+                params: params,
+                lutTexture: lutEnabled ? lut.textureA : null,
+                lutSize: lutEnabled ? lut.sizeA : 0,
+                lutTextureB: lutEnabled ? lut.textureB : null,
+                lutSizeB: lutEnabled ? lut.sizeB : 0,
+                curveTexture: ref.watch(effectiveCurveTextureProvider),
+              ),
+            ),
             displaySize: fit.destination,
             state: state,
             params: params,
             lut: lut,
             lutEnabled: lutEnabled,
-          );
-          if (picker != null) return picker;
-
-          // 纯查看
-          return Container(
-            color: Colors.black,
-            child: Center(
-              child: _ZoomableView(
-                onTapNoZoom: () =>
-                    ref.read(fullscreenPreviewProvider.notifier).state = true,
-                child: content,
-              ),
-            ),
           );
         },
       );
@@ -491,58 +411,97 @@ class PreviewArea extends ConsumerWidget {
             ),
           );
 
-          // 在 oriented 图上切 crop 矩形 左上角 crop.x/y，大小 box
-          final croppedContent = SizedBox.fromSize(
-            size: box,
-            child: ClipRect(
-              child: OverflowBox(
-                minWidth: renderedOrientedW,
-                maxWidth: renderedOrientedW,
-                minHeight: renderedOrientedH,
-                maxHeight: renderedOrientedH,
-                alignment: Alignment.topLeft,
-                child: Transform.translate(
-                  offset: Offset(
-                    -crop.x * renderedOrientedW,
-                    -crop.y * renderedOrientedH,
+          // 在 oriented 图上切 crop 矩形
+          return _wrapPreviewContent(
+            ref: ref,
+            content: SizedBox.fromSize(
+              size: box,
+              child: ClipRect(
+                child: OverflowBox(
+                  minWidth: renderedOrientedW,
+                  maxWidth: renderedOrientedW,
+                  minHeight: renderedOrientedH,
+                  maxHeight: renderedOrientedH,
+                  alignment: Alignment.topLeft,
+                  child: Transform.translate(
+                    offset: Offset(
+                      -crop.x * renderedOrientedW,
+                      -crop.y * renderedOrientedH,
+                    ),
+                    child: orientedImage,
                   ),
-                  child: orientedImage,
                 ),
               ),
             ),
-          );
-          // 蒙版编辑中
-          if (selectedLocalId != null) {
-            return Center(
-              child: GestureDetector(
-                onTap: () =>
-                    ref.read(fullscreenPreviewProvider.notifier).state = true,
-                child: wrapOverlay(croppedContent, box),
-              ),
-            );
-          }
-
-          // 取色模式
-          final picker = _wrapColorPicker(
-            ref: ref,
-            content: croppedContent,
             displaySize: box,
             state: state,
             params: params,
             lut: lut,
             lutEnabled: lutEnabled,
           );
-          if (picker != null) return picker;
-
-          // 纯查看
-          return Center(
-            child: _ZoomableView(
-              onTapNoZoom: () =>
-                  ref.read(fullscreenPreviewProvider.notifier).state = true,
-              child: croppedContent,
-            ),
-          );
         },
+      ),
+    );
+  }
+
+  /// 预览包装：蒙版编辑 → 取色 → 缩放查看
+  Widget _wrapPreviewContent({
+    required WidgetRef ref,
+    required Widget content,
+    required Size displaySize,
+    required DecodedImageState state,
+    required AdjustmentParams params,
+    required LutState lut,
+    required bool lutEnabled,
+  }) {
+    final selectedLocalId = ref.watch(selectedLocalIdProvider);
+
+    // 蒙版编辑中
+    if (selectedLocalId != null) {
+      return Container(
+        color: Colors.black,
+        child: Center(
+          child: GestureDetector(
+            onTap: () =>
+                ref.read(fullscreenPreviewProvider.notifier).state = true,
+            child: SizedBox.fromSize(
+              size: displaySize,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  content,
+                  Positioned.fill(
+                    child: LocalMaskOverlay(imageDisplaySize: displaySize),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 取色模式
+    final picker = _wrapColorPicker(
+      ref: ref,
+      content: content,
+      displaySize: displaySize,
+      state: state,
+      params: params,
+      lut: lut,
+      lutEnabled: lutEnabled,
+    );
+    if (picker != null) return picker;
+
+    // 纯查看
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: _ZoomableView(
+          onTapNoZoom: () =>
+              ref.read(fullscreenPreviewProvider.notifier).state = true,
+          child: content,
+        ),
       ),
     );
   }

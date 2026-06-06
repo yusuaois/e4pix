@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/adjustment_params.dart';
 import '../render/full_pipeline_renderer.dart';
+import '../render/mask_cache.dart';
 import '../state/interaction_state.dart';
 
 class Histogram {
@@ -101,7 +102,11 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
   Timer? _debounce;
   bool _computing = false;
   ProviderSubscription<bool>? _dragSub;
-  static const _thumbDim = 256;
+  // 128px 缩略图足够直方图统计（256 bins × 128px = 2px/bin 平均），
+  // 相比 256px 减少 4× 像素数，大幅降低渲染和回读开销
+  static const _thumbDim = 128;
+  // develop pass 缓存：同一组基础参数下直方图只需重跑 mask/sharpen 等后续 pass
+  final _developCache = DevelopPassCache();
 
   @override
   void initState() {
@@ -134,12 +139,14 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
   void dispose() {
     _debounce?.cancel();
     _dragSub?.close();
+    _developCache.dispose();
     super.dispose();
   }
 
   void _schedule() {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 33), _recompute);
+    // 50ms 防抖：直方图不需要逐帧更新，略长于预览渲染周期（33ms）减少 GPU 争抢
+    _debounce = Timer(const Duration(milliseconds: 50), _recompute);
   }
 
   Future<void> _recompute() async {
@@ -167,6 +174,7 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
         curveTexture: widget.curveTexture,
         targetWidth: w,
         targetHeight: h,
+        developCache: _developCache,
       );
       try {
         final bd = await rendered.toByteData(

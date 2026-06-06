@@ -267,39 +267,50 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
     AdjustmentParams src,
     Set<SyncItem> items,
   ) {
-    state = [
-      for (final s in state)
-        if (paths.contains(s.path))
-          s.copyWith(params: mergeParams(s.params, src, items))
-        else
-          s,
-    ];
+    final updated = List<TetheredShot>.of(state);
+    for (int i = 0; i < updated.length; i++) {
+      if (paths.contains(updated[i].path)) {
+        updated[i] = updated[i].copyWith(
+          params: mergeParams(updated[i].params, src, items),
+        );
+      }
+    }
+    state = updated;
   }
 
+  /// 单张参数更新
   void updateParams(String shotPath, AdjustmentParams newParams) {
-    state = [
-      for (final s in state)
-        if (s.path == shotPath) s.copyWith(params: newParams) else s,
-    ];
+    final idx = state.indexWhere((s) => s.path == shotPath);
+    if (idx < 0) return;
+    final updated = List<TetheredShot>.of(state);
+    updated[idx] = updated[idx].copyWith(params: newParams);
+    state = updated;
   }
 
+  /// 全量覆盖
   void updateAllParams(AdjustmentParams newParams) {
-    state = [for (final s in state) s.copyWith(params: newParams)];
+    final updated = List<TetheredShot>.of(state);
+    for (int i = 0; i < updated.length; i++) {
+      updated[i] = updated[i].copyWith(params: newParams);
+    }
+    state = updated;
   }
 
   void updateRating(String shotPath, int rating) {
     final r = rating.clamp(0, 5);
-    state = [
-      for (final s in state)
-        if (s.path == shotPath) s.copyWith(rating: r) else s,
-    ];
+    final idx = state.indexWhere((s) => s.path == shotPath);
+    if (idx < 0) return;
+    final updated = List<TetheredShot>.of(state);
+    updated[idx] = updated[idx].copyWith(rating: r);
+    state = updated;
   }
 
   void updateFlag(String shotPath, ShotFlag flag) {
-    state = [
-      for (final s in state)
-        if (s.path == shotPath) s.copyWith(flag: flag) else s,
-    ];
+    final idx = state.indexWhere((s) => s.path == shotPath);
+    if (idx < 0) return;
+    final updated = List<TetheredShot>.of(state);
+    updated[idx] = updated[idx].copyWith(flag: flag);
+    state = updated;
   }
 
   void clear() {

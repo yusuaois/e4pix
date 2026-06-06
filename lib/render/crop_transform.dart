@@ -71,8 +71,4 @@ Future<ui.Image> _cropRect(ui.Image src, CropParams crop) async {
   return picture.toImage(outW, outH);
 }
 
-Future<ui.Image> _cloneImage(ui.Image src) async {
-  final pr = ui.PictureRecorder();
-  ui.Canvas(pr).drawImage(src, ui.Offset.zero, ui.Paint());
-  return pr.endRecording().toImage(src.width, src.height);
-}
+ui.Image _cloneImage(ui.Image src) => src.clone();
