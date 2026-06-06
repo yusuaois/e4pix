@@ -4,6 +4,7 @@
 
 ## 🐛 问题修复 (Bug Fixes)
 * 修复安卓长按导出与AI无法调出的问题
+* 修复裁剪旋转Knob被错误渲染到预览区域外的问题
 
 ## 🛠️ 底层改进 (Under the Hood)
 * **性能优化**：FullPipelineRenderer 缓存命中时使用 `clone()` 替代全图 GPU 拷贝

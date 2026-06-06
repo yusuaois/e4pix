@@ -33,14 +33,18 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
     return Rect.fromLTWH(c.x * w, c.y * h, c.width * w, c.height * h);
   }
 
-  // knob 位置：crop rect 下方 36px 中央；空间不够时放上方
+  // knob 位置
+  // 始终 clamp 在 displaySize 内
   Offset _knobPosition(Rect screenRect) {
+    final dW = widget.imageDisplaySize.width;
     final dH = widget.imageDisplaySize.height;
     final spaceBelow = dH - screenRect.bottom;
+    final margin = _knobRadius + 4; // knob 中心距边缘的最小距离
     final cx = (screenRect.left + screenRect.right) / 2;
-    return spaceBelow >= 60
-        ? Offset(cx, screenRect.bottom + _knobOffset)
-        : Offset(cx, screenRect.top - _knobOffset);
+    final knobY = spaceBelow >= _knobOffset + 28
+        ? (screenRect.bottom + _knobOffset).clamp(margin, dH - margin)
+        : (screenRect.top - _knobOffset).clamp(margin, dH - margin);
+    return Offset(cx.clamp(margin, dW - margin), knobY);
   }
 
   _Handle _hitTest(Offset pos, Rect screenRect) {
@@ -209,7 +213,7 @@ class _CropPainter extends CustomPainter {
     required this.crop,
     required this.displaySize,
     required this.knobPosition,
-    required this.primaryColor
+    required this.primaryColor,
   });
 
   @override
@@ -289,11 +293,7 @@ class _CropPainter extends CustomPainter {
         ..strokeWidth = 2.5
         ..strokeCap = StrokeCap.round,
     );
-    canvas.drawCircle(
-      const Offset(0, -9),
-      2.5,
-      Paint()..color = primaryColor,
-    );
+    canvas.drawCircle(const Offset(0, -9), 2.5, Paint()..color = primaryColor);
     canvas.restore();
 
     // 角度文字
