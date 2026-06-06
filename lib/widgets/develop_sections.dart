@@ -703,15 +703,8 @@ class LutSection extends ConsumerWidget {
     final lut = ref.watch(lutNotifierProvider);
     final params = ref.watch(currentParamsNotifierProvider);
     final library = ref.watch(lutLibraryNotifierProvider).value ?? const [];
-    final image = ref.watch(imageNotifierProvider).value;
 
     LutTextureCache.instance.protect(lut.nameA, lut.nameB);
-
-    // 通知缩略图服务检测源图/参数变更并自动清空过时缩略图
-    ref.read(lutThumbnailProvider.notifier).syncSourceKey(
-      sourceImage: image?.uiImage,
-      params: params,
-    );
 
     final thumbState = ref.watch(lutThumbnailProvider);
     final thumbs = thumbState.thumbs;

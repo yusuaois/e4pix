@@ -15,25 +15,24 @@ import '../core/models/export_config.dart';
 import '../core/models/export_job.dart';
 import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
-import '../native/raw_bridge.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
 import '../services/app_settings.dart';
 import '../services/update_service.dart';
 import '../state/providers.dart';
-import '../widgets/adjustment_panel.dart';
+import '../widgets/horizontal_adjustment_panel.dart';
 import '../widgets/ai_settings_dialog.dart';
 import '../widgets/ai_suggestion_dialog.dart';
 import '../widgets/camera_picker_dialog.dart';
 import '../widgets/develop_misc_widgets.dart';
-import '../widgets/develop_sections.dart';
 import '../widgets/develop_top_bar.dart';
 import '../widgets/export_dialog.dart';
 import '../widgets/preview_area.dart';
 import 'folder_import_screen.dart';
 import '../widgets/histogram_panel.dart';
-import '../widgets/local_panel.dart';
+import '../widgets/image_info_bar.dart';
+import '../widgets/vertical_adjustment_panel.dart';
 import '../widgets/preset_bar.dart';
 import '../widgets/tether_widgets.dart';
 import 'settings_screen.dart';
@@ -502,8 +501,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                 .where((s) => selection.selectedPaths.contains(s.path))
                 .toList(),
           ),
-        _buildVerticalInfoBar(),
-        if (hasImage) _buildPhoneToolPanel(),
+        ImageInfoBar(onImport: _importImages),
+        if (hasImage) VerticalAdjustmentPanel(onChanged: _onParamsChanged),
       ],
     );
   }
@@ -550,14 +549,14 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                 ),
               const Expanded(child: PreviewArea()),
               if (image != null)
-                AdjustmentPanel(
+                HorizontalAdjustmentPanel(
                   params: params,
                   onChanged: _onParamsChanged,
                   histogram: program == null
                       ? null
                       : _buildHistogram(program, image),
                   presetBar: const PresetBar(),
-                  info: _buildHorizontalInfoBar(),
+                  info: ImageInfoBar(onImport: _importImages),
                   onEnterCrop: () => enterCropMode(ref),
                 ),
             ],
@@ -601,259 +600,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       lutTextureB: lutEnabled ? lut.textureB : null,
       lutSizeB: lutEnabled ? lut.sizeB : 0,
       curveTexture: ref.watch(effectiveCurveTextureProvider),
-    );
-  }
-
-  Widget _buildVerticalInfoBar() {
-    final image = ref.watch(imageNotifierProvider).value;
-    final path = ref.watch(activeFilePathProvider);
-    final m = image?.metadata;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF14141A),
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  m?.summary.isNotEmpty == true
-                      ? m!.summary
-                      : (path != null
-                            ? p.basename(path)
-                            : tr('imageNotChosen')),
-                  style: const TextStyle(fontSize: 11),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (image != null) ...[
-                Text(
-                  '${image.width}×${image.height}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontFamily: 'monospace',
-                    color: Colors.greenAccent.withValues(alpha: 0.8),
-                  ),
-                ),
-                if (image.isPreliminary) ...[
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 9,
-                    height: 9,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.2,
-                      color: Colors.amberAccent.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'HD…',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.amberAccent.withValues(alpha: 0.7),
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ],
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(
-                    Platform.isAndroid
-                        ? Icons.folder_copy_outlined
-                        : Icons.add_photo_alternate_outlined,
-                    size: 18,
-                  ),
-                  tooltip: Platform.isAndroid
-                      ? tr("folderImport")
-                      : tr("imageChoose"),
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                  onPressed: _importImages,
-                ),
-              ],
-            ],
-          ),
-          if (image != null) RatingFlagBar(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPhoneToolPanel() {
-    final params = ref.watch(currentParamsNotifierProvider);
-
-    return SizedBox(
-      height: 320,
-      child: DefaultTabController(
-        length: 7,
-        child: Container(
-          color: const Color(0xFF14141A),
-          child: Column(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.05),
-                    ),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TabBar(
-                        labelPadding: EdgeInsets.zero,
-                        indicatorSize: TabBarIndicatorSize.tab,
-                        labelStyle: const TextStyle(fontSize: 11),
-                        tabs: [
-                          Tab(text: tr("light"), height: 36),
-                          Tab(text: tr("color"), height: 36),
-                          Tab(text: tr("hsl"), height: 36),
-                          Tab(text: 'LUT', height: 36),
-                          Tab(text: tr('detail'), height: 36),
-                          Tab(text: tr("preset"), height: 36),
-                          Tab(text: tr("local"), height: 36),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.refresh, size: 18),
-                      tooltip: tr("reset"),
-                      onPressed: () =>
-                          _onParamsChanged(AdjustmentParams.neutral),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    SingleChildScrollView(
-                      child: LightSection(
-                        params: params,
-                        onChanged: _onParamsChanged,
-                      ),
-                    ),
-                    SingleChildScrollView(
-                      child: WhiteBalanceColorSection(
-                        params: params,
-                        onChanged: _onParamsChanged,
-                      ),
-                    ),
-                    SingleChildScrollView(
-                      child: HslSection(
-                        bands: params.hsl,
-                        onChanged: (b) =>
-                            _onParamsChanged(params.copyWith(hsl: b)),
-                      ),
-                    ),
-                    SingleChildScrollView(child: LutSection()),
-                    SingleChildScrollView(
-                      child: DetailSection(
-                        params: params,
-                        onChanged: _onParamsChanged,
-                      ),
-                    ),
-                    const PresetTabContent(),
-                    const SingleChildScrollView(child: LocalPanel()),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHorizontalInfoBar() {
-    final image = ref.watch(imageNotifierProvider).value;
-    final isLoading = ref.watch(imageNotifierProvider).isLoading;
-    final path = ref.watch(activeFilePathProvider);
-    final m = image?.metadata;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            m?.summary.isNotEmpty == true
-                ? m!.summary
-                : (path != null ? p.basename(path) : tr('imageNotChosen')),
-            style: const TextStyle(fontSize: 11),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (image != null) ...[
-            const SizedBox(height: 3),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${image.width}×${image.height} · '
-                    '${image.bitsPerChannel}-bit · '
-                    'decode ${image.decodeTime.inMilliseconds}ms · '
-                    'convert ${image.convertTime.inMilliseconds}ms',
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      fontFamily: 'monospace',
-                      color: Colors.greenAccent.withValues(alpha: 0.75),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (image.isPreliminary) ...[
-                  const SizedBox(width: 6),
-                  SizedBox(
-                    width: 9,
-                    height: 9,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.2,
-                      color: Colors.amberAccent.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-          const SizedBox(height: 6),
-          RatingFlagBar(),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: isLoading ? null : _importImages,
-              icon: Icon(
-                Platform.isAndroid
-                    ? Icons.folder_copy_outlined
-                    : Icons.folder_open,
-                size: 16,
-              ),
-              label: Text(
-                Platform.isAndroid ? tr("folderImport") : tr("imageChoose"),
-                style: const TextStyle(fontSize: 12),
-              ),
-              style: OutlinedButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

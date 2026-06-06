@@ -7,7 +7,7 @@ import '../state/develop_tool_state.dart';
 import 'develop_sections.dart';
 import 'local_panel.dart';
 
-class AdjustmentPanel extends ConsumerWidget {
+class HorizontalAdjustmentPanel extends ConsumerWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
   final Widget? histogram;
@@ -15,7 +15,7 @@ class AdjustmentPanel extends ConsumerWidget {
   final Widget? info;
   final VoidCallback? onEnterCrop;
 
-  const AdjustmentPanel({
+  const HorizontalAdjustmentPanel({
     super.key,
     required this.params,
     required this.onChanged,

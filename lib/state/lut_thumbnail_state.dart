@@ -8,8 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/models/adjustment_params.dart';
 import '../render/lut_texture_cache.dart';
 import '../render/render_engine.dart';
-import '../state/providers.dart';
-import 'lut_library.dart';
+import '../services/lut_library.dart';
+import 'providers.dart';
 
 /// LUT 缩略图渲染服务的状态快照（不可变）
 @immutable
@@ -29,8 +29,8 @@ class LutThumbnailState {
 
 /// LUT 缩略图渲染队列引擎。
 ///
-/// 按需触发（菜单项可见时才排队），串行渲染，代数追踪防止过时结果覆盖。
-/// 缩略图尺寸 60×40，仅跑 develop + LUT pass，跳过 local/sharpen/denoise。
+/// 按需触发（菜单项可见时才排队），串行渲染，代数追踪防止过时结果覆盖
+/// 缩略图尺寸 60×40，仅跑 develop + LUT pass，跳过 local/sharpen/denoise
 class LutThumbnailNotifier extends Notifier<LutThumbnailState> {
   static const _thumbW = 60;
   static const _thumbH = 40;
@@ -45,6 +45,10 @@ class LutThumbnailNotifier extends Notifier<LutThumbnailState> {
 
   @override
   LutThumbnailState build() {
+    // 监听源图/参数变更，自动清空过时缩略图
+    ref.listen(imageNotifierProvider, (prev, next) => _onSourceChanged());
+    ref.listen(currentParamsNotifierProvider, (prev, next) => _onSourceChanged());
+
     ref.onDispose(() {
       _disposed = true;
       _renderQueue.clear();
@@ -59,20 +63,20 @@ class LutThumbnailNotifier extends Notifier<LutThumbnailState> {
     return const LutThumbnailState();
   }
 
-  // ── 公开 API ──
-
-  /// 每帧 build 时调用，检测源图/参数是否变更，是则清空所有缩略图重新排队。
-  void syncSourceKey({
-    required ui.Image? sourceImage,
-    required AdjustmentParams params,
-  }) {
-    if (sourceImage == null) return;
-    final key = _computeKey(sourceImage, params);
+  void _onSourceChanged() {
+    final image = ref.read(imageNotifierProvider).value;
+    final params = ref.read(currentParamsNotifierProvider);
+    if (image == null) return;
+    final key = _computeKey(image.uiImage, params);
     if (key == _lastSourceKey) return;
-
     _lastSourceKey = key;
-    _invalidateAll();
+    // defer 到下一帧避免 "modify provider during build" 错误
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) _invalidateAll();
+    });
   }
+
+  // ── 公开 API ──
 
   /// 触发指定 LUT 条目的缩略图渲染（入口已去重）。
   void requestRender(LutEntry entry) {

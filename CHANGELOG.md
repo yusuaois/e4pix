@@ -13,11 +13,12 @@
 * **代码结构**：preview_area 提取 `_wrapPreviewContent` 消除三个分支重复的包装逻辑
 * **代码结构**：修复 ImageNotifier._scheduleDispose 的嵌套 callback，改为 postFrameCallback+Future.delayed
 * **代码结构**：拆分 mask_cache，提取 CPU 光栅化+导向滤波到独立的 brush_rasterizer.dart
-* **代码结构**：合并 4 个微小 state 文件（fullscreen→interaction, import_mode→tether, compare→params, curve→render）
-* **代码结构**：提取 LUT 缩略图渲染引擎到 `LutThumbnailNotifier` provider，`LutSection` 从 StatefulWidget 精简为 ConsumerWidget
-* **代码结构**：修复 `DecodedImageState` 缓存命中时构造假的 `RawDecodedImage(pixels: Uint8List(0))`，改为直接存储维度字段
-* **代码结构**：统一 `LutTextureCache` 与 `DecodedImageCache` 的延迟 dispose 策略（100ms）
-* **代码结构**：清理 `develop_screen.dart` 中未使用的 `_libRawVersion`/`_libRawError` 字段和 `_probeFfi` 方法
+* **代码结构**：合并 state 文件（fullscreen→interaction, import_mode→tether, compare→params, curve→render）
+* **代码结构**：提取 LUT 缩略图渲染引擎到provider
+* **代码结构**：修复图片解码缓存命中时构造假的 `RawDecodedImage(pixels: Uint8List(0))`，改为直接存储维度字段
+* **代码结构**：统一图片缓存的延迟 dispose 策略（100ms）
+* **代码结构**：清理 `develop_screen.dart` 中未使用的字段和方法
+* **代码结构**：拆分 `develop_screen.dart`，提取部分代码 为独立 widget
 
 ---
 
