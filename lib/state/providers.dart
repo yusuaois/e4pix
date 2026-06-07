@@ -21,5 +21,5 @@ export 'theme_state.dart';
 export 'params/sidecar_writer.dart';
 export 'image/image_cache_state.dart';
 export 'export/export_queue_state.dart';
-export 'lut/lut_thumbnail_state.dart';
+export 'lut/thumbnail_cache.dart';
 export '../core/keybindings/keybinding_service.dart';

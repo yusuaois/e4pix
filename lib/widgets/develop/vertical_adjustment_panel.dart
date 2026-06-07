@@ -54,8 +54,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                     IconButton(
                       icon: const Icon(Icons.refresh, size: 18),
                       tooltip: tr("reset"),
-                      onPressed: () =>
-                          onChanged(AdjustmentParams.neutral),
+                      onPressed: () => onChanged(AdjustmentParams.neutral),
                     ),
                   ],
                 ),
@@ -64,10 +63,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                 child: TabBarView(
                   children: [
                     SingleChildScrollView(
-                      child: LightSection(
-                        params: params,
-                        onChanged: onChanged,
-                      ),
+                      child: LightSection(params: params, onChanged: onChanged),
                     ),
                     SingleChildScrollView(
                       child: WhiteBalanceColorSection(
@@ -78,8 +74,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                     SingleChildScrollView(
                       child: HslSection(
                         bands: params.hsl,
-                        onChanged: (b) =>
-                            onChanged(params.copyWith(hsl: b)),
+                        onChanged: (b) => onChanged(params.copyWith(hsl: b)),
                       ),
                     ),
                     SingleChildScrollView(child: const LutSection()),
@@ -89,7 +84,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                         onChanged: onChanged,
                       ),
                     ),
-                    const PresetTabContent(),
+                    const SingleChildScrollView(child: PresetGrid()),
                     const SingleChildScrollView(child: LocalPanel()),
                   ],
                 ),

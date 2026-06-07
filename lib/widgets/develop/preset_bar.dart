@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/export/xmp_export.dart';
 import '../../services/export/xmp_import.dart';
 import '../../state/providers.dart';
 
@@ -93,7 +95,14 @@ class _PresetBarState extends ConsumerState<PresetBar> {
             IconButton(
               icon: const Icon(Icons.input, size: 18),
               tooltip: tr("xmpImport"),
-              onPressed: () => _importXmp(context, ref),
+              onPressed: () => importXmpPreset(context, ref),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            ),
+            IconButton(
+              icon: const Icon(Icons.file_download_outlined, size: 18),
+              tooltip: tr("exportPreset"),
+              onPressed: () => exportXmpPreset(context, ref),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             ),
@@ -104,79 +113,179 @@ class _PresetBarState extends ConsumerState<PresetBar> {
   }
 }
 
-// 手机端：在 tab 里的纵向 preset 列表
-class PresetTabContent extends ConsumerWidget {
-  const PresetTabContent({super.key});
+/// 预设网格 2 列卡片 + 顶部操作按钮
+class PresetGrid extends ConsumerWidget {
+  const PresetGrid({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncList = ref.watch(presetNotifierProvider);
     final notifier = ref.read(presetNotifierProvider.notifier);
+    final primary = Theme.of(context).colorScheme.primary;
+    final thumbs = ref.watch(thumbnailCacheProvider).thumbs;
+    final cacheNotifier = ref.read(thumbnailCacheProvider.notifier);
 
     return asyncList.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
-      data: (presets) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
+      error: (e, _) => Center(child: Text('$e')),
+      data: (presets) {
+        for (final p in presets) {
+          cacheNotifier.requestPreset(p.id, p.params);
+        }
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.bookmark_add_outlined, size: 14),
+                      label: Text(
+                        tr("saveCurrentAsPreset"),
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: () => showSavePresetDialog(context, notifier),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.input, size: 14),
+                      label: Text(
+                        tr("xmpImport"),
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: () => importXmpPreset(context, ref),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.file_download_outlined, size: 14),
+                      label: Text(
+                        tr("exportPreset"),
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: () => exportXmpPreset(context, ref),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.4,
+              ),
+              itemCount: presets.length,
+              itemBuilder: (ctx, i) => _PresetCard(
+                preset: presets[i],
+                primary: primary,
+                thumb: thumbs['preset:${presets[i].id}'],
+                onTap: () => notifier.apply(presets[i].id),
+                onLongPress: presets[i].isBuiltin
+                    ? null
+                    : () => showPresetOptions(context, ref, presets[i]),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _PresetCard extends StatelessWidget {
+  final Preset preset;
+  final Color primary;
+  final ui.Image? thumb;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  const _PresetCard({
+    required this.preset,
+    required this.primary,
+    this.thumb,
+    required this.onTap,
+    this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Container(
+        decoration: BoxDecoration(
+          color: primary.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: primary.withValues(alpha: 0.15)),
+        ),
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: thumb != null
+                    ? RawImage(
+                        image: thumb,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      )
+                    : Container(
+                        width: double.infinity,
+                        color: Colors.black.withValues(alpha: 0.2),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.style,
+                          size: 20,
+                          color: primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.bookmark_add, size: 16),
-                    label: Text(
-                      tr("saveCurrentAsPreset"),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    onPressed: () => showSavePresetDialog(context, notifier),
+                  child: Text(
+                    preset.name,
+                    style: TextStyle(fontSize: 10.5, color: primary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.input, size: 16),
-                  label: Text(
-                    tr("xmpImport"),
-                    style: const TextStyle(fontSize: 12),
+                if (preset.isBuiltin)
+                  Icon(
+                    Icons.lock,
+                    size: 9,
+                    color: primary.withValues(alpha: 0.4),
                   ),
-                  onPressed: () => _importXmp(context, ref),
-                ),
               ],
             ),
-          ),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              itemCount: presets.length,
-              separatorBuilder: (_, _) => Divider(
-                height: 1,
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
-              itemBuilder: (ctx, i) {
-                final p = presets[i];
-                return ListTile(
-                  dense: true,
-                  visualDensity: VisualDensity.compact,
-                  leading: Icon(
-                    Icons.style,
-                    size: 16,
-                    color: p.isBuiltin
-                        ? Colors.blueGrey
-                        : Colors.deepPurpleAccent,
-                  ),
-                  title: Text(p.name, style: const TextStyle(fontSize: 13)),
-                  trailing: p.isBuiltin
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.more_vert, size: 18),
-                          onPressed: () => _showPresetOptions(ctx, ref, p),
-                        ),
-                  onTap: () => notifier.apply(p.id),
-                );
-              },
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -194,7 +303,7 @@ class PresetChip extends ConsumerWidget {
       onTap: onTap,
       onLongPress: preset.isBuiltin
           ? null
-          : () => _showPresetOptions(context, ref, preset),
+          : () => showPresetOptions(context, ref, preset),
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -250,7 +359,7 @@ Future<void> showSavePresetDialog(
   }
 }
 
-Future<void> _showPresetOptions(
+Future<void> showPresetOptions(
   BuildContext ctx,
   WidgetRef ref,
   Preset preset,
@@ -308,7 +417,27 @@ Future<void> _showPresetOptions(
   }
 }
 
-Future<void> _importXmp(BuildContext ctx, WidgetRef ref) async {
+Future<void> exportXmpPreset(BuildContext ctx, WidgetRef ref) async {
+  final params = ref.read(currentParamsNotifierProvider);
+  final xmp = XmpExport.serialize(params);
+  final dir = await FilePicker.getDirectoryPath(
+    dialogTitle: tr("exportPreset"),
+  );
+  if (dir == null) return;
+  final file = File('$dir/e4pix_preset.xmp');
+  await file.writeAsString(xmp);
+  if (ctx.mounted) {
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        content: Text(tr('xmpExported', args: [file.path])),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
+Future<void> importXmpPreset(BuildContext ctx, WidgetRef ref) async {
   final messenger = ScaffoldMessenger.of(ctx);
   final result = await FilePicker.pickFiles(
     type: FileType.custom,

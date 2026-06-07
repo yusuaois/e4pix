@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
-import '../../state/tools/develop_tool_state.dart';
+import '../../state/providers.dart';
 import 'develop_sections.dart';
 import '../local/local_panel.dart';
+import 'preset_bar.dart';
 
 class HorizontalAdjustmentPanel extends ConsumerWidget {
   final AdjustmentParams params;
@@ -43,17 +44,7 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
       case DevelopTool.detail:
         return DetailSection(params: params, onChanged: onChanged);
       case DevelopTool.preset:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 4),
-            if (presetBar != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-                child: presetBar!,
-              ),
-          ],
-        );
+        return const PresetGrid();
       case DevelopTool.local:
         return const LocalPanel();
       case DevelopTool.info:

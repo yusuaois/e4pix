@@ -2,7 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../services/region/sam_session.dart';
+import '../../services/local/sam_session.dart';
 import '../../core/models/local_adjustment.dart';
 import '../../core/models/local_params.dart';
 import '../../core/models/mask_shape.dart';

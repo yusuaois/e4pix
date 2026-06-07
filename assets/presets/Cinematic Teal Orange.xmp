@@ -1,0 +1,17 @@
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
+      crs:Exposure2012="+0.15"
+      crs:Contrast2012="+19"
+      crs:Highlights2012="-28"
+      crs:Shadows2012="+14"
+      crs:Whites2012="+4"
+      crs:Blacks2012="-15"
+      crs:Temperature="5600"
+      crs:Tint="+15"
+      crs:Saturation="+8"
+      crs:Vibrance="+15"
+      crs:Sharpness="20"
+    />
+  </rdf:RDF>
+</x:xmpmeta>

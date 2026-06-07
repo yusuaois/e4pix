@@ -23,7 +23,7 @@ class TetherNotificationService {
 
     if (Platform.isAndroid) {
       const androidSettings = AndroidInitializationSettings(
-        '@mipmap/ic_launcher',
+        '@drawable/ic_launcher_foreground',
       );
       const settings = InitializationSettings(android: androidSettings);
       await _androidPlugin.initialize(settings);
@@ -137,7 +137,7 @@ class TetherNotificationService {
       priority: Priority.low,
       ongoing: true, // 常驻通知
       autoCancel: false, // 点击通知不会自动消失
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/ic_launcher_foreground',
     ),
   );
 }

@@ -706,7 +706,7 @@ class LutSection extends ConsumerWidget {
 
     LutTextureCache.instance.protect(lut.nameA, lut.nameB);
 
-    final thumbState = ref.watch(lutThumbnailProvider);
+    final thumbState = ref.watch(thumbnailCacheProvider);
     final thumbs = thumbState.thumbs;
     final rendering = thumbState.rendering;
 
@@ -724,7 +724,7 @@ class LutSection extends ConsumerWidget {
           thumbs: thumbs,
           rendering: rendering,
           onItemVisible: (entry) =>
-              ref.read(lutThumbnailProvider.notifier).requestRender(entry),
+              ref.read(thumbnailCacheProvider.notifier).requestLut(entry),
         ),
         const SizedBox(height: 10),
         _LutSlot(
@@ -736,7 +736,7 @@ class LutSection extends ConsumerWidget {
           thumbs: thumbs,
           rendering: rendering,
           onItemVisible: (entry) =>
-              ref.read(lutThumbnailProvider.notifier).requestRender(entry),
+              ref.read(thumbnailCacheProvider.notifier).requestLut(entry),
         ),
       ],
     );
@@ -935,7 +935,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                           ...widget.library.map((entry) {
                             return _LutMenuItem(
                               entry: entry,
-                              thumb: widget.thumbs[entry.name],
+                              thumb: widget.thumbs['lut:${entry.name}'],
                               isRendering: widget.rendering.contains(
                                 entry.name,
                               ),

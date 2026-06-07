@@ -20,7 +20,7 @@ class ExportNotificationService {
     if (Platform.isAndroid) {
       // --- Android 初始化 ---
       const androidSettings = AndroidInitializationSettings(
-        '@mipmap/ic_launcher',
+        '@drawable/ic_launcher_foreground',
       );
       const settings = InitializationSettings(android: androidSettings);
       await _androidPlugin.initialize(settings);
@@ -113,7 +113,7 @@ class ExportNotificationService {
       channelDescription: 'e4pix export results',
       importance: Importance.defaultImportance,
       priority: Priority.defaultPriority,
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/ic_launcher_foreground',
     ),
   );
 

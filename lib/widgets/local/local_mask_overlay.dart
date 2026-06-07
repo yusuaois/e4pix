@@ -8,8 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/local_adjustment.dart';
 import '../../core/models/mask_shape.dart';
-import '../../services/region/smart_region_service.dart';
-import '../../services/region/segmentation_service.dart';
+import '../../services/local/smart_region_service.dart';
+import '../../services/local/segmentation_service.dart';
 import '../../state/providers.dart';
 
 enum _Handle {
