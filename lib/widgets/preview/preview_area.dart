@@ -19,6 +19,7 @@ import 'crop_overlay.dart';
 import 'crop_panel.dart';
 import '../local/local_mask_overlay.dart';
 import 'multi_pass_preview.dart';
+import 'split_compare_view.dart';
 
 // Preview area
 class PreviewArea extends ConsumerWidget {
@@ -72,7 +73,31 @@ class PreviewArea extends ConsumerWidget {
     WidgetRef ref,
   ) {
     if (cropMode) return _buildCropEdit(state, params, lut, lutEnabled, ref);
+    final compareMode = ref.watch(compareViewModeProvider);
+    if (compareMode == CompareViewMode.split) {
+      return _buildSplitCompare(state, lut, lutEnabled, ref);
+    }
     return _buildCroppedPreview(state, params, lut, lutEnabled, ref);
+  }
+
+  Widget _buildSplitCompare(
+    DecodedImageState state,
+    LutState lut,
+    bool lutEnabled,
+    WidgetRef ref,
+  ) {
+    return Container(
+      color: Colors.black,
+      child: SplitCompareView(
+        image: state.uiImage,
+        params: ref.watch(effectiveParamsProvider),
+        lutA: lutEnabled ? lut.textureA : null,
+        lutSizeA: lutEnabled ? lut.sizeA : 0,
+        lutB: lutEnabled ? lut.textureB : null,
+        lutSizeB: lutEnabled ? lut.sizeB : 0,
+        curve: ref.watch(effectiveCurveTextureProvider),
+      ),
+    );
   }
 
   Widget _buildCropEdit(
@@ -226,14 +251,10 @@ class PreviewArea extends ConsumerWidget {
                     final placeAbove = cursorY > displaySize.height / 2;
 
                     final left = placeLeft
-                        ? cursorX -
-                              gap -
-                              readoutW
+                        ? cursorX - gap - readoutW
                         : cursorX + gap;
                     final top = placeAbove
-                        ? cursorY -
-                              gap -
-                              readoutH
+                        ? cursorY - gap - readoutH
                         : cursorY + gap;
 
                     return Positioned(

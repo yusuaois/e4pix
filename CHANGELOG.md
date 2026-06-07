@@ -1,28 +1,11 @@
 ## 🚀 新功能 (New Features)
-* **通知**：新增导出与监听通知
-* **LUT预览**：新增LUT预览功能
-* **更新UI**：更新预设界面UI
-* **内置预设**：新增部分预设
-* **预设预览**：新增预设画面预览功能
+* **分屏对比**：支持前/后左右分屏对比
 
 ## 🐛 问题修复 (Bug Fixes)
-* 修复安卓长按导出与AI无法调出的问题
-* 修复裁剪旋转Knob被错误渲染到预览区域外的问题
+
 
 ## 🛠️ 底层改进 (Under the Hood)
-* **性能优化**：FullPipelineRenderer 缓存命中时使用 `clone()` 替代全图 GPU 拷贝
-* **性能优化**：直方图渲染分辨率减半 + DevelopPassCache 复用，减少直方图更新频率
-* **性能优化**：ShotsNotifier 参数更新改用 List.of + 索引定位，避免 list comprehension 的闭包分配；更新前检查索引不存在则跳过
-* **性能优化**：TetherStatusBar 改为 ConsumerWidget 内部 watch ticker，避免父级 develop_screen 每秒全局重建
-* **代码结构**：preview_area 提取 `_wrapPreviewContent` 消除三个分支重复的包装逻辑
-* **代码结构**：修复 ImageNotifier._scheduleDispose 的嵌套 callback，改为 postFrameCallback+Future.delayed
-* **代码结构**：拆分 mask_cache，提取 CPU 光栅化+导向滤波到独立的 brush_rasterizer.dart
-* **代码结构**：合并 state 文件（fullscreen→interaction, import_mode→tether, compare→params, curve→render）
-* **代码结构**：提取 LUT 缩略图渲染引擎到provider
-* **代码结构**：修复图片解码缓存命中时构造假的 `RawDecodedImage(pixels: Uint8List(0))`，改为直接存储维度字段
-* **代码结构**：统一图片缓存的延迟 dispose 策略（100ms）
-* **代码结构**：清理 `develop_screen.dart` 中未使用的字段和方法
-* **代码结构**：拆分 `develop_screen.dart`，提取部分代码 为独立 widget
+
 
 ---
 
