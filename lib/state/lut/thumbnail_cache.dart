@@ -49,7 +49,7 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
   @override
   ThumbnailState build() {
     ref.listen(imageNotifierProvider, (_, _) => _onSourceChanged());
-    // ref.listen(currentParamsNotifierProvider, (_, _) => _onSourceChanged());
+    ref.listen(currentParamsNotifierProvider, (_, _) => _onSourceChanged());
     ref.onDispose(() {
       _disposed = true;
       _presetTimer?.cancel();
