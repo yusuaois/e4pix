@@ -130,13 +130,28 @@ class PreviewArea extends ConsumerWidget {
 
                 final scale = displaySize.width / orientedW;
                 final matrix = Matrix4.identity()
-                  ..translate(displaySize.width / 2, displaySize.height / 2, 0)
+                  ..translateByDouble(
+                    displaySize.width / 2,
+                    displaySize.height / 2,
+                    0,
+                    1.0,
+                  )
                   ..rotateZ(
                     draft.orientation * math.pi / 2 +
                         draft.straighten * math.pi / 180,
                   )
-                  ..scale(draft.flipH ? -1.0 : 1.0, draft.flipV ? -1.0 : 1.0)
-                  ..translate(-imgW * scale / 2, -imgH * scale / 2);
+                  ..scaleByDouble(
+                    draft.flipH ? -1.0 : 1.0,
+                    draft.flipV ? -1.0 : 1.0,
+                    1.0,
+                    1.0,
+                  )
+                  ..translateByDouble(
+                    -imgW * scale / 2,
+                    -imgH * scale / 2,
+                    0,
+                    1.0,
+                  );
 
                 return Stack(
                   alignment: Alignment.center,
@@ -408,7 +423,12 @@ class PreviewArea extends ConsumerWidget {
                     crop.orientation * math.pi / 2 +
                         crop.straighten * math.pi / 180,
                   )
-                  ..scale(crop.flipH ? -1.0 : 1.0, crop.flipV ? -1.0 : 1.0),
+                  ..scaleByDouble(
+                    crop.flipH ? -1.0 : 1.0,
+                    crop.flipV ? -1.0 : 1.0,
+                    1.0,
+                    1.0,
+                  ),
                 child: OverflowBox(
                   minWidth: renderedFullW,
                   maxWidth: renderedFullW,
@@ -771,9 +791,9 @@ class _ZoomableViewState extends State<_ZoomableView> {
     final m = _tc.value.clone();
     // 焦点处缩放
     m
-      ..translate(focal.dx, focal.dy)
-      ..scale(actualFactor)
-      ..translate(-focal.dx, -focal.dy);
+      ..translateByDouble(focal.dx, focal.dy, 0, 1.0)
+      ..scaleByDouble(actualFactor, actualFactor, 1.0, 1.0)
+      ..translateByDouble(-focal.dx, -focal.dy, 0, 1.0);
     _tc.value = m;
     setState(() {});
   }

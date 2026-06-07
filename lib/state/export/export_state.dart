@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/models/adjustment_params.dart';
+import '../../core/models/tethered_shot.dart';
 import '../providers.dart';
 
 @immutable
@@ -15,11 +16,13 @@ class ExportSelection {
     this.selectedPaths = const {},
   });
 
-  ExportSelection copyWith({bool? multiSelectMode, Set<String>? selectedPaths}) =>
-      ExportSelection(
-        multiSelectMode: multiSelectMode ?? this.multiSelectMode,
-        selectedPaths: selectedPaths ?? this.selectedPaths,
-      );
+  ExportSelection copyWith({
+    bool? multiSelectMode,
+    Set<String>? selectedPaths,
+  }) => ExportSelection(
+    multiSelectMode: multiSelectMode ?? this.multiSelectMode,
+    selectedPaths: selectedPaths ?? this.selectedPaths,
+  );
 }
 
 class ExportSelectionNotifier extends Notifier<ExportSelection> {
@@ -55,8 +58,16 @@ class ExportSelectionNotifier extends Notifier<ExportSelection> {
 
 final exportSelectionNotifierProvider =
     NotifierProvider<ExportSelectionNotifier, ExportSelection>(
-  ExportSelectionNotifier.new,
-);
+      ExportSelectionNotifier.new,
+    );
+
+/// 多选模式下选中的 shot 列表
+final selectedShotsProvider = Provider<List<TetheredShot>>((ref) {
+  final shots = ref.watch(shotsNotifierProvider);
+  final selection = ref.watch(exportSelectionNotifierProvider);
+  if (selection.selectedPaths.isEmpty) return const [];
+  return shots.where((s) => selection.selectedPaths.contains(s.path)).toList();
+});
 
 // 导出任务
 @immutable
@@ -64,7 +75,11 @@ class ExportTask {
   final String path;
   final AdjustmentParams params;
   final String filename;
-  const ExportTask({required this.path, required this.params, required this.filename});
+  const ExportTask({
+    required this.path,
+    required this.params,
+    required this.filename,
+  });
 }
 
 final exportTasksProvider = Provider<List<ExportTask>>((ref) {
@@ -83,7 +98,5 @@ final exportTasksProvider = Provider<List<ExportTask>>((ref) {
   final path = ref.watch(activeFilePathProvider);
   if (path == null) return const [];
   final params = ref.watch(currentParamsNotifierProvider);
-  return [
-    ExportTask(path: path, params: params, filename: p.basename(path)),
-  ];
+  return [ExportTask(path: path, params: params, filename: p.basename(path))];
 });

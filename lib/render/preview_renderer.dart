@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/adjustment_params.dart';
 import '../state/interaction_state.dart';
+import '../state/render/render_state.dart';
 import 'develop_uniforms.dart';
 
 class PreviewRenderer extends ConsumerStatefulWidget {
@@ -33,8 +34,8 @@ class PreviewRenderer extends ConsumerStatefulWidget {
 }
 
 class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
-  ui.FragmentShader? _shader;
-  Object? _shaderError;
+  ui.FragmentProgram? _cachedProgram;
+  ui.FragmentShader? _cachedShader;
 
   late AdjustmentParams _displayedParams;
   Timer? _throttle;
@@ -42,12 +43,18 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
 
   static const _draggingInterval = Duration(milliseconds: 33);
 
+  ui.FragmentShader _shaderFor(ui.FragmentProgram program) {
+    if (!identical(_cachedProgram, program)) {
+      _cachedProgram = program;
+      _cachedShader = program.fragmentShader();
+    }
+    return _cachedShader!;
+  }
+
   @override
   void initState() {
     super.initState();
     _displayedParams = widget.params;
-    _load();
-
     _dragSub = ref.listenManual<bool>(isUserDraggingSliderProvider, (
       prev,
       next,
@@ -65,9 +72,7 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
   @override
   void didUpdateWidget(PreviewRenderer old) {
     super.didUpdateWidget(old);
-
     if (old.params == widget.params) return;
-
     final isDragging = ref.read(isUserDraggingSliderProvider);
     if (!isDragging) {
       _throttle?.cancel();
@@ -75,7 +80,6 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
       _displayedParams = widget.params;
       return;
     }
-
     if (_throttle != null) return;
     _throttle = Timer(_draggingInterval, () {
       _throttle = null;
@@ -84,19 +88,6 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
         setState(() => _displayedParams = widget.params);
       }
     });
-  }
-
-  Future<void> _load() async {
-    try {
-      final program = await ui.FragmentProgram.fromAsset(
-        'assets/shaders/develop.shader',
-      );
-      if (!mounted) return;
-      setState(() => _shader = program.fragmentShader());
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _shaderError = e);
-    }
   }
 
   @override
@@ -108,42 +99,45 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
 
   @override
   Widget build(BuildContext context) {
-    if (_shaderError != null) {
-      return Center(
+    final programAsync = ref.watch(shaderProgramProvider);
+    return programAsync.when(
+      loading: () =>
+          const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      error: (e, _) => Center(
         child: Text(
-          'Shader load failed: $_shaderError',
+          'Shader load failed: $e',
           style: const TextStyle(color: Colors.redAccent),
         ),
-      );
-    }
-    if (_shader == null) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-    return LayoutBuilder(
-      builder: (ctx, constraints) {
-        final imgW = widget.image.width.toDouble();
-        final imgH = widget.image.height.toDouble();
-        final fit = applyBoxFit(
-          BoxFit.contain,
-          Size(imgW, imgH),
-          constraints.biggest,
-        );
-        return Center(
-          child: SizedBox.fromSize(
-            size: fit.destination,
-            child: CustomPaint(
-              painter: _DevelopPainter(
-                shader: _shader!,
-                image: widget.image,
-                params: _displayedParams,
-                lut: widget.lutTexture,
-                lutSize: widget.lutSize,
-                lutB: widget.lutTextureB,
-                lutSizeB: widget.lutSizeB,
-                curve: widget.curveTexture,
+      ),
+      data: (program) {
+        final shader = _shaderFor(program);
+        return LayoutBuilder(
+          builder: (ctx, constraints) {
+            final imgW = widget.image.width.toDouble();
+            final imgH = widget.image.height.toDouble();
+            final fit = applyBoxFit(
+              BoxFit.contain,
+              Size(imgW, imgH),
+              constraints.biggest,
+            );
+            return Center(
+              child: SizedBox.fromSize(
+                size: fit.destination,
+                child: CustomPaint(
+                  painter: _DevelopPainter(
+                    shader: shader,
+                    image: widget.image,
+                    params: _displayedParams,
+                    lut: widget.lutTexture,
+                    lutSize: widget.lutSize,
+                    lutB: widget.lutTextureB,
+                    lutSizeB: widget.lutSizeB,
+                    curve: widget.curveTexture,
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );

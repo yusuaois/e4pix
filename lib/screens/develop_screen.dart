@@ -497,9 +497,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             activeShot: activeShot,
             onSelect: _onThumbTap,
             multiSelectMode: selection.multiSelectMode,
-            selectedShots: shots
-                .where((s) => selection.selectedPaths.contains(s.path))
-                .toList(),
+            selectedShots: ref.watch(selectedShotsProvider),
           ),
         ImageInfoBar(onImport: _importImages),
         if (hasImage) VerticalAdjustmentPanel(onChanged: _onParamsChanged),
@@ -542,9 +540,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                   activeShot: activeShot,
                   onSelect: _onThumbTap,
                   multiSelectMode: selection.multiSelectMode,
-                  selectedShots: shots
-                      .where((s) => selection.selectedPaths.contains(s.path))
-                      .toList(),
+                  selectedShots: ref.watch(selectedShotsProvider),
                   axis: Axis.vertical,
                 ),
               const Expanded(child: PreviewArea()),

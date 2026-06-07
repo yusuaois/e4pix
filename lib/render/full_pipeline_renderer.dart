@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 import '../core/models/adjustment_params.dart';
-import '../core/models/crop_params.dart';
 import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
 import 'brush_rasterizer.dart';
@@ -14,6 +13,58 @@ import 'render_engine.dart';
 class FullPipelineRenderer {
   // 非 brush mask pass 绑定的 1x1 dummy
   static ui.Image? _dummyMask;
+
+  /// 提取影响 develop pass 的参数指纹
+  static (int, int, int, int) _developFingerprint({
+    required AdjustmentParams p,
+    required ui.Image sourceImage,
+    ui.Image? lutTexture,
+    int lutSize = 0,
+    ui.Image? lutTextureB,
+    int lutSizeB = 0,
+    ui.Image? curveTexture,
+    required int targetWidth,
+    required int targetHeight,
+  }) {
+    final h = p.hsl;
+    final g = p.grain;
+    final bodyHash = Object.hashAll([
+      p.exposure,
+      p.temperature,
+      p.tint,
+      p.contrast,
+      p.highlights,
+      p.shadows,
+      p.whites,
+      p.blacks,
+      p.saturation,
+      p.vibrance,
+      Object.hashAll(h.hues),
+      Object.hashAll(h.sats),
+      Object.hashAll(h.lums),
+      p.lutIntensity,
+      p.lutIntensityB,
+      identityHashCode(lutTexture),
+      lutSize,
+      identityHashCode(lutTextureB),
+      lutSizeB,
+      identityHashCode(curveTexture),
+      g.amount,
+      g.size,
+      g.shadowThreshold,
+      g.highlightThreshold,
+      g.shadowStrength,
+      g.highlightStrength,
+      g.shadowSize,
+      g.highlightSize,
+      g.redRatio,
+      g.blueRatio,
+      g.correlation,
+      g.colorPreservation,
+    ]);
+
+    return (bodyHash, identityHashCode(sourceImage), targetWidth, targetHeight);
+  }
 
   static Future<ui.Image> _getDummyMask() async {
     if (_dummyMask != null) return _dummyMask!;
@@ -54,6 +105,18 @@ class FullPipelineRenderer {
     final hasEnabledMasks = enabledLocals.isNotEmpty;
     final useCache = developCache != null && hasEnabledMasks;
 
+    final devFp = _developFingerprint(
+      p: params,
+      sourceImage: sourceImage,
+      lutTexture: lutTexture,
+      lutSize: lutSize,
+      lutTextureB: lutTextureB,
+      lutSizeB: lutSizeB,
+      curveTexture: curveTexture,
+      targetWidth: targetWidth,
+      targetHeight: targetHeight,
+    );
+
     // Pass -1: 降噪
     ui.Image developInput = sourceImage;
     bool developInputOwned = false;
@@ -82,26 +145,10 @@ class FullPipelineRenderer {
     // Pass 0: global develop
     ui.Image develop;
     bool developOwned;
+
     if (useCache) {
-      final key = (
-        identityHashCode(sourceImage), // 原图
-        params.copyWith(
-          crop: CropParams.identity,
-          locals: const [],
-          sharpenAmount: 0,
-          sharpenRadius: 1,
-          sharpenMasking: 0,
-        ),
-        identityHashCode(lutTexture),
-        lutSize,
-        identityHashCode(lutTextureB),
-        lutSizeB,
-        identityHashCode(curveTexture),
-        targetWidth,
-        targetHeight,
-      );
       develop = await developCache.getOrCompute(
-        key,
+        devFp,
         () => RenderEngine.renderToImage(
           program: developProgram,
           sourceImage: developInput, // 降噪后
@@ -167,24 +214,7 @@ class FullPipelineRenderer {
         guideBytes = bd?.buffer.asUint8List();
         guideW = current.width;
         guideH = current.height;
-        guideEpoch = Object.hash(
-          identityHashCode(sourceImage), // 原图
-          params.copyWith(
-            crop: CropParams.identity,
-            locals: const [],
-            sharpenAmount: 0,
-            sharpenRadius: 1,
-            sharpenMasking: 0,
-          ),
-          identityHashCode(lutTexture),
-          lutSize,
-          identityHashCode(lutTextureB),
-          lutSizeB,
-          identityHashCode(curveTexture),
-          targetWidth,
-          targetHeight,
-          params.crop,
-        );
+        guideEpoch = Object.hash(devFp, params.crop);
       } catch (e) {
         debugPrint('Guide readback failed: $e');
         guideBytes = null;
