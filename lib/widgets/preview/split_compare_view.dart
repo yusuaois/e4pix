@@ -4,27 +4,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
-import '../../render/develop_uniforms.dart';
 import '../../state/providers.dart';
+import 'multi_pass_preview.dart';
 
 class SplitCompareView extends ConsumerStatefulWidget {
   final ui.Image image;
   final AdjustmentParams params;
+  final ui.FragmentProgram developProgram;
+  final ui.FragmentProgram maskProgram;
   final ui.Image? lutA;
   final int lutSizeA;
   final ui.Image? lutB;
   final int lutSizeB;
   final ui.Image? curve;
+  final ui.FragmentProgram? sharpenProgram;
+  final ui.FragmentProgram? denoiseProgram;
 
   const SplitCompareView({
     super.key,
     required this.image,
     required this.params,
+    required this.developProgram,
+    required this.maskProgram,
     this.lutA,
     this.lutSizeA = 0,
     this.lutB,
     this.lutSizeB = 0,
     this.curve,
+    this.sharpenProgram,
+    this.denoiseProgram,
   });
 
   @override
@@ -32,14 +40,12 @@ class SplitCompareView extends ConsumerStatefulWidget {
 }
 
 class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
-  ui.FragmentShader? _shader;
   late final ValueNotifier<double> _dividerNotifier;
 
   @override
   void initState() {
     super.initState();
     _dividerNotifier = ValueNotifier(ref.read(splitDividerProvider));
-    _loadShader();
   }
 
   @override
@@ -48,25 +54,12 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
     super.dispose();
   }
 
-  Future<void> _loadShader() async {
-    try {
-      final program = await ui.FragmentProgram.fromAsset(
-        'assets/shaders/develop.shader',
-      );
-      if (mounted) setState(() => _shader = program.fragmentShader());
-    } catch (_) {}
-  }
-
   void _exitSplit() {
     ref.read(compareViewModeProvider.notifier).turnOff();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_shader == null) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-
     return LayoutBuilder(
       builder: (ctx, constraints) {
         final imgW = widget.image.width.toDouble();
@@ -85,117 +78,168 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
               Center(
                 child: SizedBox.fromSize(
                   size: displaySize,
-                  child: ClipRect(
-                    child: CustomPaint(
-                      painter: _SplitPainter(
-                        shader: _shader!,
-                        image: widget.image,
-                        params: widget.params,
-                        lutA: widget.lutA,
-                        lutSizeA: widget.lutSizeA,
-                        lutB: widget.lutB,
-                        lutSizeB: widget.lutSizeB,
-                        curve: widget.curve,
-                        dividerNotifier: _dividerNotifier, // 传入 Notifier
+                  child: Stack(
+                    children: [
+                      // 底层：完整渲染的已编辑图像（不裁剪）
+                      Positioned.fill(
+                        child: MultiPassPreview(
+                          developProgram: widget.developProgram,
+                          maskProgram: widget.maskProgram,
+                          sourceImage: widget.image,
+                          params: widget.params,
+                          lutTexture: widget.lutA,
+                          lutSize: widget.lutSizeA,
+                          lutTextureB: widget.lutB,
+                          lutSizeB: widget.lutSizeB,
+                          curveTexture: widget.curve,
+                          sharpenProgram: widget.sharpenProgram,
+                          denoiseProgram: widget.denoiseProgram,
+                        ),
                       ),
-                      size: displaySize,
-                    ),
+
+                      // 左侧遮罩：原始图像（裁剪至分隔线左侧）
+                      ValueListenableBuilder<double>(
+                        valueListenable: _dividerNotifier,
+                        builder: (context, divider, _) {
+                          return ClipRect(
+                            clipper: _LeftClipper(divider),
+                            child: MultiPassPreview(
+                              developProgram: widget.developProgram,
+                              maskProgram: widget.maskProgram,
+                              sourceImage: widget.image,
+                              params: AdjustmentParams.neutral,
+                              lutTexture: null,
+                              lutSize: 0,
+                              lutTextureB: null,
+                              lutSizeB: 0,
+                              curveTexture: null,
+                              sharpenProgram: null,
+                              denoiseProgram: null,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
 
-              ValueListenableBuilder<double>(
-                valueListenable: _dividerNotifier,
-                builder: (context, divider, child) {
-                  return Stack(
-                    children: [
-                      // 分隔线手柄
-                      Center(
-                        child: SizedBox.fromSize(
-                          size: displaySize,
-                          child: Stack(
-                            children: [
-                              Positioned(
-                                left: displaySize.width * divider - 1,
-                                top: 0,
-                                bottom: 0,
-                                child: IgnorePointer(
-                                  child: Container(
-                                    width: 2,
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                  ),
-                                ),
+              // ── 分隔手柄 + 标签 ──
+              Center(
+                child: SizedBox.fromSize(
+                  size: displaySize,
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: _dividerNotifier,
+                    builder: (context, divider, child) {
+                      return Stack(
+                        children: [
+                          // 分隔线
+                          Positioned(
+                            left: displaySize.width * divider - 1,
+                            top: 0,
+                            bottom: 0,
+                            child: IgnorePointer(
+                              child: Container(
+                                width: 2,
+                                color: Colors.white.withValues(alpha: 0.9),
                               ),
-                              Positioned(
-                                left: displaySize.width * divider - 20,
-                                top: 0,
-                                bottom: 0,
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onHorizontalDragUpdate: (d) {
-                                    _dividerNotifier.value =
-                                        (_dividerNotifier.value +
-                                                d.delta.dx / displaySize.width)
-                                            .clamp(0.02, 0.98);
-                                  },
-                                  onHorizontalDragEnd: (_) {
-                                    ref
-                                            .read(splitDividerProvider.notifier)
-                                            .state =
-                                        _dividerNotifier.value;
-                                  },
-                                  child: Container(
-                                    width: 40,
-                                    height: double.infinity,
-                                    color: Colors.transparent,
-                                    alignment: Alignment.center,
-                                    child: Container(
-                                      width: 32,
-                                      height: 40,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.9,
+                            ),
+                          ),
+                          // 拖拽手柄
+                          Positioned(
+                            left: displaySize.width * divider - 32,
+                            top: 0,
+                            bottom: 0,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onHorizontalDragUpdate: (d) {
+                                _dividerNotifier.value =
+                                    (_dividerNotifier.value +
+                                            d.delta.dx / displaySize.width)
+                                        .clamp(0.02, 0.98);
+                              },
+                              onHorizontalDragEnd: (_) {
+                                ref.read(splitDividerProvider.notifier).state =
+                                    _dividerNotifier.value;
+                              },
+                              child: Container(
+                                width: 64,
+                                height: double.infinity,
+                                color: Colors.transparent,
+                                alignment: Alignment.center,
+                                child: Container(
+                                  width: 32,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    borderRadius: BorderRadius.circular(4),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.2,
                                         ),
-                                        borderRadius: BorderRadius.circular(4),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
                                       ),
-                                      child: const Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.unfold_more,
-                                            size: 14,
-                                            color: Colors.black87,
-                                          ),
-                                        ],
+                                    ],
+                                  ),
+                                  child: const Center(
+                                    child: RotatedBox(
+                                      quarterTurns: 1,
+                                      child: Icon(
+                                        Icons.unfold_more,
+                                        size: 16,
+                                        color: Colors.black87,
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 8,
-                        top: 8,
-                        child: _Label(
-                          text: 'Original',
-                          alpha: divider > 0.3 ? 0.7 : 0.2,
-                        ),
-                      ),
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: _Label(
-                          text: 'Edited',
-                          alpha: divider < 0.7 ? 0.7 : 0.2,
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              // 标签：根据显示宽度缩放，防止窄屏下重叠
+              Center(
+                child: SizedBox.fromSize(
+                  size: displaySize,
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: _dividerNotifier,
+                    builder: (context, divider, _) {
+                      final labelScale = (displaySize.width / 250).clamp(
+                        0.55,
+                        1.0,
+                      );
+                      return Stack(
+                        children: [
+                          Positioned(
+                            left: 8 * labelScale,
+                            top: 8 * labelScale,
+                            child: _Label(
+                              text: 'Original',
+                              alpha: divider > 0.3 ? 0.7 : 0.2,
+                              scale: labelScale,
+                            ),
+                          ),
+                          Positioned(
+                            right: 8 * labelScale,
+                            top: 8 * labelScale,
+                            child: _Label(
+                              text: 'Edited',
+                              alpha: divider < 0.7 ? 0.7 : 0.2,
+                              scale: labelScale,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               ),
             ],
           ),
@@ -205,92 +249,37 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
   }
 }
 
+class _LeftClipper extends CustomClipper<Rect> {
+  final double divider;
+  const _LeftClipper(this.divider);
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTWH(0, 0, size.width * divider, size.height);
+
+  @override
+  bool shouldReclip(_LeftClipper old) => old.divider != divider;
+}
+
 class _Label extends StatelessWidget {
   final String text;
   final double alpha;
-  const _Label({required this.text, required this.alpha});
+  final double scale;
+  const _Label({required this.text, required this.alpha, this.scale = 1.0});
+
   @override
   Widget build(BuildContext c) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 3 * scale),
     decoration: BoxDecoration(
       color: Colors.black.withValues(alpha: 0.55),
-      borderRadius: BorderRadius.circular(3),
+      borderRadius: BorderRadius.circular(3 * scale),
     ),
     child: Text(
       text,
       style: TextStyle(
-        fontSize: 10,
+        fontSize: 10 * scale,
         color: Colors.white.withValues(alpha: alpha),
       ),
     ),
   );
-}
-
-class _SplitPainter extends CustomPainter {
-  final ui.FragmentShader shader;
-  final ui.Image image;
-  final AdjustmentParams params;
-  final ui.Image? lutA;
-  final int lutSizeA;
-  final ui.Image? lutB;
-  final int lutSizeB;
-  final ui.Image? curve;
-  final ValueNotifier<double> dividerNotifier;
-
-  _SplitPainter({
-    required this.shader,
-    required this.image,
-    required this.params,
-    this.lutA,
-    this.lutSizeA = 0,
-    this.lutB,
-    this.lutSizeB = 0,
-    this.curve,
-    required this.dividerNotifier,
-  }) : super(repaint: dividerNotifier);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final splitX = size.width * dividerNotifier.value.clamp(0.0, 1.0);
-
-    // 左侧：原片
-    canvas.save();
-    canvas.clipRect(Rect.fromLTWH(0, 0, splitX, size.height));
-    applyDevelopUniforms(
-      shader: shader,
-      renderSize: size,
-      params: AdjustmentParams.neutral,
-      image: image,
-      lutTexture: null,
-      curveTexture: null,
-    );
-    canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
-    canvas.restore();
-
-    // 右侧：当前参数
-    canvas.save();
-    canvas.clipRect(Rect.fromLTWH(splitX, 0, size.width - splitX, size.height));
-    applyDevelopUniforms(
-      shader: shader,
-      renderSize: size,
-      params: params,
-      image: image,
-      lutTexture: lutA,
-      lutSize: lutSizeA,
-      lutTextureB: lutB,
-      lutSizeB: lutSizeB,
-      curveTexture: curve,
-    );
-    canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(_SplitPainter old) =>
-      shader != old.shader ||
-      image != old.image ||
-      params != old.params ||
-      lutA != old.lutA ||
-      lutB != old.lutB ||
-      curve != old.curve;
 }

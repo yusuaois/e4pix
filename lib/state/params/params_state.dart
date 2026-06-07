@@ -53,5 +53,5 @@ final effectiveParamsProvider = Provider<AdjustmentParams>((ref) {
 });
 
 final effectiveLutEnabledProvider = Provider<bool>((ref) {
-  return ref.watch(compareViewModeProvider) == CompareViewMode.off;
+  return ref.watch(compareViewModeProvider) != CompareViewMode.hold;
 });

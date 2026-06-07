@@ -11,6 +11,7 @@ import 'package:flutter/gestures.dart';
 
 import '../../core/constants/raw_formats.dart';
 import '../../core/models/adjustment_params.dart';
+import '../../core/models/crop_params.dart';
 import '../../render/preview_renderer.dart';
 import '../../screens/folder_import_screen.dart';
 import '../../state/providers.dart';
@@ -86,16 +87,29 @@ class PreviewArea extends ConsumerWidget {
     bool lutEnabled,
     WidgetRef ref,
   ) {
+    final develop = ref.watch(shaderProgramProvider).value;
+    final maskProgram = ref.watch(maskShaderProgramProvider).value;
+    if (develop == null || maskProgram == null) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    final effective = ref.watch(effectiveParamsProvider);
+    final splitParams = effective.crop.isIdentity
+        ? effective
+        : effective.copyWith(crop: CropParams.identity);
     return Container(
       color: Colors.black,
       child: SplitCompareView(
         image: state.uiImage,
-        params: ref.watch(effectiveParamsProvider),
+        params: splitParams,
+        developProgram: develop,
+        maskProgram: maskProgram,
         lutA: lutEnabled ? lut.textureA : null,
         lutSizeA: lutEnabled ? lut.sizeA : 0,
         lutB: lutEnabled ? lut.textureB : null,
         lutSizeB: lutEnabled ? lut.sizeB : 0,
         curve: ref.watch(effectiveCurveTextureProvider),
+        sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
+        denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
       ),
     );
   }

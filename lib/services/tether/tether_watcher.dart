@@ -52,12 +52,10 @@ class TetherWatcher {
     if (status.isGranted) return true;
     // 尝试请求
     status = await Permission.manageExternalStorage.request();
-    if (status.isGranted) return true;
-    // 如果用户在设置里拒绝了，引导用户去设置页
-    if (status.isPermanentlyDenied) {
-      await openAppSettings();
+    if (!status.isGranted) {
+      return false;
     }
-    return false;
+    return true;
   }
 
   Future<void> _onEvent(WatchEvent ev) async {
