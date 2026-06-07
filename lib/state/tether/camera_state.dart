@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/camera/camera_controller.dart';
 import '../../services/camera/gphoto2_camera_controller.dart';
 import '../../services/camera/libgphoto2_android_controller.dart';
-import 'tether_state.dart';
+import '../providers.dart';
 
 @immutable
 class CameraState {

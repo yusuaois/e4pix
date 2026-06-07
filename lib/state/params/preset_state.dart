@@ -13,7 +13,7 @@ import '../../core/models/adjustment_params.dart';
 import '../../core/models/crop_params.dart';
 import '../../services/export/xmp_export.dart';
 import '../../services/export/xmp_import.dart';
-import 'params_state.dart';
+import '../providers.dart';
 
 @immutable
 class Preset {

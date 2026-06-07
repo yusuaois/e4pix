@@ -4,8 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
-import '../image/image_state.dart';
-import 'params_state.dart';
+import '../providers.dart';
 
 @immutable
 class HistoryState {

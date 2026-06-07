@@ -1,7 +1,7 @@
 import 'package:e4pix/services/notifications/notification_manager.dart';
 import 'package:flutter/material.dart';
 import 'screens/develop_screen.dart';
-import 'state/theme_state.dart';
+import '../../state/providers.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dynamic_color/dynamic_color.dart';

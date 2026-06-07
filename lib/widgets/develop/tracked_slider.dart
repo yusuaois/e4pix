@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../state/interaction_state.dart';
+import '../../state/providers.dart';
 
 /// 跟系统 Slider 用法完全一样，多做一件事：拖动期间自动更新
 /// `isUserDraggingSliderProvider` —— 让 preview / histogram 据此降级渲染

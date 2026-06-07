@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../../core/models/local_adjustment.dart';
 import '../../core/models/mask_shape.dart';
-import '../params/params_state.dart';
+import '../providers.dart';
 
 /// 当前正在编辑的 LocalAdjustment 的 id；null 表示在编辑全局
 final selectedLocalIdProvider = StateProvider<String?>((ref) => null);

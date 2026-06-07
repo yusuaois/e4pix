@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
-import '../../state/tools/color_picker_state.dart';
+import '../../state/providers.dart';
 
 /// 取色 readback 层：覆盖在预览上，捕获鼠标位置，从渲染后的小图取色。
 ///

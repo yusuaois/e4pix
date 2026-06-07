@@ -5,7 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/tethered_shot.dart';
-import '../../state/render/render_state.dart';
+import '../../state/providers.dart';
 
 // 顶部状态条
 class TetherStatusBar extends ConsumerWidget {

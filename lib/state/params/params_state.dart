@@ -3,13 +3,11 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/tethered_shot.dart';
-import '../interaction_state.dart';
-import '../tether/tether_state.dart';
+import '../providers.dart';
 
 class CurrentParamsNotifier extends Notifier<AdjustmentParams> {
   @override
   AdjustmentParams build() {
-    // 监听 activeShot 切换；切到新 shot 时把 state 拉到那张的 params
     ref.listen<TetheredShot?>(activeShotProvider, (prev, next) {
       if (next != null && next.path != prev?.path) {
         state = next.params;

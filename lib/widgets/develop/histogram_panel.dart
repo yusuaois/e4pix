@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../render/mask_cache.dart';
-import '../../state/interaction_state.dart';
+import '../../state/providers.dart';
 
 class Histogram {
   final Int32List red, green, blue, luma;

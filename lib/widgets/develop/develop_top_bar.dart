@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/tethered_shot.dart';
 import '../../screens/settings_screen.dart';
 import '../../state/providers.dart';
-import '../app/compare_button.dart';
 import '../export/export_queue_panel.dart';
 
 class DevelopTopBar extends ConsumerWidget {
@@ -39,6 +38,7 @@ class DevelopTopBar extends ConsumerWidget {
     final hist = ref.watch(historyNotifierProvider);
     final notifier = ref.read(historyNotifierProvider.notifier);
     final filterActive = ref.watch(shotFilterProvider).isActive;
+    final compareMode = ref.watch(compareViewModeProvider);
 
     final hasImage = image != null && program != null;
     final isVertical = MediaQuery.of(context).size.shortestSide < 600;
@@ -164,9 +164,23 @@ class DevelopTopBar extends ConsumerWidget {
               hist.canRedo ? notifier.redo : null,
               isVertical,
             ),
-            CompareButton(
-              boxSize: _barBtnSize(isVertical),
-              iconSize: _barIconSize(isVertical),
+
+            _iconBtn(
+              compareMode == CompareViewMode.split
+                  ? Icons.vertical_split
+                  : Icons.compare,
+              compareMode == CompareViewMode.split
+                  ? tr('splitCompareExit')
+                  : tr('compareHint'),
+              () => ref.read(compareViewModeProvider.notifier).toggleSplit(),
+              isVertical,
+              onLongPressStart: (_) =>
+                  ref.read(compareViewModeProvider.notifier).startHold(),
+              onLongPressEnd: (_) =>
+                  ref.read(compareViewModeProvider.notifier).endHold(),
+              color: compareMode != CompareViewMode.off
+                  ? Colors.amber
+                  : Colors.white70,
             ),
             if (shots.isNotEmpty)
               _buildFilterButton(ref, isVertical, primary, filterActive),
@@ -275,6 +289,8 @@ class DevelopTopBar extends ConsumerWidget {
     VoidCallback? onPressed,
     bool isVertical, {
     VoidCallback? onLongPress,
+    GestureLongPressStartCallback? onLongPressStart,
+    GestureLongPressEndCallback? onLongPressEnd,
     Color? color,
     int badgeCount = 0,
   }) {
@@ -312,9 +328,14 @@ class DevelopTopBar extends ConsumerWidget {
         ),
       ),
     );
-    if (onLongPress != null) {
+
+    if (onLongPress != null ||
+        onLongPressStart != null ||
+        onLongPressEnd != null) {
       return GestureDetector(
         onLongPress: onLongPress,
+        onLongPressStart: onLongPressStart,
+        onLongPressEnd: onLongPressEnd,
         child: Tooltip(
           message: tooltip,
           triggerMode: TooltipTriggerMode.manual,

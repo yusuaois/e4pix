@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../core/models/crop_params.dart';
-import '../params/params_state.dart';
+import '../providers.dart';
 
 /// 是否处于"裁剪编辑"模式
 final cropEditModeProvider = StateProvider<bool>((ref) => false);

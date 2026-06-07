@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../render/mask_cache.dart';
-import '../../state/interaction_state.dart';
 import '../../state/providers.dart';
 
 /// 离屏多 pass 预览

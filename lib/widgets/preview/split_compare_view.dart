@@ -33,13 +33,11 @@ class SplitCompareView extends ConsumerStatefulWidget {
 
 class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
   ui.FragmentShader? _shader;
-  // 使用 ValueNotifier 彻底阻断拖拽时的高频重构
   late final ValueNotifier<double> _dividerNotifier;
 
   @override
   void initState() {
     super.initState();
-    // 初始值从 Riverpod 获取
     _dividerNotifier = ValueNotifier(ref.read(splitDividerProvider));
     _loadShader();
   }
@@ -60,7 +58,7 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
   }
 
   void _exitSplit() {
-    ref.read(compareViewModeProvider.notifier).state = CompareViewMode.off;
+    ref.read(compareViewModeProvider.notifier).turnOff();
   }
 
   @override
@@ -84,7 +82,6 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
           onDoubleTap: _exitSplit,
           child: Stack(
             children: [
-              // 1. 底层画面：不随拖拽重建，靠 CustomPainter 内部的 repaint 机制高性能更新
               Center(
                 child: SizedBox.fromSize(
                   size: displaySize,
@@ -107,7 +104,6 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
                 ),
               ),
 
-              // 2. 表层 UI：手柄与标签，局部监听滑动变化
               ValueListenableBuilder<double>(
                 valueListenable: _dividerNotifier,
                 builder: (context, divider, child) {
