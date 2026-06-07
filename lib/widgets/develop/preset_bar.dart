@@ -332,30 +332,34 @@ Future<void> showSavePresetDialog(
   PresetNotifier notifier,
 ) async {
   final controller = TextEditingController();
-  final name = await showDialog<String>(
-    context: ctx,
-    builder: (_) => AlertDialog(
-      title: Text(tr("saveCurrentAsPreset")),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        decoration: InputDecoration(hintText: tr("presetNameHint")),
-        onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+  try {
+    final name = await showDialog<String>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: Text(tr("saveCurrentAsPreset")),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(hintText: tr("presetNameHint")),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(tr("cancel")),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(tr("save")),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: Text(tr("cancel")),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-          child: Text(tr("save")),
-        ),
-      ],
-    ),
-  );
-  if (name != null && name.isNotEmpty) {
-    await notifier.saveCurrentAs(name);
+    );
+    if (name != null && name.isNotEmpty) {
+      await notifier.saveCurrentAs(name);
+    }
+  } finally {
+    controller.dispose();
   }
 }
 
@@ -392,27 +396,31 @@ Future<void> showPresetOptions(
     await ref.read(presetNotifierProvider.notifier).delete(preset.id);
   } else if (action == 'rename') {
     final controller = TextEditingController(text: preset.name);
-    final newName = await showDialog<String>(
-      context: ctx,
-      builder: (_) => AlertDialog(
-        title: Text(tr("rename")),
-        content: TextField(controller: controller, autofocus: true),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(tr("cancel")),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: Text(tr("confirm")),
-          ),
-        ],
-      ),
-    );
-    if (newName != null && newName.isNotEmpty && newName != preset.name) {
-      await ref
-          .read(presetNotifierProvider.notifier)
-          .rename(preset.id, newName);
+    try {
+      final newName = await showDialog<String>(
+        context: ctx,
+        builder: (_) => AlertDialog(
+          title: Text(tr("rename")),
+          content: TextField(controller: controller, autofocus: true),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(tr("cancel")),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: Text(tr("confirm")),
+            ),
+          ],
+        ),
+      );
+      if (newName != null && newName.isNotEmpty && newName != preset.name) {
+        await ref
+            .read(presetNotifierProvider.notifier)
+            .rename(preset.id, newName);
+      }
+    } finally {
+      controller.dispose();
     }
   }
 }

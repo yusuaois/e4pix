@@ -59,6 +59,12 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
     if (mounted) Navigator.pop(context, true);
   }
 
+  @override
+  void dispose() {
+    _keyController.dispose();
+    super.dispose();
+  }
+
   String _keyHintFor(AIProviderId id) => switch (id) {
     AIProviderId.anthropic => 'sk-ant-api03-...',
     AIProviderId.openai => 'sk-proj-... / sk-...',
