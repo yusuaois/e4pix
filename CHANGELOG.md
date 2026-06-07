@@ -5,7 +5,7 @@
 
 ## 🛠️ 底层改进 (Under the Hood)
 * **代码结构**：将同步按钮逻辑移出至state
-* **代码结构**：拆分develop section为若干单独模块
+* **代码结构**：拆分develop section与settings screen为若干单独模块
 * **代码结构**：清理部分代码中的导入state provider
 * **性能优化**：缓存键copywith分配
 * **性能优化**：修复重复着色器加载

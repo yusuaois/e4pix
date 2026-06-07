@@ -1,0 +1,55 @@
+import 'package:easy_localization/easy_localization.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../state/providers.dart';
+
+class TetherFolderTile extends ConsumerWidget {
+  const TetherFolderTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final folder = ref.watch(tetherFolderProvider);
+
+    Future<void> pick() async {
+      final path = await FilePicker.getDirectoryPath(
+        dialogTitle: tr("settingsTetherFolderChoose"),
+      );
+      if (path != null && path.isNotEmpty) {
+        await ref.read(tetherFolderProvider.notifier).set(path);
+      }
+    }
+
+    return ListTile(
+      leading: const Icon(Icons.folder_outlined, size: 20),
+      title: Text(tr("settingsTetherFolder"), style: TextStyle(fontSize: 13.5)),
+      subtitle: Text(
+        folder ?? tr("settingsTetherFolderNone"),
+        style: TextStyle(
+          fontSize: 11,
+          fontFamily: folder != null ? 'monospace' : null,
+          color: folder == null ? Colors.white38 : Colors.white70,
+        ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (folder != null)
+            IconButton(
+              icon: const Icon(Icons.close, size: 16),
+              tooltip: tr("settingsTetherFolderClear"),
+              visualDensity: VisualDensity.compact,
+              onPressed: () => ref.read(tetherFolderProvider.notifier).clear(),
+            ),
+          TextButton(
+            onPressed: pick,
+            child: Text(tr("browse"), style: TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+}

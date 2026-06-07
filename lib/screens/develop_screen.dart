@@ -420,17 +420,34 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     );
   }
 
+  // 集中读取两个布局共用的 9 个 provider，消除重复
+  ({
+    TetherSession? session,
+    List<TetheredShot> shots,
+    TetheredShot? activeShot,
+    ExportSelection selection,
+    bool preserve,
+    DecodedImageState? image,
+    ui.FragmentProgram? program,
+    CameraState cameraState,
+    bool cropEditMode,
+  }) _buildLayoutData() {
+    return (
+      session: ref.watch(tetherSessionNotifierProvider),
+      shots: ref.watch(shotsNotifierProvider),
+      activeShot: ref.watch(activeShotProvider),
+      selection: ref.watch(exportSelectionNotifierProvider),
+      preserve: ref.watch(preserveParamsProvider),
+      image: ref.watch(imageNotifierProvider).value,
+      program: ref.watch(shaderProgramProvider).value,
+      cameraState: ref.watch(cameraNotifierProvider),
+      cropEditMode: ref.watch(cropEditModeProvider),
+    );
+  }
+
   Widget _buildVerticalLayout() {
-    final session = ref.watch(tetherSessionNotifierProvider);
-    final shots = ref.watch(shotsNotifierProvider);
-    final activeShot = ref.watch(activeShotProvider);
-    final selection = ref.watch(exportSelectionNotifierProvider);
-    final preserve = ref.watch(preserveParamsProvider);
-    final image = ref.watch(imageNotifierProvider).value;
-    final program = ref.watch(shaderProgramProvider).value;
-    final cameraState = ref.watch(cameraNotifierProvider);
-    final cropEditMode = ref.watch(cropEditModeProvider);
-    final hasImage = image != null && program != null;
+    final d = _buildLayoutData();
+    final hasImage = d.image != null && d.program != null;
 
     return Column(
       children: [
@@ -443,8 +460,13 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           onAI: _showAISuggestion,
           onAILongPress: _showAISettings,
         ),
-        if (session != null)
-          _buildTetherStatusBar(session, shots.length, preserve, cameraState),
+        if (d.session != null)
+          _buildTetherStatusBar(
+            d.session!,
+            d.shots.length,
+            d.preserve,
+            d.cameraState,
+          ),
         const AIBanner(),
         Expanded(
           child: LayoutBuilder(
@@ -481,7 +503,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                           borderRadius: BorderRadius.circular(6),
                           child: Opacity(
                             opacity: 0.9,
-                            child: _buildHistogram(program, image),
+                            child: _buildHistogram(d.program!, d.image!),
                           ),
                         ),
                       ),
@@ -491,12 +513,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             },
           ),
         ),
-        if (shots.isNotEmpty && !cropEditMode)
+        if (d.shots.isNotEmpty && !d.cropEditMode)
           TetherThumbStrip(
             shots: ref.watch(filteredShotsProvider),
-            activeShot: activeShot,
+            activeShot: d.activeShot,
             onSelect: _onThumbTap,
-            multiSelectMode: selection.multiSelectMode,
+            multiSelectMode: d.selection.multiSelectMode,
             selectedShots: ref.watch(selectedShotsProvider),
           ),
         ImageInfoBar(onImport: _importImages),
@@ -506,16 +528,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   }
 
   Widget _buildHorizontalLayout() {
-    final session = ref.watch(tetherSessionNotifierProvider);
-    final shots = ref.watch(shotsNotifierProvider);
-    final activeShot = ref.watch(activeShotProvider);
-    final selection = ref.watch(exportSelectionNotifierProvider);
-    final preserve = ref.watch(preserveParamsProvider);
-    final image = ref.watch(imageNotifierProvider).value;
-    final program = ref.watch(shaderProgramProvider).value;
+    final d = _buildLayoutData();
     final params = ref.watch(currentParamsNotifierProvider);
-    final cameraState = ref.watch(cameraNotifierProvider);
-    final cropEditMode = ref.watch(cropEditModeProvider);
 
     return Column(
       children: [
@@ -528,29 +542,34 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           onAI: _showAISuggestion,
           onAILongPress: _showAISettings,
         ),
-        if (session != null)
-          _buildTetherStatusBar(session, shots.length, preserve, cameraState),
+        if (d.session != null)
+          _buildTetherStatusBar(
+            d.session!,
+            d.shots.length,
+            d.preserve,
+            d.cameraState,
+          ),
         const AIBanner(),
         Expanded(
           child: Row(
             children: [
-              if (shots.isNotEmpty && !cropEditMode)
+              if (d.shots.isNotEmpty && !d.cropEditMode)
                 TetherThumbStrip(
                   shots: ref.watch(filteredShotsProvider),
-                  activeShot: activeShot,
+                  activeShot: d.activeShot,
                   onSelect: _onThumbTap,
-                  multiSelectMode: selection.multiSelectMode,
+                  multiSelectMode: d.selection.multiSelectMode,
                   selectedShots: ref.watch(selectedShotsProvider),
                   axis: Axis.vertical,
                 ),
               const Expanded(child: PreviewArea()),
-              if (image != null)
+              if (d.image != null)
                 HorizontalAdjustmentPanel(
                   params: params,
                   onChanged: _onParamsChanged,
-                  histogram: program == null
+                  histogram: d.program == null
                       ? null
-                      : _buildHistogram(program, image),
+                      : _buildHistogram(d.program!, d.image!),
                   presetBar: const PresetBar(),
                   info: ImageInfoBar(onImport: _importImages),
                   onEnterCrop: () => enterCropMode(ref),
