@@ -367,5 +367,10 @@
   "watermarkTextOpacity": "Text Opacity",
   "watermarkTextPadding": "Padding",
   "watermarkBgColor": "BG Color",
-  "watermarkExportInclude": "Include Watermark in Export"
+  "watermarkExportInclude": "Include Watermark in Export",
+  "watermarkImportImage": "Custom Image",
+  "watermarkImportLogo": "Custom Logo",
+  "watermarkLogoSource": "Logo Source",
+  "watermarkExifMode": "EXIF Mode",
+  "watermarkExifCustomHint": "Enter custom text to display…"
 }

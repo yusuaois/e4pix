@@ -5,7 +5,7 @@ enum BackgroundType {
   /// 纯色背景
   solidColor,
 
-  /// 自定义图片
+  /// 自定义图片（从 e4pix/custom_watermarks/ 加载）
   image,
 
   /// 使用当前调色原图 + 高斯模糊
@@ -22,6 +22,24 @@ enum InfoPlacement {
 
   /// Logo + EXIF 在原图层下方
   below,
+}
+
+/// EXIF 来源模式
+enum ExifMode {
+  /// 自动从 RawMetadata 提取
+  auto,
+
+  /// 用户自定义文本
+  custom,
+}
+
+/// Logo 来源
+enum LogoSource {
+  /// 内置品牌 Logo（assets/borders/logos/）
+  builtin,
+
+  /// 用户导入的自定义 Logo
+  custom,
 }
 
 /// 已支持的品牌 Logo 列表
@@ -48,37 +66,40 @@ class WatermarkConfig {
   final bool enabled;
 
   // ── 布局 ──
-  /// 背景模糊半径 (0–100 px)
-  final double blurRadius;
-
-  /// 边框宽度 (20–200 px)
-  final double borderWidth;
-
-  /// 原图缩放比例 (0.0–1.0)，1.0 = 原图撑满可用空间
-  final double imageScale;
+  final double blurRadius; // 0–100 px
+  final double borderWidth; // 20–200 px
+  final double imageScale; // 0.0–1.0
 
   // ── 质感 ──
-  /// 原图层圆角大小 (0–100 px)
-  final double cornerRadius;
-
-  /// 立体阴影强度 (0.0–1.0)，作用于原图下方
-  final double shadowIntensity;
+  final double cornerRadius; // 0–100 px
+  final double shadowIntensity; // 0.0–1.0
 
   // ── 背景 ──
   final BackgroundType backgroundType;
   final int backgroundColor; // 32-bit ARGB
+  /// 自定义背景图文件名（位于 e4pix/custom_watermarks/ 下）
+  final String? customBackgroundPath;
 
   // ── Logo ──
-  /// null = 不显示 Logo
+  final LogoSource logoSource;
+
+  /// 内置品牌名（logoSource == builtin 时生效）
   final String? logoBrand;
+
+  /// 自定义 Logo 文件名（logoSource == custom 时生效，位于 custom_watermarks/ 下）
+  final String? customLogoPath;
   final double logoSize; // 0.0–1.0 相对大小
   final double logoOpacity; // 0.0–1.0
 
   // ── 文本与 EXIF ──
   final bool showExif;
-  final String? fontFamily; // null = 系统默认
+  final ExifMode exifMode;
+
+  /// 自定义 EXIF 文本（exifMode == custom 时生效）
+  final String? customExifText;
+  final String? fontFamily;
   final double fontSize; // pt
-  final int fontWeightIndex; // 0=w400, 1=w500, 2=w600, 3=w700, 4=w800
+  final int fontWeightIndex; // 0=w400 … 4=w800
   final double textOpacity; // 0.0–1.0
   final double textPadding; // 内容边距 px
   final WatermarkColorMode colorMode;
@@ -93,10 +114,15 @@ class WatermarkConfig {
     this.shadowIntensity = 0.35,
     this.backgroundType = BackgroundType.blurredOriginal,
     this.backgroundColor = 0xFF1A1A1A,
+    this.customBackgroundPath,
+    this.logoSource = LogoSource.builtin,
     this.logoBrand,
+    this.customLogoPath,
     this.logoSize = 0.5,
     this.logoOpacity = 0.9,
     this.showExif = true,
+    this.exifMode = ExifMode.auto,
+    this.customExifText,
     this.fontFamily,
     this.fontSize = 13.0,
     this.fontWeightIndex = 2, // w600
@@ -106,10 +132,8 @@ class WatermarkConfig {
     this.infoPlacement = InfoPlacement.below,
   });
 
-  /// 一键开启时合理的默认外观
   static const defaults = WatermarkConfig();
 
-  /// 开/关切换便捷方法
   WatermarkConfig get toggled => copyWith(enabled: !enabled);
 
   WatermarkConfig copyWith({
@@ -121,11 +145,19 @@ class WatermarkConfig {
     double? shadowIntensity,
     BackgroundType? backgroundType,
     int? backgroundColor,
+    String? customBackgroundPath,
+    bool clearCustomBg = false,
+    LogoSource? logoSource,
     String? logoBrand,
-    bool clearLogo = false,
+    bool clearLogoBrand = false,
+    String? customLogoPath,
+    bool clearCustomLogo = false,
     double? logoSize,
     double? logoOpacity,
     bool? showExif,
+    ExifMode? exifMode,
+    String? customExifText,
+    bool clearCustomExif = false,
     String? fontFamily,
     bool clearFontFamily = false,
     double? fontSize,
@@ -143,10 +175,21 @@ class WatermarkConfig {
     shadowIntensity: shadowIntensity ?? this.shadowIntensity,
     backgroundType: backgroundType ?? this.backgroundType,
     backgroundColor: backgroundColor ?? this.backgroundColor,
-    logoBrand: clearLogo ? null : (logoBrand ?? this.logoBrand),
+    customBackgroundPath: clearCustomBg
+        ? null
+        : (customBackgroundPath ?? this.customBackgroundPath),
+    logoSource: logoSource ?? this.logoSource,
+    logoBrand: clearLogoBrand ? null : (logoBrand ?? this.logoBrand),
+    customLogoPath: clearCustomLogo
+        ? null
+        : (customLogoPath ?? this.customLogoPath),
     logoSize: logoSize ?? this.logoSize,
     logoOpacity: logoOpacity ?? this.logoOpacity,
     showExif: showExif ?? this.showExif,
+    exifMode: exifMode ?? this.exifMode,
+    customExifText: clearCustomExif
+        ? null
+        : (customExifText ?? this.customExifText),
     fontFamily: clearFontFamily ? null : (fontFamily ?? this.fontFamily),
     fontSize: fontSize ?? this.fontSize,
     fontWeightIndex: fontWeightIndex ?? this.fontWeightIndex,
@@ -168,10 +211,15 @@ class WatermarkConfig {
           shadowIntensity == other.shadowIntensity &&
           backgroundType == other.backgroundType &&
           backgroundColor == other.backgroundColor &&
+          customBackgroundPath == other.customBackgroundPath &&
+          logoSource == other.logoSource &&
           logoBrand == other.logoBrand &&
+          customLogoPath == other.customLogoPath &&
           logoSize == other.logoSize &&
           logoOpacity == other.logoOpacity &&
           showExif == other.showExif &&
+          exifMode == other.exifMode &&
+          customExifText == other.customExifText &&
           fontFamily == other.fontFamily &&
           fontSize == other.fontSize &&
           fontWeightIndex == other.fontWeightIndex &&
@@ -190,10 +238,15 @@ class WatermarkConfig {
     shadowIntensity,
     backgroundType,
     backgroundColor,
+    customBackgroundPath,
+    logoSource,
     logoBrand,
+    customLogoPath,
     logoSize,
     logoOpacity,
     showExif,
+    exifMode,
+    customExifText,
     fontFamily,
     fontSize,
     fontWeightIndex,

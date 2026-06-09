@@ -10,10 +10,11 @@ import '../../core/models/crop_params.dart';
 import '../../core/models/watermark_config.dart';
 import '../../native/raw_bridge.dart';
 import '../../render/preview_renderer.dart';
+import '../../services/watermark/watermark_asset_manager.dart';
 import '../../state/providers.dart';
 import 'multi_pass_preview.dart';
 
-/// 水印边框预览组件 — 三层 Stack 布局
+/// 水印边框预览组件
 ///
 /// Layer 0: 背景（纯色 / 图片 / 模糊原图）
 /// Layer 1: Logo + EXIF 信息
@@ -295,6 +296,15 @@ class _WatermarkLayout extends ConsumerWidget {
                 child: bgBuilder(ctx, Size(availW, availH)),
               ),
             );
+          } else if (config.backgroundType == BackgroundType.image &&
+              config.customBackgroundPath != null) {
+            bgLayer = Positioned.fill(
+              child: RepaintBoundary(
+                child: _CustomImageBackground(
+                  filename: config.customBackgroundPath!,
+                ),
+              ),
+            );
           }
 
           // Layer 1
@@ -443,6 +453,56 @@ class _BlurredDevelopBackground extends ConsumerWidget {
 }
 
 // ──────────────────────────────────────────────────────────────
+// Layer 0b: 自定义图片背景
+// ──────────────────────────────────────────────────────────────
+
+class _CustomImageBackground extends StatefulWidget {
+  final String filename;
+  const _CustomImageBackground({required this.filename});
+
+  @override
+  State<_CustomImageBackground> createState() => _CustomImageBackgroundState();
+}
+
+class _CustomImageBackgroundState extends State<_CustomImageBackground> {
+  ui.Image? _image;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_CustomImageBackground old) {
+    super.didUpdateWidget(old);
+    if (old.filename != widget.filename) {
+      _image = null;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    try {
+      final bytes = await WatermarkAssetManager.readImageBytes(widget.filename);
+      if (bytes != null && mounted) {
+        final codec = await ui.instantiateImageCodec(bytes);
+        final img = (await codec.getNextFrame()).image;
+        if (mounted) setState(() => _image = img);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_image == null) {
+      return Container(color: const Color(0xFF1A1A1A));
+    }
+    return RawImage(image: _image, fit: BoxFit.cover);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
 // Layer 1: Logo + EXIF 信息层
 // ──────────────────────────────────────────────────────────────
 
@@ -461,16 +521,35 @@ class _WatermarkInfoLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!config.showExif && config.logoBrand == null) {
+    final hasLogo =
+        config.logoSource == LogoSource.builtin && config.logoBrand != null ||
+        config.logoSource == LogoSource.custom && config.customLogoPath != null;
+
+    if (!config.showExif && !hasLogo) {
       return const SizedBox.shrink();
     }
 
-    final exifStr = config.showExif ? _buildExifString(metadata) : null;
-    if (exifStr == null && config.logoBrand == null) {
+    final exifStr = config.showExif ? _buildExifString(config, metadata) : null;
+    if (exifStr == null && !hasLogo) {
       return const SizedBox.shrink();
     }
 
-    final logoAsset = _logoAssetPath(config.logoBrand, config.colorMode);
+    // Logo 资源：内置品牌 / 自定义文件
+    final String? logoAsset;
+    final String? logoFilePath;
+    if (config.logoSource == LogoSource.custom &&
+        config.customLogoPath != null) {
+      logoAsset = null;
+      logoFilePath = config.customLogoPath!;
+    } else if (config.logoSource == LogoSource.builtin &&
+        config.logoBrand != null) {
+      logoAsset = _logoAssetPath(config.logoBrand!, config.colorMode);
+      logoFilePath = null;
+    } else {
+      logoAsset = null;
+      logoFilePath = null;
+    }
+
     final fontWeight = _indexToFontWeight(config.fontWeightIndex);
     final textStyle = TextStyle(
       fontSize: config.fontSize,
@@ -485,15 +564,16 @@ class _WatermarkInfoLayer extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (logoAsset != null)
+          if (logoAsset != null || logoFilePath != null)
             Opacity(
               opacity: config.logoOpacity,
               child: _LogoImage(
                 assetPath: logoAsset,
-                maxHeight: config.logoSize * 48, // 基础高度 48px
+                filePath: logoFilePath,
+                maxHeight: config.logoSize * 48,
               ),
             ),
-          if (logoAsset != null && exifStr != null)
+          if ((logoAsset != null || logoFilePath != null) && exifStr != null)
             SizedBox(height: config.textPadding / 2),
           if (exifStr != null)
             Text(
@@ -514,7 +594,11 @@ class _WatermarkInfoLayer extends StatelessWidget {
     return 'assets/borders/logos/$dir/$brand.webp';
   }
 
-  static String? _buildExifString(RawMetadata? m) {
+  static String? _buildExifString(WatermarkConfig config, RawMetadata? m) {
+    if (config.exifMode == ExifMode.custom) {
+      final t = config.customExifText?.trim();
+      return (t != null && t.isNotEmpty) ? t : null;
+    }
     if (m == null) return null;
     final parts = <String>[];
     // 相机型号 + 镜头
@@ -553,10 +637,11 @@ class _WatermarkInfoLayer extends StatelessWidget {
 // ──────────────────────────────────────────────────────────────
 
 class _LogoImage extends StatefulWidget {
-  final String assetPath;
+  final String? assetPath;
+  final String? filePath;
   final double maxHeight;
 
-  const _LogoImage({required this.assetPath, required this.maxHeight});
+  const _LogoImage({this.assetPath, this.filePath, required this.maxHeight});
 
   @override
   State<_LogoImage> createState() => _LogoImageState();
@@ -574,7 +659,7 @@ class _LogoImageState extends State<_LogoImage> {
   @override
   void didUpdateWidget(_LogoImage old) {
     super.didUpdateWidget(old);
-    if (old.assetPath != widget.assetPath) {
+    if (old.assetPath != widget.assetPath || old.filePath != widget.filePath) {
       _image = null;
       _load();
     }
@@ -582,8 +667,19 @@ class _LogoImageState extends State<_LogoImage> {
 
   Future<void> _load() async {
     try {
-      final img = await _decodeAssetImage(widget.assetPath);
-      if (mounted) setState(() => _image = img);
+      ui.Image? img;
+      if (widget.filePath != null) {
+        final bytes = await WatermarkAssetManager.readImageBytes(
+          widget.filePath!,
+        );
+        if (bytes != null) {
+          final codec = await ui.instantiateImageCodec(bytes);
+          img = (await codec.getNextFrame()).image;
+        }
+      } else if (widget.assetPath != null) {
+        img = await _decodeAssetImage(widget.assetPath!);
+      }
+      if (mounted && img != null) setState(() => _image = img);
     } catch (_) {}
   }
 

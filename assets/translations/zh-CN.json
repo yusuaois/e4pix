@@ -367,5 +367,10 @@
   "watermarkTextOpacity": "文字透明度",
   "watermarkTextPadding": "内容边距",
   "watermarkBgColor": "背景颜色",
-  "watermarkExportInclude": "导出时包含水印边框"
+  "watermarkExportInclude": "导出时包含水印边框",
+  "watermarkImportImage": "自定义图片",
+  "watermarkImportLogo": "自定义 Logo",
+  "watermarkLogoSource": "Logo 来源",
+  "watermarkExifMode": "EXIF 模式",
+  "watermarkExifCustomHint": "输入要显示的自定义文字…"
 }

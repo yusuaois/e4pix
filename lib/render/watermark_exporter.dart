@@ -6,24 +6,22 @@ import 'package:flutter/services.dart';
 
 import '../core/models/watermark_config.dart';
 import '../native/raw_bridge.dart';
+import '../services/watermark/watermark_asset_manager.dart';
 
 /// 离屏 Canvas 水印边框合成器
 ///
 /// 关键设计：
-/// - UI 上所有尺寸参数（borderWidth, cornerRadius, fontSize 等）都是基于
-///   `kRefPreviewSize` 的**逻辑像素**
-/// - 导出时按全分辨率原图等比放大：`scale = max(renderedW, renderedH) / kRefPreviewSize`
-/// - 使用 PictureRecorder + Canvas 分步绘制，全程不构建 Widget Tree，避免移动端 OOM
+/// - UI 上所有尺寸参数都是基于 `kRefPreviewSize` 的**逻辑像素**
+/// - 导出时按全分辨率原图等比放大
+/// - 使用 PictureRecorder + Canvas 分步绘制，避免移动端 OOM
+/// - 内置 Logo 从 assets/ 加载；自定义图片从文件系统加载
 class WatermarkExporter {
   WatermarkExporter._();
 
-  /// 预览参考尺寸（逻辑像素），所有 UI 参数基于此尺寸设计
+  /// 预览参考尺寸（逻辑像素）
   static const double kRefPreviewSize = 1000.0;
 
   /// 合成水印边框，返回 [ui.Image]。
-  ///
-  /// [renderedImage] 是 FullPipelineRenderer 的调色输出（全分辨率带裁剪）。
-  /// 调用方负责 dispose 返回的 Image。
   static Future<ui.Image> composite({
     required ui.Image renderedImage,
     required WatermarkConfig config,
@@ -32,10 +30,6 @@ class WatermarkExporter {
     final rw = renderedImage.width.toDouble();
     final rh = renderedImage.height.toDouble();
     final longest = math.max(rw, rh);
-
-    // ═══════════════════════════════════════════════════════
-    // 比例映射：逻辑 px → 全分辨率 px
-    // ═══════════════════════════════════════════════════════
     final scale = longest / kRefPreviewSize;
 
     final borderW = (config.borderWidth * scale).round();
@@ -54,10 +48,14 @@ class WatermarkExporter {
     final finalImgH = (rh * imageScale).round();
 
     // ═══════════════════════════════════════════════════════
-    // 信息层度量
+    // EXIF 文本
     // ═══════════════════════════════════════════════════════
-    final exifStr = config.showExif ? _exifString(metadata) : null;
-    final hasLogo = config.logoBrand != null;
+    final exifStr = config.showExif ? _resolveExif(config, metadata) : null;
+
+    // ═══════════════════════════════════════════════════════
+    // Logo 加载
+    // ═══════════════════════════════════════════════════════
+    final hasLogo = _hasLogo(config);
     final hasInfo = exifStr != null || hasLogo;
 
     int infoH = 0;
@@ -67,8 +65,7 @@ class WatermarkExporter {
     if (hasInfo) {
       double logoH = 0;
       if (hasLogo) {
-        final path = _logoPath(config.logoBrand!, config.colorMode);
-        logoImg = await _loadAsset(path);
+        logoImg = await _loadLogoImage(config);
         if (logoImg != null) {
           logoH = config.logoSize * 48.0 * scale;
         }
@@ -85,18 +82,18 @@ class WatermarkExporter {
           color: tc.withValues(alpha: config.textOpacity),
           fontFamily: config.fontFamily,
         );
-        final b =
+        final pb =
             ui.ParagraphBuilder(
                 ui.ParagraphStyle(
                   textAlign: TextAlign.center,
-                  maxLines: 2,
+                  maxLines: 3,
                   ellipsis: '…',
                   textDirection: ui.TextDirection.ltr,
                 ),
               )
               ..pushStyle(_toUiStyle(ts))
               ..addText(exifStr);
-        exifPara = b.build()
+        exifPara = pb.build()
           ..layout(
             ui.ParagraphConstraints(width: finalImgW.toDouble() - 2 * textPad),
           );
@@ -114,15 +111,24 @@ class WatermarkExporter {
     final ch = finalImgH + 2 * borderW + infoH;
 
     // ═══════════════════════════════════════════════════════
-    // 模糊背景（如需）
+    // 背景图加载
     // ═══════════════════════════════════════════════════════
     ui.Image? bgBlur;
+    ui.Image? customBg;
+
     if (config.backgroundType == BackgroundType.blurredOriginal) {
       bgBlur = await _makeBlurBg(
         renderedImage,
         config.blurRadius * scale,
         cw,
         ch,
+      );
+    } else if (config.backgroundType == BackgroundType.image &&
+        config.customBackgroundPath != null) {
+      customBg = await _loadBytesAsImage(
+        await WatermarkAssetManager.readImageBytes(
+          config.customBackgroundPath!,
+        ),
       );
     }
 
@@ -144,23 +150,16 @@ class WatermarkExporter {
         );
       case BackgroundType.blurredOriginal:
         if (bgBlur != null) {
-          cvs.drawImageRect(
-            bgBlur,
-            ui.Rect.fromLTWH(
-              0,
-              0,
-              bgBlur.width.toDouble(),
-              bgBlur.height.toDouble(),
-            ),
-            ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
-            ui.Paint(),
-          );
+          _drawFill(cvs, bgBlur, cw, ch);
+        } else {
+          _drawFallbackBg(cvs, cw, ch);
         }
       case BackgroundType.image:
-        cvs.drawRect(
-          ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
-          ui.Paint()..color = const ui.Color(0xFF1A1A1A),
-        );
+        if (customBg != null) {
+          _drawFill(cvs, customBg, cw, ch);
+        } else {
+          _drawFallbackBg(cvs, cw, ch);
+        }
     }
 
     // ── 原图位置 ──
@@ -247,19 +246,90 @@ class WatermarkExporter {
       }
     }
 
-    // ═══════════════════════════════════════════════════════
-    // 产出 ui.Image
-    // ═══════════════════════════════════════════════════════
+    // ── 产出 ──
     final pic = rec.endRecording();
     final result = await pic.toImage(cw, ch);
     pic.dispose();
     bgBlur?.dispose();
+    customBg?.dispose();
     logoImg?.dispose();
 
     return result;
   }
 
   // ──────────────── 内部工具 ────────────────
+
+  /// 统一图片加载：从 Uint8List 解码为 ui.Image
+  static Future<ui.Image?> _loadBytesAsImage(Uint8List? bytes) async {
+    if (bytes == null || bytes.isEmpty) return null;
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      return frame.image;
+    } catch (_) {
+      return null; // fail-safe
+    }
+  }
+
+  /// 加载 Logo 图片（内置或自定义）
+  static Future<ui.Image?> _loadLogoImage(WatermarkConfig config) async {
+    if (config.logoSource == LogoSource.custom &&
+        config.customLogoPath != null) {
+      final bytes = await WatermarkAssetManager.readImageBytes(
+        config.customLogoPath!,
+      );
+      return _loadBytesAsImage(bytes);
+    }
+    // 内置品牌 Logo
+    if (config.logoBrand != null) {
+      final assetPath = _logoAssetPath(config.logoBrand!, config.colorMode);
+      try {
+        final data = await rootBundle.load(assetPath);
+        final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+        return (await codec.getNextFrame()).image;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  static bool _hasLogo(WatermarkConfig c) {
+    if (c.logoSource == LogoSource.custom && c.customLogoPath != null)
+      return true;
+    if (c.logoSource == LogoSource.builtin && c.logoBrand != null) return true;
+    return false;
+  }
+
+  static String _logoAssetPath(String brand, WatermarkColorMode m) =>
+      'assets/borders/logos/${m == WatermarkColorMode.light ? 'light' : 'dark'}/$brand.webp';
+
+  /// 填充绘制
+  static void _drawFill(ui.Canvas cvs, ui.Image img, int tw, int th) {
+    cvs.drawImageRect(
+      img,
+      ui.Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+      ui.Rect.fromLTWH(0, 0, tw.toDouble(), th.toDouble()),
+      ui.Paint()..filterQuality = ui.FilterQuality.low,
+    );
+  }
+
+  /// Fallback 背景
+  static void _drawFallbackBg(ui.Canvas cvs, int tw, int th) {
+    cvs.drawRect(
+      ui.Rect.fromLTWH(0, 0, tw.toDouble(), th.toDouble()),
+      ui.Paint()..color = const ui.Color(0xFF1A1A1A),
+    );
+  }
+
+  /// 解析 EXIF 文本
+  static String? _resolveExif(WatermarkConfig config, RawMetadata? meta) {
+    if (config.exifMode == ExifMode.custom) {
+      final t = config.customExifText?.trim();
+      return (t != null && t.isNotEmpty) ? t : null;
+    }
+    return _exifString(meta);
+  }
 
   /// 创建降采样模糊背景
   static Future<ui.Image?> _makeBlurBg(
@@ -273,7 +343,6 @@ class WatermarkExporter {
     final down = srcLong > 256 ? 256 / srcLong : 1.0;
     final dw = (sw * down).round(), dh = (sh * down).round();
 
-    // Step 1: 降采样
     final r1 = ui.PictureRecorder();
     ui.Canvas(r1).drawImageRect(
       src,
@@ -285,7 +354,6 @@ class WatermarkExporter {
     final small = await p1.toImage(dw, dh);
     p1.dispose();
 
-    // Step 2: 模糊 + 放大
     final r2 = ui.PictureRecorder();
     final c2 = ui.Canvas(r2);
     final cs = sigma * down;
@@ -311,19 +379,6 @@ class WatermarkExporter {
     small.dispose();
     return result;
   }
-
-  static Future<ui.Image?> _loadAsset(String path) async {
-    try {
-      final d = await rootBundle.load(path);
-      final c = await ui.instantiateImageCodec(d.buffer.asUint8List());
-      return (await c.getNextFrame()).image;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static String _logoPath(String brand, WatermarkColorMode m) =>
-      'assets/borders/logos/${m == WatermarkColorMode.light ? 'light' : 'dark'}/$brand.webp';
 
   static String? _exifString(RawMetadata? m) {
     if (m == null) return null;

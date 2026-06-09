@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/watermark_config.dart';
+import '../../../services/watermark/watermark_asset_manager.dart';
 import '../../../state/providers.dart';
 import '../tracked_slider.dart';
 import 'shared.dart';
@@ -71,6 +72,21 @@ class WatermarkSection extends ConsumerWidget {
               onChanged: (c) =>
                   set(cfg.copyWith(backgroundColor: c.toARGB32())),
             ),
+          if (cfg.backgroundType == BackgroundType.image) ...[
+            const SizedBox(height: 6),
+            _ImportTile(
+              label: tr('watermarkImportImage'),
+              currentFile: cfg.customBackgroundPath,
+              onImport: () async {
+                final name =
+                    await WatermarkAssetManager.pickAndSaveCustomImage();
+                if (name != null) {
+                  set(cfg.copyWith(customBackgroundPath: name));
+                }
+              },
+              onClear: () => set(cfg.copyWith(clearCustomBg: true)),
+            ),
+          ],
 
           const SizedBox(height: 8),
 
@@ -145,25 +161,58 @@ class WatermarkSection extends ConsumerWidget {
 
           // ═══════ Logo ═══════
           const SectionLabel(title: 'Logo'),
-          _DropdownTile<String>(
-            label: tr('watermarkLogoBrand'),
-            value: cfg.logoBrand,
-            items: [
-              const DropdownMenuItem<String>(
-                value: null,
-                child: _DropLabel('None'),
+          _DropdownTile<LogoSource>(
+            label: tr('watermarkLogoSource'),
+            value: cfg.logoSource,
+            items: const [
+              DropdownMenuItem(
+                value: LogoSource.builtin,
+                child: _DropLabel('Built-in'),
               ),
-              ...kAvailableLogoBrands.map(
-                (b) => DropdownMenuItem<String>(
-                  value: b,
-                  child: _DropLabel(b[0].toUpperCase() + b.substring(1)),
-                ),
+              DropdownMenuItem(
+                value: LogoSource.custom,
+                child: _DropLabel('Custom'),
               ),
             ],
             onChanged: (v) =>
-                set(cfg.copyWith(logoBrand: v, clearLogo: v == null)),
+                v != null ? set(cfg.copyWith(logoSource: v)) : null,
           ),
-          if (cfg.logoBrand != null) ...[
+          if (cfg.logoSource == LogoSource.builtin) ...[
+            _DropdownTile<String>(
+              label: tr('watermarkLogoBrand'),
+              value: cfg.logoBrand,
+              items: [
+                const DropdownMenuItem<String>(
+                  value: null,
+                  child: _DropLabel('None'),
+                ),
+                ...kAvailableLogoBrands.map(
+                  (b) => DropdownMenuItem<String>(
+                    value: b,
+                    child: _DropLabel(b[0].toUpperCase() + b.substring(1)),
+                  ),
+                ),
+              ],
+              onChanged: (v) =>
+                  set(cfg.copyWith(logoBrand: v, clearLogoBrand: v == null)),
+            ),
+          ],
+          if (cfg.logoSource == LogoSource.custom)
+            _ImportTile(
+              label: tr('watermarkImportLogo'),
+              currentFile: cfg.customLogoPath,
+              onImport: () async {
+                final name =
+                    await WatermarkAssetManager.pickAndSaveCustomImage();
+                if (name != null) {
+                  set(cfg.copyWith(customLogoPath: name));
+                }
+              },
+              onClear: () => set(cfg.copyWith(clearCustomLogo: true)),
+            ),
+          if ((cfg.logoSource == LogoSource.builtin && cfg.logoBrand != null) ||
+              (cfg.logoSource == LogoSource.custom &&
+                  cfg.customLogoPath != null)) ...[
             DevelopSliderTile(
               label: tr('watermarkLogoSize'),
               value: cfg.logoSize,
@@ -206,6 +255,64 @@ class WatermarkSection extends ConsumerWidget {
             onChanged: (v) => set(cfg.copyWith(showExif: v)),
           ),
           if (cfg.showExif) ...[
+            _SegmentedTile<ExifMode>(
+              label: tr('watermarkExifMode'),
+              value: cfg.exifMode,
+              items: const [
+                _SegItem(value: ExifMode.auto, label: 'Auto'),
+                _SegItem(value: ExifMode.custom, label: 'Custom'),
+              ],
+              onChanged: (v) => set(cfg.copyWith(exifMode: v)),
+            ),
+            if (cfg.exifMode == ExifMode.custom)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                child: TextField(
+                  controller:
+                      TextEditingController(text: cfg.customExifText ?? '')
+                        ..selection = TextSelection.fromPosition(
+                          TextPosition(
+                            offset: (cfg.customExifText ?? '').length,
+                          ),
+                        ),
+                  onChanged: (v) {
+                    set(
+                      cfg.copyWith(
+                        customExifText: v.isEmpty ? null : v,
+                        clearCustomExif: v.isEmpty,
+                      ),
+                    );
+                  },
+                  style: const TextStyle(fontSize: 12, color: Colors.white),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: tr('watermarkExifCustomHint'),
+                    hintStyle: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                  ),
+                ),
+              ),
             _FontFamilyTile(
               label: tr('watermarkFontFamily'),
               value: cfg.fontFamily,
@@ -776,6 +883,85 @@ class _FontWeightTile extends StatelessWidget {
                 );
               }),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 导入文件 Tile（选择 + 清除）
+class _ImportTile extends StatelessWidget {
+  final String label;
+  final String? currentFile;
+  final Future<void> Function() onImport;
+  final VoidCallback onClear;
+  const _ImportTile({
+    required this.label,
+    required this.currentFile,
+    required this.onImport,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(label, style: const TextStyle(fontSize: 12)),
+          ),
+          Expanded(
+            child: currentFile != null
+                ? Row(
+                    children: [
+                      Icon(
+                        Icons.image,
+                        size: 14,
+                        color: Colors.greenAccent.withValues(alpha: 0.8),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          currentFile!,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontFamily: 'monospace',
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: onClear,
+                        child: Icon(
+                          Icons.close,
+                          size: 14,
+                          color: Colors.white.withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ],
+                  )
+                : OutlinedButton.icon(
+                    onPressed: onImport,
+                    icon: const Icon(Icons.file_upload_outlined, size: 14),
+                    label: const Text('Import', style: TextStyle(fontSize: 11)),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.15),
+                      ),
+                      foregroundColor: Colors.white.withValues(alpha: 0.7),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),
