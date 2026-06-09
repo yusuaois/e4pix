@@ -32,6 +32,9 @@ export 'tools/local_state.dart';
 export 'tools/develop_tool_state.dart';
 export 'tools/compare_state.dart';
 
+// watermark
+export 'watermark/watermark_state.dart';
+
 // base
 export 'ai_auto_state.dart';
 export 'app_settings_state.dart';

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
@@ -10,6 +11,7 @@ import 'package:path/path.dart' as p;
 
 import '../core/constants/raw_formats.dart';
 import '../core/models/adjustment_params.dart';
+import '../core/models/watermark_config.dart';
 import '../native/raw_bridge.dart';
 import '../services/image/image_loader.dart';
 import 'cpu_denoise.dart';
@@ -18,6 +20,7 @@ import 'exif_writer.dart';
 import 'export_template.dart';
 import 'full_pipeline_renderer.dart';
 import 'pixel_convert.dart';
+import 'watermark_exporter.dart';
 
 enum ExportFormat { png, jpeg }
 
@@ -78,6 +81,7 @@ class Exporter {
     bool writeExif = true,
     ExportProgress? onProgress,
     CancelCheck? isCancelled,
+    WatermarkConfig? watermarkConfig,
   }) async {
     _checkCancel(isCancelled);
     onProgress?.call(0.05, tr('exportDecodingImage'));
@@ -139,6 +143,24 @@ class Exporter {
 
       _checkCancel(isCancelled); // 渲染后检查点
 
+      // ── 水印边框合成 ──
+      ui.Image finalOutput = output;
+      if (watermarkConfig != null && watermarkConfig.enabled) {
+        onProgress?.call(0.85, 'Applying watermark border…');
+        try {
+          final composited = await WatermarkExporter.composite(
+            renderedImage: output,
+            config: watermarkConfig,
+            metadata: metadata,
+          );
+          output.dispose(); // 替换成功 → 释放原渲染图
+          finalOutput = composited;
+        } catch (_) {
+          // 合成失败时回退：保持 output，不加水印导出
+          dev.log('Watermark composite failed, exporting without watermark');
+        }
+      }
+
       try {
         // 文件名：模板 + metadata + 去重
         final base = ExportTemplate.apply(
@@ -146,8 +168,8 @@ class Exporter {
           originalName: ExportTemplate.stripExtension(p.basename(inputPath)),
           seq: seq,
           metadata: metadata,
-          outWidth: output.width,
-          outHeight: output.height,
+          outWidth: finalOutput.width,
+          outHeight: finalOutput.height,
         );
         final filename = ExportTemplate.ensureUnique(
           base: base,
@@ -156,11 +178,15 @@ class Exporter {
         );
         final outputPath = p.join(outputDir, filename);
 
+        final writeMeta =
+            !(watermarkConfig?.enabled ?? false) &&
+            writeExif &&
+            _hasValidMetadata(metadata);
         final bytes = await _encode(
-          output,
+          finalOutput,
           format,
           jpegQuality,
-          (writeExif && _hasValidMetadata(metadata)) ? metadata : null,
+          writeMeta ? metadata : null,
         );
 
         _checkCancel(isCancelled); // 编码后检查点（写文件前）
@@ -171,7 +197,7 @@ class Exporter {
         onProgress?.call(1.0, tr('completed'));
         return file;
       } finally {
-        output.dispose();
+        finalOutput.dispose();
       }
     } catch (_) {
       curveTexture?.dispose();

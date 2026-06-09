@@ -142,6 +142,7 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
 
     final sharpenProgram = ref.read(sharpenShaderProgramProvider).value;
     final denoiseProgram = ref.read(denoiseShaderProgramProvider).value;
+    final watermarkCfg = ref.read(watermarkConfigProvider);
     final cfg = job.config;
 
     // per-image LUT：按本 job 的 params.lutNameA/B 从缓存加载 texture
@@ -180,6 +181,7 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
         writeExif: cfg.writeExif,
         onProgress: (f, s) => _patch(job.id, progress: f, stage: s),
         isCancelled: () => _cancelled.contains(job.id),
+        watermarkConfig: watermarkCfg.enabled ? watermarkCfg : null,
       );
       _patch(
         job.id,

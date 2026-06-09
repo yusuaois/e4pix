@@ -21,6 +21,7 @@ import 'crop_panel.dart';
 import '../local/local_mask_overlay.dart';
 import 'multi_pass_preview.dart';
 import 'split_compare_view.dart';
+import 'watermark_preview.dart';
 
 // Preview area
 class PreviewArea extends ConsumerWidget {
@@ -77,6 +78,13 @@ class PreviewArea extends ConsumerWidget {
     final compareMode = ref.watch(compareViewModeProvider);
     if (compareMode == CompareViewMode.split) {
       return _buildSplitCompare(state, lut, lutEnabled, ref);
+    }
+    // 水印边框预览
+    final watermarkOn = ref.watch(
+      watermarkConfigProvider.select((c) => c.enabled),
+    );
+    if (watermarkOn) {
+      return _buildWatermarkPreview(state, params, lut, lutEnabled, ref);
     }
     return _buildCroppedPreview(state, params, lut, lutEnabled, ref);
   }
@@ -495,6 +503,27 @@ class PreviewArea extends ConsumerWidget {
             lutEnabled: lutEnabled,
           );
         },
+      ),
+    );
+  }
+
+  /// 水印边框预览
+  Widget _buildWatermarkPreview(
+    DecodedImageState state,
+    AdjustmentParams params,
+    LutState lut,
+    bool lutEnabled,
+    WidgetRef ref,
+  ) {
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: WatermarkPreview(
+          state: state,
+          params: params,
+          lut: lut,
+          lutEnabled: lutEnabled,
+        ),
       ),
     );
   }

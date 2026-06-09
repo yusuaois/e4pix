@@ -20,7 +20,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
     return SizedBox(
       height: 320,
       child: DefaultTabController(
-        length: 7,
+        length: 8,
         child: Container(
           color: const Color(0xFF14141A),
           child: Column(
@@ -48,6 +48,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                           Tab(text: tr('detail'), height: 36),
                           Tab(text: tr("preset"), height: 36),
                           Tab(text: tr("local"), height: 36),
+                          Tab(text: tr("watermark"), height: 36),
                         ],
                       ),
                     ),
@@ -86,6 +87,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                     ),
                     const SingleChildScrollView(child: PresetGrid()),
                     const SingleChildScrollView(child: LocalPanel()),
+                    const SingleChildScrollView(child: WatermarkSection()),
                   ],
                 ),
               ),

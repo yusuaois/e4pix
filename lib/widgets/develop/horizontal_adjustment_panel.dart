@@ -47,6 +47,8 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
         return const PresetGrid();
       case DevelopTool.local:
         return const LocalPanel();
+      case DevelopTool.watermark:
+        return const WatermarkSection();
       case DevelopTool.info:
         return info ?? const SizedBox.shrink();
     }
@@ -195,6 +197,12 @@ class _ToolRail extends StatelessWidget {
               tooltip: tr('local'),
               selected: selected == DevelopTool.local,
               onTap: () => onSelect(DevelopTool.local),
+            ),
+            _RailItem(
+              icon: Icons.border_style,
+              tooltip: tr('watermark'),
+              selected: selected == DevelopTool.watermark,
+              onTap: () => onSelect(DevelopTool.watermark),
             ),
             const SizedBox(height: 8),
           ],
