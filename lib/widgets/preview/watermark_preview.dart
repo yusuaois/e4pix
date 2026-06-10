@@ -111,6 +111,7 @@ class WatermarkPreview extends ConsumerWidget {
           config: config,
           geometry: geometry,
           textColor: textColor,
+          exifText: exifStr,
         ),
       );
     }
@@ -145,6 +146,7 @@ class WatermarkPreview extends ConsumerWidget {
         config: config,
         geometry: geometry,
         textColor: textColor,
+        exifText: exifStr,
       ),
     );
   }
@@ -570,9 +572,16 @@ class _CustomImageBackgroundState extends State<_CustomImageBackground> {
   void didUpdateWidget(_CustomImageBackground old) {
     super.didUpdateWidget(old);
     if (old.filename != widget.filename) {
+      _image?.dispose();
       _image = null;
       _load();
     }
+  }
+
+  @override
+  void dispose() {
+    _image?.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -581,7 +590,10 @@ class _CustomImageBackgroundState extends State<_CustomImageBackground> {
       if (bytes != null && mounted) {
         final codec = await ui.instantiateImageCodec(bytes);
         final img = (await codec.getNextFrame()).image;
-        if (mounted) setState(() => _image = img);
+        if (mounted) {
+          _image?.dispose();
+          setState(() => _image = img);
+        }
       }
     } catch (_) {}
   }
@@ -604,12 +616,14 @@ class _InfoLayer extends StatelessWidget {
   final WatermarkConfig config;
   final WatermarkGeometry geometry;
   final Color textColor;
+  final String? exifText;
 
   const _InfoLayer({
     required this.metadata,
     required this.config,
     required this.geometry,
     required this.textColor,
+    this.exifText,
   });
 
   @override
@@ -618,7 +632,7 @@ class _InfoLayer extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final exifStr = _buildExifString(config, metadata);
+    final exifStr = exifText;
 
     final String? logoAsset;
     final String? logoFilePath;
@@ -702,9 +716,16 @@ class _LogoImageState extends State<_LogoImage> {
   void didUpdateWidget(_LogoImage old) {
     super.didUpdateWidget(old);
     if (old.assetPath != widget.assetPath || old.filePath != widget.filePath) {
+      _image?.dispose();
       _image = null;
       _load();
     }
+  }
+
+  @override
+  void dispose() {
+    _image?.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -721,7 +742,10 @@ class _LogoImageState extends State<_LogoImage> {
       } else if (widget.assetPath != null) {
         img = await _decodeAssetImage(widget.assetPath!);
       }
-      if (mounted && img != null) setState(() => _image = img);
+      if (mounted && img != null) {
+        _image?.dispose();
+        setState(() => _image = img);
+      }
     } catch (_) {}
   }
 

@@ -349,53 +349,16 @@ class WatermarkSection extends ConsumerWidget {
                 ),
               ),
             if (cfg.exifMode == ExifMode.custom)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                child: TextField(
-                  controller:
-                      TextEditingController(text: cfg.customExifText ?? '')
-                        ..selection = TextSelection.fromPosition(
-                          TextPosition(
-                            offset: (cfg.customExifText ?? '').length,
-                          ),
-                        ),
-                  onChanged: (v) {
-                    set(
-                      cfg.copyWith(
-                        customExifText: v.isEmpty ? null : v,
-                        clearCustomExif: v.isEmpty,
-                      ),
-                    );
-                  },
-                  style: const TextStyle(fontSize: 12, color: Colors.white),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: tr('watermarkExifCustomHint'),
-                    hintStyle: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.3),
+              _ExifTextField(
+                initialText: cfg.customExifText,
+                onChanged: (v) {
+                  set(
+                    cfg.copyWith(
+                      customExifText: v.isEmpty ? null : v,
+                      clearCustomExif: v.isEmpty,
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(4),
-                      borderSide: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.12),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(4),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                  ),
-                ),
+                  );
+                },
               ),
             _FontFamilyTile(
               label: tr('watermarkFontFamily'),
@@ -818,6 +781,100 @@ class _FontFamilyTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 自定义 EXIF 文本输入框
+class _ExifTextField extends StatefulWidget {
+  final String? initialText;
+  final ValueChanged<String> onChanged;
+
+  const _ExifTextField({required this.initialText, required this.onChanged});
+
+  @override
+  State<_ExifTextField> createState() => _ExifTextFieldState();
+}
+
+class _ExifTextFieldState extends State<_ExifTextField> {
+  late final TextEditingController _controller;
+  bool _isInternalUpdate = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final text = widget.initialText ?? '';
+    _controller = TextEditingController(text: text);
+    if (text.isNotEmpty) {
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: text.length),
+      );
+    }
+    _controller.addListener(_onControllerChanged);
+  }
+
+  @override
+  void didUpdateWidget(_ExifTextField old) {
+    super.didUpdateWidget(old);
+    if (widget.initialText != old.initialText &&
+        widget.initialText != _controller.text) {
+      _isInternalUpdate = true;
+      final text = widget.initialText ?? '';
+      _controller.text = text;
+      if (text.isNotEmpty) {
+        _controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: text.length),
+        );
+      }
+      _isInternalUpdate = false;
+    }
+  }
+
+  void _onControllerChanged() {
+    if (!_isInternalUpdate) {
+      widget.onChanged(_controller.text);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onControllerChanged);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: TextField(
+        controller: _controller,
+        style: const TextStyle(fontSize: 12, color: Colors.white),
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: tr('watermarkExifCustomHint'),
+          hintStyle: TextStyle(
+            fontSize: 11,
+            color: Colors.white.withValues(alpha: 0.3),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide(
+              color: Colors.white.withValues(alpha: 0.12),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 8,
+          ),
+        ),
       ),
     );
   }
