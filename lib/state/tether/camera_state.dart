@@ -107,6 +107,7 @@ class CameraNotifier extends Notifier<CameraState> {
       state = state.copyWith(lastError: ev.message);
     } else if (ev is CameraDisconnected) {
       stop();
+      ref.read(tetherSessionNotifierProvider.notifier).stop();
     }
   }
 
@@ -118,7 +119,6 @@ class CameraNotifier extends Notifier<CameraState> {
     final ctrl = state.controller;
     state = state.copyWith(clearController: true);
     await ctrl?.stopTether();
-    await ref.read(tetherSessionNotifierProvider.notifier).stop();
 
     // 销毁通知
     TetherNotificationService.instance.dismissCameraOngoing();

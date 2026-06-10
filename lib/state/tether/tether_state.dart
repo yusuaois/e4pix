@@ -85,8 +85,6 @@ class TetherSessionNotifier extends Notifier<TetherSession?> {
     _sub = null;
     state = null;
     await session?.watcher.dispose();
-    ref.read(shotsNotifierProvider.notifier).clear();
-    ref.read(activeShotPathProvider.notifier).set(null);
 
     // 销毁通知
     if (session != null && !session.suppressNotification) {
