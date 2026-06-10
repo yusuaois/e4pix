@@ -74,24 +74,33 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
         const SizedBox(height: 10),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: LayoutBuilder(
-              builder: (ctx, constraints) {
-                final size = Size(constraints.maxWidth, constraints.maxHeight);
-                return GestureDetector(
-                  onTapUp: (d) => _onTapUp(d, size, curve, commit),
-                  onPanStart: (d) => _onPanStart(d, size, curve),
-                  onPanUpdate: (d) => _onPanUpdate(d, size, curve, commit),
-                  onPanEnd: (_) => _dragIndex = null,
-                  onLongPressStart: (d) =>
-                      _onLongPress(d.localPosition, size, curve, commit),
-                  child: CustomPaint(
-                    painter: _CurvePainter(curve: curve, lineColor: lineColor),
-                    size: size,
-                  ),
-                );
-              },
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 155),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: LayoutBuilder(
+                builder: (ctx, constraints) {
+                  final size = Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  );
+                  return GestureDetector(
+                    onTapUp: (d) => _onTapUp(d, size, curve, commit),
+                    onPanStart: (d) => _onPanStart(d, size, curve),
+                    onPanUpdate: (d) => _onPanUpdate(d, size, curve, commit),
+                    onPanEnd: (_) => _dragIndex = null,
+                    onLongPressStart: (d) =>
+                        _onLongPress(d.localPosition, size, curve, commit),
+                    child: CustomPaint(
+                      painter: _CurvePainter(
+                        curve: curve,
+                        lineColor: lineColor,
+                      ),
+                      size: size,
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ),

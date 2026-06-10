@@ -8,7 +8,7 @@ import 'develop_sections.dart';
 import 'sections/local_section.dart';
 import 'sections/preset_section.dart';
 
-/// 手机布局下的底部工具面板（7 个 Tab 页）
+/// 手机布局下的底部工具面板
 class VerticalAdjustmentPanel extends ConsumerWidget {
   final ValueChanged<AdjustmentParams> onChanged;
   const VerticalAdjustmentPanel({super.key, required this.onChanged});
@@ -20,7 +20,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
     return SizedBox(
       height: 320,
       child: DefaultTabController(
-        length: 8,
+        length: 9,
         child: Container(
           color: const Color(0xFF14141A),
           child: Column(
@@ -36,20 +36,24 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: TabBar(
-                        labelPadding: EdgeInsets.zero,
-                        indicatorSize: TabBarIndicatorSize.tab,
-                        labelStyle: const TextStyle(fontSize: 11),
-                        tabs: [
-                          Tab(text: tr("light"), height: 36),
-                          Tab(text: tr("color"), height: 36),
-                          Tab(text: tr("hsl"), height: 36),
-                          Tab(text: 'LUT', height: 36),
-                          Tab(text: tr('detail'), height: 36),
-                          Tab(text: tr("preset"), height: 36),
-                          Tab(text: tr("local"), height: 36),
-                          Tab(text: tr("watermark"), height: 36),
-                        ],
+                      child: MediaQuery.removePadding(
+                        context: context,
+                        child: TabBar(
+                          isScrollable: true,
+                          indicatorSize: TabBarIndicatorSize.label,
+                          labelStyle: const TextStyle(fontSize: 11),
+                          tabs: [
+                            Tab(text: tr("light"), height: 36),
+                            Tab(text: tr("color"), height: 36),
+                            Tab(text: tr("curve"), height: 36),
+                            Tab(text: tr("hsl"), height: 36),
+                            Tab(text: 'LUT', height: 36),
+                            Tab(text: tr('detail'), height: 36),
+                            Tab(text: tr("preset"), height: 36),
+                            Tab(text: tr("local"), height: 36),
+                            Tab(text: tr("watermark"), height: 36),
+                          ],
+                        ),
                       ),
                     ),
                     IconButton(
@@ -72,6 +76,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                         onChanged: onChanged,
                       ),
                     ),
+                    SingleChildScrollView(child: CurveSection()),
                     SingleChildScrollView(
                       child: HslSection(
                         bands: params.hsl,
