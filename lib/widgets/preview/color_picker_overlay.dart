@@ -9,10 +9,10 @@ import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../state/providers.dart';
 
-/// 取色 readback 层：覆盖在预览上，捕获鼠标位置，从渲染后的小图取色。
+/// 取色 readback 层：覆盖在预览上，捕获鼠标位置，从渲染后的小图取色
 ///
-/// 仅在取色模式开启时挂载。渲染当前预览到 [_readbackEdge]px，readback 一次缓存；
-/// 鼠标移动从缓存取点（不重渲染）；参数变化时重渲染。
+/// 仅在取色模式开启时挂载，渲染当前预览到 [_readbackEdge]px，readback 一次缓存；
+/// 鼠标移动从缓存取点（不重渲染）；参数变化时重渲染
 class ColorPickerOverlay extends ConsumerStatefulWidget {
   final ui.FragmentProgram developProgram;
   final ui.FragmentProgram maskProgram;

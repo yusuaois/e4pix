@@ -18,7 +18,7 @@ import '../../state/providers.dart';
 import 'color_picker_overlay.dart';
 import 'crop_overlay.dart';
 import 'crop_panel.dart';
-import '../local/local_mask_overlay.dart';
+import '../develop/sections/local/local_mask_overlay.dart';
 import 'multi_pass_preview.dart';
 import 'split_compare_view.dart';
 import 'watermark_preview.dart';
@@ -226,9 +226,9 @@ class PreviewArea extends ConsumerWidget {
     );
   }
 
-  /// 取色模式包装：把预览内容 + 取色层 + 读数浮层组合。
-  /// [content] 该路径的预览内容；[displaySize] 图片实际显示矩形（裁剪后比例）。
-  /// 非取色模式返回 null（调用方走原 _ZoomableView 分支）。
+  /// 取色模式包装：把预览内容 + 取色层 + 读数浮层组合
+  /// [content] 该路径的预览内容；[displaySize] 图片实际显示矩形（裁剪后比例）
+  /// 非取色模式返回 null（调用方走原 _ZoomableView 分支）
   Widget? _wrapColorPicker({
     required WidgetRef ref,
     required Widget content,

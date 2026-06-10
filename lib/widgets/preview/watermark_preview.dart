@@ -15,11 +15,11 @@ import '../../services/watermark/watermark_asset_manager.dart';
 import '../../state/providers.dart';
 import 'multi_pass_preview.dart';
 
-/// 水印边框预览组件。
+/// 水印边框预览组件
 ///
 /// 使用 [WatermarkGeometry] 统一布局模型 + [FittedBox] 锁死比例：
-/// - 内部画布为固定参考尺寸（由 geometry 决定），不随窗口拉伸改变排版。
-/// - [FittedBox] 将整块画布等比缩放适配 UI 容器。
+/// - 内部画布为固定参考尺寸（由 geometry 决定），不随窗口拉伸改变排版
+/// - [FittedBox] 将整块画布等比缩放适配 UI 容器
 ///
 /// Layer 0: 背景（纯色 / 图片 / 模糊原图）
 /// Layer 1: Logo + EXIF 信息
@@ -50,7 +50,7 @@ class WatermarkPreview extends ConsumerWidget {
       srcH.toDouble(),
     );
     final hasLogo = watermarkHasLogo(config);
-    final exifStr = _buildExifString(config, state.metadata);
+    final exifStr = resolveWatermarkExif(config, state.metadata);
     final showExif = watermarkShowExif(config, exifText: exifStr);
 
     final geometry = WatermarkGeometry.compute(
@@ -500,34 +500,29 @@ class _BlurredBackgroundLayer extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       error: (e, s) => const SizedBox.shrink(),
       data: (program) {
-        final maxEdge = isDragging ? 64.0 : 256.0;
-        final imgW = image.width.toDouble();
-        final imgH = image.height.toDouble();
-        final longest = math.max(imgW, imgH);
-        final downscale = longest > maxEdge ? maxEdge / longest : 1.0;
-        final thumbW = (imgW * downscale).round();
-        final thumbH = (imgH * downscale).round();
-
-        final fillScale = math.max(
-          canvasSize.width / thumbW,
-          canvasSize.height / thumbH,
+        final b = computeBlurParams(
+          srcWidth: image.width.toDouble(),
+          srcHeight: image.height.toDouble(),
+          blurSigma: blurSigma,
+          refCanvasWidth: canvasSize.width,
+          refCanvasHeight: canvasSize.height,
+          maxThumbEdge: isDragging ? 64.0 : 256.0,
         );
-        final compensatedBlur = blurSigma * downscale * fillScale;
 
         return ClipRect(
           child: ImageFiltered(
             imageFilter: ui.ImageFilter.blur(
-              sigmaX: compensatedBlur.clamp(0.0, 50.0),
-              sigmaY: compensatedBlur.clamp(0.0, 50.0),
+              sigmaX: b.compensatedSigma.clamp(0.0, 50.0),
+              sigmaY: b.compensatedSigma.clamp(0.0, 50.0),
             ),
             child: SizedBox(
-              width: thumbW.toDouble(),
-              height: thumbH.toDouble(),
+              width: b.thumbW.toDouble(),
+              height: b.thumbH.toDouble(),
               child: FittedBox(
                 fit: BoxFit.cover,
                 child: SizedBox(
-                  width: imgW,
-                  height: imgH,
+                  width: image.width.toDouble(),
+                  height: image.height.toDouble(),
                   child: PreviewRenderer(
                     image: image,
                     params: params,
@@ -642,14 +637,14 @@ class _InfoLayer extends StatelessWidget {
       logoFilePath = config.customLogoPath!;
     } else if (config.logoSource == LogoSource.builtin &&
         config.logoBrand != null) {
-      logoAsset = _logoAssetPath(config.logoBrand!, config.colorMode);
+      logoAsset = logoAssetPath(config.logoBrand!, config.colorMode);
       logoFilePath = null;
     } else {
       logoAsset = null;
       logoFilePath = null;
     }
 
-    final fontWeight = _indexToFontWeight(config.fontWeightIndex);
+    final fontWeight = fontWeightFromIndex(config.fontWeightIndex);
     final textStyle = TextStyle(
       fontSize: geometry.fontSize,
       fontWeight: fontWeight,
@@ -771,31 +766,4 @@ Future<ui.Image> _decodeAssetImage(String assetPath) async {
   final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
   final frame = await codec.getNextFrame();
   return frame.image;
-}
-
-String? _logoAssetPath(String? brand, WatermarkColorMode mode) {
-  if (brand == null) return null;
-  final dir = mode == WatermarkColorMode.light ? 'light' : 'dark';
-  return 'assets/borders/logos/$dir/$brand.webp';
-}
-
-String? _buildExifString(WatermarkConfig config, RawMetadata? m) {
-  if (config.exifMode == ExifMode.custom) {
-    final t = config.customExifText?.trim();
-    return (t != null && t.isNotEmpty) ? t : null;
-  }
-  if (m == null) return null;
-  final s = m.watermarkExif(enabledFields: config.enabledExifFields);
-  return s.isEmpty ? null : s;
-}
-
-FontWeight _indexToFontWeight(int idx) {
-  const map = [
-    FontWeight.w400,
-    FontWeight.w500,
-    FontWeight.w600,
-    FontWeight.w700,
-    FontWeight.w800,
-  ];
-  return map[idx.clamp(0, map.length - 1)];
 }

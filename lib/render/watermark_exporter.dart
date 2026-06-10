@@ -1,5 +1,4 @@
 import 'dart:developer' as dev;
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -31,7 +30,7 @@ class WatermarkExporter {
     // ── 1. 几何布局（参考画布） ──
     final aspectRatio = fullResImage.width / fullResImage.height;
     final hasLogo = watermarkHasLogo(config);
-    final exifStr = _resolveExif(config, metadata);
+    final exifStr = resolveWatermarkExif(config, metadata);
     final showExif = exifStr != null;
     final geometry = WatermarkGeometry.compute(
       imageAspectRatio: aspectRatio,
@@ -45,31 +44,40 @@ class WatermarkExporter {
     final exportSize = geometry.exportCanvasSize(fullResImage.width);
     final cw = exportSize.width.ceil();
     final ch = exportSize.height.ceil();
-    final scaledHMargin = geometry.horizontalMargin * scale;
-    final scaledImageW = geometry.imageRect.width * scale;
-    final scaledImageH = geometry.imageRect.height * scale;
+
+    // 一次性预计算所有缩放后的坐标值
     final scaledImageL = geometry.imageRect.left * scale;
     final scaledImageT = geometry.imageRect.top * scale;
+    final scaledImageW = geometry.imageRect.width * scale;
+    final scaledImageH = geometry.imageRect.height * scale;
     final scaledImageDst = ui.Rect.fromLTWH(
       scaledImageL,
       scaledImageT,
       scaledImageW,
       scaledImageH,
     );
+    final scaledInfoL = geometry.infoRect.left * scale;
+    final scaledInfoT = geometry.infoRect.top * scale;
     final scaledInfoW = geometry.infoRect.width * scale;
+    final scaledInfoH = geometry.infoRect.height * scale;
     final scaledTextConstraintW = scaledInfoW - 2 * geometry.textPad * scale;
+    final scaledCornerR = geometry.cornerRadius * scale;
+    final scaledShadowBlur = geometry.shadowBlur * scale;
+    final scaledShadowOffY = geometry.shadowOffsetY * scale;
+    final scaledTextPad = geometry.textPad * scale;
+    final scaledLogoH = geometry.logoMaxH * scale;
 
     dev.log(
       '══╣ WatermarkExport Geometry Dump ╠══\n'
       '  inputImageSize        = ${fullResImage.width}×${fullResImage.height}\n'
       '  calculatedScale       = ${scale.toStringAsFixed(4)}\n'
       '  FinalCanvasSize       = $cw×$ch\n'
-      '  FinalHorizontalMargin = ${scaledHMargin.toStringAsFixed(1)}\n'
+      '  FinalHorizontalMargin = ${geometry.horizontalMargin * scale}\n'
       '  finalDrawRect (image) = $scaledImageDst\n'
       '  imageCenterX          = ${(scaledImageL + scaledImageW / 2).toStringAsFixed(1)}\n'
       '  canvasCenterX         = ${(cw / 2).toStringAsFixed(1)}\n'
       '  textConstraintsWidth  = ${scaledTextConstraintW.toStringAsFixed(1)}\n'
-      '  infoRect              = (${(geometry.infoRect.left * scale).toStringAsFixed(1)}, ${(geometry.infoRect.top * scale).toStringAsFixed(1)}, ${scaledInfoW.toStringAsFixed(1)}, ${(geometry.infoRect.height * scale).toStringAsFixed(1)})\n'
+      '  infoRect              = ($scaledInfoL, $scaledInfoT, $scaledInfoW, $scaledInfoH)\n'
       '  ── reference geometry ──\n'
       '  $geometry',
       name: 'WatermarkExporter',
@@ -117,21 +125,6 @@ class WatermarkExporter {
 
       _drawBackground(cvs, config, bgBlur, customBg, cw, ch);
 
-      // 导出坐标系下的各区域
-      final imgL = geometry.imageRect.left * scale;
-      final imgT = geometry.imageRect.top * scale;
-      final imgW = geometry.imageRect.width * scale;
-      final imgH = geometry.imageRect.height * scale;
-      final cornerR = geometry.cornerRadius * scale;
-      final shadowBlur = geometry.shadowBlur * scale;
-      final shadowOffY = geometry.shadowOffsetY * scale;
-      final infoL = geometry.infoRect.left * scale;
-      final infoT = geometry.infoRect.top * scale;
-      final infoW = geometry.infoRect.width * scale;
-      final infoH = geometry.infoRect.height * scale;
-      final textPad = geometry.textPad * scale;
-      final logoH = geometry.logoMaxH * scale;
-
       // ── 阴影 ──
       if (config.shadowIntensity > 0.001) {
         final shadowAlpha = (config.shadowIntensity * 0.6 * 255).round().clamp(
@@ -140,11 +133,19 @@ class WatermarkExporter {
         );
         final sp = ui.Paint()
           ..color = ui.Color.fromARGB(shadowAlpha, 0, 0, 0)
-          ..maskFilter = ui.MaskFilter.blur(ui.BlurStyle.normal, shadowBlur);
+          ..maskFilter = ui.MaskFilter.blur(
+            ui.BlurStyle.normal,
+            scaledShadowBlur,
+          );
         cvs.drawRRect(
           ui.RRect.fromRectAndRadius(
-            ui.Rect.fromLTWH(imgL, imgT + shadowOffY, imgW, imgH),
-            ui.Radius.circular(cornerR),
+            ui.Rect.fromLTWH(
+              scaledImageL,
+              scaledImageT + scaledShadowOffY,
+              scaledImageW,
+              scaledImageH,
+            ),
+            ui.Radius.circular(scaledCornerR),
           ),
           sp,
         );
@@ -154,8 +155,13 @@ class WatermarkExporter {
       cvs.save();
       cvs.clipRRect(
         ui.RRect.fromRectAndRadius(
-          ui.Rect.fromLTWH(imgL, imgT, imgW, imgH),
-          ui.Radius.circular(cornerR),
+          ui.Rect.fromLTWH(
+            scaledImageL,
+            scaledImageT,
+            scaledImageW,
+            scaledImageH,
+          ),
+          ui.Radius.circular(scaledCornerR),
         ),
       );
       cvs.drawImageRect(
@@ -166,7 +172,12 @@ class WatermarkExporter {
           fullResImage.width.toDouble(),
           fullResImage.height.toDouble(),
         ),
-        ui.Rect.fromLTWH(imgL, imgT, imgW, imgH),
+        ui.Rect.fromLTWH(
+          scaledImageL,
+          scaledImageT,
+          scaledImageW,
+          scaledImageH,
+        ),
         ui.Paint()..filterQuality = ui.FilterQuality.high,
       );
       cvs.restore();
@@ -174,19 +185,23 @@ class WatermarkExporter {
       // ── Logo + EXIF（infoRect 内垂直居中） ──
       if (hasLogo || showExif) {
         double contentH = 0;
-        if (logoImg != null) contentH += logoH;
-        if (logoImg != null && exifPara != null) contentH += textPad / 2.0;
+        if (logoImg != null) contentH += scaledLogoH;
+        if (logoImg != null && exifPara != null) {
+          contentH += scaledTextPad / 2.0;
+        }
         if (exifPara != null) {
-          exifPara.layout(ui.ParagraphConstraints(width: infoW - 2 * textPad));
+          exifPara.layout(
+            ui.ParagraphConstraints(width: scaledInfoW - 2 * scaledTextPad),
+          );
           contentH += exifPara.height;
         }
-        final contentStartY = infoT + (infoH - contentH) / 2.0;
+        final contentStartY = scaledInfoT + (scaledInfoH - contentH) / 2.0;
 
         double y = contentStartY;
         if (logoImg != null) {
           final logoAr = logoImg.width / logoImg.height;
-          final logoW = logoH * logoAr;
-          final logoX = infoL + (infoW - logoW) / 2.0;
+          final logoW = scaledLogoH * logoAr;
+          final logoX = scaledInfoL + (scaledInfoW - logoW) / 2.0;
           cvs.drawImageRect(
             logoImg,
             ui.Rect.fromLTWH(
@@ -195,7 +210,7 @@ class WatermarkExporter {
               logoImg.width.toDouble(),
               logoImg.height.toDouble(),
             ),
-            ui.Rect.fromLTWH(logoX, y, logoW, logoH),
+            ui.Rect.fromLTWH(logoX, y, logoW, scaledLogoH),
             ui.Paint()
               ..color = ui.Color.fromARGB(
                 (config.logoOpacity * 255).round().clamp(0, 255),
@@ -204,13 +219,18 @@ class WatermarkExporter {
                 255,
               ),
           );
-          y += logoH;
-          if (exifPara != null) y += textPad / 2.0;
+          y += scaledLogoH;
+          if (exifPara != null) y += scaledTextPad / 2.0;
         }
 
         if (exifPara != null) {
-          exifPara.layout(ui.ParagraphConstraints(width: infoW - 2 * textPad));
-          cvs.drawParagraph(exifPara, ui.Offset(infoL + textPad, y));
+          exifPara.layout(
+            ui.ParagraphConstraints(width: scaledInfoW - 2 * scaledTextPad),
+          );
+          cvs.drawParagraph(
+            exifPara,
+            ui.Offset(scaledInfoL + scaledTextPad, y),
+          );
         }
       }
 
@@ -245,43 +265,31 @@ class WatermarkExporter {
           ui.Paint()..color = ui.Color(config.backgroundColor),
         );
       case BackgroundType.blurredOriginal:
-        if (bgBlur != null) {
-          cvs.drawImageRect(
-            bgBlur,
-            ui.Rect.fromLTWH(
-              0,
-              0,
-              bgBlur.width.toDouble(),
-              bgBlur.height.toDouble(),
-            ),
-            ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
-            ui.Paint()..filterQuality = ui.FilterQuality.low,
-          );
-        } else {
-          cvs.drawRect(
-            ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
-            ui.Paint()..color = const ui.Color(0xFF1A1A1A),
-          );
-        }
+        _drawImageBgOrFallback(cvs, bgBlur, cw, ch);
       case BackgroundType.image:
-        if (customBg != null) {
-          cvs.drawImageRect(
-            customBg,
-            ui.Rect.fromLTWH(
-              0,
-              0,
-              customBg.width.toDouble(),
-              customBg.height.toDouble(),
-            ),
-            ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
-            ui.Paint()..filterQuality = ui.FilterQuality.low,
-          );
-        } else {
-          cvs.drawRect(
-            ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
-            ui.Paint()..color = const ui.Color(0xFF1A1A1A),
-          );
-        }
+        _drawImageBgOrFallback(cvs, customBg, cw, ch);
+    }
+  }
+
+  /// 绘制图片背景；若图片为 null 则回退到纯色填充。
+  static void _drawImageBgOrFallback(
+    ui.Canvas cvs,
+    ui.Image? image,
+    int cw,
+    int ch,
+  ) {
+    if (image != null) {
+      cvs.drawImageRect(
+        image,
+        ui.Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+        ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
+        ui.Paint()..filterQuality = ui.FilterQuality.low,
+      );
+    } else {
+      cvs.drawRect(
+        ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
+        ui.Paint()..color = const ui.Color(0xFF1A1A1A),
+      );
     }
   }
 
@@ -298,7 +306,7 @@ class WatermarkExporter {
     final tc = config.colorMode == WatermarkColorMode.light
         ? const Color(0xFFFFFFFF)
         : const Color(0xFF000000);
-    final fw = _toFontWeight(config.fontWeightIndex);
+    final fw = fontWeightFromIndex(config.fontWeightIndex);
     final ts = TextStyle(
       fontSize: geometry.fontSize * scale,
       fontWeight: fw,
@@ -336,62 +344,56 @@ class WatermarkExporter {
     int tw,
     int th,
   ) async {
-    final sw = src.width.toDouble();
-    final sh = src.height.toDouble();
-    final srcLong = math.max(sw, sh);
-    final down = srcLong > 256 ? 256 / srcLong : 1.0;
-    final dw = (sw * down).round();
-    final dh = (sh * down).round();
+    // 使用与预览 _BlurredBackgroundLayer 完全相同的公式
+    final b = computeBlurParams(
+      srcWidth: src.width.toDouble(),
+      srcHeight: src.height.toDouble(),
+      blurSigma: sigma,
+      refCanvasWidth: tw / exportScale,
+      refCanvasHeight: th / exportScale,
+    );
 
     // Step 1: 降采样到缩略图
     final r1 = ui.PictureRecorder();
     ui.Canvas(r1).drawImageRect(
       src,
-      ui.Rect.fromLTWH(0, 0, sw, sh),
-      ui.Rect.fromLTWH(0, 0, dw.toDouble(), dh.toDouble()),
+      ui.Rect.fromLTWH(0, 0, src.width.toDouble(), src.height.toDouble()),
+      ui.Rect.fromLTWH(0, 0, b.thumbW.toDouble(), b.thumbH.toDouble()),
       ui.Paint()..filterQuality = ui.FilterQuality.medium,
     );
     final p1 = r1.endRecording();
-    final small = await p1.toImage(dw, dh);
+    final small = await p1.toImage(b.thumbW, b.thumbH);
     p1.dispose();
 
-    // Step 2: 计算 fillScale — 使用参考画布尺寸，与预览公式一致
-    final refW = tw / exportScale;
-    final refH = th / exportScale;
-    final fillScale = math.max(refW / dw, refH / dh);
-
-    // 模糊补偿 = sigma × downscale × fillScale（与预览 _BlurredBackgroundLayer 完全相同）
-    final compensatedBlur = sigma * down * fillScale;
-
-    // Step 3: 在缩略图分辨率上施加模糊
+    // Step 2: 在缩略图分辨率上施加模糊
     final r2 = ui.PictureRecorder();
     final c2 = ui.Canvas(r2);
     c2.saveLayer(
-      ui.Rect.fromLTWH(0, 0, dw.toDouble(), dh.toDouble()),
+      ui.Rect.fromLTWH(0, 0, b.thumbW.toDouble(), b.thumbH.toDouble()),
       ui.Paint()
         ..imageFilter = ui.ImageFilter.blur(
-          sigmaX: compensatedBlur.clamp(0.0, 50.0),
-          sigmaY: compensatedBlur.clamp(0.0, 50.0),
+          sigmaX: b.compensatedSigma.clamp(0.0, 50.0),
+          sigmaY: b.compensatedSigma.clamp(0.0, 50.0),
           tileMode: ui.TileMode.clamp,
         ),
     );
     c2.drawImageRect(
       small,
-      ui.Rect.fromLTWH(0, 0, dw.toDouble(), dh.toDouble()),
-      ui.Rect.fromLTWH(0, 0, dw.toDouble(), dh.toDouble()),
+      ui.Rect.fromLTWH(0, 0, b.thumbW.toDouble(), b.thumbH.toDouble()),
+      ui.Rect.fromLTWH(0, 0, b.thumbW.toDouble(), b.thumbH.toDouble()),
       ui.Paint(),
     );
     c2.restore();
     final p2 = r2.endRecording();
-    final blurredThumb = await p2.toImage(dw, dh);
+    final blurredThumb = await p2.toImage(b.thumbW, b.thumbH);
     p2.dispose();
     small.dispose();
 
-    // Step 4: 拉伸模糊缩略图到导出画布
+    // Step 3: 拉伸模糊缩略图到导出画布
     final r3 = ui.PictureRecorder();
     ui.Canvas(r3).drawImageRect(
       blurredThumb,
-      ui.Rect.fromLTWH(0, 0, dw.toDouble(), dh.toDouble()),
+      ui.Rect.fromLTWH(0, 0, b.thumbW.toDouble(), b.thumbH.toDouble()),
       ui.Rect.fromLTWH(0, 0, tw.toDouble(), th.toDouble()),
       ui.Paint()..filterQuality = ui.FilterQuality.low,
     );
@@ -426,7 +428,7 @@ class WatermarkExporter {
       return _loadBytesAsImage(bytes);
     }
     if (config.logoBrand != null) {
-      final assetPath = _logoAssetPath(config.logoBrand!, config.colorMode);
+      final assetPath = logoAssetPath(config.logoBrand!, config.colorMode);
       try {
         final data = await rootBundle.load(assetPath);
         final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
@@ -437,31 +439,6 @@ class WatermarkExporter {
     }
     return null;
   }
-
-  static String _logoAssetPath(String brand, WatermarkColorMode m) =>
-      'assets/borders/logos/${m == WatermarkColorMode.light ? 'light' : 'dark'}/$brand.webp';
-
-  static String? _resolveExif(WatermarkConfig config, RawMetadata? meta) {
-    if (config.exifMode == ExifMode.custom) {
-      final t = config.customExifText?.trim();
-      return (t != null && t.isNotEmpty) ? t : null;
-    }
-    return _exifString(meta, config);
-  }
-
-  static String? _exifString(RawMetadata? m, WatermarkConfig config) {
-    if (m == null) return null;
-    final s = m.watermarkExif(enabledFields: config.enabledExifFields);
-    return s.isEmpty ? null : s;
-  }
-
-  static FontWeight _toFontWeight(int i) => const [
-    FontWeight.w400,
-    FontWeight.w500,
-    FontWeight.w600,
-    FontWeight.w700,
-    FontWeight.w800,
-  ][i.clamp(0, 4)];
 
   static ui.TextStyle _toUiStyle(TextStyle ts) => ui.TextStyle(
     color: ts.color != null

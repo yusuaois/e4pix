@@ -7,8 +7,8 @@ import 'package:path_provider/path_provider.dart';
 
 /// 自定义水印资源管理器
 ///
-/// 管理 `e4pix/custom_watermarks/` 目录下的用户自定义图片。
-/// 支持 png / webp / jpg 格式。
+/// 管理 `e4pix/custom_watermarks/` 目录下的用户自定义图片
+/// 支持 png / webp / jpg 格式
 class WatermarkAssetManager {
   WatermarkAssetManager._();
 
@@ -26,8 +26,8 @@ class WatermarkAssetManager {
   /// 允许的图片扩展名
   static const _allowedExtensions = ['png', 'webp', 'jpg', 'jpeg'];
 
-  /// 打开文件选择器并拷贝选中图片到水印目录。
-  /// 返回目标路径（相对文件名），失败返回 null。
+  /// 打开文件选择器并拷贝选中图片到水印目录
+  /// 返回目标路径（相对文件名），失败返回 null
   static Future<String?> pickAndSaveCustomImage() async {
     try {
       final result = await FilePicker.pickFiles(

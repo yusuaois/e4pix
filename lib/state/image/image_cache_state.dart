@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../render/decoded_image_cache.dart';
 
-/// 预览解码缓存的容量（张数）。0 = 禁用缓存。
+/// 预览解码缓存的容量（张数），0 = 禁用缓存
 class ImageCacheCapacityNotifier extends Notifier<int> {
   static const _key = 'image_cache_capacity';
   static const _default = 3;

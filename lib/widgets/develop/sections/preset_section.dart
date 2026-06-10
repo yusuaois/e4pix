@@ -1,17 +1,17 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:e4pix/widgets/develop/sections/shared.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../services/export/xmp_export.dart';
-import '../../services/export/xmp_import.dart';
-import '../../state/providers.dart';
+import '../../../services/export/xmp_export.dart';
+import '../../../services/export/xmp_import.dart';
+import '../../../state/providers.dart';
 
-// 桌面端：横向 chip 滚动条
 class PresetBar extends ConsumerStatefulWidget {
   const PresetBar({super.key});
 
@@ -137,6 +137,7 @@ class PresetGrid extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const SectionLabel(title: 'Preset'),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
               child: Row(

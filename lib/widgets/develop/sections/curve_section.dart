@@ -57,7 +57,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionLabel(title: '曲线'),
+        const SectionLabel(title: 'Curve'),
         const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),

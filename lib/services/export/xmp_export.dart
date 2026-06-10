@@ -1,6 +1,6 @@
 import '../../core/models/adjustment_params.dart';
 
-/// 将 [AdjustmentParams] 序列化为 Lightroom 兼容的 XMP 预设文件内容。
+/// 将 [AdjustmentParams] 序列化为 Lightroom 兼容的 XMP 预设文件内容
 class XmpExport {
   XmpExport._();
 

@@ -24,7 +24,7 @@ class ExportDialogResult {
   });
 }
 
-/// 弹出导出配置对话框。返回 null 表示取消
+/// 弹出导出配置对话框，返回 null 表示取消
 /// [tasks] 用于判断批量、取首图名做预览、检测是否有降噪
 Future<ExportDialogResult?> showExportDialog(
   BuildContext context, {

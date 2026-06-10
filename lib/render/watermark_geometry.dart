@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../core/models/watermark_config.dart';
+import '../native/raw_bridge.dart';
 
 /// 水印边框统一几何布局模型
 ///
@@ -249,4 +252,62 @@ bool watermarkShowExif(WatermarkConfig c, {String? exifText}) {
     return (c.customExifText?.trim().isNotEmpty ?? false);
   }
   return exifText != null && exifText.isNotEmpty;
+}
+
+/// 解析 EXIF 显示字符串
+///
+/// 自定义模式下返回用户输入文本，自动模式下从 [metadata] 提取
+String? resolveWatermarkExif(WatermarkConfig config, RawMetadata? metadata) {
+  if (config.exifMode == ExifMode.custom) {
+    final t = config.customExifText?.trim();
+    return (t != null && t.isNotEmpty) ? t : null;
+  }
+  if (metadata == null) return null;
+  final s = metadata.watermarkExif(enabledFields: config.enabledExifFields);
+  return s.isEmpty ? null : s;
+}
+
+/// 将 0–4 索引映射为 [FontWeight]
+FontWeight fontWeightFromIndex(int index) {
+  const map = [
+    FontWeight.w400,
+    FontWeight.w500,
+    FontWeight.w600,
+    FontWeight.w700,
+    FontWeight.w800,
+  ];
+  return map[index.clamp(0, map.length - 1)];
+}
+
+/// Logo asset 路径
+String logoAssetPath(String brand, WatermarkColorMode mode) {
+  final dir = mode == WatermarkColorMode.light ? 'light' : 'dark';
+  return 'assets/borders/logos/$dir/$brand.webp';
+}
+
+/// 背景模糊降采样参数
+///
+/// 两阶段策略：降采样到缩略图 → 在缩略图上模糊 → 拉伸填充画布
+/// 返回 (缩略图宽, 缩略图高, 降采样比, 补偿后的模糊 sigma)
+({int thumbW, int thumbH, double downscale, double compensatedSigma})
+computeBlurParams({
+  required double srcWidth,
+  required double srcHeight,
+  required double blurSigma,
+  required double refCanvasWidth,
+  required double refCanvasHeight,
+  double maxThumbEdge = 256.0,
+}) {
+  final srcLong = math.max(srcWidth, srcHeight);
+  final downscale = srcLong > maxThumbEdge ? maxThumbEdge / srcLong : 1.0;
+  final thumbW = (srcWidth * downscale).round();
+  final thumbH = (srcHeight * downscale).round();
+  final fillScale = math.max(refCanvasWidth / thumbW, refCanvasHeight / thumbH);
+  final compensatedSigma = blurSigma * downscale * fillScale;
+  return (
+    thumbW: thumbW,
+    thumbH: thumbH,
+    downscale: downscale,
+    compensatedSigma: compensatedSigma,
+  );
 }

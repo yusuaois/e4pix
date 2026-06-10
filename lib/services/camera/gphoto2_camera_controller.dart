@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:easy_localization/easy_localization.dart';
 
 import 'camera_controller.dart';
 
@@ -31,25 +32,25 @@ class Gphoto2CameraController implements CameraController {
   Future<List<DetectedCamera>> detectCameras() async {
     late final ProcessResult res;
     try {
-      res = await Process.run(_exe, _gpArgs(['--auto-detect']))
-          .timeout(const Duration(seconds: 8));
+      res = await Process.run(
+        _exe,
+        _gpArgs(['--auto-detect']),
+      ).timeout(const Duration(seconds: 8));
     } on TimeoutException {
-      throw CameraException('gphoto2 探测超时——WSL 是否可用？');
+      throw CameraException(tr('cameraGphoto2Timeout'));
     } catch (e) {
-      throw CameraException('无法启动 gphoto2: $e\n'
-          '请确认：\n'
-          '  - Windows: 已装 WSL + Ubuntu + gphoto2\n'
-          '  - Linux/macOS: gphoto2 已在 PATH 中');
+      throw CameraException(
+        tr('cameraGphoto2StartFailed', args: [e.toString()]),
+      );
     }
 
     if (res.exitCode != 0) {
-      throw CameraException('gphoto2 报错: ${res.stderr}');
+      throw CameraException(tr('cameraGphoto2Error', args: ['${res.stderr}']));
     }
     return _parseAutoDetect(res.stdout as String);
   }
 
-  static final _cameraLineRe =
-      RegExp(r'^(.+?)\s{2,}(usb:\S+|ptpip:\S+)\s*$');
+  static final _cameraLineRe = RegExp(r'^(.+?)\s{2,}(usb:\S+|ptpip:\S+)\s*$');
 
   List<DetectedCamera> _parseAutoDetect(String out) {
     final cameras = <DetectedCamera>[];
@@ -59,10 +60,9 @@ class Gphoto2CameraController implements CameraController {
       if (line.startsWith('Model') || line.startsWith('---')) continue;
       final m = _cameraLineRe.firstMatch(line);
       if (m != null) {
-        cameras.add(DetectedCamera(
-          model: m.group(1)!.trim(),
-          port: m.group(2)!.trim(),
-        ));
+        cameras.add(
+          DetectedCamera(model: m.group(1)!.trim(), port: m.group(2)!.trim()),
+        );
       }
     }
     return cameras;
@@ -75,7 +75,7 @@ class Gphoto2CameraController implements CameraController {
     required String saveFolder,
   }) {
     if (_active) {
-      throw CameraException('已有 tether 会话在运行');
+      throw CameraException(tr('cameraActiveSession'));
     }
     _active = true;
     _events = StreamController<CameraEvent>.broadcast();
@@ -91,16 +91,14 @@ class Gphoto2CameraController implements CameraController {
       //   --capture-tethered 阻塞监听快门事件
       //   --filename %f.%C  保留相机原始命名
       final args = [
-        '--port', camera.port,
+        '--port',
+        camera.port,
         '--capture-tethered',
-        '--filename', '$shellPath/%f.%C',
+        '--filename',
+        '$shellPath/%f.%C',
       ];
 
-      _process = await Process.start(
-        _exe,
-        _gpArgs(args),
-        runInShell: false,
-      );
+      _process = await Process.start(_exe, _gpArgs(args), runInShell: false);
 
       _events?.add(CameraConnected(camera.model));
 
@@ -115,24 +113,24 @@ class Gphoto2CameraController implements CameraController {
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen((line) {
-        if (line.trim().isEmpty) return;
-        if (line.contains('ERROR') || line.contains('*** Error')) {
-          _events?.add(CameraError(line.trim()));
-        }
-      });
+            if (line.trim().isEmpty) return;
+            if (line.contains('ERROR') || line.contains('*** Error')) {
+              _events?.add(CameraError(line.trim()));
+            }
+          });
 
       // 进程退出
       final exitCode = await _process!.exitCode;
       _active = false;
       if (exitCode != 0 && _events != null && !_events!.isClosed) {
-        _events!.add(CameraError('gphoto2 退出码 $exitCode'));
+        _events!.add(CameraError(tr('cameraGphoto2Exit', args: ['$exitCode'])));
       }
       _events?.add(const CameraDisconnected());
       await _events?.close();
       _events = null;
       _process = null;
     } catch (e) {
-      _events?.add(CameraError('启动失败: $e'));
+      _events?.add(CameraError(tr('cameraStartFailed', args: ['$e'])));
       _active = false;
       await _events?.close();
       _events = null;

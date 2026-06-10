@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../../core/models/local_adjustment.dart';
-import '../../core/models/mask_shape.dart';
+import '../../../../core/models/local_adjustment.dart';
+import '../../../../core/models/mask_shape.dart';
 
 class MaskPainter extends CustomPainter {
   final List<LocalAdjustment> locals;

@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
-import '../local/local_panel.dart';
-import 'preset_bar.dart';
+import 'sections/local_section.dart';
+import 'sections/preset_section.dart';
 
 /// 手机布局下的底部工具面板（7 个 Tab 页）
 class VerticalAdjustmentPanel extends ConsumerWidget {

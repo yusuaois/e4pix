@@ -83,10 +83,10 @@ extension RawMetadataSummary on RawMetadata {
     return parts.join(' · ');
   }
 
-  /// 水印 EXIF 文本（支持字段选择）。
+  /// 水印 EXIF 文本（支持字段选择）
   ///
-  /// [enabledFields] 为空时显示全部字段。
-  /// 分隔符为 ` | `，与信息栏的 ` · ` 区分开。
+  /// [enabledFields] 为空时显示全部字段
+  /// 分隔符为 ` | `，与信息栏的 ` · ` 区分开
   String watermarkExif({Set<ExifField> enabledFields = const {}}) {
     final showAll = enabledFields.isEmpty;
     final parts = <String>[];

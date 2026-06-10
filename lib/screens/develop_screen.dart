@@ -33,7 +33,7 @@ import 'folder_import_screen.dart';
 import '../widgets/develop/histogram_panel.dart';
 import '../widgets/app/image_info_bar.dart';
 import '../widgets/develop/vertical_adjustment_panel.dart';
-import '../widgets/develop/preset_bar.dart';
+import '../widgets/develop/sections/preset_section.dart';
 import '../widgets/tether/tether_widgets.dart';
 import 'settings_screen.dart';
 

@@ -36,11 +36,11 @@ class UpdateInfo {
     required this.hasUpdate,
   });
 
-  /// 选出适配当前平台的下载资源。
+  /// 选出适配当前平台的下载资源
   ///
-  /// Android：分架构发布（arm64-v8a / armeabi-v7a / x86_64 / universal）。
-  /// 按设备支持的 ABI 优先级选对应 apk，找不到则回退 universal（文件名不含 ABI 关键词）。
-  /// 异步：需要查询设备 ABI。
+  /// Android：分架构发布（arm64-v8a / armeabi-v7a / x86_64 / universal）
+  /// 按设备支持的 ABI 优先级选对应 apk，找不到则回退 universal（文件名不含 ABI 关键词）
+  /// 异步：需要查询设备 ABI
   Future<UpdateAsset?> assetForPlatform() async {
     if (Platform.isAndroid) {
       return _androidApk();

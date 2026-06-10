@@ -2,10 +2,10 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/models/local_adjustment.dart';
-import '../../core/models/local_params.dart';
-import '../../state/providers.dart';
-import 'local_panel.dart';
+import '../../../../core/models/local_adjustment.dart';
+import '../../../../core/models/local_params.dart';
+import '../../../../state/providers.dart';
+import '../local_section.dart';
 
 class LocalParamsControls extends ConsumerWidget {
   final LocalAdjustment local;

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:xml/xml.dart';
 
 import '../../core/models/adjustment_params.dart';
@@ -5,23 +6,23 @@ import '../../core/models/hsl_bands.dart';
 import '../../core/models/rgb_curves.dart';
 import '../../core/models/tone_curve.dart';
 
-/// XMP（Adobe Camera Raw / Lightroom 边车）导入。
+/// XMP（Adobe Camera Raw / Lightroom 边车）导入
 ///
-/// 解析 crs: 命名空间下的编辑参数，映射到 [AdjustmentParams]。
+/// 解析 crs: 命名空间下的编辑参数，映射到 [AdjustmentParams]
 ///
 /// 重要限制：仅搬运数值，**不保证渲染结果与 Camera Raw 一致**——Adobe 的
-/// 处理管线（ProcessVersion、色彩科学）与 e4pix 的 shader 管线不同，同一数值
-/// 的视觉效果会有差异。导入后通常需要微调。
+/// 处理管线（ProcessVersion、色彩科学）与 e4pix 的 shader 管线不同，同一数值的视觉效果会有差异
+/// 导入后通常需要微调
 ///
-/// 第一步仅映射基础调整（曝光/对比度/影调/白平衡/饱和/锐化/降噪）。
-/// HSL 与曲线在第二步加入。
+/// 第一步仅映射基础调整（曝光/对比度/影调/白平衡/饱和/锐化/降噪）
+/// HSL 与曲线在第二步加入
 class XmpImport {
   XmpImport._();
 
-  /// 解析 XMP 文本，把识别到的字段覆盖到 [base] 上（未识别字段保留 base 的值）。
+  /// 解析 XMP 文本，把识别到的字段覆盖到 [base] 上（未识别字段保留 base 的值）
   ///
-  /// 返回 (新参数, 命中的字段名列表)。字段名列表可用于 UI 提示导入了哪些。
-  /// 解析失败抛 [FormatException]。
+  /// 返回 (新参数, 命中的字段名列表)，字段名列表可用于 UI 提示导入了哪些
+  /// 解析失败抛 [FormatException]
   static (AdjustmentParams, List<String>) parse(
     String xmpContent,
     AdjustmentParams base,
@@ -31,11 +32,11 @@ class XmpImport {
     try {
       doc = XmlDocument.parse(cleaned);
     } on XmlException catch (e) {
-      throw FormatException('XMP 解析失败：${e.message}');
+      throw FormatException(tr('xmpImportFailed', args: [e.message]));
     }
     final values = _extractCrsValues(doc);
     if (values.isEmpty) {
-      throw const FormatException('未在 XMP 中找到 Camera Raw 编辑参数');
+      throw FormatException(tr('xmpNoFields'));
     }
 
     final hit = <String>[];
@@ -45,71 +46,70 @@ class XmpImport {
     final exposure = _d(values, 'Exposure2012');
     if (exposure != null) {
       p = p.copyWith(exposure: exposure.clamp(-5.0, 5.0));
-      hit.add('曝光');
+      hit.add(tr('exposure'));
     }
 
     // 对比度 Contrast2012（-100..100）
     final contrast = _d(values, 'Contrast2012');
     if (contrast != null) {
       p = p.copyWith(contrast: contrast.clamp(-100.0, 100.0));
-      hit.add('对比度');
+      hit.add(tr('contrast'));
     }
 
     // 高光 Highlights2012
     final highlights = _d(values, 'Highlights2012');
     if (highlights != null) {
       p = p.copyWith(highlights: highlights.clamp(-100.0, 100.0));
-      hit.add('高光');
+      hit.add(tr('highlight'));
     }
 
     // 阴影 Shadows2012
     final shadows = _d(values, 'Shadows2012');
     if (shadows != null) {
       p = p.copyWith(shadows: shadows.clamp(-100.0, 100.0));
-      hit.add('阴影');
+      hit.add(tr('shadow'));
     }
 
     // 白色 Whites2012
     final whites = _d(values, 'Whites2012');
     if (whites != null) {
       p = p.copyWith(whites: whites.clamp(-100.0, 100.0));
-      hit.add('白色');
+      hit.add(tr('white'));
     }
 
     // 黑色 Blacks2012
     final blacks = _d(values, 'Blacks2012');
     if (blacks != null) {
       p = p.copyWith(blacks: blacks.clamp(-100.0, 100.0));
-      hit.add('黑色');
+      hit.add(tr('black'));
     }
 
-    // 色温 Temperature（开尔文）。注意：仅当 WhiteBalance 为 Custom 或缺省时
-    // 才有意义；As Shot 时 Adobe 不写具体值。这里有值就用。
+    // 色温 Temperature（开尔文）
     final temp = _d(values, 'Temperature');
     if (temp != null && temp >= 1000 && temp <= 50000) {
       p = p.copyWith(temperature: temp.round().clamp(2000, 12000));
-      hit.add('色温');
+      hit.add(tr('whiteBalance'));
     }
 
     // 色调 Tint
     final tint = _d(values, 'Tint');
     if (tint != null) {
       p = p.copyWith(tint: tint.clamp(-100.0, 100.0));
-      hit.add('色调');
+      hit.add(tr('tint'));
     }
 
     // 饱和度 Saturation
     final saturation = _d(values, 'Saturation');
     if (saturation != null) {
       p = p.copyWith(saturation: saturation.clamp(-100.0, 100.0));
-      hit.add('饱和度');
+      hit.add(tr('saturation'));
     }
 
     // 自然饱和度 Vibrance
     final vibrance = _d(values, 'Vibrance');
     if (vibrance != null) {
       p = p.copyWith(vibrance: vibrance.clamp(-100.0, 100.0));
-      hit.add('自然饱和度');
+      hit.add(tr('vibrance'));
     }
 
     // 锐化 Sharpness（Adobe 0..150）→ e4pix sharpenAmount（0..100）
@@ -118,28 +118,28 @@ class XmpImport {
       p = p.copyWith(
         sharpenAmount: (sharpness / 150.0 * 100.0).clamp(0.0, 100.0),
       );
-      hit.add('锐化');
+      hit.add(tr('sharpenAmount'));
     }
 
     // 锐化半径 SharpenRadius（Adobe 0.5..3.0，与 e4pix 一致）
     final sharpenRadius = _d(values, 'SharpenRadius');
     if (sharpenRadius != null) {
       p = p.copyWith(sharpenRadius: sharpenRadius.clamp(0.5, 3.0));
-      hit.add('锐化半径');
+      hit.add(tr('sharpenRadius'));
     }
 
     // 明度降噪 LuminanceSmoothing（0..100）
     final lumaNr = _d(values, 'LuminanceSmoothing');
     if (lumaNr != null) {
       p = p.copyWith(denoiseLuma: lumaNr.clamp(0.0, 100.0));
-      hit.add('明度降噪');
+      hit.add(tr('denoiseLuma'));
     }
 
     // 颜色降噪 ColorNoiseReduction（0..100）
     final colorNr = _d(values, 'ColorNoiseReduction');
     if (colorNr != null) {
       p = p.copyWith(denoiseColor: colorNr.clamp(0.0, 100.0));
-      hit.add('颜色降噪');
+      hit.add(tr('denoiseColor'));
     }
 
     // HSL（红橙黄绿青蓝紫品红）
@@ -185,7 +185,7 @@ class XmpImport {
     final curveHit = _parseCurves(doc, base);
     if (curveHit != null) {
       p = p.copyWith(curves: curveHit);
-      hit.add('曲线');
+      hit.add(tr('curve'));
     }
 
     // 颗粒 GrainAmount
@@ -194,13 +194,13 @@ class XmpImport {
       p = p.copyWith(
         grain: base.grain.copyWith(amount: grain.clamp(0.0, 100.0)),
       );
-      hit.add('颗粒');
+      hit.add(tr('grain'));
     }
 
     return (p, hit);
   }
 
-  /// 提取所有 crs: 命名空间字段，返回 {字段名(去前缀): 字符串值}。
+  /// 提取所有 crs: 命名空间字段，返回 {字段名(去前缀): 字符串值}
   ///
   /// 兼容两种写法：
   /// 1. 作为 rdf:Description 的 XML 属性：crs:Exposure2012="+1.00"
@@ -230,7 +230,7 @@ class XmpImport {
     return out;
   }
 
-  /// 取数值字段（Adobe 常带正号如 "+1.00"，XmlAttribute 已去引号）。
+  /// 取数值字段（Adobe 常带正号如 "+1.00"，XmlAttribute 已去引号）
   static double? _d(Map<String, String> values, String key) {
     final raw = values[key];
     if (raw == null) return null;
@@ -266,7 +266,7 @@ class XmpImport {
     return out;
   }
 
-  /// 解析 ToneCurvePV2012 系列，返回新的 RgbCurves（无曲线则 null）。
+  /// 解析 ToneCurvePV2012 系列，返回新的 RgbCurves（无曲线则 null）
   static RgbCurves? _parseCurves(XmlDocument doc, AdjustmentParams base) {
     final master = _parseOneCurve(doc, 'ToneCurvePV2012');
     final red = _parseOneCurve(doc, 'ToneCurvePV2012Red');
@@ -283,7 +283,7 @@ class XmpImport {
     );
   }
 
-  /// 解析单条曲线元素 → ToneCurve（归一化点）。无或为线性默认则 null。
+  /// 解析单条曲线元素 → ToneCurve（归一化点），无或为线性默认则 null
   static ToneCurve? _parseOneCurve(XmlDocument doc, String tagLocal) {
     // 找 <crs:tagLocal> 元素
     XmlElement? curveEl;

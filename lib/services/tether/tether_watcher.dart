@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:watcher/watcher.dart';
 
@@ -24,13 +25,13 @@ class TetherWatcher {
     if (Platform.isAndroid) {
       bool granted = await _requestAndroidPermission();
       if (!granted) {
-        throw Exception('Android 端需要“所有文件访问权限”才能监听其他 App 的照片。');
+        throw Exception(tr('tetherPermissionDenied'));
       }
     }
 
     final dir = Directory(watchPath);
     if (!await dir.exists()) {
-      throw Exception('文件夹不存在: $watchPath');
+      throw Exception(tr('tetherFolderNotExist', args: [watchPath]));
     }
 
     // 标记已有RAW
@@ -71,7 +72,7 @@ class TetherWatcher {
     if (!_controller.isClosed) _controller.add(file);
   }
 
-  /// 轮询大小不再变化才认为写入完成。
+  /// 轮询大小不再变化才认为写入完成
   Future<bool> _waitUntilStable(File f, {int maxAttempts = 40}) async {
     int? lastSize;
     int stableCount = 0;

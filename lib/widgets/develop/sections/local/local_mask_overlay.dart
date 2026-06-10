@@ -6,11 +6,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/models/local_adjustment.dart';
-import '../../core/models/mask_shape.dart';
-import '../../services/local/smart_region_service.dart';
-import '../../services/local/segmentation_service.dart';
-import '../../state/providers.dart';
+import '../../../../core/models/local_adjustment.dart';
+import '../../../../core/models/mask_shape.dart';
+import '../../../../services/local/smart_region_service.dart';
+import '../../../../services/local/segmentation_service.dart';
+import '../../../../state/providers.dart';
 import 'local_mask_painter.dart';
 
 enum _Handle {

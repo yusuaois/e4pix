@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/services.dart';
 
 import 'camera_controller.dart';
@@ -21,24 +21,28 @@ class LibGphoto2AndroidController implements CameraController {
   @override
   Future<List<DetectedCamera>> detectCameras() async {
     if (!Platform.isAndroid) {
-      throw CameraException('LibGphoto2AndroidController 仅支持 Android');
+      throw CameraException(tr('cameraAndroidOnly'));
     }
     try {
       final list = await _channel
           .invokeListMethod<dynamic>('detectCameras')
           .timeout(const Duration(seconds: 5));
       if (list == null) return const [];
-      return list.map((e) {
-        final m = Map<String, dynamic>.from(e as Map);
-        return DetectedCamera(
-          model: (m['model'] as String?) ?? 'USB Camera',
-          port: (m['port'] as String?) ?? 'usb:?',
-        );
-      }).toList(growable: false);
+      return list
+          .map((e) {
+            final m = Map<String, dynamic>.from(e as Map);
+            return DetectedCamera(
+              model: (m['model'] as String?) ?? 'USB Camera',
+              port: (m['port'] as String?) ?? 'usb:?',
+            );
+          })
+          .toList(growable: false);
     } on TimeoutException {
-      throw CameraException('USB 探测超时');
+      throw CameraException(tr('cameraUsbTimeout'));
     } on PlatformException catch (e) {
-      throw CameraException('探测失败: ${e.message ?? e.code}');
+      throw CameraException(
+        tr('cameraDetectFailed', args: [e.message ?? e.code]),
+      );
     }
   }
 
@@ -49,28 +53,32 @@ class LibGphoto2AndroidController implements CameraController {
     required String saveFolder,
   }) {
     if (_active) {
-      throw CameraException('已有 tether 会话在运行');
+      throw CameraException(tr('cameraActiveSession'));
     }
     _active = true;
     _events = StreamController<CameraEvent>.broadcast();
     _eventSub = _eventChannel.receiveBroadcastStream().listen(
       _onNativeEvent,
       onError: (Object err, StackTrace _) {
-        _events?.add(CameraError('Event channel error: $err'));
+        _events?.add(
+          CameraError(tr('cameraEventChannelError', args: ['$err'])),
+        );
       },
     );
 
-    _channel.invokeMethod<void>('startTether', {
-      'port': camera.port,
-      'saveFolder': saveFolder,
-    }).catchError((Object e) {
-      final msg = e is PlatformException
-          ? '${e.code}: ${e.message ?? ""}'
-          : e.toString();
-      _events?.add(CameraError('启动失败: $msg'));
-      _events?.add(const CameraDisconnected());
-      _cleanup();
-    });
+    _channel
+        .invokeMethod<void>('startTether', {
+          'port': camera.port,
+          'saveFolder': saveFolder,
+        })
+        .catchError((Object e) {
+          final msg = e is PlatformException
+              ? '${e.code}: ${e.message ?? ""}'
+              : e.toString();
+          _events?.add(CameraError(tr('cameraStartFailed', args: [msg])));
+          _events?.add(const CameraDisconnected());
+          _cleanup();
+        });
 
     return _events!.stream;
   }
@@ -113,7 +121,9 @@ class LibGphoto2AndroidController implements CameraController {
     try {
       await _channel.invokeMethod('stopTether');
     } on PlatformException catch (e) {
-      _events?.add(CameraError('停止失败: ${e.message ?? e.code}'));
+      _events?.add(
+        CameraError(tr('cameraStopFailed', args: [e.message ?? e.code])),
+      );
       _events?.add(const CameraDisconnected());
       _cleanup();
     }

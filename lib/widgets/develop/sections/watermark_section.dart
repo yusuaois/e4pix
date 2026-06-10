@@ -22,6 +22,7 @@ class WatermarkSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const SectionLabel(title: 'Watermark'),
         // ── 总开关 ──
         _SwitchTile(
           label: tr('watermarkEnable'),

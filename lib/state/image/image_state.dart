@@ -18,9 +18,9 @@ class ActiveFilePathNotifier extends Notifier<String?> {
   @override
   String? build() => null;
 
-  /// 切图：先预加载目标图的 LUT 进缓存（避免 LutNotifier 派生时闪烁），再切。
-  /// set 为 async；调用方可不 await（fire-and-forget）。预加载完成后才更新 state，
-  /// 确保 LutNotifier 重建时缓存已命中、同步出图、无闪烁。
+  /// 切图：先预加载目标图的 LUT 进缓存（避免 LutNotifier 派生时闪烁），再切
+  /// set 为 async；调用方可不 await（fire-and-forget），预加载完成后才更新 state，
+  /// 确保 LutNotifier 重建时缓存已命中、同步出图、无闪烁
   Future<void> set(String? newPath) async {
     if (newPath == null) {
       state = null;
@@ -63,7 +63,7 @@ class DecodedImageState {
   final Duration decodeTime;
   final Duration convertTime;
   final bool isPreliminary;
-  
+
   /// RAW 解码后的原始像素数据；缓存命中或标准图为 null
   final RawDecodedImage? decoded;
 
