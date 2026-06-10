@@ -17,6 +17,9 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
   int _channel = 0; // 0主 1R 2G 3B
   int? _dragIndex;
 
+  /// 控制点半径，供画布溢出以完整显示边界控制点
+  static const double _pointOverflow = 6.0;
+
   ToneCurve _curveOf(RgbCurves c) => switch (_channel) {
     1 => c.red,
     2 => c.green,
@@ -71,7 +74,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 4),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: ConstrainedBox(
@@ -91,12 +94,25 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
                     onPanEnd: (_) => _dragIndex = null,
                     onLongPressStart: (d) =>
                         _onLongPress(d.localPosition, size, curve, commit),
-                    child: CustomPaint(
-                      painter: _CurvePainter(
-                        curve: curve,
-                        lineColor: lineColor,
+                    child: OverflowBox(
+                      maxWidth: size.width + 2 * _pointOverflow,
+                      maxHeight: size.height + 2 * _pointOverflow,
+                      alignment: Alignment.center,
+                      child: SizedBox(
+                        width: size.width + 2 * _pointOverflow,
+                        height: size.height + 2 * _pointOverflow,
+                        child: CustomPaint(
+                          painter: _CurvePainter(
+                            curve: curve,
+                            lineColor: lineColor,
+                            overflow: _pointOverflow,
+                          ),
+                          size: Size(
+                            size.width + 2 * _pointOverflow,
+                            size.height + 2 * _pointOverflow,
+                          ),
+                        ),
                       ),
-                      size: size,
                     ),
                   );
                 },
@@ -104,7 +120,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 4),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -118,6 +134,14 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
                 ),
               ),
               TextButton(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 onPressed: curve.isIdentity
                     ? null
                     : () => commit(ToneCurve.identity),
@@ -166,6 +190,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     (local.dx / size.width).clamp(0.0, 1.0),
     (1 - local.dy / size.height).clamp(0.0, 1.0),
   );
+
   Offset _toScreen(Offset2 p, Size size) =>
       Offset(p.x * size.width, (1 - p.y) * size.height);
   int? _hitTest(Offset local, Size size, ToneCurve curve) {
@@ -232,15 +257,28 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
 class _CurvePainter extends CustomPainter {
   final ToneCurve curve;
   final Color lineColor;
-  _CurvePainter({required this.curve, required this.lineColor});
+  final double overflow;
+  _CurvePainter({
+    required this.curve,
+    required this.lineColor,
+    required this.overflow,
+  });
+
+  static const double _pointR = 6.0;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
+    final vw = w - 2 * overflow; // 可视区域宽
+    final vh = h - 2 * overflow; // 可视区域高
 
+    // 背景和网格绘制在可视区域
     final bg = Paint()..color = const Color(0xFF0E0E12);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(6)),
+      RRect.fromRectAndRadius(
+        Offset(overflow, overflow) & Size(vw, vh),
+        const Radius.circular(6),
+      ),
       bg,
     );
 
@@ -248,21 +286,26 @@ class _CurvePainter extends CustomPainter {
       ..color = Colors.white.withValues(alpha: 0.08)
       ..strokeWidth = 1;
     for (int i = 1; i < 4; i++) {
-      final x = w * i / 4;
-      final y = h * i / 4;
-      canvas.drawLine(Offset(x, 0), Offset(x, h), grid);
-      canvas.drawLine(Offset(0, y), Offset(w, y), grid);
+      final x = overflow + vw * i / 4;
+      final y = overflow + vh * i / 4;
+      canvas.drawLine(Offset(x, overflow), Offset(x, overflow + vh), grid);
+      canvas.drawLine(Offset(overflow, y), Offset(overflow + vw, y), grid);
     }
     final diag = Paint()
       ..color = Colors.white.withValues(alpha: 0.12)
       ..strokeWidth = 1;
-    canvas.drawLine(Offset(0, h), Offset(w, 0), diag);
+    canvas.drawLine(
+      Offset(overflow, overflow + vh),
+      Offset(overflow + vw, overflow),
+      diag,
+    );
 
+    // 曲线和 LUT 在可视区域内
     final lut = curve.toLut(count: 128);
     final path = Path();
     for (int i = 0; i < lut.length; i++) {
-      final x = w * i / (lut.length - 1);
-      final y = h * (1 - lut[i]);
+      final x = overflow + vw * i / (lut.length - 1);
+      final y = overflow + vh * (1 - lut[i]);
       if (i == 0) {
         path.moveTo(x, y);
       } else {
@@ -278,12 +321,13 @@ class _CurvePainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
+    // 控制点使用 overflow 偏移
     for (final p in curve.points) {
-      final c = Offset(p.x * w, (1 - p.y) * h);
-      canvas.drawCircle(c, 6, Paint()..color = const Color(0xFF0E0E12));
+      final c = Offset(overflow + p.x * vw, overflow + (1 - p.y) * vh);
+      canvas.drawCircle(c, _pointR, Paint()..color = const Color(0xFF0E0E12));
       canvas.drawCircle(
         c,
-        6,
+        _pointR,
         Paint()
           ..color = lineColor
           ..style = PaintingStyle.stroke

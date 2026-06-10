@@ -38,6 +38,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                       context: context,
                       child: TabBar(
                         isScrollable: true,
+                        tabAlignment: TabAlignment.start,
                         indicatorSize: TabBarIndicatorSize.label,
                         labelStyle: const TextStyle(fontSize: 11),
                         tabs: [
@@ -74,7 +75,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                       onChanged: onChanged,
                     ),
                   ),
-                  SingleChildScrollView(child: CurveSection()),
+                  CurveSection(),
                   SingleChildScrollView(
                     child: HslSection(
                       bands: params.hsl,
