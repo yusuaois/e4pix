@@ -1,4 +1,5 @@
 import 'package:e4pix/services/notifications/notification_manager.dart';
+import 'package:e4pix/widgets/app/app_exit_guard.dart';
 import 'package:flutter/material.dart';
 import 'screens/develop_screen.dart';
 import '../../state/providers.dart';
@@ -57,7 +58,7 @@ class E4pixApp extends ConsumerWidget {
           localizationsDelegates: context.localizationDelegates,
           supportedLocales: context.supportedLocales,
           locale: context.locale,
-          home: const DevelopScreen(),
+          home: const AppExitGuard(child: DevelopScreen()),
         );
       },
     );

@@ -419,5 +419,12 @@
   "watermarkInfoOverlayTL": "↖ Top Left",
   "watermarkInfoOverlayTR": "↗ Top Right",
   "watermarkInfoOverlayBL": "↙ Bottom Left",
-  "watermarkInfoOverlayBR": "↘ Bottom Right"
+  "watermarkInfoOverlayBR": "↘ Bottom Right",
+  "exit": "Exit",
+  "exitConfirmTitle": "Exit e4pix?",
+  "exitConfirmBody": "Your current editing session will be lost. Unsaved adjustments may not be recoverable.",
+  "exitWithActiveExports": "Exports are in progress. Exiting now will cancel them.",
+  "exitConfirmDontAskAgain": "Don't ask again",
+  "settingsExitConfirm": "Exit Confirmation",
+  "settingsExitConfirmHint": "Show confirmation dialog when closing the window to prevent accidental exit"
 }

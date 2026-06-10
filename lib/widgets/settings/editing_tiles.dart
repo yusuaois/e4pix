@@ -26,6 +26,20 @@ class EditingTiles extends ConsumerWidget {
           onChanged: (v) => ref.read(sidecarEnabledProvider.notifier).set(v),
         ),
 
+        SwitchListTile(
+          secondary: const Icon(Icons.exit_to_app_outlined, size: 20),
+          title: Text(
+            tr("settingsExitConfirm"),
+            style: const TextStyle(fontSize: 13.5),
+          ),
+          subtitle: Text(
+            tr("settingsExitConfirmHint"),
+            style: const TextStyle(fontSize: 11, color: Colors.white54),
+          ),
+          value: !ref.watch(skipExitConfirmProvider),
+          onChanged: (v) => ref.read(skipExitConfirmProvider.notifier).set(!v),
+        ),
+
         ListTile(
           leading: const Icon(Icons.keyboard_outlined, size: 20),
           title: Text(

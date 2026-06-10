@@ -35,6 +35,32 @@ class TetherFolderNotifier extends Notifier<String?> {
   Future<void> clear() => set(null);
 }
 
+final skipExitConfirmProvider = NotifierProvider<SkipExitConfirmNotifier, bool>(
+  SkipExitConfirmNotifier.new,
+);
+
+class SkipExitConfirmNotifier extends Notifier<bool> {
+  static const _key = 'skip_exit_confirm';
+
+  @override
+  bool build() {
+    _load();
+    return false; // 默认每次询问
+  }
+
+  Future<void> _load() async {
+    final p = await SharedPreferences.getInstance();
+    final v = p.getBool(_key);
+    if (v != null) state = v;
+  }
+
+  Future<void> set(bool v) async {
+    state = v;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_key, v);
+  }
+}
+
 class SidecarEnabledNotifier extends Notifier<bool> {
   static const _key = 'sidecar_enabled';
 

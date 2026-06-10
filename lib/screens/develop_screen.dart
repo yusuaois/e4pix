@@ -381,12 +381,17 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       return _buildFullscreen();
     }
 
-    return Focus(
-      autofocus: true,
-      onKeyEvent: (node, event) => handleDevelopKeyEvent(ref, event, keys),
-      child: Scaffold(
-        body: SafeArea(
-          child: isVertical ? _buildVerticalLayout() : _buildHorizontalLayout(),
+    return PopScope(
+      canPop: false,
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) => handleDevelopKeyEvent(ref, event, keys),
+        child: Scaffold(
+          body: SafeArea(
+            child: isVertical
+                ? _buildVerticalLayout()
+                : _buildHorizontalLayout(),
+          ),
         ),
       ),
     );

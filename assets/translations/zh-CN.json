@@ -419,5 +419,12 @@
   "watermarkInfoOverlayTL": "↖ 左上角",
   "watermarkInfoOverlayTR": "↗ 右上角",
   "watermarkInfoOverlayBL": "↙ 左下角",
-  "watermarkInfoOverlayBR": "↘ 右下角"
+  "watermarkInfoOverlayBR": "↘ 右下角",
+  "exit": "退出",
+  "exitConfirmTitle": "退出 e4pix？",
+  "exitConfirmBody": "当前编辑会话将会丢失，未保存的调整可能无法恢复。",
+  "exitWithActiveExports": "导出任务正在进行中，退出将取消所有导出任务。",
+  "exitConfirmDontAskAgain": "不再询问",
+  "settingsExitConfirm": "退出确认",
+  "settingsExitConfirmHint": "关闭窗口时弹出确认对话框，防止意外退出丢失编辑进度"
 }
