@@ -6,10 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/providers.dart';
 
-/// 全局退出拦截器：拦截窗口关闭请求，若有必要则弹出确认对话框。
+/// 全局退出拦截器：拦截窗口关闭请求，若有必要则弹出确认对话框
 ///
 /// 通过 [MaterialApp.builder] 放置在 Navigator 上方，确保任何界面下都能
-/// 拦截退出请求。不负责返回键拦截——返回键由各页面的 [PopScope] 管理。
+/// 拦截退出请求，不负责返回键拦截——返回键由各页面的 [PopScope] 管理
 class AppExitGuard extends ConsumerStatefulWidget {
   const AppExitGuard({super.key, required this.child});
   final Widget child;

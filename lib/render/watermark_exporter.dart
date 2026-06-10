@@ -2,26 +2,27 @@ import 'dart:developer' as dev;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../core/theme/app_colors.dart';
 
 import '../core/models/watermark_config.dart';
 import '../native/raw_bridge.dart';
-import '../services/watermark/watermark_asset_manager.dart';
+import '../services/watermark/watermark_logo_loader.dart';
+import 'utils/image_loader_util.dart';
 import 'watermark_geometry.dart';
 
-/// 纯离屏 Canvas 水印边框合成器。
+/// 纯离屏 Canvas 水印边框合成器
 ///
 /// 使用 [WatermarkGeometry] 统一布局 + 动态 scale 因子：
 ///   scale = fullResW × imageScale / geometry.imageRect.width
 ///
-/// 所有尺寸 = geometry 参考值 × scale，保证与预览比例 100% 一致。
-/// 文本使用 [ParagraphBuilder] 在导出分辨率上重绘，Logo 从源文件重新解码。
+/// 所有尺寸 = geometry 参考值 × scale，保证与预览比例 100% 一致
+/// 文本使用 [ParagraphBuilder] 在导出分辨率上重绘，Logo 从源文件重新解码
 class WatermarkExporter {
   WatermarkExporter._();
 
-  /// 合成水印边框，返回 [ui.Image]。
+  /// 合成水印边框，返回 [ui.Image]
   ///
-  /// [fullResImage] 是全分辨率调色结果（已裁剪、已调色）。
+  /// [fullResImage] 是全分辨率调色结果（已裁剪、已调色）
   static Future<ui.Image> composite({
     required ui.Image fullResImage,
     required WatermarkConfig config,
@@ -88,7 +89,7 @@ class WatermarkExporter {
     ui.Image? bgBlur;
     ui.Image? customBg;
     if (hasLogo) {
-      logoImg = await _loadLogoImage(config);
+      logoImg = await WatermarkLogoLoader.load(config);
     }
 
     try {
@@ -109,11 +110,7 @@ class WatermarkExporter {
         );
       } else if (config.backgroundType == BackgroundType.image &&
           config.customBackgroundPath != null) {
-        customBg = await _loadBytesAsImage(
-          await WatermarkAssetManager.readImageBytes(
-            config.customBackgroundPath!,
-          ),
-        );
+        customBg = await loadWatermarkFileImage(config.customBackgroundPath!);
       }
 
       // ── 6. Canvas 绘制 ──
@@ -271,7 +268,7 @@ class WatermarkExporter {
     }
   }
 
-  /// 绘制图片背景；若图片为 null 则回退到纯色填充。
+  /// 绘制图片背景；若图片为 null 则回退到纯色填充
   static void _drawImageBgOrFallback(
     ui.Canvas cvs,
     ui.Image? image,
@@ -288,7 +285,7 @@ class WatermarkExporter {
     } else {
       cvs.drawRect(
         ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
-        ui.Paint()..color = const ui.Color(0xFF1A1A1A),
+        ui.Paint()..color = AppColors.fallbackBg,
       );
     }
   }
@@ -331,12 +328,12 @@ class WatermarkExporter {
   // 模糊背景
   // ────────────────────────────────────────────────────────────
 
-  /// 降采样 → 模糊（缩略图分辨率）→ 拉伸到导出尺寸。
+  /// 降采样+模糊 → 拉伸到导出尺寸（两 pass，从原来的三 pass 优化）
   ///
   /// 与预览 [_BlurredBackgroundLayer] 使用完全相同的两阶段策略：
-  ///   1. 在 256px 缩略图上施加模糊（sigma 补偿降采样 + 填充拉伸）
-  ///   2. 将模糊后的缩略图拉伸到导出画布
-  /// 保证导出模糊的丝滑程度与预览一致。
+  ///   Pass 1: 在缩略图上降采样同时施加模糊（合并为一个 saveLayer，省去中间纹理）
+  ///   Pass 2: 将模糊后的缩略图拉伸到导出画布
+  /// 保证导出模糊的丝滑程度与预览一致
   static Future<ui.Image?> _makeBlurBg(
     ui.Image src,
     double sigma,
@@ -344,7 +341,6 @@ class WatermarkExporter {
     int tw,
     int th,
   ) async {
-    // 使用与预览 _BlurredBackgroundLayer 完全相同的公式
     final b = computeBlurParams(
       srcWidth: src.width.toDouble(),
       srcHeight: src.height.toDouble(),
@@ -353,22 +349,10 @@ class WatermarkExporter {
       refCanvasHeight: th / exportScale,
     );
 
-    // Step 1: 降采样到缩略图
+    // Pass 1: 降采样到缩略图 + 模糊（合并：saveLayer 内缩放绘制并施加模糊）
     final r1 = ui.PictureRecorder();
-    ui.Canvas(r1).drawImageRect(
-      src,
-      ui.Rect.fromLTWH(0, 0, src.width.toDouble(), src.height.toDouble()),
-      ui.Rect.fromLTWH(0, 0, b.thumbW.toDouble(), b.thumbH.toDouble()),
-      ui.Paint()..filterQuality = ui.FilterQuality.medium,
-    );
-    final p1 = r1.endRecording();
-    final small = await p1.toImage(b.thumbW, b.thumbH);
-    p1.dispose();
-
-    // Step 2: 在缩略图分辨率上施加模糊
-    final r2 = ui.PictureRecorder();
-    final c2 = ui.Canvas(r2);
-    c2.saveLayer(
+    final c1 = ui.Canvas(r1);
+    c1.saveLayer(
       ui.Rect.fromLTWH(0, 0, b.thumbW.toDouble(), b.thumbH.toDouble()),
       ui.Paint()
         ..imageFilter = ui.ImageFilter.blur(
@@ -377,29 +361,28 @@ class WatermarkExporter {
           tileMode: ui.TileMode.clamp,
         ),
     );
-    c2.drawImageRect(
-      small,
+    c1.drawImageRect(
+      src,
+      ui.Rect.fromLTWH(0, 0, src.width.toDouble(), src.height.toDouble()),
       ui.Rect.fromLTWH(0, 0, b.thumbW.toDouble(), b.thumbH.toDouble()),
-      ui.Rect.fromLTWH(0, 0, b.thumbW.toDouble(), b.thumbH.toDouble()),
-      ui.Paint(),
+      ui.Paint()..filterQuality = ui.FilterQuality.medium,
     );
-    c2.restore();
-    final p2 = r2.endRecording();
-    final blurredThumb = await p2.toImage(b.thumbW, b.thumbH);
-    p2.dispose();
-    small.dispose();
+    c1.restore();
+    final p1 = r1.endRecording();
+    final blurredThumb = await p1.toImage(b.thumbW, b.thumbH);
+    p1.dispose();
 
-    // Step 3: 拉伸模糊缩略图到导出画布
-    final r3 = ui.PictureRecorder();
-    ui.Canvas(r3).drawImageRect(
+    // Pass 2: 拉伸模糊缩略图到导出画布
+    final r2 = ui.PictureRecorder();
+    ui.Canvas(r2).drawImageRect(
       blurredThumb,
       ui.Rect.fromLTWH(0, 0, b.thumbW.toDouble(), b.thumbH.toDouble()),
       ui.Rect.fromLTWH(0, 0, tw.toDouble(), th.toDouble()),
       ui.Paint()..filterQuality = ui.FilterQuality.low,
     );
-    final p3 = r3.endRecording();
-    final result = await p3.toImage(tw, th);
-    p3.dispose();
+    final p2 = r2.endRecording();
+    final result = await p2.toImage(tw, th);
+    p2.dispose();
     blurredThumb.dispose();
     return result;
   }
@@ -407,38 +390,6 @@ class WatermarkExporter {
   // ────────────────────────────────────────────────────────────
   // 工具
   // ────────────────────────────────────────────────────────────
-
-  static Future<ui.Image?> _loadBytesAsImage(Uint8List? bytes) async {
-    if (bytes == null || bytes.isEmpty) return null;
-    try {
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      return frame.image;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static Future<ui.Image?> _loadLogoImage(WatermarkConfig config) async {
-    if (config.logoSource == LogoSource.custom &&
-        config.customLogoPath != null) {
-      final bytes = await WatermarkAssetManager.readImageBytes(
-        config.customLogoPath!,
-      );
-      return _loadBytesAsImage(bytes);
-    }
-    if (config.logoBrand != null) {
-      final assetPath = logoAssetPath(config.logoBrand!, config.colorMode);
-      try {
-        final data = await rootBundle.load(assetPath);
-        final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
-        return (await codec.getNextFrame()).image;
-      } catch (_) {
-        return null;
-      }
-    }
-    return null;
-  }
 
   static ui.TextStyle _toUiStyle(TextStyle ts) => ui.TextStyle(
     color: ts.color != null

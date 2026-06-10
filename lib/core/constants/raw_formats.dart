@@ -61,7 +61,7 @@ class RawFormats {
     ...standardExtensions,
   ].map((e) => e.substring(1).toUpperCase()).join(' · ');
 
-  /// 按导入模式过滤文件列表。
+  /// 按导入模式过滤文件列表
   /// rawPriority: 同名 RAW+标准 → 只留 RAW；无同名 RAW 的标准图保留
   /// rawOnly: 只留 RAW
   /// all: RAW + 标准 都保留

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,7 @@ import 'brush_rasterizer.dart';
 import 'crop_transform.dart';
 import 'mask_cache.dart';
 import 'render_engine.dart';
+import 'utils/shader_pass_util.dart';
 
 class FullPipelineRenderer {
   // 非 brush mask pass 绑定的 1x1 dummy
@@ -200,6 +202,8 @@ class FullPipelineRenderer {
     }
 
     // 自动蒙版引导图：develop+crop 输出像素，仅当存在 auto 笔画时读一次
+    // 降采样到 ≤512px
+    const kMaxGuideEdge = 512;
     Uint8List? guideBytes;
     int guideW = current.width;
     int guideH = current.height;
@@ -210,11 +214,24 @@ class FullPipelineRenderer {
     });
     if (needGuide) {
       try {
-        final bd = await current.toByteData(format: ui.ImageByteFormat.rawRgba);
-        guideBytes = bd?.buffer.asUint8List();
-        guideW = current.width;
-        guideH = current.height;
-        guideEpoch = Object.hash(devFp, params.crop);
+        final longestSide = math.max(current.width, current.height).toDouble();
+        late final ui.Image readSrc;
+        if (longestSide <= kMaxGuideEdge) {
+          readSrc = current;
+        } else {
+          readSrc = await _downscaleForGuide(current, kMaxGuideEdge);
+        }
+        try {
+          final bd = await readSrc.toByteData(
+            format: ui.ImageByteFormat.rawRgba,
+          );
+          guideBytes = bd?.buffer.asUint8List();
+          guideW = readSrc.width;
+          guideH = readSrc.height;
+          guideEpoch = Object.hash(devFp, params.crop);
+        } finally {
+          if (longestSide > kMaxGuideEdge) readSrc.dispose();
+        }
       } catch (e) {
         debugPrint('Guide readback failed: $e');
         guideBytes = null;
@@ -294,6 +311,24 @@ class FullPipelineRenderer {
     return current;
   }
 
+  /// 将图片降采样到最长边不超过 [maxEdge] 的版本，用于引导图快速回读
+  static Future<ui.Image> _downscaleForGuide(ui.Image src, int maxEdge) async {
+    final s = maxEdge / math.max(src.width, src.height);
+    final tw = (src.width * s).round();
+    final th = (src.height * s).round();
+    final recorder = ui.PictureRecorder();
+    ui.Canvas(recorder).drawImageRect(
+      src,
+      ui.Rect.fromLTWH(0, 0, src.width.toDouble(), src.height.toDouble()),
+      ui.Rect.fromLTWH(0, 0, tw.toDouble(), th.toDouble()),
+      ui.Paint()..filterQuality = ui.FilterQuality.low,
+    );
+    final pic = recorder.endRecording();
+    final result = await pic.toImage(tw, th);
+    pic.dispose();
+    return result;
+  }
+
   static Future<ui.Image> _runDenoisePass({
     required ui.FragmentProgram program,
     required ui.Image input,
@@ -302,24 +337,19 @@ class FullPipelineRenderer {
     required double luma,
     required double color,
   }) async {
-    final shader = program.fragmentShader();
-    int i = 0;
-    shader.setFloat(i++, targetWidth.toDouble());
-    shader.setFloat(i++, targetHeight.toDouble());
-    shader.setFloat(i++, luma);
-    shader.setFloat(i++, color);
-    shader.setImageSampler(0, input);
-
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-    canvas.drawRect(
-      ui.Rect.fromLTWH(0, 0, targetWidth.toDouble(), targetHeight.toDouble()),
-      ui.Paint()..shader = shader,
+    return runSingleShaderPass(
+      shader: program.fragmentShader(),
+      outputWidth: targetWidth,
+      outputHeight: targetHeight,
+      samplers: [input],
+      setUniforms: (s) {
+        int i = 0;
+        s.setFloat(i++, targetWidth.toDouble());
+        s.setFloat(i++, targetHeight.toDouble());
+        s.setFloat(i++, luma);
+        s.setFloat(i++, color);
+      },
     );
-    final pic = recorder.endRecording();
-    final result = await pic.toImage(targetWidth, targetHeight);
-    pic.dispose();
-    return result;
   }
 
   static Future<ui.Image> _runMaskPass({
@@ -328,24 +358,16 @@ class FullPipelineRenderer {
     required LocalAdjustment local,
     required ui.Image maskTexture,
   }) async {
-    final shader = program.fragmentShader();
     final w = input.width;
     final h = input.height;
-
-    _setMaskUniforms(shader, local, w.toDouble(), h.toDouble());
-    shader.setImageSampler(0, input);
-    shader.setImageSampler(1, maskTexture);
-
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-    canvas.drawRect(
-      ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-      ui.Paint()..shader = shader,
+    return runSingleShaderPass(
+      shader: program.fragmentShader(),
+      outputWidth: w,
+      outputHeight: h,
+      samplers: [input, maskTexture],
+      setUniforms: (s) =>
+          _setMaskUniforms(s, local, w.toDouble(), h.toDouble()),
     );
-    final picture = recorder.endRecording();
-    final result = await picture.toImage(w, h);
-    picture.dispose();
-    return result;
   }
 
   static void _setMaskUniforms(
@@ -417,6 +439,9 @@ class FullPipelineRenderer {
     shader.setFloat(i++, p.tint);
     shader.setFloat(i++, p.saturation);
     shader.setFloat(i++, p.vibrance);
+
+    // Debug: 确保 mask uniform 总数与 shader 定义一致（24 个 float）
+    assert(i == 24, 'Mask uniform count mismatch: expected 24, got $i');
   }
 
   static Future<ui.Image> _runSharpenPass({
@@ -426,25 +451,20 @@ class FullPipelineRenderer {
     required double radius,
     required double masking,
   }) async {
-    final shader = program.fragmentShader();
     final w = input.width, h = input.height;
-    int i = 0;
-    shader.setFloat(i++, w.toDouble());
-    shader.setFloat(i++, h.toDouble());
-    shader.setFloat(i++, amount);
-    shader.setFloat(i++, radius);
-    shader.setFloat(i++, masking);
-    shader.setImageSampler(0, input);
-
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-    canvas.drawRect(
-      ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-      ui.Paint()..shader = shader,
+    return runSingleShaderPass(
+      shader: program.fragmentShader(),
+      outputWidth: w,
+      outputHeight: h,
+      samplers: [input],
+      setUniforms: (s) {
+        int i = 0;
+        s.setFloat(i++, w.toDouble());
+        s.setFloat(i++, h.toDouble());
+        s.setFloat(i++, amount);
+        s.setFloat(i++, radius);
+        s.setFloat(i++, masking);
+      },
     );
-    final pic = recorder.endRecording();
-    final result = await pic.toImage(w, h);
-    pic.dispose();
-    return result;
   }
 }

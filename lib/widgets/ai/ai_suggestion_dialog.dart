@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../services/ai/ai_color_service.dart';
@@ -246,7 +247,7 @@ class _SuggestionView extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10.5,
                     fontFamily: 'monospace',
-                    color: Colors.greenAccent.withValues(alpha: 0.85),
+                    color: AppColors.activeValue,
                   ),
                 ),
               ],
@@ -312,7 +313,7 @@ class _SuggestionView extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 11,
                               fontFamily: 'monospace',
-                              color: Colors.greenAccent.withValues(alpha: 0.85),
+                              color: AppColors.activeValue,
                             ),
                           ),
                         ],

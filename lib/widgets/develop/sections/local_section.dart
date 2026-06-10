@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/local_adjustment.dart';
@@ -130,9 +131,7 @@ class _MaskListItem extends ConsumerWidget {
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          color: isSelected
-              ? Colors.white.withValues(alpha: 0.05)
-              : Colors.transparent,
+          color: isSelected ? AppColors.subtleBorder : Colors.transparent,
           child: Row(
             children: [
               Icon(icon, size: 14, color: color),

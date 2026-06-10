@@ -8,11 +8,11 @@ import '../native/raw_bridge.dart';
 /// 水印边框统一几何布局模型
 ///
 /// **核心设计**：
-/// - 所有尺寸基于固定宽度的参考画布（[kBaseWidth]=1000px），不依赖屏幕尺寸。
+/// - 所有尺寸基于固定宽度的参考画布（[kBaseWidth]=1000px），不依赖屏幕尺寸
 /// - Preview 和 Export 共用此模型
-/// - 导出时用 [exportScale] 将参考尺寸映射到全分辨率像素。
+/// - 导出时用 [exportScale] 将参考尺寸映射到全分辨率像素
 class WatermarkGeometry {
-  /// 参考画布基准宽度（逻辑像素）。
+  /// 参考画布基准宽度（逻辑像素）
   static const double kBaseWidth = 1000.0;
 
   // ────────────────────────────────────────────────────────────
@@ -82,10 +82,10 @@ class WatermarkGeometry {
   // 工厂方法
   // ────────────────────────────────────────────────────────────
 
-  /// 根据图片宽高比和水印配置计算布局。
+  /// 根据图片宽高比和水印配置计算布局
   ///
-  /// [imageAspectRatio] = width / height（裁剪后的原图宽高比）。
-  /// [showExif] 覆盖 config.showExif，允许调用方传入 EXIF 是否真正有内容。
+  /// [imageAspectRatio] = width / height（裁剪后的原图宽高比）
+  /// [showExif] 覆盖 config.showExif，允许调用方传入 EXIF 是否真正有内容
   factory WatermarkGeometry.compute({
     required double imageAspectRatio,
     required WatermarkConfig config,
@@ -191,20 +191,20 @@ class WatermarkGeometry {
   // 导出缩放
   // ────────────────────────────────────────────────────────────
 
-  /// 水平居中边距（参考画布）。
+  /// 水平居中边距（参考画布）
   ///
-  /// 由于 canvas 紧贴内容，左右边距相等且正好等于 [borderWidth]。
+  /// 由于 canvas 紧贴内容，左右边距相等且正好等于 [borderWidth]
   double get horizontalMargin => borderWidth;
 
-  /// 计算从参考画布到导出画布的缩放因子。
+  /// 计算从参考画布到导出画布的缩放因子
   ///
-  /// [fullResImageWidth] 是全分辨率渲染原图的宽度（像素）。
-  /// 导出时所有参考尺寸都应乘以该因子。
+  /// [fullResImageWidth] 是全分辨率渲染原图的宽度（像素）
+  /// 导出时所有参考尺寸都应乘以该因子
   double exportScale(int fullResImageWidth) {
     return (fullResImageWidth * imageScale) / imageRect.width;
   }
 
-  /// 导出画布尺寸（像素）。
+  /// 导出画布尺寸（像素）
   Size exportCanvasSize(int fullResImageWidth) {
     final s = exportScale(fullResImageWidth);
     return Size(canvasSize.width * s, canvasSize.height * s);
@@ -236,7 +236,7 @@ class WatermarkGeometry {
 // 辅助判断（不依赖 WatermarkExporter，纯数据函数）
 // ──────────────────────────────────────────────────────────────
 
-/// 判断配置中是否包含 Logo。
+/// 判断配置中是否包含 Logo
 bool watermarkHasLogo(WatermarkConfig c) {
   if (c.logoSource == LogoSource.custom && c.customLogoPath != null) {
     return true;
@@ -245,7 +245,7 @@ bool watermarkHasLogo(WatermarkConfig c) {
   return false;
 }
 
-/// 判断是否应显示 EXIF（自动模式下需有有效元数据）。
+/// 判断是否应显示 EXIF（自动模式下需有有效元数据
 bool watermarkShowExif(WatermarkConfig c, {String? exifText}) {
   if (!c.showExif) return false;
   if (c.exifMode == ExifMode.custom) {

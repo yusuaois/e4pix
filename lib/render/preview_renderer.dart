@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -8,6 +7,7 @@ import '../core/models/adjustment_params.dart';
 import '../state/interaction_state.dart';
 import '../state/render/render_state.dart';
 import 'develop_uniforms.dart';
+import 'utils/adjustment_throttler.dart';
 
 class PreviewRenderer extends ConsumerStatefulWidget {
   final ui.Image image;
@@ -38,8 +38,14 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
   ui.FragmentShader? _cachedShader;
 
   late AdjustmentParams _displayedParams;
-  Timer? _throttle;
-  ProviderSubscription<bool>? _dragSub;
+  late final _throttler = AdjustmentThrottler(ref)
+    ..listen(
+      onDragEnd: () {
+        if (mounted && _displayedParams != widget.params) {
+          setState(() => _displayedParams = widget.params);
+        }
+      },
+    );
 
   static const _draggingInterval = Duration(milliseconds: 33);
 
@@ -55,45 +61,27 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
   void initState() {
     super.initState();
     _displayedParams = widget.params;
-    _dragSub = ref.listenManual<bool>(isUserDraggingSliderProvider, (
-      prev,
-      next,
-    ) {
-      if (prev == true && next == false) {
-        _throttle?.cancel();
-        _throttle = null;
-        if (mounted && _displayedParams != widget.params) {
-          setState(() => _displayedParams = widget.params);
-        }
-      }
-    });
   }
 
   @override
   void didUpdateWidget(PreviewRenderer old) {
     super.didUpdateWidget(old);
     if (old.params == widget.params) return;
-    final isDragging = ref.read(isUserDraggingSliderProvider);
-    if (!isDragging) {
-      _throttle?.cancel();
-      _throttle = null;
+    if (!ref.read(isUserDraggingSliderProvider)) {
       _displayedParams = widget.params;
       return;
     }
-    if (_throttle != null) return;
-    _throttle = Timer(_draggingInterval, () {
-      _throttle = null;
+    _throttler.throttle(() {
       if (!mounted) return;
       if (_displayedParams != widget.params) {
         setState(() => _displayedParams = widget.params);
       }
-    });
+    }, dragDelay: _draggingInterval);
   }
 
   @override
   void dispose() {
-    _throttle?.cancel();
-    _dragSub?.close();
+    _throttler.dispose();
     super.dispose();
   }
 

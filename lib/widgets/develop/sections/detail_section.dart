@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/adjustment_params.dart';
 import '../../../core/models/grain_params.dart';
-import '../tracked_slider.dart';
 import 'shared.dart';
 
 class DetailSection extends StatefulWidget {
@@ -22,59 +21,6 @@ class DetailSection extends StatefulWidget {
 class _DetailSectionState extends State<DetailSection> {
   bool _grainAdvanced = false;
 
-  Widget _slider({
-    required String label,
-    required double value,
-    required double min,
-    required double max,
-    required ValueChanged<double> onChanged,
-    required double resetValue,
-    int fractionDigits = 0,
-  }) {
-    return Builder(
-      builder: (context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 12)),
-                GestureDetector(
-                  onDoubleTap: () => onChanged(resetValue),
-                  child: Text(
-                    value.toStringAsFixed(fractionDigits),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontFamily: 'monospace',
-                      color: (value - resetValue).abs() < 0.001
-                          ? Colors.white.withValues(alpha: 0.4)
-                          : Colors.greenAccent.withValues(alpha: 0.85),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 3,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
-              ),
-              child: TrackedSlider(
-                value: value.clamp(min, max),
-                min: min,
-                max: max,
-                onChanged: onChanged,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final p = widget.params;
@@ -85,7 +31,7 @@ class _DetailSectionState extends State<DetailSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SectionLabel(title: 'Sharpen'),
-        _slider(
+        DevelopSliderTile(
           label: tr('sharpenAmount'),
           value: p.sharpenAmount,
           min: 0,
@@ -93,7 +39,7 @@ class _DetailSectionState extends State<DetailSection> {
           resetValue: 0,
           onChanged: (v) => widget.onChanged(p.copyWith(sharpenAmount: v)),
         ),
-        _slider(
+        DevelopSliderTile(
           label: tr('sharpenRadius'),
           value: p.sharpenRadius,
           min: 0.5,
@@ -102,7 +48,7 @@ class _DetailSectionState extends State<DetailSection> {
           resetValue: 1.0,
           onChanged: (v) => widget.onChanged(p.copyWith(sharpenRadius: v)),
         ),
-        _slider(
+        DevelopSliderTile(
           label: tr('sharpenMasking'),
           value: p.sharpenMasking,
           min: 0,
@@ -111,7 +57,7 @@ class _DetailSectionState extends State<DetailSection> {
           onChanged: (v) => widget.onChanged(p.copyWith(sharpenMasking: v)),
         ),
         const SectionLabel(title: 'Denoise'),
-        _slider(
+        DevelopSliderTile(
           label: tr('denoiseLuma'),
           value: p.denoiseLuma,
           min: 0,
@@ -119,7 +65,7 @@ class _DetailSectionState extends State<DetailSection> {
           resetValue: 0,
           onChanged: (v) => widget.onChanged(p.copyWith(denoiseLuma: v)),
         ),
-        _slider(
+        DevelopSliderTile(
           label: tr('denoiseColor'),
           value: p.denoiseColor,
           min: 0,
@@ -128,7 +74,7 @@ class _DetailSectionState extends State<DetailSection> {
           onChanged: (v) => widget.onChanged(p.copyWith(denoiseColor: v)),
         ),
         const SectionLabel(title: 'Grain'),
-        _slider(
+        DevelopSliderTile(
           label: tr('grainAmount'),
           value: g.amount,
           min: 0,
@@ -136,7 +82,7 @@ class _DetailSectionState extends State<DetailSection> {
           resetValue: 0,
           onChanged: (v) => setGrain(g.copyWith(amount: v)),
         ),
-        _slider(
+        DevelopSliderTile(
           label: tr('grainSize'),
           value: g.size,
           min: 0.1,
@@ -191,7 +137,7 @@ class _DetailSectionState extends State<DetailSection> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 4),
-                  _slider(
+                  DevelopSliderTile(
                     label: tr('grainShadowThreshold'),
                     value: g.shadowThreshold,
                     min: 0,
@@ -199,7 +145,7 @@ class _DetailSectionState extends State<DetailSection> {
                     resetValue: 85,
                     onChanged: (v) => setGrain(g.copyWith(shadowThreshold: v)),
                   ),
-                  _slider(
+                  DevelopSliderTile(
                     label: tr('grainHighlightThreshold'),
                     value: g.highlightThreshold,
                     min: 0,
@@ -208,7 +154,7 @@ class _DetailSectionState extends State<DetailSection> {
                     onChanged: (v) =>
                         setGrain(g.copyWith(highlightThreshold: v)),
                   ),
-                  _slider(
+                  DevelopSliderTile(
                     label: tr('grainShadowStrength'),
                     value: g.shadowStrength,
                     min: 0.2,
@@ -217,7 +163,7 @@ class _DetailSectionState extends State<DetailSection> {
                     resetValue: 0.6,
                     onChanged: (v) => setGrain(g.copyWith(shadowStrength: v)),
                   ),
-                  _slider(
+                  DevelopSliderTile(
                     label: tr('grainHighlightStrength'),
                     value: g.highlightStrength,
                     min: 0.1,
@@ -227,7 +173,7 @@ class _DetailSectionState extends State<DetailSection> {
                     onChanged: (v) =>
                         setGrain(g.copyWith(highlightStrength: v)),
                   ),
-                  _slider(
+                  DevelopSliderTile(
                     label: tr('grainShadowSize'),
                     value: g.shadowSize,
                     min: 1.0,
@@ -236,7 +182,7 @@ class _DetailSectionState extends State<DetailSection> {
                     resetValue: 1.5,
                     onChanged: (v) => setGrain(g.copyWith(shadowSize: v)),
                   ),
-                  _slider(
+                  DevelopSliderTile(
                     label: tr('grainHighlightSize'),
                     value: g.highlightSize,
                     min: 0.3,
@@ -245,7 +191,7 @@ class _DetailSectionState extends State<DetailSection> {
                     resetValue: 0.6,
                     onChanged: (v) => setGrain(g.copyWith(highlightSize: v)),
                   ),
-                  _slider(
+                  DevelopSliderTile(
                     label: tr('grainRedChannel'),
                     value: g.redRatio,
                     min: 0.5,
@@ -254,7 +200,7 @@ class _DetailSectionState extends State<DetailSection> {
                     resetValue: 0.9,
                     onChanged: (v) => setGrain(g.copyWith(redRatio: v)),
                   ),
-                  _slider(
+                  DevelopSliderTile(
                     label: tr('grainBlueChannel'),
                     value: g.blueRatio,
                     min: 0.8,
@@ -263,7 +209,7 @@ class _DetailSectionState extends State<DetailSection> {
                     resetValue: 1.2,
                     onChanged: (v) => setGrain(g.copyWith(blueRatio: v)),
                   ),
-                  _slider(
+                  DevelopSliderTile(
                     label: tr('grainCorrelation'),
                     value: g.correlation,
                     min: 0.8,
@@ -272,7 +218,7 @@ class _DetailSectionState extends State<DetailSection> {
                     resetValue: 0.9,
                     onChanged: (v) => setGrain(g.copyWith(correlation: v)),
                   ),
-                  _slider(
+                  DevelopSliderTile(
                     label: tr('grainColorPreservation'),
                     value: g.colorPreservation,
                     min: 0.9,

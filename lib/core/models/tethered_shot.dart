@@ -10,7 +10,7 @@ import 'adjustment_params.dart';
 
 enum ShotFlag { none, pick, reject }
 
-/// **不可变** —— 改 params / thumbnail 需要 copyWith 返回新实例。
+/// **不可变** —— 改 params / thumbnail 需要 copyWith 返回新实例
 @immutable
 class TetheredShot {
   final String path;

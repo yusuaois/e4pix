@@ -27,7 +27,7 @@ class LightSection extends StatelessWidget {
           max: 5,
           onChanged: (v) => onChanged(p.copyWith(exposure: v)),
           suffix: ' EV',
-          precision: 2,
+          fractionDigits: 2,
         ),
         DevelopSliderTile(
           label: tr("contrast"),

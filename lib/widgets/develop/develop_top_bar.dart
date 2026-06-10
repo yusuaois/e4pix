@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/tethered_shot.dart';
@@ -144,10 +145,8 @@ class DevelopTopBar extends ConsumerWidget {
         vertical: isVertical ? 3 : 8,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFF14141A),
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
-        ),
+        color: AppColors.panelBg,
+        border: Border(bottom: BorderSide(color: AppColors.subtleBorder)),
       ),
       child: Row(
         children: [
@@ -198,7 +197,7 @@ class DevelopTopBar extends ConsumerWidget {
               isVertical,
               color: cameraState.shutterFlash
                   ? Colors.greenAccent
-                  : Colors.greenAccent.withValues(alpha: 0.85),
+                  : AppColors.activeValue,
             ),
           Expanded(
             child: LayoutBuilder(

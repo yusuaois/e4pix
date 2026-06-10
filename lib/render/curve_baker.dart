@@ -4,12 +4,12 @@ import 'dart:ui' as ui;
 
 import '../core/models/rgb_curves.dart';
 
-/// 把 [RgbCurves] 烤成 256×5 RGBA 纹理。
-/// 行 0=主 1=R 2=G 3=B 4=亮度。identity 返回 null（无需纹理）。
+/// 把 [RgbCurves] 烤成 256×5 RGBA 纹理
+/// 行 0=主 1=R 2=G 3=B 4=亮度，identity 返回 null（无需纹理）
 ///
-/// 纯函数：不依赖任何 Notifier / 全局状态。供 CurveTextureNotifier（预览）
+/// 纯函数：不依赖任何 Notifier / 全局状态，供 CurveTextureNotifier（预览）
 /// 和 Exporter（每张图按自身 params.curves 现生成）共用，保证批量导出
-/// 每张图用各自的曲线。
+/// 每张图用各自的曲线
 Future<ui.Image?> bakeCurveTexture(RgbCurves curves) async {
   if (curves.isIdentity) return null;
 

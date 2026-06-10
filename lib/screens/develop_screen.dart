@@ -58,6 +58,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   // 底部面板折叠状态（仅隐藏图片滑块，不改变面板高度）
   bool _bottomPanelCollapsed = false;
 
+  // 拖拽去抖累加器（避免每帧 setState 重建子树）
+  double _panelDragAccum = 0;
+  Offset _histDragAccum = Offset.zero;
+  static const _panelDragThreshold = 4.0;
+  static const _histDragThreshold = 3.0;
+
   @override
   void initState() {
     super.initState();
@@ -501,19 +507,25 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       height: _miniHistogramH,
                       child: GestureDetector(
                         onPanUpdate: (details) {
+                          _histDragAccum += details.delta;
+                          if (_histDragAccum.distance < _histDragThreshold)
+                            return;
                           setState(() {
                             _histogramPosition = Offset(
-                              (_histogramPosition.dx + details.delta.dx).clamp(
+                              (_histogramPosition.dx + _histDragAccum.dx).clamp(
                                 0.0,
                                 previewSize.width - _miniHistogramW,
                               ),
-                              (_histogramPosition.dy + details.delta.dy).clamp(
+                              (_histogramPosition.dy + _histDragAccum.dy).clamp(
                                 0.0,
                                 previewSize.height - _miniHistogramH,
                               ),
                             );
                           });
+                          _histDragAccum = Offset.zero;
                         },
+                        onPanEnd: (_) => _histDragAccum = Offset.zero,
+                        onPanCancel: () => _histDragAccum = Offset.zero,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(6),
                           child: Opacity(
@@ -546,14 +558,19 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     });
                   },
                   onVerticalDragUpdate: (details) {
+                    _panelDragAccum += details.delta.dy;
+                    if (_panelDragAccum.abs() < _panelDragThreshold) return;
                     setState(() {
                       _bottomPanelHeight =
-                          (_bottomPanelHeight - details.delta.dy).clamp(
+                          (_bottomPanelHeight - _panelDragAccum).clamp(
                             _bottomPanelMinHeight,
                             _bottomPanelMaxHeight,
                           );
                     });
+                    _panelDragAccum = 0;
                   },
+                  onVerticalDragEnd: (_) => _panelDragAccum = 0,
+                  onVerticalDragCancel: () => _panelDragAccum = 0,
                   child: Container(
                     height: _handleBarHeight,
                     color: Colors.white.withValues(alpha: 0.04),

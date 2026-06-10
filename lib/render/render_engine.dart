@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 
 import '../core/models/adjustment_params.dart';
 import 'develop_uniforms.dart';
+import 'utils/shader_pass_util.dart';
 
 class RenderEngine {
-  // 渲染输出
   static Future<ui.Image> renderToImage({
     required ui.FragmentProgram program,
     required ui.Image sourceImage,
@@ -22,31 +22,27 @@ class RenderEngine {
     final h = targetHeight ?? sourceImage.height;
     final shader = program.fragmentShader();
 
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-
-    applyDevelopUniforms(
+    return runSingleShaderPass(
       shader: shader,
-      renderSize: Size(w.toDouble(), h.toDouble()),
-      params: params,
-      image: sourceImage,
-      lutTexture: lutTexture,
-      lutSize: lutSize,
-      lutTextureB: lutTextureB,
-      lutSizeB: lutSizeB,
-      curveTexture: curveTexture,
+      outputWidth: w,
+      outputHeight: h,
+      samplers: [
+        sourceImage,
+        lutTexture ?? sourceImage,
+        lutTextureB ?? sourceImage,
+        curveTexture ?? sourceImage,
+      ],
+      setUniforms: (s) => applyDevelopUniforms(
+        shader: s,
+        renderSize: Size(w.toDouble(), h.toDouble()),
+        params: params,
+        image: sourceImage,
+        lutTexture: lutTexture,
+        lutSize: lutSize,
+        lutTextureB: lutTextureB,
+        lutSizeB: lutSizeB,
+        curveTexture: curveTexture,
+      ),
     );
-
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-      Paint()..shader = shader,
-    );
-
-    final picture = recorder.endRecording();
-    try {
-      return await picture.toImage(w, h);
-    } finally {
-      picture.dispose();
-    }
   }
 }

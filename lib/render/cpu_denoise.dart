@@ -15,8 +15,8 @@ const int kMaxDenoiseRadius = 24;
 /// 多 isolate 分块并行 CPU 降噪
 ///
 /// 把图按行切成 [parallelism] 条横带，每条带含上下各 [kMaxDenoiseRadius] 行
-/// halo 作邻域参考，降噪后只保留本带行，最后按顺序拼接。各带在独立 isolate
-/// 并行计算。[parallelism] <= 0 表示自动（取 CPU 核心数）
+/// halo 作邻域参考，降噪后只保留本带行，最后按顺序拼接，各带在独立 isolate
+/// 并行计算，[parallelism] <= 0 表示自动（取 CPU 核心数）
 ///
 /// 输入/输出均为 16-bit 线性 RGB 交错（每像素 3 通道，0-65535）
 Future<Uint16List> cpuDenoiseParallel(
@@ -144,10 +144,10 @@ _BandOut _denoiseBandTask(_BandTask t) {
 
 // ── 降噪算法 ──────────────────────────────────────────────────
 
-/// 16-bit 线性 RGB 交错 → 双边滤波降噪 → 16-bit 线性 RGB 交错。
+/// 16-bit 线性 RGB 交错 → 双边滤波降噪 → 16-bit 线性 RGB 交错
 ///
 /// YCbCr 分离：明度（Y）做 5×5 双边滤波保细节，色度（Cb/Cr）做大半径稀疏
-/// 双边滤波消彩斑。range/空间权重均预计算查表，避免每像素 math.exp。
+/// 双边滤波消彩斑，range/空间权重均预计算查表，避免每像素 math.exp
 Uint16List denoise16Linear(
   Uint16List src,
   int w,

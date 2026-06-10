@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/rgb_curves.dart';
@@ -16,6 +19,10 @@ class CurveSection extends ConsumerStatefulWidget {
 class _CurveSectionState extends ConsumerState<CurveSection> {
   int _channel = 0; // 0主 1R 2G 3B
   int? _dragIndex;
+
+  /// 拖拽节流：避免每次像素移动都触发完整管线重渲染
+  Timer? _commitThrottle;
+  ToneCurve? _pendingCurve;
 
   /// 控制点半径，供画布溢出以完整显示边界控制点
   static const double _pointOverflow = 6.0;
@@ -45,6 +52,12 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
   };
 
   @override
+  void dispose() {
+    _commitThrottle?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final params = ref.watch(currentParamsNotifierProvider);
     final curves = params.curves;
@@ -55,6 +68,30 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
       ref
           .read(currentParamsNotifierProvider.notifier)
           .update(params.copyWith(curves: _withChannel(curves, next)));
+    }
+
+    void commitThrottled(ToneCurve next) {
+      _pendingCurve = next;
+      if (_commitThrottle != null) return;
+      _commitThrottle = Timer(const Duration(milliseconds: 33), () {
+        _commitThrottle = null;
+        if (!mounted) return;
+        final c = _pendingCurve;
+        if (c != null) {
+          _pendingCurve = null;
+          commit(c);
+        }
+      });
+    }
+
+    void flushThrottled() {
+      _commitThrottle?.cancel();
+      _commitThrottle = null;
+      final c = _pendingCurve;
+      if (c != null) {
+        _pendingCurve = null;
+        commit(c);
+      }
     }
 
     return Column(
@@ -90,8 +127,16 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
                   return GestureDetector(
                     onTapUp: (d) => _onTapUp(d, size, curve, commit),
                     onPanStart: (d) => _onPanStart(d, size, curve),
-                    onPanUpdate: (d) => _onPanUpdate(d, size, curve, commit),
-                    onPanEnd: (_) => _dragIndex = null,
+                    onPanUpdate: (d) =>
+                        _onPanUpdate(d, size, curve, commitThrottled),
+                    onPanEnd: (_) {
+                      _dragIndex = null;
+                      flushThrottled();
+                    },
+                    onPanCancel: () {
+                      _dragIndex = null;
+                      flushThrottled();
+                    },
                     onLongPressStart: (d) =>
                         _onLongPress(d.localPosition, size, curve, commit),
                     child: OverflowBox(
@@ -166,7 +211,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
             color: sel ? color.withValues(alpha: 0.18) : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: sel ? color : Colors.white.withValues(alpha: 0.12),
+              color: sel ? color : AppColors.faintBorder,
               width: sel ? 1.5 : 1,
             ),
           ),
@@ -273,7 +318,7 @@ class _CurvePainter extends CustomPainter {
     final vh = h - 2 * overflow; // 可视区域高
 
     // 背景和网格绘制在可视区域
-    final bg = Paint()..color = const Color(0xFF0E0E12);
+    final bg = Paint()..color = AppColors.deepBg;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Offset(overflow, overflow) & Size(vw, vh),
@@ -292,7 +337,7 @@ class _CurvePainter extends CustomPainter {
       canvas.drawLine(Offset(overflow, y), Offset(overflow + vw, y), grid);
     }
     final diag = Paint()
-      ..color = Colors.white.withValues(alpha: 0.12)
+      ..color = AppColors.faintBorder
       ..strokeWidth = 1;
     canvas.drawLine(
       Offset(overflow, overflow + vh),
@@ -324,7 +369,7 @@ class _CurvePainter extends CustomPainter {
     // 控制点使用 overflow 偏移
     for (final p in curve.points) {
       final c = Offset(overflow + p.x * vw, overflow + (1 - p.y) * vh);
-      canvas.drawCircle(c, _pointR, Paint()..color = const Color(0xFF0E0E12));
+      canvas.drawCircle(c, _pointR, Paint()..color = AppColors.deepBg);
       canvas.drawCircle(
         c,
         _pointR,

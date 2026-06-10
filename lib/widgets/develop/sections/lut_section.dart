@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -348,7 +349,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                     style: TextStyle(
                       fontSize: 10.5,
                       fontFamily: 'monospace',
-                      color: Colors.greenAccent.withValues(alpha: 0.85),
+                      color: AppColors.activeValue,
                     ),
                   ),
                 ),

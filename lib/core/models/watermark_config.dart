@@ -37,12 +37,12 @@ enum InfoPlacement {
   overlayBottomRight,
 }
 
-/// [InfoPlacement] 辅助扩展。
+/// [InfoPlacement] 辅助扩展
 extension InfoPlacementExt on InfoPlacement {
-  /// 信息层是否在 Z 轴位于原图之后（即原图覆盖在信息层上方）。
+  /// 信息层是否在 Z 轴位于原图之后（即原图覆盖在信息层上方）
   bool get behindImage => this == InfoPlacement.above;
 
-  /// 是否为叠加模式（信息层覆盖在原图之上）。
+  /// 是否为叠加模式（信息层覆盖在原图之上）
   bool get isOverlay => switch (this) {
     InfoPlacement.overlayTopLeft ||
     InfoPlacement.overlayTopRight ||
@@ -71,7 +71,7 @@ enum ExifMode {
   custom,
 }
 
-/// 可选 EXIF 字段（勾选决定哪些字段出现在水印文字中）。
+/// 可选 EXIF 字段（勾选决定哪些字段出现在水印文字中）
 enum ExifField {
   /// 相机型号
   cameraModel,
@@ -92,7 +92,7 @@ enum ExifField {
   focalLength,
 }
 
-/// [ExifField] 显示标签。
+/// [ExifField] 显示标签
 extension ExifFieldExt on ExifField {
   String get displayLabel => switch (this) {
     ExifField.cameraModel => 'Camera',
@@ -140,7 +140,7 @@ enum CanvasAspectRatio {
   ratio9_16,
 }
 
-/// [CanvasAspectRatio] 对应的数值 w/h，auto 返回 null。
+/// [CanvasAspectRatio] 对应的数值 w/h，auto 返回 null
 extension CanvasAspectRatioExt on CanvasAspectRatio {
   double? get value => switch (this) {
     CanvasAspectRatio.auto => null,

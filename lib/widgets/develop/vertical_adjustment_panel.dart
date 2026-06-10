@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
+import '../../core/theme/app_colors.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
 import 'sections/local_section.dart';
@@ -20,15 +21,13 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
     return DefaultTabController(
       length: 9,
       child: Container(
-        color: const Color(0xFF14141A),
+        color: AppColors.panelBg,
         child: Column(
           children: [
             Container(
               decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.05),
-                  ),
+                  bottom: BorderSide(color: AppColors.subtleBorder),
                 ),
               ),
               child: Row(
@@ -83,12 +82,27 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                     ),
                   ),
                   SingleChildScrollView(child: const LutSection()),
-                  SingleChildScrollView(
-                    child: DetailSection(params: params, onChanged: onChanged),
+                  // 以下 4 个 Tab 较重，延迟到首帧结束后构建
+                  _LazyBuild(
+                    builder: (_) => SingleChildScrollView(
+                      child: DetailSection(
+                        params: params,
+                        onChanged: onChanged,
+                      ),
+                    ),
                   ),
-                  const SingleChildScrollView(child: PresetGrid()),
-                  const SingleChildScrollView(child: LocalPanel()),
-                  const SingleChildScrollView(child: WatermarkSection()),
+                  _LazyBuild(
+                    builder: (_) =>
+                        const SingleChildScrollView(child: PresetGrid()),
+                  ),
+                  _LazyBuild(
+                    builder: (_) =>
+                        const SingleChildScrollView(child: LocalPanel()),
+                  ),
+                  _LazyBuild(
+                    builder: (_) =>
+                        const SingleChildScrollView(child: WatermarkSection()),
+                  ),
                 ],
               ),
             ),
@@ -96,5 +110,32 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+/// 首帧延迟构建：首帧渲染空占位，下一帧真正构建，减少 TabBarView 初始开销
+class _LazyBuild extends StatefulWidget {
+  final WidgetBuilder builder;
+  const _LazyBuild({required this.builder});
+
+  @override
+  State<_LazyBuild> createState() => _LazyBuildState();
+}
+
+class _LazyBuildState extends State<_LazyBuild> {
+  bool _built = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _built = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_built) return const SizedBox.shrink();
+    return widget.builder(context);
   }
 }

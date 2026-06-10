@@ -10,24 +10,40 @@ import '../../render/curve_baker.dart';
 import '../../render/lut_texture_cache.dart';
 import '../providers.dart';
 
-// Shader program
+// Shader program — 加载后立即预编译，避免首帧 UI 线程上同步编译导致掉帧
 final shaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
-  return ui.FragmentProgram.fromAsset('assets/shaders/develop.shader');
+  final program = await ui.FragmentProgram.fromAsset(
+    'assets/shaders/develop.shader',
+  );
+  program.fragmentShader(); // 预热编译
+  return program;
 });
 final maskShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   ref,
 ) async {
-  return ui.FragmentProgram.fromAsset('assets/shaders/develop_mask.shader');
+  final program = await ui.FragmentProgram.fromAsset(
+    'assets/shaders/develop_mask.shader',
+  );
+  program.fragmentShader();
+  return program;
 });
 final sharpenShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   ref,
 ) async {
-  return await ui.FragmentProgram.fromAsset('assets/shaders/sharpen.shader');
+  final program = await ui.FragmentProgram.fromAsset(
+    'assets/shaders/sharpen.shader',
+  );
+  program.fragmentShader();
+  return program;
 });
 final denoiseShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   ref,
 ) async {
-  return await ui.FragmentProgram.fromAsset('assets/shaders/denoise.shader');
+  final program = await ui.FragmentProgram.fromAsset(
+    'assets/shaders/denoise.shader',
+  );
+  program.fragmentShader();
+  return program;
 });
 
 // 1Hz ticker

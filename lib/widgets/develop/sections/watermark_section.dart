@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/watermark_config.dart';
@@ -128,7 +129,7 @@ class WatermarkSection extends ConsumerWidget {
             min: 0,
             max: 1.0,
             suffix: '%',
-            precision: 0,
+            fractionDigits: 0,
             onChanged: (v) => set(cfg.copyWith(imageScale: v)),
           ),
 
@@ -248,7 +249,7 @@ class WatermarkSection extends ConsumerWidget {
               value: cfg.logoSize,
               min: 0.1,
               max: 1.0,
-              precision: 2,
+              fractionDigits: 2,
               onChanged: (v) => set(cfg.copyWith(logoSize: v)),
             ),
             DevelopSliderTile(
@@ -256,7 +257,7 @@ class WatermarkSection extends ConsumerWidget {
               value: cfg.logoOpacity,
               min: 0.0,
               max: 1.0,
-              precision: 2,
+              fractionDigits: 2,
               onChanged: (v) => set(cfg.copyWith(logoOpacity: v)),
             ),
           ],
@@ -385,7 +386,7 @@ class WatermarkSection extends ConsumerWidget {
               value: cfg.textOpacity,
               min: 0.0,
               max: 1.0,
-              precision: 2,
+              fractionDigits: 2,
               onChanged: (v) => set(cfg.copyWith(textOpacity: v)),
             ),
             DevelopSliderTile(
@@ -407,7 +408,7 @@ class WatermarkSection extends ConsumerWidget {
               icon: const Icon(Icons.refresh, size: 16),
               label: Text(tr('reset')),
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+                side: BorderSide(color: AppColors.lightBorder),
                 foregroundColor: Colors.white.withValues(alpha: 0.6),
               ),
             ),
@@ -687,7 +688,7 @@ class _ShadowIntensityTile extends StatelessWidget {
                     fontFamily: 'monospace',
                     color: isNeutral
                         ? Colors.white.withValues(alpha: 0.4)
-                        : Colors.greenAccent.withValues(alpha: 0.85),
+                        : AppColors.activeValue,
                   ),
                 ),
               ),
@@ -862,7 +863,7 @@ class _ExifTextFieldState extends State<_ExifTextField> {
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(4),
             borderSide: BorderSide(
-              color: Colors.white.withValues(alpha: 0.12),
+              color: AppColors.faintBorder,
             ),
           ),
           focusedBorder: OutlineInputBorder(
@@ -1034,7 +1035,7 @@ class _ImportTile extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       side: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.15),
+                        color: AppColors.lightBorder,
                       ),
                       foregroundColor: Colors.white.withValues(alpha: 0.7),
                       padding: const EdgeInsets.symmetric(
@@ -1071,7 +1072,7 @@ class _ExifFieldChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.05),
+              : AppColors.subtleBorder,
           border: Border.all(
             color: selected
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)

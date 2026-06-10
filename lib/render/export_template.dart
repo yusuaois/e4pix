@@ -1,6 +1,6 @@
 import '../native/raw_bridge.dart';
 
-/// 导出文件名模板工具。
+/// 导出文件名模板工具
 ///
 /// 支持的占位符（大小写敏感）：
 ///   {name}   原文件名（不含扩展名）
@@ -21,19 +21,21 @@ import '../native/raw_bridge.dart';
 class ExportTemplate {
   ExportTemplate._();
 
-  /// 默认模板：原名 + _edited（保持历史行为）。
+  /// 默认模板：原名 + _edited（保持历史行为）
   static const String defaultTemplate = '{name}_edited';
 
-  /// 区分性占位符——批量导出时模板若不含这些之一，每张会撞名。
-  static final RegExp _distinctTokens = RegExp(r'\{(name|seq|seq2|seq3|time)\}');
+  /// 区分性占位符——批量导出时模板若不含这些之一，每张会撞名
+  static final RegExp _distinctTokens = RegExp(
+    r'\{(name|seq|seq2|seq3|time)\}',
+  );
 
-  /// 模板是否含可区分每张图的占位符。
+  /// 模板是否含可区分每张图的占位符
   static bool hasDistinctToken(String template) =>
       _distinctTokens.hasMatch(template);
 
-  /// 应用模板生成文件名（不含扩展名，已清理非法字符）。
+  /// 应用模板生成文件名（不含扩展名，已清理非法字符）
   ///
-  /// [seq] 为 1-based 序号。[metadata] 缺失时日期/相机/ISO 占位符回退为空串。
+  /// [seq] 为 1-based 序号，[metadata] 缺失时日期/相机/ISO 占位符回退为空串
   static String apply({
     required String template,
     required String originalName,
@@ -76,7 +78,7 @@ class ExportTemplate {
   }
 
   /// 清理文件名非法字符（跨平台安全）：/ \ : * ? " < > | 及控制符 → _，
-  /// 去除首尾空白与点，折叠连续下划线。
+  /// 去除首尾空白与点，折叠连续下划线
   static String sanitize(String s) {
     var out = s.replaceAll(RegExp(r'[/\\:*?"<>|\x00-\x1F]'), '_');
     out = out.replaceAll(RegExp(r'_{2,}'), '_'); // 折叠连续下划线
@@ -85,16 +87,16 @@ class ExportTemplate {
     return out;
   }
 
-  /// 去掉文件名的扩展名。
+  /// 去掉文件名的扩展名
   static String stripExtension(String filename) {
     final dot = filename.lastIndexOf('.');
     return dot <= 0 ? filename : filename.substring(0, dot);
   }
 
-  /// 在批量导出中保证文件名唯一。
+  /// 在批量导出中保证文件名唯一
   ///
-  /// [base] 是模板生成的名字（不含扩展名），[extension] 不含点。
-  /// [used] 累积已占用的完整文件名（含扩展名，小写）；本函数会写入。
+  /// [base] 是模板生成的名字（不含扩展名），[extension] 不含点
+  /// [used] 累积已占用的完整文件名（含扩展名，小写）；本函数会写入
   /// 撞名时追加 _1 / _2 …
   static String ensureUnique({
     required String base,

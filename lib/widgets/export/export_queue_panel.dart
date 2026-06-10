@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/export_job.dart';
@@ -69,10 +70,8 @@ class ExportQueuePanel extends ConsumerWidget {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: jobs.length,
-                  separatorBuilder: (_, _) => Divider(
-                    height: 1,
-                    color: Colors.white.withValues(alpha: 0.05),
-                  ),
+                  separatorBuilder: (_, _) =>
+                      Divider(height: 1, color: AppColors.subtleBorder),
                   itemBuilder: (_, i) => _JobRow(
                     job: jobs[i],
                     onCancel: () => notifier.cancel(jobs[i].id),

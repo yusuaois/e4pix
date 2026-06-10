@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/tethered_shot.dart';
@@ -48,9 +49,7 @@ class TetherStatusBar extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFF1A2A1A),
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.subtleBorder)),
       ),
       child: Row(
         children: [
@@ -60,7 +59,7 @@ class TetherStatusBar extends ConsumerWidget {
             'Tether',
             style: TextStyle(
               fontSize: 11.5,
-              color: Colors.greenAccent.withValues(alpha: 0.85),
+              color: AppColors.activeValue,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -86,7 +85,7 @@ class TetherStatusBar extends ConsumerWidget {
             icon: Icon(
               preserveParams ? Icons.link_rounded : Icons.link_off_rounded,
               color: preserveParams
-                  ? Colors.greenAccent.withValues(alpha: 0.85)
+                  ? AppColors.activeValue
                   : Colors.orangeAccent.withValues(alpha: 0.85),
             ),
           ),
@@ -112,9 +111,7 @@ class TetherStatusBar extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFF1A2A1A),
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.subtleBorder)),
       ),
       child: Row(
         children: [
@@ -124,7 +121,7 @@ class TetherStatusBar extends ConsumerWidget {
             'Tether',
             style: TextStyle(
               fontSize: 11.5,
-              color: Colors.greenAccent.withValues(alpha: 0.85),
+              color: AppColors.activeValue,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -180,7 +177,7 @@ class _PreserveToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = preserved
-        ? Colors.greenAccent.withValues(alpha: 0.85)
+        ? AppColors.activeValue
         : Colors.orangeAccent.withValues(alpha: 0.85);
     return Tooltip(
       message: preserved
@@ -293,9 +290,9 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
         border: Border(
           top: vertical
               ? BorderSide.none
-              : BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+              : BorderSide(color: AppColors.subtleBorder),
           right: vertical
-              ? BorderSide(color: Colors.white.withValues(alpha: 0.05))
+              ? BorderSide(color: AppColors.subtleBorder)
               : BorderSide.none,
         ),
       ),
@@ -366,7 +363,7 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                   )
                                 else
                                   Container(
-                                    color: Colors.white.withValues(alpha: 0.05),
+                                    color: AppColors.subtleBorder,
                                     alignment: Alignment.center,
                                     child: shot.error != null
                                         ? Icon(

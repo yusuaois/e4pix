@@ -2,16 +2,17 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/crop_params.dart';
 import '../../core/models/watermark_config.dart';
 import '../../native/raw_bridge.dart';
+import '../../render/utils/image_loader_util.dart';
 import '../../render/preview_renderer.dart';
 import '../../render/watermark_geometry.dart';
-import '../../services/watermark/watermark_asset_manager.dart';
+import '../../services/watermark/watermark_logo_loader.dart';
 import '../../state/providers.dart';
 import 'multi_pass_preview.dart';
 
@@ -580,23 +581,17 @@ class _CustomImageBackgroundState extends State<_CustomImageBackground> {
   }
 
   Future<void> _load() async {
-    try {
-      final bytes = await WatermarkAssetManager.readImageBytes(widget.filename);
-      if (bytes != null && mounted) {
-        final codec = await ui.instantiateImageCodec(bytes);
-        final img = (await codec.getNextFrame()).image;
-        if (mounted) {
-          _image?.dispose();
-          setState(() => _image = img);
-        }
-      }
-    } catch (_) {}
+    final img = await loadWatermarkFileImage(widget.filename);
+    if (mounted && img != null) {
+      _image?.dispose();
+      setState(() => _image = img);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_image == null) {
-      return Container(color: const Color(0xFF1A1A1A));
+      return Container(color: AppColors.fallbackBg);
     }
     return RawImage(image: _image, fit: BoxFit.cover);
   }
@@ -629,21 +624,6 @@ class _InfoLayer extends StatelessWidget {
 
     final exifStr = exifText;
 
-    final String? logoAsset;
-    final String? logoFilePath;
-    if (config.logoSource == LogoSource.custom &&
-        config.customLogoPath != null) {
-      logoAsset = null;
-      logoFilePath = config.customLogoPath!;
-    } else if (config.logoSource == LogoSource.builtin &&
-        config.logoBrand != null) {
-      logoAsset = logoAssetPath(config.logoBrand!, config.colorMode);
-      logoFilePath = null;
-    } else {
-      logoAsset = null;
-      logoFilePath = null;
-    }
-
     final fontWeight = fontWeightFromIndex(config.fontWeightIndex);
     final textStyle = TextStyle(
       fontSize: geometry.fontSize,
@@ -652,22 +632,20 @@ class _InfoLayer extends StatelessWidget {
       fontFamily: config.fontFamily,
     );
 
+    final hasLogo = watermarkHasLogo(config);
+
     return Padding(
       padding: EdgeInsets.all(geometry.textPad),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (logoAsset != null || logoFilePath != null)
+          if (hasLogo)
             Opacity(
               opacity: config.logoOpacity,
-              child: _LogoImage(
-                assetPath: logoAsset,
-                filePath: logoFilePath,
-                maxHeight: geometry.logoMaxH,
-              ),
+              child: _LogoImage(config: config, maxHeight: geometry.logoMaxH),
             ),
-          if ((logoAsset != null || logoFilePath != null) && exifStr != null)
+          if (hasLogo && exifStr != null)
             SizedBox(height: geometry.textPad / 2),
           if (exifStr != null)
             Text(
@@ -688,11 +666,10 @@ class _InfoLayer extends StatelessWidget {
 // ──────────────────────────────────────────────────────────────
 
 class _LogoImage extends StatefulWidget {
-  final String? assetPath;
-  final String? filePath;
+  final WatermarkConfig? config;
   final double maxHeight;
 
-  const _LogoImage({this.assetPath, this.filePath, required this.maxHeight});
+  const _LogoImage({this.config, required this.maxHeight});
 
   @override
   State<_LogoImage> createState() => _LogoImageState();
@@ -700,6 +677,7 @@ class _LogoImage extends StatefulWidget {
 
 class _LogoImageState extends State<_LogoImage> {
   ui.Image? _image;
+  int _loadGen = 0; // 防止并发加载覆盖
 
   @override
   void initState() {
@@ -710,11 +688,14 @@ class _LogoImageState extends State<_LogoImage> {
   @override
   void didUpdateWidget(_LogoImage old) {
     super.didUpdateWidget(old);
-    if (old.assetPath != widget.assetPath || old.filePath != widget.filePath) {
-      _image?.dispose();
-      _image = null;
-      _load();
-    }
+    // 仅比较影响 Logo 加载的字段，避免调整其他水印参数时重建 Logo 导致闪烁
+    final a = widget.config, b = old.config;
+    final changed =
+        a?.logoSource != b?.logoSource ||
+        a?.logoBrand != b?.logoBrand ||
+        a?.customLogoPath != b?.customLogoPath ||
+        a?.colorMode != b?.colorMode;
+    if (changed) _load(); // 先加载新图，不立即销毁旧图
   }
 
   @override
@@ -724,24 +705,18 @@ class _LogoImageState extends State<_LogoImage> {
   }
 
   Future<void> _load() async {
-    try {
-      ui.Image? img;
-      if (widget.filePath != null) {
-        final bytes = await WatermarkAssetManager.readImageBytes(
-          widget.filePath!,
-        );
-        if (bytes != null) {
-          final codec = await ui.instantiateImageCodec(bytes);
-          img = (await codec.getNextFrame()).image;
-        }
-      } else if (widget.assetPath != null) {
-        img = await _decodeAssetImage(widget.assetPath!);
-      }
-      if (mounted && img != null) {
-        _image?.dispose();
-        setState(() => _image = img);
-      }
-    } catch (_) {}
+    if (widget.config == null) return;
+    final gen = ++_loadGen;
+    final img = await WatermarkLogoLoader.load(widget.config!);
+    if (!mounted || gen != _loadGen) {
+      img?.dispose(); // 过期结果，丢弃
+      return;
+    }
+    // 新图加载成功后才换掉旧图，消除中间空白帧
+    final old = _image;
+    _image = img;
+    old?.dispose();
+    setState(() {});
   }
 
   @override
@@ -759,11 +734,3 @@ class _LogoImageState extends State<_LogoImage> {
 // ──────────────────────────────────────────────────────────────
 // 辅助函数
 // ──────────────────────────────────────────────────────────────
-
-Future<ui.Image> _decodeAssetImage(String assetPath) async {
-  final bundle = rootBundle;
-  final data = await bundle.load(assetPath);
-  final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
-  final frame = await codec.getNextFrame();
-  return frame.image;
-}

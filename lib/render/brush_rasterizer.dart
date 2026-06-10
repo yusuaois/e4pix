@@ -16,11 +16,18 @@ Future<ui.Image> rasterizeBrushMask(
 }) async {
   final hasAuto = mask.strokes.any((s) => s.autoMask);
   final hasBase = mask.baseRaster != null && mask.baseW > 0 && mask.baseH > 0;
-  final guideOk = guideBytes != null && guideWidth == w && guideHeight == h;
+  final guideOk = guideBytes != null && guideWidth > 0 && guideHeight > 0;
   if (!hasAuto && !hasBase) {
     return _rasterizeGeometric(mask, w, h);
   }
-  return _rasterizeCpu(mask, w, h, guideOk ? guideBytes : null);
+  return _rasterizeCpu(
+    mask,
+    w,
+    h,
+    guideOk ? guideBytes : null,
+    guideOk ? guideWidth : w,
+    guideOk ? guideHeight : h,
+  );
 }
 
 // ── GPU 几何路径 ──
@@ -39,8 +46,9 @@ Future<ui.Image> _rasterizeGeometric(BrushMask mask, int w, int h) async {
 
     final strokeWidthPx = stroke.radius * 2 * w;
     final sigma = strokeWidthPx * (1.0 - stroke.hardness) * 0.25;
-    final inkColor =
-        isErase ? const ui.Color(0xFF000000) : const ui.Color(0xFFFFFFFF);
+    final inkColor = isErase
+        ? const ui.Color(0xFF000000)
+        : const ui.Color(0xFFFFFFFF);
     final layerPaint = ui.Paint()
       ..color = isErase
           ? ui.Color.fromRGBO(0, 0, 0, flow)
@@ -86,7 +94,7 @@ Future<ui.Image> _rasterizeGeometric(BrushMask mask, int w, int h) async {
   return image;
 }
 
-// ── CPU 路径（含 auto-mask 或基底） ──
+// CPU 路径（含 auto-mask 或基底）
 // 基底起步 → 逐笔 几何×局部参考色×导向滤波×flow
 
 Future<ui.Image> _rasterizeCpu(
@@ -94,6 +102,8 @@ Future<ui.Image> _rasterizeCpu(
   int w,
   int h,
   Uint8List? guide,
+  int guideWidth,
+  int guideHeight,
 ) async {
   final acc = Float32List(w * h);
 
@@ -168,9 +178,9 @@ Future<ui.Image> _rasterizeCpu(
       refG = List.filled(pts.length, 0);
       refB = List.filled(pts.length, 0);
       for (int k = 0; k < pts.length; k++) {
-        final gx = (pts[k].dx * w).round().clamp(0, w - 1);
-        final gy = (pts[k].dy * h).round().clamp(0, h - 1);
-        final gi = (gy * w + gx) * 4;
+        final gx = (pts[k].dx * guideWidth).round().clamp(0, guideWidth - 1);
+        final gy = (pts[k].dy * guideHeight).round().clamp(0, guideHeight - 1);
+        final gi = (gy * guideWidth + gx) * 4;
         refR[k] = guide[gi].toDouble();
         refG[k] = guide[gi + 1].toDouble();
         refB[k] = guide[gi + 2].toDouble();
@@ -193,8 +203,8 @@ Future<ui.Image> _rasterizeCpu(
           final g = hardEdge
               ? 1.0
               : (d <= inner
-                  ? 1.0
-                  : _smoothDown((d - inner) / (radiusPx - inner)));
+                    ? 1.0
+                    : _smoothDown((d - inner) / (radiusPx - inner)));
           final li = (y - y0) * bw + (x - x0);
           if (g > sw[li]) {
             sw[li] = g;
@@ -218,7 +228,9 @@ Future<ui.Image> _rasterizeCpu(
         final bbv = (refB![seg] + refB[s2]) * 0.5;
         final y = y0 + li ~/ bw;
         final x = x0 + li % bw;
-        final gi = (y * w + x) * 4;
+        final gy = ((y / h) * guideHeight).round().clamp(0, guideHeight - 1);
+        final gx = ((x / w) * guideWidth).round().clamp(0, guideWidth - 1);
+        final gi = (gy * guideWidth + gx) * 4;
         final dr = (guide[gi] - rr) / 255.0;
         final dg = (guide[gi + 1] - gg) / 255.0;
         final db = (guide[gi + 2] - bbv) / 255.0;
@@ -228,7 +240,10 @@ Future<ui.Image> _rasterizeCpu(
       final strength = stroke.edgeStrength.clamp(0.0, 1.0);
       final eps = 0.05 * math.pow(0.01, strength).toDouble();
       final r = (w * 0.006).round().clamp(2, 32);
-      _fastGuidedRefineBuf(sw, guide, w, x0, y0, bw, bh, r, eps);
+      // 将 bbox 偏移映射到引导图空间
+      final gox = (x0 / w * guideWidth).round();
+      final goy = (y0 / h * guideHeight).round();
+      _fastGuidedRefineBuf(sw, guide, guideWidth, gox, goy, bw, bh, r, eps);
     }
 
     for (int j = 0; j < bh; j++) {
@@ -406,7 +421,8 @@ Float32List _boxMean(Float32List src, int bw, int bh, int r) {
     for (int i = 0; i < bw; i++) {
       final x1 = i - r < 0 ? 0 : i - r;
       final x2 = i + r >= bw ? bw - 1 : i + r;
-      final ssum = sat[(y2 + 1) * stride + (x2 + 1)] -
+      final ssum =
+          sat[(y2 + 1) * stride + (x2 + 1)] -
           sat[y1 * stride + (x2 + 1)] -
           sat[(y2 + 1) * stride + x1] +
           sat[y1 * stride + x1];

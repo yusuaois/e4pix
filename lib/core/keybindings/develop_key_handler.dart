@@ -6,7 +6,7 @@ import 'app_action.dart';
 import '../models/tethered_shot.dart';
 import '../../state/providers.dart';
 
-/// 处理 develop 界面的键盘事件。从 [DevelopScreen] 的 build 中调用：
+/// 处理 develop 界面的键盘事件，从 [DevelopScreen] 的 build 中调用：
 /// ```dart
 /// Focus(onKeyEvent: (_, e) => handleDevelopKeyEvent(ref, e, keys))
 /// ```

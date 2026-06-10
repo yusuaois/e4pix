@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 
 import '../tracked_slider.dart';
 
@@ -8,7 +9,9 @@ class DevelopSliderTile extends StatelessWidget {
   final double value, min, max;
   final ValueChanged<double> onChanged;
   final String suffix;
-  final int precision;
+  final int fractionDigits;
+  final double? resetValue; // 若提供，双击重置到此值且使用该值作为"中性"判断
+  final EdgeInsets? padding;
 
   const DevelopSliderTile({
     super.key,
@@ -18,19 +21,22 @@ class DevelopSliderTile extends StatelessWidget {
     required this.max,
     required this.onChanged,
     this.suffix = '',
-    this.precision = 0,
+    this.fractionDigits = 0,
+    this.resetValue,
+    this.padding,
   });
 
   @override
   Widget build(BuildContext context) {
-    final hasZeroDetent = min < 0 && max > 0;
-    final zeroValue = hasZeroDetent ? 0.0 : (min + max) / 2;
-    final isNeutral = (value - zeroValue).abs() < 0.001;
-    final display = value.toStringAsFixed(precision);
-    final sign = !hasZeroDetent || value <= 0 ? '' : '+';
+    final neutralValue =
+        resetValue ?? (min < 0 && max > 0 ? 0.0 : (min + max) / 2);
+    final isNeutral = (value - neutralValue).abs() < 0.001;
+    final display = value.toStringAsFixed(fractionDigits);
+    final sign = value > 0 ? '+' : '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding:
+          padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -40,7 +46,7 @@ class DevelopSliderTile extends StatelessWidget {
                 child: Text(label, style: const TextStyle(fontSize: 12.5)),
               ),
               GestureDetector(
-                onDoubleTap: () => onChanged(zeroValue),
+                onDoubleTap: () => onChanged(neutralValue),
                 child: Text(
                   '$sign$display$suffix',
                   style: TextStyle(
@@ -48,7 +54,7 @@ class DevelopSliderTile extends StatelessWidget {
                     fontFamily: 'monospace',
                     color: isNeutral
                         ? Colors.white.withValues(alpha: 0.4)
-                        : Colors.greenAccent.withValues(alpha: 0.85),
+                        : AppColors.activeValue,
                   ),
                 ),
               ),

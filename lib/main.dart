@@ -1,6 +1,7 @@
 import 'package:e4pix/services/notifications/notification_manager.dart';
 import 'package:e4pix/widgets/app/app_exit_guard.dart';
 import 'package:flutter/material.dart';
+import './core/theme/app_colors.dart';
 import 'screens/develop_screen.dart';
 import '../../state/providers.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -28,7 +29,7 @@ void main() async {
 
 class E4pixApp extends ConsumerWidget {
   const E4pixApp({super.key});
-  static const _scaffoldBg = Color(0xFF0E0E12);
+  static const _scaffoldBg = AppColors.deepBg;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

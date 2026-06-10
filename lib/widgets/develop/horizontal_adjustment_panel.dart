@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
@@ -65,10 +66,8 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF14141A),
-                border: Border(
-                  left: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
-                ),
+                color: AppColors.panelBg,
+                border: Border(left: BorderSide(color: AppColors.subtleBorder)),
               ),
               child: Column(
                 children: [
@@ -118,10 +117,8 @@ class _ToolRail extends StatelessWidget {
     return Container(
       width: 46,
       decoration: BoxDecoration(
-        color: const Color(0xFF101015),
-        border: Border(
-          left: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
-        ),
+        color: AppColors.surfaceBg,
+        border: Border(left: BorderSide(color: AppColors.subtleBorder)),
       ),
       child: SingleChildScrollView(
         child: Column(

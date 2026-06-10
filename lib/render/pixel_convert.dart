@@ -7,13 +7,13 @@ import '../core/color/srgb_lut.dart';
 import '../native/raw_bridge.dart';
 import 'cpu_denoise.dart';
 
-/// 像素格式转换：RAW 解码结果（16-bit 线性）→ 8-bit sRGB [ui.Image]。
+/// 像素格式转换：RAW 解码结果（16-bit 线性）→ 8-bit sRGB [ui.Image]
 ///
-/// 所有重活在后台 isolate 完成，主 isolate 仅做 ui.Image 解码回调。
+/// 所有重活在后台 isolate 完成，主 isolate 仅做 ui.Image 解码回调
 class PixelConvert {
   PixelConvert._();
 
-  /// RAW（16-bit 线性）→ 8-bit sRGB ui.Image，无降噪。
+  /// RAW（16-bit 线性）→ 8-bit sRGB ui.Image，无降噪
   static Future<ui.Image> rawToImage(RawDecodedImage raw) async {
     final bytes = await Isolate.run(() {
       final lut = Uint8List.fromList(srgbLut16To8);
@@ -22,10 +22,10 @@ class PixelConvert {
     return _decode(bytes, raw.width, raw.height);
   }
 
-  /// RAW（16-bit 线性）→ CPU 并行降噪 → 8-bit sRGB ui.Image。
+  /// RAW（16-bit 线性）→ CPU 并行降噪 → 8-bit sRGB ui.Image
   ///
   /// [progressStart]/[progressEnd] 是本步骤在整体导出进度中占据的区间；
-  /// 其中前 85% 给降噪、后 15% 给格式转换。
+  /// 其中前 85% 给降噪、后 15% 给格式转换
   static Future<ui.Image> rawToImageWithDenoise(
     RawDecodedImage raw,
     double luma,
@@ -83,7 +83,7 @@ class PixelConvert {
     return Isolate.run(() => _convert16ToRgba(denoised, w, h));
   }
 
-  /// 16-bit 线性 RGB 交错 → 8-bit sRGB RGBA。
+  /// 16-bit 线性 RGB 交错 → 8-bit sRGB RGBA
   static Uint8List _convert16ToRgba(Uint16List denoised, int w, int h) {
     final lut = Uint8List.fromList(srgbLut16To8);
     final out = Uint8List(w * h * 4);
@@ -98,7 +98,7 @@ class PixelConvert {
     return out;
   }
 
-  /// RAW 像素（16-bit 线性或 8-bit）→ 8-bit sRGB RGBA。
+  /// RAW 像素（16-bit 线性或 8-bit）→ 8-bit sRGB RGBA
   static Uint8List _convertWithLut(RawDecodedImage raw, Uint8List lut) {
     final src = raw.pixels;
     final w = raw.width, h = raw.height;

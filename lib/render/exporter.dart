@@ -51,7 +51,7 @@ class ExportCancelledException implements Exception {
 /// LUT：由调用方传入纹理引用
 ///
 /// 中断：[isCancelled] 在各阶段之间检查；命中则抛 [ExportCancelledException]
-/// 中断粒度为阶段间（解码后 / 渲染后 / 编码后），最坏等当前阶段结束。
+/// 中断粒度为阶段间（解码后 / 渲染后 / 编码后），最坏等当前阶段结束
 class Exporter {
   Exporter._();
 

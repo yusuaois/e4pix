@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../render/mask_cache.dart';
+import '../../render/utils/adjustment_throttler.dart';
 import '../../state/providers.dart';
 
 /// 离屏多 pass 预览
@@ -51,11 +52,11 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   ui.Image? _rendered;
   int _generation = 0;
 
-  Timer? _throttle;
   bool _isRendering = false;
   bool _pendingRender = false;
 
-  ProviderSubscription<bool>? _dragSub;
+  late final _throttler = AdjustmentThrottler(ref)
+    ..listen(onDragEnd: _scheduleHighQualityRerender);
 
   final _developCache = DevelopPassCache();
   final _brushCache = BrushMaskCache();
@@ -63,14 +64,6 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   @override
   void initState() {
     super.initState();
-    _dragSub = ref.listenManual<bool>(isUserDraggingSliderProvider, (
-      prev,
-      next,
-    ) {
-      if (prev == true && next == false) {
-        _scheduleHighQualityRerender();
-      }
-    });
     _scheduleRender();
   }
 
@@ -94,8 +87,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
 
   @override
   void dispose() {
-    _throttle?.cancel();
-    _dragSub?.close();
+    _throttler.dispose();
     _rendered?.dispose();
     _developCache.dispose();
     _brushCache.dispose();
@@ -103,21 +95,14 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   }
 
   void _scheduleRender() {
-    if (_throttle != null) return;
-    final isDragging = ref.read(isUserDraggingSliderProvider);
-    final delay = Duration(milliseconds: isDragging ? 50 : 33);
-    _throttle = Timer(delay, () {
-      _throttle = null;
-      _runRender();
-    });
+    _throttler.throttle(_runRender);
   }
 
   void _scheduleHighQualityRerender() {
-    _throttle?.cancel();
-    _throttle = Timer(const Duration(milliseconds: 80), () {
-      _throttle = null;
-      _runRender();
-    });
+    _throttler.throttle(
+      _runRender,
+      dragDelay: const Duration(milliseconds: 80),
+    );
   }
 
   Future<void> _runRender() async {
