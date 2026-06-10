@@ -16,13 +16,50 @@ enum BackgroundType {
 /// Light/Dark 模式（控制文字黑白 + 联动对应 Logo 目录）
 enum WatermarkColorMode { light, dark }
 
-/// 信息层位置（相对原图层）
+/// 信息层位置
 enum InfoPlacement {
   /// Logo + EXIF 在原图层上方
   above,
 
   /// Logo + EXIF 在原图层下方
   below,
+
+  /// 叠加在原图左上角
+  overlayTopLeft,
+
+  /// 叠加在原图右上角
+  overlayTopRight,
+
+  /// 叠加在原图左下角
+  overlayBottomLeft,
+
+  /// 叠加在原图右下角
+  overlayBottomRight,
+}
+
+/// [InfoPlacement] 辅助扩展。
+extension InfoPlacementExt on InfoPlacement {
+  /// 信息层是否在 Z 轴位于原图之后（即原图覆盖在信息层上方）。
+  bool get behindImage => this == InfoPlacement.above;
+
+  /// 是否为叠加模式（信息层覆盖在原图之上）。
+  bool get isOverlay => switch (this) {
+    InfoPlacement.overlayTopLeft ||
+    InfoPlacement.overlayTopRight ||
+    InfoPlacement.overlayBottomLeft ||
+    InfoPlacement.overlayBottomRight => true,
+    _ => false,
+  };
+
+  /// UI 显示标签
+  String get displayLabel => switch (this) {
+    InfoPlacement.above => 'Above Image',
+    InfoPlacement.below => 'Below Image',
+    InfoPlacement.overlayTopLeft => '↖ Top Left',
+    InfoPlacement.overlayTopRight => '↗ Top Right',
+    InfoPlacement.overlayBottomLeft => '↙ Bottom Left',
+    InfoPlacement.overlayBottomRight => '↘ Bottom Right',
+  };
 }
 
 /// EXIF 来源模式
@@ -59,6 +96,15 @@ enum CanvasAspectRatio {
 
   /// 16:9
   ratio16_9,
+
+  /// 3:4（竖版）
+  ratio3_4,
+
+  /// 2:3（竖版）
+  ratio2_3,
+
+  /// 9:16（竖版）
+  ratio9_16,
 }
 
 /// [CanvasAspectRatio] 对应的数值 w/h，auto 返回 null。
@@ -69,6 +115,9 @@ extension CanvasAspectRatioExt on CanvasAspectRatio {
     CanvasAspectRatio.ratio4_3 => 4.0 / 3.0,
     CanvasAspectRatio.ratio3_2 => 3.0 / 2.0,
     CanvasAspectRatio.ratio16_9 => 16.0 / 9.0,
+    CanvasAspectRatio.ratio3_4 => 3.0 / 4.0,
+    CanvasAspectRatio.ratio2_3 => 2.0 / 3.0,
+    CanvasAspectRatio.ratio9_16 => 9.0 / 16.0,
   };
 
   /// 显示标签
@@ -78,6 +127,9 @@ extension CanvasAspectRatioExt on CanvasAspectRatio {
     CanvasAspectRatio.ratio4_3 => '4:3',
     CanvasAspectRatio.ratio3_2 => '3:2',
     CanvasAspectRatio.ratio16_9 => '16:9',
+    CanvasAspectRatio.ratio3_4 => '3:4',
+    CanvasAspectRatio.ratio2_3 => '2:3',
+    CanvasAspectRatio.ratio9_16 => '9:16',
   };
 }
 
@@ -302,4 +354,76 @@ class WatermarkConfig {
     colorMode,
     infoPlacement,
   ]);
+
+  // ──────────────────────────────────────────────────────────
+  // JSON 序列化
+  // ──────────────────────────────────────────────────────────
+
+  Map<String, dynamic> toJson() => {
+    'enabled': enabled,
+    'blurRadius': blurRadius,
+    'borderWidth': borderWidth,
+    'imageScale': imageScale,
+    'cornerRadius': cornerRadius,
+    'shadowIntensity': shadowIntensity,
+    'backgroundType': backgroundType.name,
+    'backgroundColor': backgroundColor,
+    'customBackgroundPath': customBackgroundPath,
+    'canvasAspectRatio': canvasAspectRatio.name,
+    'logoSource': logoSource.name,
+    'logoBrand': logoBrand,
+    'customLogoPath': customLogoPath,
+    'logoSize': logoSize,
+    'logoOpacity': logoOpacity,
+    'showExif': showExif,
+    'exifMode': exifMode.name,
+    'customExifText': customExifText,
+    'fontFamily': fontFamily,
+    'fontSize': fontSize,
+    'fontWeightIndex': fontWeightIndex,
+    'textOpacity': textOpacity,
+    'textPadding': textPadding,
+    'colorMode': colorMode.name,
+    'infoPlacement': infoPlacement.name,
+  };
+
+  factory WatermarkConfig.fromJson(Map<String, dynamic> json) {
+    return WatermarkConfig(
+      enabled: json['enabled'] as bool? ?? false,
+      blurRadius: (json['blurRadius'] as num?)?.toDouble() ?? 30.0,
+      borderWidth: (json['borderWidth'] as num?)?.toDouble() ?? 80.0,
+      imageScale: (json['imageScale'] as num?)?.toDouble() ?? 0.85,
+      cornerRadius: (json['cornerRadius'] as num?)?.toDouble() ?? 12.0,
+      shadowIntensity: (json['shadowIntensity'] as num?)?.toDouble() ?? 0.35,
+      backgroundType: BackgroundType.values.byName(
+        json['backgroundType'] as String? ?? 'blurredOriginal',
+      ),
+      backgroundColor: json['backgroundColor'] as int? ?? 0xFF1A1A1A,
+      customBackgroundPath: json['customBackgroundPath'] as String?,
+      canvasAspectRatio: CanvasAspectRatio.values.byName(
+        json['canvasAspectRatio'] as String? ?? 'auto',
+      ),
+      logoSource: LogoSource.values.byName(
+        json['logoSource'] as String? ?? 'builtin',
+      ),
+      logoBrand: json['logoBrand'] as String?,
+      customLogoPath: json['customLogoPath'] as String?,
+      logoSize: (json['logoSize'] as num?)?.toDouble() ?? 0.5,
+      logoOpacity: (json['logoOpacity'] as num?)?.toDouble() ?? 0.9,
+      showExif: json['showExif'] as bool? ?? true,
+      exifMode: ExifMode.values.byName(json['exifMode'] as String? ?? 'auto'),
+      customExifText: json['customExifText'] as String?,
+      fontFamily: json['fontFamily'] as String?,
+      fontSize: (json['fontSize'] as num?)?.toDouble() ?? 13.0,
+      fontWeightIndex: json['fontWeightIndex'] as int? ?? 2,
+      textOpacity: (json['textOpacity'] as num?)?.toDouble() ?? 0.9,
+      textPadding: (json['textPadding'] as num?)?.toDouble() ?? 12.0,
+      colorMode: WatermarkColorMode.values.byName(
+        json['colorMode'] as String? ?? 'light',
+      ),
+      infoPlacement: InfoPlacement.values.byName(
+        json['infoPlacement'] as String? ?? 'below',
+      ),
+    );
+  }
 }

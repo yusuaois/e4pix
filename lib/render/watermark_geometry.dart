@@ -52,8 +52,8 @@ class WatermarkGeometry {
   /// 是否有 EXIF
   final bool hasExif;
 
-  /// 信息层是否在原图上方
-  final bool infoAbove;
+  /// 信息层在原图 Z 轴之后（原图覆盖信息层）
+  final bool infoBehindImage;
 
   /// 原图缩放比例（config.imageScale 的快照）
   final double imageScale;
@@ -71,7 +71,7 @@ class WatermarkGeometry {
     required this.textPad,
     required this.hasLogo,
     required this.hasExif,
-    required this.infoAbove,
+    required this.infoBehindImage,
     required this.imageScale,
   });
 
@@ -91,12 +91,11 @@ class WatermarkGeometry {
   }) {
     final borderW = config.borderWidth;
     final imageScale = config.imageScale.clamp(0.01, 1.0);
-    final infoAbove = config.infoPlacement == InfoPlacement.above;
+    final placement = config.infoPlacement;
+    final isOverlay = placement.isOverlay;
 
     // ── 原图显示区域 ──
-    // 可用宽度 = 画布宽度 - 两侧边框
     final availW = (kBaseWidth - 2 * borderW).clamp(1.0, kBaseWidth);
-    // 原图按比例适配可用宽度
     final imageDisplayW = availW * imageScale;
     final imageDisplayH = imageDisplayW / imageAspectRatio;
 
@@ -105,13 +104,20 @@ class WatermarkGeometry {
     final estTextH = showExif ? config.fontSize * 2.0 : 0.0;
     final gap = (hasLogo && showExif) ? config.textPadding / 2.0 : 0.0;
     final infoContentH = logoH + gap + estTextH + 2 * config.textPadding;
-    final infoH = infoContentH; // 不裁剪，导出需要完整高度；预览由 FittedBox 保证可见
+    final infoH = infoContentH;
 
-    // ── 画布尺寸（紧贴内容） ──
+    // 叠加模式下信息层宽度限制为原图的 75%
+    final infoW = isOverlay
+        ? (imageDisplayW * 0.75).clamp(120.0, imageDisplayW)
+        : imageDisplayW;
+
+    // ── 画布尺寸 ──
+    // 叠加模式：画布不需要 info 层额外空间
     final contentW = imageDisplayW + 2 * borderW;
-    final contentH = imageDisplayH + 2 * borderW + infoH;
+    final contentH = isOverlay
+        ? imageDisplayH + 2 * borderW
+        : imageDisplayH + 2 * borderW + infoH;
 
-    // 固定画布比例：扩展画布并居中内容
     final targetRatio = config.canvasAspectRatio.value;
     double canvasW = contentW;
     double canvasH = contentH;
@@ -126,17 +132,44 @@ class WatermarkGeometry {
     final offsetX = (canvasW - contentW) / 2.0;
     final offsetY = (canvasH - contentH) / 2.0;
 
-    // ── 各层坐标（加入扩展偏移，自动模式下 offset=0） ──
+    // ── 各层坐标 ──
     final imageX = offsetX + borderW;
-    final imageY = offsetY + (infoAbove ? infoH + borderW : borderW);
+    final imageY = offsetY + borderW;
 
-    final infoX = offsetX + borderW;
-    final infoY = offsetY + (infoAbove ? 0.0 : imageDisplayH + 2 * borderW);
+    // 信息层坐标
+    final double infoX, infoY;
+    final overlayPad = config.textPadding;
+
+    switch (placement) {
+      case InfoPlacement.above:
+        infoX = offsetX + borderW;
+        infoY = offsetY;
+        break;
+      case InfoPlacement.below:
+        infoX = offsetX + borderW;
+        infoY = offsetY + imageDisplayH + 2 * borderW;
+        break;
+      case InfoPlacement.overlayTopLeft:
+        infoX = imageX + overlayPad;
+        infoY = imageY + overlayPad;
+        break;
+      case InfoPlacement.overlayTopRight:
+        infoX = imageX + imageDisplayW - infoW - overlayPad;
+        infoY = imageY + overlayPad;
+        break;
+      case InfoPlacement.overlayBottomLeft:
+        infoX = imageX + overlayPad;
+        infoY = imageY + imageDisplayH - infoH - overlayPad;
+        break;
+      case InfoPlacement.overlayBottomRight:
+        infoX = imageX + imageDisplayW - infoW - overlayPad;
+        infoY = imageY + imageDisplayH - infoH - overlayPad;
+    }
 
     return WatermarkGeometry(
       canvasSize: Size(canvasW, canvasH),
       imageRect: Rect.fromLTWH(imageX, imageY, imageDisplayW, imageDisplayH),
-      infoRect: Rect.fromLTWH(infoX, infoY, imageDisplayW, infoH),
+      infoRect: Rect.fromLTWH(infoX, infoY, infoW, infoH),
       borderWidth: borderW,
       cornerRadius: config.cornerRadius,
       shadowBlur: config.shadowIntensity * 30.0,
@@ -146,7 +179,7 @@ class WatermarkGeometry {
       textPad: config.textPadding,
       hasLogo: hasLogo,
       hasExif: showExif,
-      infoAbove: infoAbove,
+      infoBehindImage: placement.behindImage,
       imageScale: imageScale,
     );
   }

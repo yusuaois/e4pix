@@ -164,6 +164,22 @@ class WatermarkSection extends ConsumerWidget {
                 value: InfoPlacement.below,
                 child: _DropLabel(tr('watermarkInfoBelow')),
               ),
+              DropdownMenuItem(
+                value: InfoPlacement.overlayTopLeft,
+                child: _DropLabel(tr('watermarkInfoOverlayTL')),
+              ),
+              DropdownMenuItem(
+                value: InfoPlacement.overlayTopRight,
+                child: _DropLabel(tr('watermarkInfoOverlayTR')),
+              ),
+              DropdownMenuItem(
+                value: InfoPlacement.overlayBottomLeft,
+                child: _DropLabel(tr('watermarkInfoOverlayBL')),
+              ),
+              DropdownMenuItem(
+                value: InfoPlacement.overlayBottomRight,
+                child: _DropLabel(tr('watermarkInfoOverlayBR')),
+              ),
             ],
             onChanged: (v) =>
                 v != null ? set(cfg.copyWith(infoPlacement: v)) : null,

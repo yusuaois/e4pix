@@ -227,8 +227,8 @@ class _WatermarkCanvas extends StatelessWidget {
             if (backgroundLayer != null)
               Positioned.fill(child: backgroundLayer!),
 
-            // Layer 1: 信息层（在上方时）
-            if (infoLayer != null && geometry.infoAbove)
+            // Layer 1: 信息层（在图片后方时）
+            if (infoLayer != null && geometry.infoBehindImage)
               Positioned(
                 left: geometry.infoRect.left,
                 top: geometry.infoRect.top,
@@ -263,8 +263,8 @@ class _WatermarkCanvas extends StatelessWidget {
               ),
             ),
 
-            // Layer 1: 信息层（在下方时）
-            if (infoLayer != null && !geometry.infoAbove)
+            // Layer 1: 信息层（在图片前方 / 叠加模式时）
+            if (infoLayer != null && !geometry.infoBehindImage)
               Positioned(
                 left: geometry.infoRect.left,
                 top: geometry.infoRect.top,

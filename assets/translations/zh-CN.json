@@ -402,5 +402,9 @@
   "ok": "确定",
   "watermarkBgColorTitle": "背景颜色",
   "watermarkCanvasRatio": "画布比例",
-  "exportWatermarkBorder": "应用水印边框..."
+  "exportWatermarkBorder": "应用水印边框...",
+  "watermarkInfoOverlayTL": "↖ 左上角",
+  "watermarkInfoOverlayTR": "↗ 右上角",
+  "watermarkInfoOverlayBL": "↙ 左下角",
+  "watermarkInfoOverlayBR": "↘ 右下角"
 }

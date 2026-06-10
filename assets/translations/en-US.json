@@ -402,5 +402,9 @@
   "ok": "OK",
   "watermarkBgColorTitle": "Background Color",
   "watermarkCanvasRatio": "Canvas Ratio",
-  "exportWatermarkBorder": "Applying watermark border…"
+  "exportWatermarkBorder": "Applying watermark border…",
+  "watermarkInfoOverlayTL": "↖ Top Left",
+  "watermarkInfoOverlayTR": "↗ Top Right",
+  "watermarkInfoOverlayBL": "↙ Bottom Left",
+  "watermarkInfoOverlayBR": "↘ Bottom Right"
 }
