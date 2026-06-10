@@ -51,8 +51,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
   // 底部面板动态高度
   double _bottomPanelHeight = 400;
-  static const _bottomPanelMinHeight = 220.0;
+  static const _bottomPanelMinHeight = 250.0;
   static const _bottomPanelMaxHeight = 520.0;
+  static const _handleBarHeight = 14.0; // 拖拽手柄高度
+
+  // 底部面板折叠状态（仅隐藏图片滑块，不改变面板高度）
+  bool _bottomPanelCollapsed = false;
 
   @override
   void initState() {
@@ -525,7 +529,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           ),
         ),
         if (hasImage)
-          // 可拖拽底部面板
+          // 可拖拽 / 点击折叠底部面板
           AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             curve: Curves.easeOut,
@@ -533,9 +537,14 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 拖拽手柄
+                // 拖拽手柄 — 点击折叠 / 恢复图片滑块
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    setState(() {
+                      _bottomPanelCollapsed = !_bottomPanelCollapsed;
+                    });
+                  },
                   onVerticalDragUpdate: (details) {
                     setState(() {
                       _bottomPanelHeight =
@@ -546,7 +555,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     });
                   },
                   child: Container(
-                    height: 14,
+                    height: _handleBarHeight,
                     color: Colors.white.withValues(alpha: 0.04),
                     child: Center(
                       child: Container(
@@ -560,8 +569,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     ),
                   ),
                 ),
-                // 图片滑块
-                if (d.shots.isNotEmpty && !d.cropEditMode)
+                // 图片滑块 — 点击手柄折叠 / 恢复
+                if (!_bottomPanelCollapsed &&
+                    d.shots.isNotEmpty &&
+                    !d.cropEditMode)
                   TetherThumbStrip(
                     shots: ref.watch(filteredShotsProvider),
                     activeShot: d.activeShot,
