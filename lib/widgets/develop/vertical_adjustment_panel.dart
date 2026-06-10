@@ -17,87 +17,81 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final params = ref.watch(currentParamsNotifierProvider);
 
-    return SizedBox(
-      height: 320,
-      child: DefaultTabController(
-        length: 9,
-        child: Container(
-          color: const Color(0xFF14141A),
-          child: Column(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.05),
-                    ),
+    return DefaultTabController(
+      length: 9,
+      child: Container(
+        color: const Color(0xFF14141A),
+        child: Column(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.05),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: MediaQuery.removePadding(
-                        context: context,
-                        child: TabBar(
-                          isScrollable: true,
-                          indicatorSize: TabBarIndicatorSize.label,
-                          labelStyle: const TextStyle(fontSize: 11),
-                          tabs: [
-                            Tab(text: tr("light"), height: 36),
-                            Tab(text: tr("color"), height: 36),
-                            Tab(text: tr("curve"), height: 36),
-                            Tab(text: tr("hsl"), height: 36),
-                            Tab(text: 'LUT', height: 36),
-                            Tab(text: tr('detail'), height: 36),
-                            Tab(text: tr("preset"), height: 36),
-                            Tab(text: tr("local"), height: 36),
-                            Tab(text: tr("watermark"), height: 36),
-                          ],
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.refresh, size: 18),
-                      tooltip: tr("reset"),
-                      onPressed: () => onChanged(AdjustmentParams.neutral),
-                    ),
-                  ],
-                ),
               ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    SingleChildScrollView(
-                      child: LightSection(params: params, onChanged: onChanged),
-                    ),
-                    SingleChildScrollView(
-                      child: WhiteBalanceColorSection(
-                        params: params,
-                        onChanged: onChanged,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: MediaQuery.removePadding(
+                      context: context,
+                      child: TabBar(
+                        isScrollable: true,
+                        indicatorSize: TabBarIndicatorSize.label,
+                        labelStyle: const TextStyle(fontSize: 11),
+                        tabs: [
+                          Tab(text: tr("light"), height: 36),
+                          Tab(text: tr("color"), height: 36),
+                          Tab(text: tr("curve"), height: 36),
+                          Tab(text: tr("hsl"), height: 36),
+                          Tab(text: 'LUT', height: 36),
+                          Tab(text: tr('detail'), height: 36),
+                          Tab(text: tr("preset"), height: 36),
+                          Tab(text: tr("local"), height: 36),
+                          Tab(text: tr("watermark"), height: 36),
+                        ],
                       ),
                     ),
-                    SingleChildScrollView(child: CurveSection()),
-                    SingleChildScrollView(
-                      child: HslSection(
-                        bands: params.hsl,
-                        onChanged: (b) => onChanged(params.copyWith(hsl: b)),
-                      ),
-                    ),
-                    SingleChildScrollView(child: const LutSection()),
-                    SingleChildScrollView(
-                      child: DetailSection(
-                        params: params,
-                        onChanged: onChanged,
-                      ),
-                    ),
-                    const SingleChildScrollView(child: PresetGrid()),
-                    const SingleChildScrollView(child: LocalPanel()),
-                    const SingleChildScrollView(child: WatermarkSection()),
-                  ],
-                ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 18),
+                    tooltip: tr("reset"),
+                    onPressed: () => onChanged(AdjustmentParams.neutral),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  SingleChildScrollView(
+                    child: LightSection(params: params, onChanged: onChanged),
+                  ),
+                  SingleChildScrollView(
+                    child: WhiteBalanceColorSection(
+                      params: params,
+                      onChanged: onChanged,
+                    ),
+                  ),
+                  SingleChildScrollView(child: CurveSection()),
+                  SingleChildScrollView(
+                    child: HslSection(
+                      bands: params.hsl,
+                      onChanged: (b) => onChanged(params.copyWith(hsl: b)),
+                    ),
+                  ),
+                  SingleChildScrollView(child: const LutSection()),
+                  SingleChildScrollView(
+                    child: DetailSection(params: params, onChanged: onChanged),
+                  ),
+                  const SingleChildScrollView(child: PresetGrid()),
+                  const SingleChildScrollView(child: LocalPanel()),
+                  const SingleChildScrollView(child: WatermarkSection()),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

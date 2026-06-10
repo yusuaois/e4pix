@@ -49,6 +49,11 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   static const _miniHistogramW = 140.0;
   static const _miniHistogramH = 70.0;
 
+  // 底部面板动态高度
+  double _bottomPanelHeight = 400;
+  static const _bottomPanelMinHeight = 220.0;
+  static const _bottomPanelMaxHeight = 520.0;
+
   @override
   void initState() {
     super.initState();
@@ -431,7 +436,8 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     ui.FragmentProgram? program,
     CameraState cameraState,
     bool cropEditMode,
-  }) _buildLayoutData() {
+  })
+  _buildLayoutData() {
     return (
       session: ref.watch(tetherSessionNotifierProvider),
       shots: ref.watch(shotsNotifierProvider),
@@ -513,16 +519,62 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             },
           ),
         ),
-        if (d.shots.isNotEmpty && !d.cropEditMode)
-          TetherThumbStrip(
-            shots: ref.watch(filteredShotsProvider),
-            activeShot: d.activeShot,
-            onSelect: _onThumbTap,
-            multiSelectMode: d.selection.multiSelectMode,
-            selectedShots: ref.watch(selectedShotsProvider),
-          ),
-        ImageInfoBar(onImport: _importImages),
-        if (hasImage) VerticalAdjustmentPanel(onChanged: _onParamsChanged),
+        if (hasImage)
+          // 可拖拽底部面板
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOut,
+            height: _bottomPanelHeight,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 拖拽手柄
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onVerticalDragUpdate: (details) {
+                    setState(() {
+                      _bottomPanelHeight =
+                          (_bottomPanelHeight - details.delta.dy).clamp(
+                            _bottomPanelMinHeight,
+                            _bottomPanelMaxHeight,
+                          );
+                    });
+                  },
+                  child: Container(
+                    height: 14,
+                    color: Colors.white.withValues(alpha: 0.04),
+                    child: Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // 图片滑块
+                if (d.shots.isNotEmpty && !d.cropEditMode)
+                  TetherThumbStrip(
+                    shots: ref.watch(filteredShotsProvider),
+                    activeShot: d.activeShot,
+                    onSelect: _onThumbTap,
+                    multiSelectMode: d.selection.multiSelectMode,
+                    selectedShots: ref.watch(selectedShotsProvider),
+                  ),
+                // 信息栏
+                ImageInfoBar(onImport: _importImages),
+                // 调整面板 — 填充剩余空间
+                Expanded(
+                  child: VerticalAdjustmentPanel(onChanged: _onParamsChanged),
+                ),
+              ],
+            ),
+          )
+        else
+          ImageInfoBar(onImport: _importImages),
       ],
     );
   }
