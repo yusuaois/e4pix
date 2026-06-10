@@ -44,22 +44,22 @@ class WatermarkSection extends ConsumerWidget {
           const SizedBox(height: 4),
 
           // ═══════ 背景 ═══════
-          const SectionLabel(title: 'Background'),
+          SectionLabel(title: tr('watermarkSectionBackground')),
           _DropdownTile<BackgroundType>(
             label: tr('watermarkBackgroundType'),
             value: cfg.backgroundType,
-            items: const [
+            items: [
               DropdownMenuItem(
                 value: BackgroundType.blurredOriginal,
-                child: _DropLabel('Blurred Original'),
+                child: _DropLabel(tr('watermarkBgBlurred')),
               ),
               DropdownMenuItem(
                 value: BackgroundType.solidColor,
-                child: _DropLabel('Solid Color'),
+                child: _DropLabel(tr('watermarkBgSolid')),
               ),
               DropdownMenuItem(
                 value: BackgroundType.image,
-                child: _DropLabel('Custom Image'),
+                child: _DropLabel(tr('watermarkBgCustomImage')),
               ),
             ],
             onChanged: (v) =>
@@ -91,7 +91,7 @@ class WatermarkSection extends ConsumerWidget {
           const SizedBox(height: 8),
 
           // ═══════ 布局 ═══════
-          const SectionLabel(title: 'Layout'),
+          SectionLabel(title: tr('watermarkSectionLayout')),
           DevelopSliderTile(
             label: tr('watermarkBlur'),
             value: cfg.blurRadius,
@@ -121,7 +121,7 @@ class WatermarkSection extends ConsumerWidget {
           const SizedBox(height: 8),
 
           // ═══════ 质感 ═══════
-          const SectionLabel(title: 'Texture'),
+          SectionLabel(title: tr('watermarkSectionTexture')),
           DevelopSliderTile(
             label: tr('watermarkCornerRadius'),
             value: cfg.cornerRadius,
@@ -139,18 +139,18 @@ class WatermarkSection extends ConsumerWidget {
           const SizedBox(height: 8),
 
           // ═══════ 信息层位置 ═══════
-          const SectionLabel(title: 'Info Position'),
+          SectionLabel(title: tr('watermarkSectionInfoPos')),
           _DropdownTile<InfoPlacement>(
             label: tr('watermarkInfoPlacement'),
             value: cfg.infoPlacement,
-            items: const [
+            items: [
               DropdownMenuItem(
                 value: InfoPlacement.above,
-                child: _DropLabel('Above Image'),
+                child: _DropLabel(tr('watermarkInfoAbove')),
               ),
               DropdownMenuItem(
                 value: InfoPlacement.below,
-                child: _DropLabel('Below Image'),
+                child: _DropLabel(tr('watermarkInfoBelow')),
               ),
             ],
             onChanged: (v) =>
@@ -160,18 +160,18 @@ class WatermarkSection extends ConsumerWidget {
           const SizedBox(height: 8),
 
           // ═══════ Logo ═══════
-          const SectionLabel(title: 'Logo'),
+          SectionLabel(title: tr('watermarkSectionLogo')),
           _DropdownTile<LogoSource>(
             label: tr('watermarkLogoSource'),
             value: cfg.logoSource,
-            items: const [
+            items: [
               DropdownMenuItem(
                 value: LogoSource.builtin,
-                child: _DropLabel('Built-in'),
+                child: _DropLabel(tr('watermarkLogoBuiltin')),
               ),
               DropdownMenuItem(
                 value: LogoSource.custom,
-                child: _DropLabel('Custom'),
+                child: _DropLabel(tr('watermarkLogoCustom')),
               ),
             ],
             onChanged: (v) =>
@@ -182,9 +182,9 @@ class WatermarkSection extends ConsumerWidget {
               label: tr('watermarkLogoBrand'),
               value: cfg.logoBrand,
               items: [
-                const DropdownMenuItem<String>(
+                DropdownMenuItem<String>(
                   value: null,
-                  child: _DropLabel('None'),
+                  child: _DropLabel(tr('watermarkLogoNone')),
                 ),
                 ...kAvailableLogoBrands.map(
                   (b) => DropdownMenuItem<String>(
@@ -234,13 +234,19 @@ class WatermarkSection extends ConsumerWidget {
           const SizedBox(height: 8),
 
           // ═══════ Light / Dark ═══════
-          const SectionLabel(title: 'Color Mode'),
+          SectionLabel(title: tr('watermarkSectionColorMode')),
           _SegmentedTile<WatermarkColorMode>(
             label: tr('watermarkColorMode'),
             value: cfg.colorMode,
-            items: const [
-              _SegItem(value: WatermarkColorMode.light, label: 'Light'),
-              _SegItem(value: WatermarkColorMode.dark, label: 'Dark'),
+            items: [
+              _SegItem(
+                value: WatermarkColorMode.light,
+                label: tr('watermarkColorLight'),
+              ),
+              _SegItem(
+                value: WatermarkColorMode.dark,
+                label: tr('watermarkColorDark'),
+              ),
             ],
             onChanged: (v) => set(cfg.copyWith(colorMode: v)),
           ),
@@ -248,7 +254,7 @@ class WatermarkSection extends ConsumerWidget {
           const SizedBox(height: 8),
 
           // ═══════ EXIF ═══════
-          const SectionLabel(title: 'EXIF & Text'),
+          SectionLabel(title: tr('watermarkSectionExifText')),
           _SwitchTile(
             label: tr('watermarkShowExif'),
             value: cfg.showExif,
@@ -258,9 +264,15 @@ class WatermarkSection extends ConsumerWidget {
             _SegmentedTile<ExifMode>(
               label: tr('watermarkExifMode'),
               value: cfg.exifMode,
-              items: const [
-                _SegItem(value: ExifMode.auto, label: 'Auto'),
-                _SegItem(value: ExifMode.custom, label: 'Custom'),
+              items: [
+                _SegItem(
+                  value: ExifMode.auto,
+                  label: tr('watermarkExifModeAuto'),
+                ),
+                _SegItem(
+                  value: ExifMode.custom,
+                  label: tr('watermarkExifModeCustom'),
+                ),
               ],
               onChanged: (v) => set(cfg.copyWith(exifMode: v)),
             ),
@@ -422,8 +434,13 @@ class _DropdownTile<T> extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 100,
-            child: Text(label, style: const TextStyle(fontSize: 12)),
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           Expanded(
             child: Container(
@@ -481,8 +498,13 @@ class _ColorTile extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 100,
-            child: Text(label, style: const TextStyle(fontSize: 12)),
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           GestureDetector(
             onTap: () async {
@@ -544,7 +566,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Background Color'),
+      title: Text(tr('watermarkBgColorTitle')),
       content: SizedBox(
         width: 280,
         child: Column(
@@ -568,11 +590,11 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(tr('cancel')),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, _color),
-          child: const Text('OK'),
+          child: Text(tr('ok')),
         ),
       ],
     );
@@ -632,8 +654,13 @@ class _SegmentedTile<T> extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 100,
-            child: Text(label, style: const TextStyle(fontSize: 12)),
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           Expanded(
             child: Row(
@@ -776,8 +803,13 @@ class _FontFamilyTile extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 100,
-            child: Text(label, style: const TextStyle(fontSize: 12)),
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           Expanded(
             child: Container(
@@ -798,7 +830,7 @@ class _FontFamilyTile extends StatelessWidget {
                     return DropdownMenuItem<String?>(
                       value: f,
                       child: Text(
-                        f ?? 'System Default',
+                        f ?? tr('watermarkFontSystem'),
                         style: TextStyle(fontSize: 12, fontFamily: f),
                       ),
                     );
@@ -825,30 +857,36 @@ class _FontWeightTile extends StatelessWidget {
     required this.onChanged,
   });
 
-  static const _weights = [
-    (FontWeight.w400, 'Light'),
-    (FontWeight.w500, 'Regular'),
-    (FontWeight.w600, 'Medium'),
-    (FontWeight.w700, 'Bold'),
-    (FontWeight.w800, 'Heavy'),
+  static List<(FontWeight, String)> _weights(BuildContext context) => [
+    (FontWeight.w400, tr('watermarkWeightLight')),
+    (FontWeight.w500, tr('watermarkWeightRegular')),
+    (FontWeight.w600, tr('watermarkWeightMedium')),
+    (FontWeight.w700, tr('watermarkWeightBold')),
+    (FontWeight.w800, tr('watermarkWeightHeavy')),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final idx = value.clamp(0, _weights.length - 1);
+    final weights = _weights(context);
+    final idx = value.clamp(0, weights.length - 1);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
           SizedBox(
-            width: 100,
-            child: Text(label, style: const TextStyle(fontSize: 12)),
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           Expanded(
             child: Row(
-              children: List.generate(_weights.length, (i) {
+              children: List.generate(weights.length, (i) {
                 final selected = i == idx;
-                final (fw, name) = _weights[i];
+                final (fw, name) = weights[i];
                 return Expanded(
                   child: GestureDetector(
                     onTap: () => onChanged(i),
@@ -910,8 +948,13 @@ class _ImportTile extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 100,
-            child: Text(label, style: const TextStyle(fontSize: 12)),
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           Expanded(
             child: currentFile != null
@@ -949,7 +992,10 @@ class _ImportTile extends StatelessWidget {
                 : OutlinedButton.icon(
                     onPressed: onImport,
                     icon: const Icon(Icons.file_upload_outlined, size: 14),
-                    label: const Text('Import', style: TextStyle(fontSize: 11)),
+                    label: Text(
+                      tr('import'),
+                      style: const TextStyle(fontSize: 11),
+                    ),
                     style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       side: BorderSide(

@@ -1,306 +1,123 @@
-# 水印边框 (Watermark Border) — 技术实现方案
+# 水印边框 (Watermark Border) — 架构文档
 
-## 1. 项目架构分析摘要
+## 1. 核心设计原则
 
-### 1.1 状态管理层
-- `AdjustmentParams`：不可变模型，所有调色参数聚合体，通过 `copyWith` 更新
-- `currentParamsNotifierProvider`：核心 Notifier，管理当前照片参数
-- `isUserDraggingSliderProvider`：拖动 Slider 时降级渲染的全局信号
-- `LutState`/`LutNotifier`：LUT 纹理的异步加载与缓存
-- `DecodedImageState`：持有 `ui.Image` + `RawMetadata`（含 EXIF）
+### 1.1 统一几何模型 (WatermarkGeometry)
 
-### 1.2 UI 层
-- `DevelopTool` 枚举 + `_RailItem`（46×46 图标按钮）构成右侧工具栏
-- `HorizontalAdjustmentPanel`（桌面） / `VerticalAdjustmentPanel`（手机）
-- 每个子 Section 使用 `SectionLabel` + `DevelopSliderTile` 的模式
-- `TrackedSlider`：包裹系统 Slider + 自动联动 `isUserDraggingSliderProvider`
-
-### 1.3 渲染管线
-```
-RAW 解码 → PreviewRenderer (CustomPaint + GLSL) → 显示
-            └─ MultiPassPreview（离屏多 pass：develop → crop → mask → sharpen）
-               └─ FullPipelineRenderer.render()
-```
-
-### 1.4 导出管线
-```
-Exporter.exportFullRes() → FullPipelineRenderer.render() → JPEG/PNG 编码 → 写入文件
-```
-
----
-
-## 2. WatermarkConfig — 纯数据 State 设计
-
-### 2.1 创建独立的 `WatermarkConfig` 模型（`lib/core/models/watermark_config.dart`）
-
-```dart
-@immutable
-class WatermarkConfig {
-  // 开关
-  final bool enabled;
-
-  // 布局
-  final double blurRadius;        // 0 ~ 100 px
-  final double borderWidth;       // 20 ~ 200 px
-  final double imageScale;        // 0.0 ~ 1.0 (原图缩放比例)
-
-  // 质感
-  final double cornerRadius;      // 0 ~ 100 px
-  final double shadowIntensity;   // 0.0 ~ 1.0
-
-  // 背景
-  final BackgroundType backgroundType; // solidColor | image | blurredOriginal
-  final Color backgroundColor;
-
-  // Logo
-  final String? logoBrand;        // null = none, "sony", "nikon" 等
-  final double logoSize;          // 0 ~ 1 (relative)
-  final double logoOpacity;       // 0 ~ 1
-
-  // 文本
-  final bool showExif;            // 是否显示 EXIF 信息
-  final String? fontFamily;       // 字体名称
-  final double fontSize;          // 文字大小
-  final FontWeight fontWeight;
-  final double textOpacity;       // 0 ~ 1
-  final double textPadding;       // 内容边距
-  final WatermarkColorMode colorMode; // light | dark
-  final InfoPlacement infoPlacement;  // above | below（在原图上方/下方）
-
-  const WatermarkConfig({...});
-  factory WatermarkConfig.defaults = ...;
-  WatermarkConfig copyWith({...});
-}
-
-enum BackgroundType { solidColor, image, blurredOriginal }
-enum WatermarkColorMode { light, dark }
-enum InfoPlacement { above, below }
-```
-
-### 2.2 Riverpod Notifier（`lib/state/watermark/watermark_state.dart`）
-
-```dart
-class WatermarkNotifier extends Notifier<WatermarkConfig> {
-  @override
-  WatermarkConfig build() => WatermarkConfig.defaults;
-
-  void update(WatermarkConfig config) => state = config;
-  void toggle() => state = state.copyWith(enabled: !state.enabled);
-  void reset() => state = WatermarkConfig.defaults;
-}
-
-final watermarkConfigProvider = NotifierProvider<WatermarkNotifier, WatermarkConfig>(
-  WatermarkNotifier.new,
-);
-```
-
-### 2.3 为什么独立于 `AdjustmentParams`？
-- 水印边框是**展示/导出**层面的功能，不应污染调色参数模型
-- `AdjustmentParams` 聚焦色彩/裁切/局部调整，已十分庞大
-- 独立 State 使导出逻辑更清晰：`WatermarkConfig` + 渲染结果 → 水印合成
-- 便于未来扩展（如模板保存/加载）
-
----
-
-## 3. Preview Area 渲染层方案
-
-### 3.1 核心思路：Flutter Widget Stack 而非 Shader
-
-水印边框的**三层嵌套布局**天然适合 Flutter 的 `Stack` widget：
+所有布局计算集中在 `lib/render/watermark_geometry.dart` 的 `WatermarkGeometry` 类：
 
 ```
-┌─────────────────────────────────────┐
-│ 第 0 层：背景                        │
-│   ├─ 纯色：Container(color)         │
-│   ├─ 图片：RawImage                 │
-│   └─ 模糊原图：BackdropFilter +      │
-│       降采样缩略图                   │
-├─────────────────────────────────────┤
-│ 第 1 层：Logo + EXIF                │
-│   ├─ RawImage(logo.webp)           │
-│   └─ Text(EXIF)                    │
-├─────────────────────────────────────┤
-│ 第 2 层：清晰原图（居中）            │
-│   └─ 现有的 PreviewRenderer /       │
-│       MultiPassPreview              │
-└─────────────────────────────────────┘
+输入: 图片宽高比 (imageAspectRatio) + WatermarkConfig
+计算: 基于固定基准宽度 (kBaseWidth=1000px) 的绝对画布
+输出: canvasSize, imageRect, infoRect, borderWidth, cornerRadius, ...
+      + exportScale(fullResImageWidth) → 导出缩放因子
 ```
 
-### 3.2 性能优化：背景模糊的降采样策略
+**Preview 和 Export 共用此模型**，保证数学骨架 100% 一致。
 
-**问题**：`ImageFilter.blur` 在高分辨率下极为耗时，拖动 Slider 时可能导致严重掉帧。
+### 1.2 预览：FittedBox 锁死比例
 
-**解决方案**：三级质量策略
-1. **拖动中**：后台 64×64 缩略图进行模糊 → 低质量但流畅（60fps）
-2. **静止**：256×256 缩略图模糊 → 高质量预览
-3. **导出**：全分辨率离屏渲染
-
-```dart
-// 背景层 Widget
-class WatermarkBlurredBackground extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isDragging = ref.watch(isUserDraggingSliderProvider);
-    final config = ref.watch(watermarkConfigProvider);
-
-    // 根据拖动状态选择缩略图尺寸
-    final thumbSize = isDragging ? 64.0 : 256.0;
-
-    // 关键：使用 RepaintBoundary 隔离模糊区域
-    return RepaintBoundary(
-      child: ClipRRect(
-        child: ImageFiltered(
-          imageFilter: ImageFilter.blur(
-            sigmaX: config.blurRadius * (thumbSize / sourceSize),
-            sigmaY: config.blurRadius * (thumbSize / sourceSize),
-          ),
-          child: RawImage(/* 缩略图 */),
-        ),
-      ),
-    );
-  }
-}
-```
-
-### 3.3 三层渲染树的 RepaintBoundary 策略
+`lib/widgets/preview/watermark_preview.dart`:
 
 ```
-RepaintBoundary #root (整个水印预览)
-├─ RepaintBoundary #layer0 (背景层 — 参数不变时不重绘)
-├─ RepaintBoundary #layer1 (Info 层 — 仅水印参数变化时重绘)
-└─ RepaintBoundary #layer2 (原图层 — 调色参数变化时重绘)
-     └─ PreviewRenderer / MultiPassPreview (现有逻辑)
+FittedBox(fit: BoxFit.contain)          // 窗口拉伸 → 仅整体缩放
+  └─ SizedBox(width: geometry.canvasW, height: geometry.canvasH)
+       └─ Stack(绝对坐标定位)
+            ├─ Layer 0: 背景 (Positioned.fill)
+            ├─ Layer 1: Logo+EXIF (geometry.infoRect)
+            └─ Layer 2: 原图 (geometry.imageRect, 圆角+阴影)
 ```
 
-核心原则：
-- 调色参数变化 → 仅重绘 layer0（若为模糊原图）+ layer2
-- 水印参数变化 → 仅重绘 layer0 + layer1
-- `RepaintBoundary` 隔离各层，避免相互触发不必要的重绘
+- 预览不依赖 `LayoutBuilder` / `BoxFit.contain` 等响应式布局
+- 内部排版永远固定，窗口大小变化仅触发 `FittedBox` 整体缩放
 
-### 3.4 预览模式切换
+### 1.3 导出：纯 Canvas + 动态 scale
 
-在 `PreviewArea._buildBody()` 中增加分支：
-
-```dart
-Widget _buildBody(...) {
-  final watermarkEnabled = ref.watch(
-    watermarkConfigProvider.select((c) => c.enabled)
-  );
-
-  if (watermarkEnabled) {
-    return _buildWatermarkPreview(state, params, lut, lutEnabled, ref);
-  }
-
-  // ... existing logic
-}
-```
-
----
-
-## 4. 离屏高清导出方案（防 OOM）
-
-### 4.1 核心风险
-RAW 原图通常 6000×4000 = 24MP。直接构建此尺寸的 Flutter Widget Tree 进行截图，在移动端（尤其是 4-6GB RAM 的 Android 中端机）极易 OOM。
-
-### 4.2 方案：基于 `PictureRecorder` 的分步合成
-
-不是一次性构建全分辨率 Widget Tree，而是：
+`lib/render/watermark_exporter.dart`:
 
 ```
-Step 1: 用现有 Exporter 获取调色渲染结果 (ui.Image, 全分辨率)
-Step 2: 确定导出画布尺寸
-Step 3: 用 PictureRecorder + Canvas 直接在 Canvas 上绘制：
-  a. drawImageRect (背景层 — 模糊/纯色)
-  b. drawParagraph (EXIF 文本)
-  c. drawImage (Logo，从 assets 加载为 ui.Image)
-  d. drawImageRect (调色后的原图，居中缩放)
-  e. drawRRect (圆角裁剪 + 阴影)
-Step 4: picture.toImage() → PNG/JPEG 编码
+scale = fullResImage.width × imageScale / geometry.imageRect.width
 
-全程在 Canvas 上操作，不构建 Widget Tree，内存可控
+所有参数 × scale 后在 PictureRecorder + Canvas 上绘制:
+  - 背景: 降采样→模糊(缩略图分辨率)→拉伸到导出画布
+  - 原图: canvas.drawImageRect → 全分辨率渲染图
+  - Logo: instantiateImageCodec 源文件重解码 → canvas.drawImageRect
+  - 文本: ParagraphBuilder + fontSize × scale → 矢量锐利文字
+  - 阴影: canvas.drawRRect + MaskFilter.blur
 ```
 
-### 4.3 关键细节：全分辨率模糊
-- 导出时背景模糊用 `Canvas.saveLayer` + `ImageFilter.blur`，或直接在 PictureRecorder 层面使用降采样模糊
-- 全分辨率模糊极其昂贵 → 先缩小背景图到 1/N 尺寸做模糊，再拉伸回去（高斯模糊的性质允许这样做）
-- 导出上限：对于 >24MP 的图，导出画布限制在 maxEdge ≤ 8000px，防止 OOM
+- 导出画布紧贴内容 (`canvasW = imageDisplayW + 2×borderW`)，左右边距自然对称
+- 模糊背景与预览使用完全相同的两阶段策略（256px 缩略图→模糊→拉伸）
 
-### 4.4 导出函数接口设计
+## 2. 文件清单
 
-```dart
-class WatermarkExporter {
-  /// 导出带水印边框的全分辨率图片
-  static Future<Uint8List> export({
-    required ui.Image renderedImage,    // FullPipelineRenderer 的结果
-    required WatermarkConfig config,
-    required RawMetadata? metadata,     // EXIF
-    required ExportFormat format,
-    required int jpegQuality,
-  });
-}
-```
-
-在 `Exporter.exportFullRes()` 的最后阶段（FullPipelineRenderer.render() 之后），增加水印合成步骤。
-
----
-
-## 5. 文件清单与任务分解
-
-### Step 2（状态层）— 新增文件
-| 文件 | 说明 |
+| 文件 | 职责 |
 |------|------|
-| `lib/core/models/watermark_config.dart` | `WatermarkConfig` 不可变模型 + 枚举 |
-| `lib/state/watermark/watermark_state.dart` | `WatermarkNotifier` + Provider |
+| `lib/render/watermark_geometry.dart` | 统一几何布局模型，Preview/Export 共用 |
+| `lib/widgets/preview/watermark_preview.dart` | FittedBox + 绝对坐标预览组件 |
+| `lib/render/watermark_exporter.dart` | 纯 Canvas 离屏导出，动态 scale 映射 |
+| `lib/core/models/watermark_config.dart` | WatermarkConfig 不可变数据模型 + 枚举 |
+| `lib/state/watermark/watermark_state.dart` | WatermarkNotifier + Provider |
+| `lib/widgets/develop/sections/watermark_section.dart` | 侧边栏 UI 控件 |
+| `lib/render/exporter.dart` | 导出管线入口，接入 WatermarkExporter.composite() |
 
-### Step 3（UI 侧边栏）— 新增文件
-| 文件 | 说明 |
-|------|------|
-| `lib/widgets/develop/sections/watermark_section.dart` | 水印边框 UI（Slider / Dropdown 等） |
+## 3. 布局算法详解
 
-### Step 3（UI 侧边栏）— 需修改文件
-| 文件 | 修改内容 |
-|------|----------|
-| `lib/state/tools/develop_tool_state.dart` | 在 `DevelopTool` 枚举添加 `watermark` |
-| `lib/widgets/develop/horizontal_adjustment_panel.dart` | `_ToolRail` 增加水印 `_RailItem` |
-| `lib/widgets/develop/vertical_adjustment_panel.dart` | Tab 页增加水印 Section |
-| `lib/widgets/develop/develop_sections.dart` | export watermark_section |
+### 3.1 参考画布计算
 
-### Step 4（渲染层）— 新增文件
-| 文件 | 说明 |
-|------|------|
-| `lib/widgets/preview/watermark_preview.dart` | 三层 Stack 预览组件 |
-| `lib/render/watermark_exporter.dart` | 离屏 Canvas 导出 |
+```
+kBaseWidth = 1000                          // 固定基准宽度
+borderW = config.borderWidth               // 边框宽度（逻辑像素）
+availW = kBaseWidth - 2 × borderW          // 图片可用宽度
+imageDisplayW = availW × imageScale        // 原图显示宽度
+imageDisplayH = imageDisplayW / aspectRatio // 原图显示高度
 
-### Step 4（渲染层）— 需修改文件
-| 文件 | 修改内容 |
-|------|----------|
-| `lib/widgets/preview/preview_area.dart` | `_buildBody()` 增加水印预览分支 |
-| `lib/render/exporter.dart` | 导出流程末端接入水印合成 |
-| `lib/state/providers.dart` | export watermark_state |
-| `lib/widgets/export/export_dialog.dart` | 导出对话框增加水印开关（可选） |
+infoH = logoMaxH + gap + textH + 2×textPad // 信息层高度
+canvasW = imageDisplayW + 2 × borderW      // 画布宽度（紧贴内容）
+canvasH = imageDisplayH + 2 × borderW + infoH // 画布高度
 
----
+hMargin = borderW                          // 水平居中边距（左侧=右侧=borderW）
+imageRect = (hMargin, y, imageDisplayW, imageDisplayH)
+infoRect  = (hMargin, y_info, imageDisplayW, infoH)
+```
 
-## 6. 关于第 1 层中 "原图坐标上方/下方" 的语义
+### 3.2 导出 scale 映射
 
-用户描述的第 1 层放在"原图坐标上方或下方"——这里 `InfoPlacement` 枚举的 above/below 含义是：
-- **above**：Logo + EXIF 显示在第 2 层（清晰原图）的**上方**，即边框区域
-- **below**：Logo + EXIF 显示在第 2 层的**下方**，即边框区域
+```
+exportScale = fullResW × imageScale / imageDisplayW
+            = fullResW / availW            // imageScale 因子抵消
 
-信息层永远在边框区域内（第 0 层之上、第 2 层之外），不会遮挡清晰原图。
+exportCanvasW = canvasW × exportScale
+exportCanvasH = canvasH × exportScale
+exportHMargin = hMargin × exportScale     // 导出水平边距，左右对称
+```
 
----
+### 3.3 模糊背景算法
 
-## 7. 后续步骤确认
+```
+Step 1: 降采样到 256px 缩略图 (max edge)
+Step 2: fillScale = max(refCanvasW/thumbW, refCanvasH/thumbH)
+        compensatedBlur = blurRadius × downscale × fillScale
+Step 3: saveLayer + ImageFilter.blur 在缩略图分辨率上施加模糊
+Step 4: drawImageRect 拉伸到导出画布
+```
 
-以上为完整技术方案。请确认以下关键设计决策：
+与预览 `_BlurredBackgroundLayer` 使用完全相同的公式和流程。
 
-1. **`WatermarkConfig` 独立于 `AdjustmentParams`**：✓ 推荐
-2. **预览使用 Flutter Widget Stack（而非 Shader）**：这是性能最优方案，因为：
-   - 第 2 层原图直接复用现有 `PreviewRenderer`/`MultiPassPreview`，零额外成本
-   - 第 0 层模糊用降采样缩略图 + `RepaintBoundary` 隔离
-   - 圆角、阴影利用 Flutter 原生 `BoxDecoration`
-3. **导出使用 Canvas 分步绘制（非 Widget 截图）**：内存安全，适合移动端
-4. **Logo 资源已在 `assets/borders/logos/` 就位**：light/dark 各 14 个品牌
+## 4. 数据流
 
-请确认方案，我将开始 Step 2 的实现。
+```
+用户操作 slider/dropdown
+  → WatermarkNotifier.update(cfg.copyWith(...))
+    → watermarkConfigProvider 通知所有监听者
+      → WatermarkPreview 重建 (WatermarkGeometry.compute → FittedBox)
+      → 导出时 WatermarkExporter.composite(fullResImage, config, metadata)
+```
+
+## 5. 多语言
+
+所有 UI 文字通过 `tr()` 函数国际化，翻译文件位于:
+- `assets/translations/en-US.json`
+- `assets/translations/zh-CN.json`
+
+水印相关翻译键以 `watermark` 为前缀。
