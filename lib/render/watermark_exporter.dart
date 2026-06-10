@@ -102,7 +102,9 @@ class WatermarkExporter {
       } else if (config.backgroundType == BackgroundType.image &&
           config.customBackgroundPath != null) {
         customBg = await _loadBytesAsImage(
-          await WatermarkAssetManager.readImageBytes(config.customBackgroundPath!),
+          await WatermarkAssetManager.readImageBytes(
+            config.customBackgroundPath!,
+          ),
         );
       }
 
@@ -132,7 +134,10 @@ class WatermarkExporter {
 
       // ── 阴影 ──
       if (config.shadowIntensity > 0.001) {
-        final shadowAlpha = (config.shadowIntensity * 0.6 * 255).round().clamp(0, 255);
+        final shadowAlpha = (config.shadowIntensity * 0.6 * 255).round().clamp(
+          0,
+          255,
+        );
         final sp = ui.Paint()
           ..color = ui.Color.fromARGB(shadowAlpha, 0, 0, 0)
           ..maskFilter = ui.MaskFilter.blur(ui.BlurStyle.normal, shadowBlur);
@@ -184,7 +189,12 @@ class WatermarkExporter {
           final logoX = infoL + (infoW - logoW) / 2.0;
           cvs.drawImageRect(
             logoImg,
-            ui.Rect.fromLTWH(0, 0, logoImg.width.toDouble(), logoImg.height.toDouble()),
+            ui.Rect.fromLTWH(
+              0,
+              0,
+              logoImg.width.toDouble(),
+              logoImg.height.toDouble(),
+            ),
             ui.Rect.fromLTWH(logoX, y, logoW, logoH),
             ui.Paint()
               ..color = ui.Color.fromARGB(
@@ -238,7 +248,12 @@ class WatermarkExporter {
         if (bgBlur != null) {
           cvs.drawImageRect(
             bgBlur,
-            ui.Rect.fromLTWH(0, 0, bgBlur.width.toDouble(), bgBlur.height.toDouble()),
+            ui.Rect.fromLTWH(
+              0,
+              0,
+              bgBlur.width.toDouble(),
+              bgBlur.height.toDouble(),
+            ),
             ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
             ui.Paint()..filterQuality = ui.FilterQuality.low,
           );
@@ -252,7 +267,12 @@ class WatermarkExporter {
         if (customBg != null) {
           cvs.drawImageRect(
             customBg,
-            ui.Rect.fromLTWH(0, 0, customBg.width.toDouble(), customBg.height.toDouble()),
+            ui.Rect.fromLTWH(
+              0,
+              0,
+              customBg.width.toDouble(),
+              customBg.height.toDouble(),
+            ),
             ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
             ui.Paint()..filterQuality = ui.FilterQuality.low,
           );
@@ -285,16 +305,17 @@ class WatermarkExporter {
       color: tc.withValues(alpha: config.textOpacity),
       fontFamily: config.fontFamily,
     );
-    final pb = ui.ParagraphBuilder(
-      ui.ParagraphStyle(
-        textAlign: TextAlign.center,
-        maxLines: 3,
-        ellipsis: '…',
-        textDirection: ui.TextDirection.ltr,
-      ),
-    )
-      ..pushStyle(_toUiStyle(ts))
-      ..addText(text);
+    final pb =
+        ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              ellipsis: '…',
+              textDirection: ui.TextDirection.ltr,
+            ),
+          )
+          ..pushStyle(_toUiStyle(ts))
+          ..addText(text);
     return pb.build();
   }
 
@@ -302,8 +323,12 @@ class WatermarkExporter {
   // 模糊背景
   // ────────────────────────────────────────────────────────────
 
-  /// 降采样 → 模糊 → 拉伸到导出尺寸。
-  /// [exportScale] 用于补偿模糊量。
+  /// 降采样 → 模糊（缩略图分辨率）→ 拉伸到导出尺寸。
+  ///
+  /// 与预览 [_BlurredBackgroundLayer] 使用完全相同的两阶段策略：
+  ///   1. 在 256px 缩略图上施加模糊（sigma 补偿降采样 + 填充拉伸）
+  ///   2. 将模糊后的缩略图拉伸到导出画布
+  /// 保证导出模糊的丝滑程度与预览一致。
   static Future<ui.Image?> _makeBlurBg(
     ui.Image src,
     double sigma,
@@ -318,6 +343,7 @@ class WatermarkExporter {
     final dw = (sw * down).round();
     final dh = (sh * down).round();
 
+    // Step 1: 降采样到缩略图
     final r1 = ui.PictureRecorder();
     ui.Canvas(r1).drawImageRect(
       src,
@@ -329,12 +355,19 @@ class WatermarkExporter {
     final small = await p1.toImage(dw, dh);
     p1.dispose();
 
-    final compensatedBlur = sigma * down * exportScale;
+    // Step 2: 计算 fillScale — 使用参考画布尺寸，与预览公式一致
+    final refW = tw / exportScale;
+    final refH = th / exportScale;
+    final fillScale = math.max(refW / dw, refH / dh);
 
+    // 模糊补偿 = sigma × downscale × fillScale（与预览 _BlurredBackgroundLayer 完全相同）
+    final compensatedBlur = sigma * down * fillScale;
+
+    // Step 3: 在缩略图分辨率上施加模糊
     final r2 = ui.PictureRecorder();
     final c2 = ui.Canvas(r2);
     c2.saveLayer(
-      ui.Rect.fromLTWH(0, 0, tw.toDouble(), th.toDouble()),
+      ui.Rect.fromLTWH(0, 0, dw.toDouble(), dh.toDouble()),
       ui.Paint()
         ..imageFilter = ui.ImageFilter.blur(
           sigmaX: compensatedBlur.clamp(0.0, 50.0),
@@ -345,14 +378,27 @@ class WatermarkExporter {
     c2.drawImageRect(
       small,
       ui.Rect.fromLTWH(0, 0, dw.toDouble(), dh.toDouble()),
-      ui.Rect.fromLTWH(0, 0, tw.toDouble(), th.toDouble()),
+      ui.Rect.fromLTWH(0, 0, dw.toDouble(), dh.toDouble()),
       ui.Paint(),
     );
     c2.restore();
     final p2 = r2.endRecording();
-    final result = await p2.toImage(tw, th);
+    final blurredThumb = await p2.toImage(dw, dh);
     p2.dispose();
     small.dispose();
+
+    // Step 4: 拉伸模糊缩略图到导出画布
+    final r3 = ui.PictureRecorder();
+    ui.Canvas(r3).drawImageRect(
+      blurredThumb,
+      ui.Rect.fromLTWH(0, 0, dw.toDouble(), dh.toDouble()),
+      ui.Rect.fromLTWH(0, 0, tw.toDouble(), th.toDouble()),
+      ui.Paint()..filterQuality = ui.FilterQuality.low,
+    );
+    final p3 = r3.endRecording();
+    final result = await p3.toImage(tw, th);
+    p3.dispose();
+    blurredThumb.dispose();
     return result;
   }
 
@@ -372,8 +418,11 @@ class WatermarkExporter {
   }
 
   static Future<ui.Image?> _loadLogoImage(WatermarkConfig config) async {
-    if (config.logoSource == LogoSource.custom && config.customLogoPath != null) {
-      final bytes = await WatermarkAssetManager.readImageBytes(config.customLogoPath!);
+    if (config.logoSource == LogoSource.custom &&
+        config.customLogoPath != null) {
+      final bytes = await WatermarkAssetManager.readImageBytes(
+        config.customLogoPath!,
+      );
       return _loadBytesAsImage(bytes);
     }
     if (config.logoBrand != null) {
