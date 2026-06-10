@@ -143,21 +143,22 @@ class Exporter {
 
       _checkCancel(isCancelled); // 渲染后检查点
 
-      // ── 水印边框合成 ──
+      // 水印边框合成
       ui.Image finalOutput = output;
       if (watermarkConfig != null && watermarkConfig.enabled) {
         onProgress?.call(0.85, 'Applying watermark border…');
         try {
           final composited = await WatermarkExporter.composite(
-            renderedImage: output,
+            fullResImage: output,
             config: watermarkConfig,
             metadata: metadata,
           );
-          output.dispose(); // 替换成功 → 释放原渲染图
+          output.dispose();
           finalOutput = composited;
-        } catch (_) {
-          // 合成失败时回退：保持 output，不加水印导出
-          dev.log('Watermark composite failed, exporting without watermark');
+        } catch (e) {
+          dev.log(
+            'Watermark composite failed, exporting without watermark: $e',
+          );
         }
       }
 

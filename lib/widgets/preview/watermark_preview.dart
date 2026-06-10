@@ -10,11 +10,16 @@ import '../../core/models/crop_params.dart';
 import '../../core/models/watermark_config.dart';
 import '../../native/raw_bridge.dart';
 import '../../render/preview_renderer.dart';
+import '../../render/watermark_geometry.dart';
 import '../../services/watermark/watermark_asset_manager.dart';
 import '../../state/providers.dart';
 import 'multi_pass_preview.dart';
 
-/// 水印边框预览组件
+/// 水印边框预览组件。
+///
+/// 使用 [WatermarkGeometry] 统一布局模型 + [FittedBox] 锁死比例：
+/// - 内部画布为固定参考尺寸（由 geometry 决定），不随窗口拉伸改变排版。
+/// - [FittedBox] 将整块画布等比缩放适配 UI 容器。
 ///
 /// Layer 0: 背景（纯色 / 图片 / 模糊原图）
 /// Layer 1: Logo + EXIF 信息
@@ -37,6 +42,29 @@ class WatermarkPreview extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(watermarkConfigProvider);
 
+    // ── 几何计算 ──
+    final srcW = state.uiImage.width;
+    final srcH = state.uiImage.height;
+    final cropAspect = params.crop.outAspectFor(
+      srcW.toDouble(),
+      srcH.toDouble(),
+    );
+    final hasLogo = watermarkHasLogo(config);
+    final exifStr = _buildExifString(config, state.metadata);
+    final showExif = watermarkShowExif(config, exifText: exifStr);
+
+    final geometry = WatermarkGeometry.compute(
+      imageAspectRatio: cropAspect,
+      config: config,
+      hasLogo: hasLogo,
+      showExif: showExif,
+    );
+
+    final textColor = config.colorMode == WatermarkColorMode.light
+        ? Colors.white
+        : Colors.black;
+
+    // ── 渲染路径选择 ──
     final hasLocals = params.locals.any(
       (l) => l.enabled && !l.params.isNeutral,
     );
@@ -51,325 +79,394 @@ class WatermarkPreview extends ConsumerWidget {
       if (develop == null || maskProgram == null) {
         return const Center(child: CircularProgressIndicator(strokeWidth: 2));
       }
-      return _WatermarkLayout(
+      return _WatermarkCanvas(
+        geometry: geometry,
         config: config,
-        buildImageLayer: (ctx, imageFitSize) {
-          final isVertical = MediaQuery.of(ctx).size.shortestSide < 600;
-          final previewQ = ref.watch(previewQualityProvider);
-          final (idle, dragging) = previewQ.edges(isVertical: isVertical);
-          return MultiPassPreview(
-            developProgram: develop,
-            maskProgram: maskProgram,
-            sourceImage: state.uiImage,
-            params: params,
-            lutTexture: lutEnabled ? lut.textureA : null,
-            lutSize: lutEnabled ? lut.sizeA : 0,
-            lutTextureB: lutEnabled ? lut.textureB : null,
-            lutSizeB: lutEnabled ? lut.sizeB : 0,
-            curveTexture: ref.watch(effectiveCurveTextureProvider),
-            sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
-            denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
-            idleMaxEdge: idle,
-            draggingMaxEdge: dragging,
-          );
-        },
-        buildBackgroundLayer:
-            config.backgroundType == BackgroundType.blurredOriginal
-            ? (ctx, bgSize) => _BlurredDevelopBackground(
-                image: state.uiImage,
-                params: params,
-                lutTexture: lutEnabled ? lut.textureA : null,
-                lutSize: lutEnabled ? lut.sizeA : 0,
-                lutTextureB: lutEnabled ? lut.textureB : null,
-                lutSizeB: lutEnabled ? lut.sizeB : 0,
-                curveTexture: ref.watch(effectiveCurveTextureProvider),
-                blurSigma: config.blurRadius,
-                targetSize: bgSize,
-              )
-            : null,
-        buildInfoLayer: (ctx, infoWidth, textColor) => _WatermarkInfoLayer(
+        textColor: textColor,
+        imageLayer: _ComplexImageLayer(
+          developProgram: develop,
+          maskProgram: maskProgram,
+          sourceImage: state.uiImage,
+          params: params,
+          lutTexture: lutEnabled ? lut.textureA : null,
+          lutSize: lutEnabled ? lut.sizeA : 0,
+          lutTextureB: lutEnabled ? lut.textureB : null,
+          lutSizeB: lutEnabled ? lut.sizeB : 0,
+          curveTexture: ref.watch(effectiveCurveTextureProvider),
+          sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
+          denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
+          geometry: geometry,
+        ),
+        backgroundLayer: _buildBackground(
+          config,
+          geometry,
+          state,
+          params,
+          lut,
+          lutEnabled,
+          ref,
+        ),
+        infoLayer: _InfoLayer(
           metadata: state.metadata,
           config: config,
-          availableWidth: infoWidth,
+          geometry: geometry,
           textColor: textColor,
         ),
-        sourceImage: state.uiImage,
-        crop: params.crop,
       );
     }
 
-    final crop = params.crop;
-    final image = state.uiImage;
-
-    return _WatermarkLayout(
+    // 简单路径
+    return _WatermarkCanvas(
+      geometry: geometry,
       config: config,
-      buildImageLayer: (ctx, imageFitSize) {
-        if (crop.isIdentity) {
-          return PreviewRenderer(
-            image: image,
-            params: params,
-            lutTexture: lutEnabled ? lut.textureA : null,
-            lutSize: lutEnabled ? lut.sizeA : 0,
-            lutTextureB: lutEnabled ? lut.textureB : null,
-            lutSizeB: lutEnabled ? lut.sizeB : 0,
-            curveTexture: ref.watch(effectiveCurveTextureProvider),
-          );
-        }
-        // 有裁剪 → 构建带 transform 的渲染图
-        final imgW = image.width.toDouble();
-        final imgH = image.height.toDouble();
-        final orientedW = crop.orientationSwapsAxes ? imgH : imgW;
-        final orientedH = crop.orientationSwapsAxes ? imgW : imgH;
-        final scale = imageFitSize.width / (orientedW * crop.width);
-        final renderedFullW = imgW * scale;
-        final renderedFullH = imgH * scale;
-        final renderedOrientedW = orientedW * scale;
-        final renderedOrientedH = orientedH * scale;
-
-        final orientedImage = SizedBox(
-          width: renderedOrientedW,
-          height: renderedOrientedH,
-          child: ClipRect(
-            child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity()
-                ..rotateZ(
-                  crop.orientation * math.pi / 2 +
-                      crop.straighten * math.pi / 180,
-                )
-                ..scaleByDouble(
-                  crop.flipH ? -1.0 : 1.0,
-                  crop.flipV ? -1.0 : 1.0,
-                  1.0,
-                  1.0,
-                ),
-              child: OverflowBox(
-                minWidth: renderedFullW,
-                maxWidth: renderedFullW,
-                minHeight: renderedFullH,
-                maxHeight: renderedFullH,
-                child: SizedBox(
-                  width: renderedFullW,
-                  height: renderedFullH,
-                  child: PreviewRenderer(
-                    image: image,
-                    params: params,
-                    lutTexture: lutEnabled ? lut.textureA : null,
-                    lutSize: lutEnabled ? lut.sizeA : 0,
-                    lutTextureB: lutEnabled ? lut.textureB : null,
-                    lutSizeB: lutEnabled ? lut.sizeB : 0,
-                    curveTexture: ref.watch(effectiveCurveTextureProvider),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-
-        return SizedBox.fromSize(
-          size: imageFitSize,
-          child: ClipRect(
-            child: OverflowBox(
-              minWidth: renderedOrientedW,
-              maxWidth: renderedOrientedW,
-              minHeight: renderedOrientedH,
-              maxHeight: renderedOrientedH,
-              alignment: Alignment.topLeft,
-              child: Transform.translate(
-                offset: Offset(
-                  -crop.x * renderedOrientedW,
-                  -crop.y * renderedOrientedH,
-                ),
-                child: orientedImage,
-              ),
-            ),
-          ),
-        );
-      },
-      buildBackgroundLayer:
-          config.backgroundType == BackgroundType.blurredOriginal
-          ? (ctx, bgSize) => _BlurredDevelopBackground(
-              image: image,
-              params: params,
-              lutTexture: lutEnabled ? lut.textureA : null,
-              lutSize: lutEnabled ? lut.sizeA : 0,
-              lutTextureB: lutEnabled ? lut.textureB : null,
-              lutSizeB: lutEnabled ? lut.sizeB : 0,
-              curveTexture: ref.watch(effectiveCurveTextureProvider),
-              blurSigma: config.blurRadius,
-              targetSize: bgSize,
-            )
-          : null,
-      buildInfoLayer: (ctx, infoWidth, textColor) => _WatermarkInfoLayer(
+      textColor: textColor,
+      imageLayer: _SimpleImageLayer(
+        image: state.uiImage,
+        params: params,
+        crop: params.crop,
+        lutTexture: lutEnabled ? lut.textureA : null,
+        lutSize: lutEnabled ? lut.sizeA : 0,
+        lutTextureB: lutEnabled ? lut.textureB : null,
+        lutSizeB: lutEnabled ? lut.sizeB : 0,
+        curveTexture: ref.watch(effectiveCurveTextureProvider),
+        geometry: geometry,
+      ),
+      backgroundLayer: _buildBackground(
+        config,
+        geometry,
+        state,
+        params,
+        lut,
+        lutEnabled,
+        ref,
+      ),
+      infoLayer: _InfoLayer(
         metadata: state.metadata,
         config: config,
-        availableWidth: infoWidth,
+        geometry: geometry,
         textColor: textColor,
       ),
-      sourceImage: image,
-      crop: crop,
+    );
+  }
+
+  // ── 背景层构建 ──
+
+  static Widget? _buildBackground(
+    WatermarkConfig config,
+    WatermarkGeometry geometry,
+    DecodedImageState state,
+    AdjustmentParams params,
+    LutState lut,
+    bool lutEnabled,
+    WidgetRef ref,
+  ) {
+    switch (config.backgroundType) {
+      case BackgroundType.solidColor:
+        return null; // 由 Container color 处理
+      case BackgroundType.blurredOriginal:
+        return _BlurredBackgroundLayer(
+          image: state.uiImage,
+          params: params,
+          lutTexture: lutEnabled ? lut.textureA : null,
+          lutSize: lutEnabled ? lut.sizeA : 0,
+          lutTextureB: lutEnabled ? lut.textureB : null,
+          lutSizeB: lutEnabled ? lut.sizeB : 0,
+          curveTexture: ref.watch(effectiveCurveTextureProvider),
+          blurSigma: config.blurRadius,
+          canvasSize: geometry.canvasSize,
+        );
+      case BackgroundType.image:
+        if (config.customBackgroundPath != null) {
+          return _CustomImageBackground(filename: config.customBackgroundPath!);
+        }
+        return null;
+    }
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// 画布容器：FittedBox + 绝对定位 Stack
+// ──────────────────────────────────────────────────────────────
+
+class _WatermarkCanvas extends StatelessWidget {
+  final WatermarkGeometry geometry;
+  final WatermarkConfig config;
+  final Color textColor;
+  final Widget imageLayer;
+  final Widget? backgroundLayer;
+  final Widget? infoLayer;
+
+  const _WatermarkCanvas({
+    required this.geometry,
+    required this.config,
+    required this.textColor,
+    required this.imageLayer,
+    this.backgroundLayer,
+    this.infoLayer,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final shadowColor = Colors.black.withValues(
+      alpha: config.shadowIntensity * 0.6,
+    );
+    final showShadow = config.shadowIntensity > 0.001;
+
+    return FittedBox(
+      fit: BoxFit.contain,
+      child: Container(
+        width: geometry.canvasSize.width,
+        height: geometry.canvasSize.height,
+        color: config.backgroundType == BackgroundType.solidColor
+            ? Color(config.backgroundColor)
+            : Colors.black,
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            // Layer 0: 背景
+            if (backgroundLayer != null)
+              Positioned.fill(child: backgroundLayer!),
+
+            // Layer 1: 信息层（在上方时）
+            if (infoLayer != null && geometry.infoAbove)
+              Positioned(
+                left: geometry.infoRect.left,
+                top: geometry.infoRect.top,
+                width: geometry.infoRect.width,
+                height: geometry.infoRect.height,
+                child: infoLayer!,
+              ),
+
+            // Layer 2: 原图（圆角 + 阴影）
+            Positioned(
+              left: geometry.imageRect.left,
+              top: geometry.imageRect.top,
+              width: geometry.imageRect.width,
+              height: geometry.imageRect.height,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(geometry.cornerRadius),
+                  boxShadow: showShadow
+                      ? [
+                          BoxShadow(
+                            color: shadowColor,
+                            blurRadius: geometry.shadowBlur,
+                            offset: Offset(0, geometry.shadowOffsetY),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(geometry.cornerRadius),
+                  child: imageLayer,
+                ),
+              ),
+            ),
+
+            // Layer 1: 信息层（在下方时）
+            if (infoLayer != null && !geometry.infoAbove)
+              Positioned(
+                left: geometry.infoRect.left,
+                top: geometry.infoRect.top,
+                width: geometry.infoRect.width,
+                height: geometry.infoRect.height,
+                child: infoLayer!,
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
 
 // ──────────────────────────────────────────────────────────────
-// 布局计算核心：确定三层各自的尺寸和位置
+// Layer 2 简单路径：PreviewRenderer + 裁剪变换
 // ──────────────────────────────────────────────────────────────
 
-typedef ImageLayerBuilder =
-    Widget Function(BuildContext ctx, Size imageFitSize);
-typedef BackgroundLayerBuilder =
-    Widget? Function(BuildContext ctx, Size bgSize);
-typedef InfoLayerBuilder =
-    Widget Function(BuildContext ctx, double infoWidth, Color textColor);
-
-class _WatermarkLayout extends ConsumerWidget {
-  final WatermarkConfig config;
-  final ImageLayerBuilder buildImageLayer;
-  final BackgroundLayerBuilder? buildBackgroundLayer;
-  final InfoLayerBuilder buildInfoLayer;
-  final ui.Image sourceImage;
+class _SimpleImageLayer extends ConsumerWidget {
+  final ui.Image image;
+  final AdjustmentParams params;
   final CropParams crop;
+  final ui.Image? lutTexture;
+  final int lutSize;
+  final ui.Image? lutTextureB;
+  final int lutSizeB;
+  final ui.Image? curveTexture;
+  final WatermarkGeometry geometry;
 
-  const _WatermarkLayout({
-    required this.config,
-    required this.buildImageLayer,
-    this.buildBackgroundLayer,
-    required this.buildInfoLayer,
-    required this.sourceImage,
+  const _SimpleImageLayer({
+    required this.image,
+    required this.params,
     required this.crop,
+    this.lutTexture,
+    this.lutSize = 0,
+    this.lutTextureB,
+    this.lutSizeB = 0,
+    this.curveTexture,
+    required this.geometry,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final textColor = config.colorMode == WatermarkColorMode.light
-        ? Colors.white
-        : Colors.black;
+    final targetSize = geometry.imageRect.size;
 
-    return Container(
-      color: config.backgroundType == BackgroundType.solidColor
-          ? Color(config.backgroundColor)
-          : Colors.black,
-      child: LayoutBuilder(
-        builder: (ctx, constraints) {
-          final availW = constraints.maxWidth;
-          final availH = constraints.maxHeight;
+    if (crop.isIdentity) {
+      return SizedBox.fromSize(
+        size: targetSize,
+        child: PreviewRenderer(
+          image: image,
+          params: params,
+          lutTexture: lutTexture,
+          lutSize: lutSize,
+          lutTextureB: lutTextureB,
+          lutSizeB: lutSizeB,
+          curveTexture: curveTexture,
+        ),
+      );
+    }
 
-          // ── 计算原图区域 ──
-          final borderW = config.borderWidth;
-          final imgW = sourceImage.width.toDouble();
-          final imgH = sourceImage.height.toDouble();
-          final outAspect = crop.outAspectFor(imgW, imgH);
+    // 带裁剪 → 构建 transform 层级
+    final imgW = image.width.toDouble();
+    final imgH = image.height.toDouble();
+    final orientedW = crop.orientationSwapsAxes ? imgH : imgW;
+    final orientedH = crop.orientationSwapsAxes ? imgW : imgH;
+    final scale = targetSize.width / (orientedW * crop.width);
+    final renderedFullW = imgW * scale;
+    final renderedFullH = imgH * scale;
+    final renderedOrientedW = orientedW * scale;
+    final renderedOrientedH = orientedH * scale;
 
-          // 可用空间扣掉边框
-          final innerMaxW = (availW - 2 * borderW).clamp(1.0, availW);
-          final innerMaxH = (availH - 2 * borderW).clamp(1.0, availH);
-
-          final imageFit = applyBoxFit(
-            BoxFit.contain,
-            Size(outAspect, 1.0),
-            Size(innerMaxW, innerMaxH),
-          );
-          final imageBaseSize = imageFit.destination;
-          final scale = config.imageScale.clamp(0.01, 1.0);
-          final imageDisplayW = imageBaseSize.width * scale;
-          final imageDisplayH = imageBaseSize.height * scale;
-
-          // ── 信息层区域 ──
-          final infoAvailH = availH - imageDisplayH - 2 * borderW;
-          final infoAbove = config.infoPlacement == InfoPlacement.above;
-
-          // ── 构建各层 ──
-          final imageLayer = RepaintBoundary(
-            child: buildImageLayer(ctx, Size(imageDisplayW, imageDisplayH)),
-          );
-
-          // Layer 0
-          Widget? bgLayer;
-          final bgBuilder = buildBackgroundLayer;
-          if (config.backgroundType == BackgroundType.solidColor) {
-            bgLayer = null; // handled by Container color
-          } else if (config.backgroundType == BackgroundType.blurredOriginal &&
-              bgBuilder != null) {
-            bgLayer = Positioned.fill(
-              child: RepaintBoundary(
-                child: bgBuilder(ctx, Size(availW, availH)),
-              ),
-            );
-          } else if (config.backgroundType == BackgroundType.image &&
-              config.customBackgroundPath != null) {
-            bgLayer = Positioned.fill(
-              child: RepaintBoundary(
-                child: _CustomImageBackground(
-                  filename: config.customBackgroundPath!,
-                ),
-              ),
-            );
-          }
-
-          // Layer 1
-          final infoLayer = infoAvailH > 20
-              ? Positioned(
-                  left: borderW,
-                  right: borderW,
-                  top: infoAbove ? 0 : null,
-                  bottom: infoAbove ? null : 0,
-                  height: infoAvailH.clamp(0, availH),
-                  child: RepaintBoundary(
-                    child: buildInfoLayer(ctx, availW - 2 * borderW, textColor),
-                  ),
-                )
-              : const SizedBox.shrink();
-
-          // Layer 2 — 带圆角 + 阴影的原图层
-          final shadowColor = Colors.black.withValues(
-            alpha: config.shadowIntensity * 0.6,
-          );
-          final shadowBlur = config.shadowIntensity * 30.0;
-          final shadowOffset = config.shadowIntensity * 8.0;
-
-          final imageLayerDecorated = Center(
-            child: Container(
-              width: imageDisplayW,
-              height: imageDisplayH,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(config.cornerRadius),
-                boxShadow: config.shadowIntensity > 0.001
-                    ? [
-                        BoxShadow(
-                          color: shadowColor,
-                          blurRadius: shadowBlur,
-                          offset: Offset(0, shadowOffset),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(config.cornerRadius),
-                child: imageLayer,
+    final orientedImage = SizedBox(
+      width: renderedOrientedW,
+      height: renderedOrientedH,
+      child: ClipRect(
+        child: Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..rotateZ(
+              crop.orientation * math.pi / 2 + crop.straighten * math.pi / 180,
+            )
+            ..scaleByDouble(
+              crop.flipH ? -1.0 : 1.0,
+              crop.flipV ? -1.0 : 1.0,
+              1.0,
+              1.0,
+            ),
+          child: OverflowBox(
+            minWidth: renderedFullW,
+            maxWidth: renderedFullW,
+            minHeight: renderedFullH,
+            maxHeight: renderedFullH,
+            child: SizedBox(
+              width: renderedFullW,
+              height: renderedFullH,
+              child: PreviewRenderer(
+                image: image,
+                params: params,
+                lutTexture: lutTexture,
+                lutSize: lutSize,
+                lutTextureB: lutTextureB,
+                lutSizeB: lutSizeB,
+                curveTexture: curveTexture,
               ),
             ),
-          );
+          ),
+        ),
+      ),
+    );
 
-          return Stack(
-            children: [
-              ?bgLayer,
-              if (infoAbove) infoLayer,
-              imageLayerDecorated,
-              if (!infoAbove) infoLayer,
-            ],
-          );
-        },
+    return SizedBox.fromSize(
+      size: targetSize,
+      child: ClipRect(
+        child: OverflowBox(
+          minWidth: renderedOrientedW,
+          maxWidth: renderedOrientedW,
+          minHeight: renderedOrientedH,
+          maxHeight: renderedOrientedH,
+          alignment: Alignment.topLeft,
+          child: Transform.translate(
+            offset: Offset(
+              -crop.x * renderedOrientedW,
+              -crop.y * renderedOrientedH,
+            ),
+            child: orientedImage,
+          ),
+        ),
       ),
     );
   }
 }
 
 // ──────────────────────────────────────────────────────────────
-// Layer 0: 低分辨率 Develop 渲染 + 高斯模糊
+// Layer 2 复杂路径：MultiPassPreview
 // ──────────────────────────────────────────────────────────────
 
-class _BlurredDevelopBackground extends ConsumerWidget {
+class _ComplexImageLayer extends ConsumerWidget {
+  final ui.FragmentProgram developProgram;
+  final ui.FragmentProgram maskProgram;
+  final ui.Image sourceImage;
+  final AdjustmentParams params;
+  final ui.Image? lutTexture;
+  final int lutSize;
+  final ui.Image? lutTextureB;
+  final int lutSizeB;
+  final ui.Image? curveTexture;
+  final ui.FragmentProgram? sharpenProgram;
+  final ui.FragmentProgram? denoiseProgram;
+  final WatermarkGeometry geometry;
+
+  const _ComplexImageLayer({
+    required this.developProgram,
+    required this.maskProgram,
+    required this.sourceImage,
+    required this.params,
+    this.lutTexture,
+    this.lutSize = 0,
+    this.lutTextureB,
+    this.lutSizeB = 0,
+    this.curveTexture,
+    this.sharpenProgram,
+    this.denoiseProgram,
+    required this.geometry,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isVertical = MediaQuery.of(context).size.shortestSide < 600;
+    final previewQ = ref.watch(previewQualityProvider);
+    final (idle, dragging) = previewQ.edges(isVertical: isVertical);
+
+    // 覆盖 idle/dragging 分辨率：以 geometry 中图片槽的较长边为准
+    final slotLongest = math
+        .max(geometry.imageRect.width, geometry.imageRect.height)
+        .ceil();
+
+    return SizedBox.fromSize(
+      size: geometry.imageRect.size,
+      child: MultiPassPreview(
+        developProgram: developProgram,
+        maskProgram: maskProgram,
+        sourceImage: sourceImage,
+        params: params,
+        lutTexture: lutTexture,
+        lutSize: lutSize,
+        lutTextureB: lutTextureB,
+        lutSizeB: lutSizeB,
+        curveTexture: curveTexture,
+        sharpenProgram: sharpenProgram,
+        denoiseProgram: denoiseProgram,
+        idleMaxEdge: slotLongest,
+        draggingMaxEdge: (slotLongest * 0.5).ceil().clamp(200, dragging),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// Layer 0: 模糊原图背景
+// ──────────────────────────────────────────────────────────────
+
+class _BlurredBackgroundLayer extends ConsumerWidget {
   final ui.Image image;
   final AdjustmentParams params;
   final ui.Image? lutTexture;
@@ -378,9 +475,9 @@ class _BlurredDevelopBackground extends ConsumerWidget {
   final int lutSizeB;
   final ui.Image? curveTexture;
   final double blurSigma;
-  final Size targetSize;
+  final Size canvasSize;
 
-  const _BlurredDevelopBackground({
+  const _BlurredBackgroundLayer({
     required this.image,
     required this.params,
     this.lutTexture,
@@ -389,7 +486,7 @@ class _BlurredDevelopBackground extends ConsumerWidget {
     this.lutSizeB = 0,
     this.curveTexture,
     required this.blurSigma,
-    required this.targetSize,
+    required this.canvasSize,
   });
 
   @override
@@ -401,7 +498,6 @@ class _BlurredDevelopBackground extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       error: (e, s) => const SizedBox.shrink(),
       data: (program) {
-        // 降采样：拖动时 64px，静止时 256px
         final maxEdge = isDragging ? 64.0 : 256.0;
         final imgW = image.width.toDouble();
         final imgH = image.height.toDouble();
@@ -410,13 +506,10 @@ class _BlurredDevelopBackground extends ConsumerWidget {
         final thumbW = (imgW * downscale).round();
         final thumbH = (imgH * downscale).round();
 
-        // 缩略图放大的比例
         final fillScale = math.max(
-          targetSize.width / thumbW,
-          targetSize.height / thumbH,
+          canvasSize.width / thumbW,
+          canvasSize.height / thumbH,
         );
-
-        // 调整模糊量以补偿降采样
         final compensatedBlur = blurSigma * downscale * fillScale;
 
         return ClipRect(
@@ -506,35 +599,27 @@ class _CustomImageBackgroundState extends State<_CustomImageBackground> {
 // Layer 1: Logo + EXIF 信息层
 // ──────────────────────────────────────────────────────────────
 
-class _WatermarkInfoLayer extends StatelessWidget {
+class _InfoLayer extends StatelessWidget {
   final RawMetadata? metadata;
   final WatermarkConfig config;
-  final double availableWidth;
+  final WatermarkGeometry geometry;
   final Color textColor;
 
-  const _WatermarkInfoLayer({
+  const _InfoLayer({
     required this.metadata,
     required this.config,
-    required this.availableWidth,
+    required this.geometry,
     required this.textColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final hasLogo =
-        config.logoSource == LogoSource.builtin && config.logoBrand != null ||
-        config.logoSource == LogoSource.custom && config.customLogoPath != null;
-
-    if (!config.showExif && !hasLogo) {
+    if (!geometry.hasLogo && !geometry.hasExif) {
       return const SizedBox.shrink();
     }
 
-    final exifStr = config.showExif ? _buildExifString(config, metadata) : null;
-    if (exifStr == null && !hasLogo) {
-      return const SizedBox.shrink();
-    }
+    final exifStr = _buildExifString(config, metadata);
 
-    // Logo 资源：内置品牌 / 自定义文件
     final String? logoAsset;
     final String? logoFilePath;
     if (config.logoSource == LogoSource.custom &&
@@ -552,14 +637,14 @@ class _WatermarkInfoLayer extends StatelessWidget {
 
     final fontWeight = _indexToFontWeight(config.fontWeightIndex);
     final textStyle = TextStyle(
-      fontSize: config.fontSize,
+      fontSize: geometry.fontSize,
       fontWeight: fontWeight,
       color: textColor.withValues(alpha: config.textOpacity),
       fontFamily: config.fontFamily,
     );
 
     return Padding(
-      padding: EdgeInsets.all(config.textPadding),
+      padding: EdgeInsets.all(geometry.textPad),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -570,11 +655,11 @@ class _WatermarkInfoLayer extends StatelessWidget {
               child: _LogoImage(
                 assetPath: logoAsset,
                 filePath: logoFilePath,
-                maxHeight: config.logoSize * 48,
+                maxHeight: geometry.logoMaxH,
               ),
             ),
           if ((logoAsset != null || logoFilePath != null) && exifStr != null)
-            SizedBox(height: config.textPadding / 2),
+            SizedBox(height: geometry.textPad / 2),
           if (exifStr != null)
             Text(
               exifStr,
@@ -587,53 +672,10 @@ class _WatermarkInfoLayer extends StatelessWidget {
       ),
     );
   }
-
-  static String? _logoAssetPath(String? brand, WatermarkColorMode mode) {
-    if (brand == null) return null;
-    final dir = mode == WatermarkColorMode.light ? 'light' : 'dark';
-    return 'assets/borders/logos/$dir/$brand.webp';
-  }
-
-  static String? _buildExifString(WatermarkConfig config, RawMetadata? m) {
-    if (config.exifMode == ExifMode.custom) {
-      final t = config.customExifText?.trim();
-      return (t != null && t.isNotEmpty) ? t : null;
-    }
-    if (m == null) return null;
-    final parts = <String>[];
-    // 相机型号 + 镜头
-    final cam = m.cameraModel.trim();
-    if (cam.isNotEmpty) parts.add(cam);
-    // ISO
-    if (m.iso > 0) parts.add('ISO ${m.iso}');
-    // 光圈
-    if (m.aperture > 0) parts.add('f/${m.aperture.toStringAsFixed(1)}');
-    // 快门
-    if (m.shutter > 0) parts.add(m.shutterDisplay);
-    // 焦距
-    if (m.focalLength > 0) parts.add('${m.focalLength.toStringAsFixed(0)}mm');
-    // 镜头型号（仅在和相机不同时显示）
-    final lens = m.lensModel.trim();
-    if (lens.isNotEmpty && lens != cam) parts.add(lens);
-
-    if (parts.isEmpty) return null;
-    return parts.join(' | ');
-  }
-
-  static FontWeight _indexToFontWeight(int idx) {
-    const map = [
-      FontWeight.w400,
-      FontWeight.w500,
-      FontWeight.w600,
-      FontWeight.w700,
-      FontWeight.w800,
-    ];
-    return map[idx.clamp(0, map.length - 1)];
-  }
 }
 
 // ──────────────────────────────────────────────────────────────
-// Logo 图片加载组件（带透明度）
+// Logo 图片加载组件
 // ──────────────────────────────────────────────────────────────
 
 class _LogoImage extends StatefulWidget {
@@ -695,11 +737,50 @@ class _LogoImageState extends State<_LogoImage> {
   }
 }
 
-/// 从 asset 解码为 ui.Image
+// ──────────────────────────────────────────────────────────────
+// 辅助函数
+// ──────────────────────────────────────────────────────────────
+
 Future<ui.Image> _decodeAssetImage(String assetPath) async {
   final bundle = rootBundle;
   final data = await bundle.load(assetPath);
   final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
   final frame = await codec.getNextFrame();
   return frame.image;
+}
+
+String? _logoAssetPath(String? brand, WatermarkColorMode mode) {
+  if (brand == null) return null;
+  final dir = mode == WatermarkColorMode.light ? 'light' : 'dark';
+  return 'assets/borders/logos/$dir/$brand.webp';
+}
+
+String? _buildExifString(WatermarkConfig config, RawMetadata? m) {
+  if (config.exifMode == ExifMode.custom) {
+    final t = config.customExifText?.trim();
+    return (t != null && t.isNotEmpty) ? t : null;
+  }
+  if (m == null) return null;
+  final parts = <String>[];
+  final cam = m.cameraModel.trim();
+  if (cam.isNotEmpty) parts.add(cam);
+  if (m.iso > 0) parts.add('ISO ${m.iso}');
+  if (m.aperture > 0) parts.add('f/${m.aperture.toStringAsFixed(1)}');
+  if (m.shutter > 0) parts.add(m.shutterDisplay);
+  if (m.focalLength > 0) parts.add('${m.focalLength.toStringAsFixed(0)}mm');
+  final lens = m.lensModel.trim();
+  if (lens.isNotEmpty && lens != cam) parts.add(lens);
+  if (parts.isEmpty) return null;
+  return parts.join(' | ');
+}
+
+FontWeight _indexToFontWeight(int idx) {
+  const map = [
+    FontWeight.w400,
+    FontWeight.w500,
+    FontWeight.w600,
+    FontWeight.w700,
+    FontWeight.w800,
+  ];
+  return map[idx.clamp(0, map.length - 1)];
 }
