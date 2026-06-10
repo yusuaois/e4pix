@@ -146,7 +146,7 @@ class Exporter {
       // 水印边框合成
       ui.Image finalOutput = output;
       if (watermarkConfig != null && watermarkConfig.enabled) {
-        onProgress?.call(0.85, 'Applying watermark border…');
+        onProgress?.call(0.85, tr("exportWatermarkBorder"));
         try {
           final composited = await WatermarkExporter.composite(
             fullResImage: output,

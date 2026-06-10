@@ -400,5 +400,7 @@
   "watermarkSectionExifText": "EXIF 与文本",
   "import": "导入",
   "ok": "确定",
-  "watermarkBgColorTitle": "背景颜色"
+  "watermarkBgColorTitle": "背景颜色",
+  "watermarkCanvasRatio": "画布比例",
+  "exportWatermarkBorder": "应用水印边框..."
 }

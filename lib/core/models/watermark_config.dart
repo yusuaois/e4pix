@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 
 /// 背景类型
@@ -42,6 +43,44 @@ enum LogoSource {
   custom,
 }
 
+/// 画布宽高比
+enum CanvasAspectRatio {
+  /// 自动（跟随原图比例）
+  auto,
+
+  /// 1:1 正方形
+  square,
+
+  /// 4:3
+  ratio4_3,
+
+  /// 3:2
+  ratio3_2,
+
+  /// 16:9
+  ratio16_9,
+}
+
+/// [CanvasAspectRatio] 对应的数值 w/h，auto 返回 null。
+extension CanvasAspectRatioExt on CanvasAspectRatio {
+  double? get value => switch (this) {
+    CanvasAspectRatio.auto => null,
+    CanvasAspectRatio.square => 1.0,
+    CanvasAspectRatio.ratio4_3 => 4.0 / 3.0,
+    CanvasAspectRatio.ratio3_2 => 3.0 / 2.0,
+    CanvasAspectRatio.ratio16_9 => 16.0 / 9.0,
+  };
+
+  /// 显示标签
+  String get displayLabel => switch (this) {
+    CanvasAspectRatio.auto => tr("auto"),
+    CanvasAspectRatio.square => '1:1',
+    CanvasAspectRatio.ratio4_3 => '4:3',
+    CanvasAspectRatio.ratio3_2 => '3:2',
+    CanvasAspectRatio.ratio16_9 => '16:9',
+  };
+}
+
 /// 已支持的品牌 Logo 列表
 const kAvailableLogoBrands = [
   'canon',
@@ -80,6 +119,9 @@ class WatermarkConfig {
   /// 自定义背景图文件名（位于 e4pix/custom_watermarks/ 下）
   final String? customBackgroundPath;
 
+  /// 画布宽高比（null / auto = 跟随原图）
+  final CanvasAspectRatio canvasAspectRatio;
+
   // ── Logo ──
   final LogoSource logoSource;
 
@@ -115,6 +157,7 @@ class WatermarkConfig {
     this.backgroundType = BackgroundType.blurredOriginal,
     this.backgroundColor = 0xFF1A1A1A,
     this.customBackgroundPath,
+    this.canvasAspectRatio = CanvasAspectRatio.auto,
     this.logoSource = LogoSource.builtin,
     this.logoBrand,
     this.customLogoPath,
@@ -147,6 +190,7 @@ class WatermarkConfig {
     int? backgroundColor,
     String? customBackgroundPath,
     bool clearCustomBg = false,
+    CanvasAspectRatio? canvasAspectRatio,
     LogoSource? logoSource,
     String? logoBrand,
     bool clearLogoBrand = false,
@@ -178,6 +222,7 @@ class WatermarkConfig {
     customBackgroundPath: clearCustomBg
         ? null
         : (customBackgroundPath ?? this.customBackgroundPath),
+    canvasAspectRatio: canvasAspectRatio ?? this.canvasAspectRatio,
     logoSource: logoSource ?? this.logoSource,
     logoBrand: clearLogoBrand ? null : (logoBrand ?? this.logoBrand),
     customLogoPath: clearCustomLogo
@@ -212,6 +257,7 @@ class WatermarkConfig {
           backgroundType == other.backgroundType &&
           backgroundColor == other.backgroundColor &&
           customBackgroundPath == other.customBackgroundPath &&
+          canvasAspectRatio == other.canvasAspectRatio &&
           logoSource == other.logoSource &&
           logoBrand == other.logoBrand &&
           customLogoPath == other.customLogoPath &&
@@ -239,6 +285,7 @@ class WatermarkConfig {
     backgroundType,
     backgroundColor,
     customBackgroundPath,
+    canvasAspectRatio,
     logoSource,
     logoBrand,
     customLogoPath,

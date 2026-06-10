@@ -87,6 +87,18 @@ class WatermarkSection extends ConsumerWidget {
               onClear: () => set(cfg.copyWith(clearCustomBg: true)),
             ),
           ],
+          _DropdownTile<CanvasAspectRatio>(
+            label: tr('watermarkCanvasRatio'),
+            value: cfg.canvasAspectRatio,
+            items: CanvasAspectRatio.values.map((r) {
+              return DropdownMenuItem(
+                value: r,
+                child: _DropLabel(r.displayLabel),
+              );
+            }).toList(),
+            onChanged: (v) =>
+                v != null ? set(cfg.copyWith(canvasAspectRatio: v)) : null,
+          ),
 
           const SizedBox(height: 8),
 

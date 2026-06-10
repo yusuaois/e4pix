@@ -400,5 +400,7 @@
   "watermarkSectionExifText": "EXIF & Text",
   "import": "Import",
   "ok": "OK",
-  "watermarkBgColorTitle": "Background Color"
+  "watermarkBgColorTitle": "Background Color",
+  "watermarkCanvasRatio": "Canvas Ratio",
+  "exportWatermarkBorder": "Applying watermark border…"
 }

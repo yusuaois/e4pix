@@ -107,19 +107,31 @@ class WatermarkGeometry {
     final infoContentH = logoH + gap + estTextH + 2 * config.textPadding;
     final infoH = infoContentH; // 不裁剪，导出需要完整高度；预览由 FittedBox 保证可见
 
-    // ── 画布尺寸（紧贴内容，确保左右对称） ──
-    final canvasW = imageDisplayW + 2 * borderW;
-    final canvasH = imageDisplayH + 2 * borderW + infoH;
+    // ── 画布尺寸（紧贴内容） ──
+    final contentW = imageDisplayW + 2 * borderW;
+    final contentH = imageDisplayH + 2 * borderW + infoH;
 
-    // 水平居中边距：内容两侧各有 borderW，天然居中
-    final hMargin = borderW; // imageX 到 canvas 左边缘 = canvas 右边缘到 image 右边缘
+    // 固定画布比例：扩展画布并居中内容
+    final targetRatio = config.canvasAspectRatio.value;
+    double canvasW = contentW;
+    double canvasH = contentH;
+    if (targetRatio != null) {
+      final currentRatio = canvasW / canvasH;
+      if (currentRatio < targetRatio) {
+        canvasW = canvasH * targetRatio;
+      } else {
+        canvasH = canvasW / targetRatio;
+      }
+    }
+    final offsetX = (canvasW - contentW) / 2.0;
+    final offsetY = (canvasH - contentH) / 2.0;
 
-    // ── 各层坐标 ──
-    final imageX = hMargin;
-    final imageY = infoAbove ? infoH + borderW : borderW;
+    // ── 各层坐标（加入扩展偏移，自动模式下 offset=0） ──
+    final imageX = offsetX + borderW;
+    final imageY = offsetY + (infoAbove ? infoH + borderW : borderW);
 
-    final infoX = hMargin;
-    final infoY = infoAbove ? 0.0 : imageY + imageDisplayH + borderW;
+    final infoX = offsetX + borderW;
+    final infoY = offsetY + (infoAbove ? 0.0 : imageDisplayH + 2 * borderW);
 
     return WatermarkGeometry(
       canvasSize: Size(canvasW, canvasH),
