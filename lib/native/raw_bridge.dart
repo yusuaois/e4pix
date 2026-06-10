@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 
+import '../core/models/watermark_config.dart';
 import 'raw_bridge_bindings.dart';
 
 /// 解码后图像
@@ -70,6 +71,7 @@ class RawMetadata {
 }
 
 extension RawMetadataSummary on RawMetadata {
+  /// 简短摘要（用于 Info Bar）
   String get summary {
     final parts = <String>[];
     final model = cameraModel.trim();
@@ -79,6 +81,40 @@ extension RawMetadataSummary on RawMetadata {
     if (aperture > 0) parts.add('f/${aperture.toStringAsFixed(1)}');
     if (focalLength > 0) parts.add('${focalLength.toStringAsFixed(0)}mm');
     return parts.join(' · ');
+  }
+
+  /// 水印 EXIF 文本（支持字段选择）。
+  ///
+  /// [enabledFields] 为空时显示全部字段。
+  /// 分隔符为 ` | `，与信息栏的 ` · ` 区分开。
+  String watermarkExif({Set<ExifField> enabledFields = const {}}) {
+    final showAll = enabledFields.isEmpty;
+    final parts = <String>[];
+    final cam = cameraModel.trim();
+
+    if ((showAll || enabledFields.contains(ExifField.cameraModel)) &&
+        cam.isNotEmpty) {
+      parts.add(cam);
+    }
+    if (showAll || enabledFields.contains(ExifField.lensModel)) {
+      final lens = lensModel.trim();
+      if (lens.isNotEmpty && lens != cam) parts.add(lens);
+    }
+    if ((showAll || enabledFields.contains(ExifField.iso)) && iso > 0) {
+      parts.add('ISO $iso');
+    }
+    if ((showAll || enabledFields.contains(ExifField.aperture)) &&
+        aperture > 0) {
+      parts.add('f/${aperture.toStringAsFixed(1)}');
+    }
+    if ((showAll || enabledFields.contains(ExifField.shutter)) && shutter > 0) {
+      parts.add(shutterDisplay);
+    }
+    if ((showAll || enabledFields.contains(ExifField.focalLength)) &&
+        focalLength > 0) {
+      parts.add('${focalLength.toStringAsFixed(0)}mm');
+    }
+    return parts.isEmpty ? '' : parts.join(' | ');
   }
 }
 

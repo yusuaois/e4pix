@@ -761,17 +761,8 @@ String? _buildExifString(WatermarkConfig config, RawMetadata? m) {
     return (t != null && t.isNotEmpty) ? t : null;
   }
   if (m == null) return null;
-  final parts = <String>[];
-  final cam = m.cameraModel.trim();
-  if (cam.isNotEmpty) parts.add(cam);
-  if (m.iso > 0) parts.add('ISO ${m.iso}');
-  if (m.aperture > 0) parts.add('f/${m.aperture.toStringAsFixed(1)}');
-  if (m.shutter > 0) parts.add(m.shutterDisplay);
-  if (m.focalLength > 0) parts.add('${m.focalLength.toStringAsFixed(0)}mm');
-  final lens = m.lensModel.trim();
-  if (lens.isNotEmpty && lens != cam) parts.add(lens);
-  if (parts.isEmpty) return null;
-  return parts.join(' | ');
+  final s = m.watermarkExif(enabledFields: config.enabledExifFields);
+  return s.isEmpty ? null : s;
 }
 
 FontWeight _indexToFontWeight(int idx) {

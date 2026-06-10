@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/watermark_config.dart';
 import '../../../services/watermark/watermark_asset_manager.dart';
 import '../../../state/providers.dart';
+import '../../app/theme_color_picker.dart';
 import '../tracked_slider.dart';
 import 'shared.dart';
 
@@ -304,6 +305,49 @@ class WatermarkSection extends ConsumerWidget {
               ],
               onChanged: (v) => set(cfg.copyWith(exifMode: v)),
             ),
+            // EXIF 字段选择（仅自动模式）
+            if (cfg.exifMode == ExifMode.auto)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 2,
+                ),
+                child: Wrap(
+                  spacing: 4,
+                  runSpacing: 2,
+                  children: ExifField.values.map((field) {
+                    final selected =
+                        cfg.enabledExifFields.isEmpty ||
+                        cfg.enabledExifFields.contains(field);
+                    return _ExifFieldChip(
+                      label: field.displayLabel,
+                      selected: selected,
+                      onTap: () {
+                        final s = Set<ExifField>.from(cfg.enabledExifFields);
+                        if (cfg.enabledExifFields.isEmpty) {
+                          // 当前全选 → 反选：只保留被点击的这一个
+                          s.addAll(ExifField.values);
+                          s.remove(field);
+                        } else if (selected) {
+                          s.remove(field);
+                          if (s.isEmpty) {
+                            // 全部取消 = 空集 = 全选
+                            set(cfg.copyWith(clearExifFields: true));
+                            return;
+                          }
+                        } else {
+                          s.add(field);
+                          if (s.length == ExifField.values.length) {
+                            set(cfg.copyWith(clearExifFields: true));
+                            return;
+                          }
+                        }
+                        set(cfg.copyWith(enabledExifFields: s));
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
             if (cfg.exifMode == ExifMode.custom)
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -538,7 +582,7 @@ class _ColorTile extends StatelessWidget {
             onTap: () async {
               final c = await showDialog<Color>(
                 context: context,
-                builder: (_) => _ColorPickerDialog(initial: color),
+                builder: (_) => ThemeColorWheelDialog(initial: color),
               );
               if (c != null) onChanged(c);
             },
@@ -547,7 +591,7 @@ class _ColorTile extends StatelessWidget {
               height: 28,
               decoration: BoxDecoration(
                 color: color,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
               ),
             ),
@@ -563,101 +607,6 @@ class _ColorTile extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// 简易颜色选择对话框
-class _ColorPickerDialog extends StatefulWidget {
-  final Color initial;
-  const _ColorPickerDialog({required this.initial});
-
-  @override
-  State<_ColorPickerDialog> createState() => _ColorPickerDialogState();
-}
-
-class _ColorPickerDialogState extends State<_ColorPickerDialog> {
-  late double _r, _g, _b, _a;
-
-  @override
-  void initState() {
-    super.initState();
-    _r = widget.initial.r * 255;
-    _g = widget.initial.g * 255;
-    _b = widget.initial.b * 255;
-    _a = widget.initial.a * 255;
-  }
-
-  Color get _color =>
-      Color.fromARGB(_a.round(), _r.round(), _g.round(), _b.round());
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(tr('watermarkBgColorTitle')),
-      content: SizedBox(
-        width: 280,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 60,
-              decoration: BoxDecoration(
-                color: _color,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _channel("R", _r, (v) => setState(() => _r = v)),
-            _channel("G", _g, (v) => setState(() => _g = v)),
-            _channel("B", _b, (v) => setState(() => _b = v)),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(tr('cancel')),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _color),
-          child: Text(tr('ok')),
-        ),
-      ],
-    );
-  }
-
-  Widget _channel(String label, double val, ValueChanged<double> onV) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 20,
-          child: Text(label, style: const TextStyle(fontSize: 12)),
-        ),
-        Expanded(
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 3,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-            ),
-            child: Slider(
-              value: val.clamp(0, 255),
-              min: 0,
-              max: 255,
-              onChanged: onV,
-            ),
-          ),
-        ),
-        SizedBox(
-          width: 32,
-          child: Text(
-            val.round().toString(),
-            textAlign: TextAlign.right,
-            style: const TextStyle(fontSize: 10.5, fontFamily: 'monospace'),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -1038,6 +987,49 @@ class _ImportTile extends StatelessWidget {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// EXIF 字段选择 Chip
+
+class _ExifFieldChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _ExifFieldChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)
+              : Colors.white.withValues(alpha: 0.05),
+          border: Border.all(
+            color: selected
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
+                : Colors.white.withValues(alpha: 0.1),
+          ),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.white.withValues(alpha: 0.5),
+          ),
+        ),
       ),
     );
   }

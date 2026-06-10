@@ -71,6 +71,39 @@ enum ExifMode {
   custom,
 }
 
+/// 可选 EXIF 字段（勾选决定哪些字段出现在水印文字中）。
+enum ExifField {
+  /// 相机型号
+  cameraModel,
+
+  /// 镜头型号
+  lensModel,
+
+  /// ISO
+  iso,
+
+  /// 光圈
+  aperture,
+
+  /// 快门速度
+  shutter,
+
+  /// 焦距
+  focalLength,
+}
+
+/// [ExifField] 显示标签。
+extension ExifFieldExt on ExifField {
+  String get displayLabel => switch (this) {
+    ExifField.cameraModel => 'Camera',
+    ExifField.lensModel => 'Lens',
+    ExifField.iso => 'ISO',
+    ExifField.aperture => 'Aperture',
+    ExifField.shutter => 'Shutter',
+    ExifField.focalLength => 'Focal Length',
+  };
+}
+
 /// Logo 来源
 enum LogoSource {
   /// 内置品牌 Logo（assets/borders/logos/）
@@ -189,6 +222,9 @@ class WatermarkConfig {
   final bool showExif;
   final ExifMode exifMode;
 
+  /// 选中的 EXIF 字段（空集 = 显示全部）
+  final Set<ExifField> enabledExifFields;
+
   /// 自定义 EXIF 文本（exifMode == custom 时生效）
   final String? customExifText;
   final String? fontFamily;
@@ -217,6 +253,7 @@ class WatermarkConfig {
     this.logoOpacity = 0.9,
     this.showExif = true,
     this.exifMode = ExifMode.auto,
+    this.enabledExifFields = const {},
     this.customExifText,
     this.fontFamily,
     this.fontSize = 13.0,
@@ -252,6 +289,8 @@ class WatermarkConfig {
     double? logoOpacity,
     bool? showExif,
     ExifMode? exifMode,
+    Set<ExifField>? enabledExifFields,
+    bool clearExifFields = false,
     String? customExifText,
     bool clearCustomExif = false,
     String? fontFamily,
@@ -284,6 +323,9 @@ class WatermarkConfig {
     logoOpacity: logoOpacity ?? this.logoOpacity,
     showExif: showExif ?? this.showExif,
     exifMode: exifMode ?? this.exifMode,
+    enabledExifFields: clearExifFields
+        ? {}
+        : (enabledExifFields ?? this.enabledExifFields),
     customExifText: clearCustomExif
         ? null
         : (customExifText ?? this.customExifText),
@@ -317,6 +359,7 @@ class WatermarkConfig {
           logoOpacity == other.logoOpacity &&
           showExif == other.showExif &&
           exifMode == other.exifMode &&
+          setEquals(enabledExifFields, other.enabledExifFields) &&
           customExifText == other.customExifText &&
           fontFamily == other.fontFamily &&
           fontSize == other.fontSize &&
@@ -345,6 +388,7 @@ class WatermarkConfig {
     logoOpacity,
     showExif,
     exifMode,
+    Object.hashAll(enabledExifFields),
     customExifText,
     fontFamily,
     fontSize,
@@ -360,7 +404,7 @@ class WatermarkConfig {
   // ──────────────────────────────────────────────────────────
 
   Map<String, dynamic> toJson() => {
-    'enabled': enabled,
+    'version': 1,
     'blurRadius': blurRadius,
     'borderWidth': borderWidth,
     'imageScale': imageScale,
@@ -377,6 +421,7 @@ class WatermarkConfig {
     'logoOpacity': logoOpacity,
     'showExif': showExif,
     'exifMode': exifMode.name,
+    'enabledExifFields': enabledExifFields.map((f) => f.name).toList(),
     'customExifText': customExifText,
     'fontFamily': fontFamily,
     'fontSize': fontSize,
@@ -388,8 +433,13 @@ class WatermarkConfig {
   };
 
   factory WatermarkConfig.fromJson(Map<String, dynamic> json) {
+    final exifFields =
+        (json['enabledExifFields'] as List<dynamic>?)
+            ?.map((e) => ExifField.values.byName(e as String))
+            .toSet() ??
+        const {};
     return WatermarkConfig(
-      enabled: json['enabled'] as bool? ?? false,
+      enabled: false, // 始终初始化为关闭
       blurRadius: (json['blurRadius'] as num?)?.toDouble() ?? 30.0,
       borderWidth: (json['borderWidth'] as num?)?.toDouble() ?? 80.0,
       imageScale: (json['imageScale'] as num?)?.toDouble() ?? 0.85,
@@ -412,6 +462,7 @@ class WatermarkConfig {
       logoOpacity: (json['logoOpacity'] as num?)?.toDouble() ?? 0.9,
       showExif: json['showExif'] as bool? ?? true,
       exifMode: ExifMode.values.byName(json['exifMode'] as String? ?? 'auto'),
+      enabledExifFields: exifFields,
       customExifText: json['customExifText'] as String?,
       fontFamily: json['fontFamily'] as String?,
       fontSize: (json['fontSize'] as num?)?.toDouble() ?? 13.0,

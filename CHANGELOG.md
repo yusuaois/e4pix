@@ -1,14 +1,9 @@
 ## 🚀 新功能 (New Features)
-* **分屏对比**：支持前/后左右分屏对比，同步对比按钮与其他按钮的样式
+* **水印边框**：支持带边框导出水印图片
 
 ## 🐛 问题修复 (Bug Fixes)
 
 ## 🛠️ 底层改进 (Under the Hood)
-* **代码结构**：将同步按钮逻辑移出至state
-* **代码结构**：拆分develop section、local、settings screen为若干单独模块
-* **代码结构**：清理部分代码中的导入state provider
-* **性能优化**：缓存键copywith分配
-* **性能优化**：修复重复着色器加载
 
 
 ---

@@ -446,21 +446,13 @@ class WatermarkExporter {
       final t = config.customExifText?.trim();
       return (t != null && t.isNotEmpty) ? t : null;
     }
-    return _exifString(meta);
+    return _exifString(meta, config);
   }
 
-  static String? _exifString(RawMetadata? m) {
+  static String? _exifString(RawMetadata? m, WatermarkConfig config) {
     if (m == null) return null;
-    final p = <String>[];
-    final cam = m.cameraModel.trim();
-    if (cam.isNotEmpty) p.add(cam);
-    if (m.iso > 0) p.add('ISO ${m.iso}');
-    if (m.aperture > 0) p.add('f/${m.aperture.toStringAsFixed(1)}');
-    if (m.shutter > 0) p.add(m.shutterDisplay);
-    if (m.focalLength > 0) p.add('${m.focalLength.toStringAsFixed(0)}mm');
-    final lens = m.lensModel.trim();
-    if (lens.isNotEmpty && lens != cam) p.add(lens);
-    return p.isEmpty ? null : p.join(' | ');
+    final s = m.watermarkExif(enabledFields: config.enabledExifFields);
+    return s.isEmpty ? null : s;
   }
 
   static FontWeight _toFontWeight(int i) => const [
