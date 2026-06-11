@@ -1,13 +1,10 @@
 import 'dart:ui' as ui;
 
 import '../../core/models/watermark_config.dart';
-import '../../render/utils/image_loader_util.dart';
+import '../../utils/image_loader_util.dart';
 import '../../render/watermark_geometry.dart';
 
 /// 水印 Logo 加载入口
-///
-/// 统一 watermark_exporter 和 watermark_preview 中重复的
-/// custom vs builtin logo 决策树 + 图片解码逻辑
 class WatermarkLogoLoader {
   WatermarkLogoLoader._();
 

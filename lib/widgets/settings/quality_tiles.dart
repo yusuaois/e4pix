@@ -85,6 +85,7 @@ class QualityTiles extends ConsumerWidget {
             value: eq.toDouble(),
             min: 50,
             max: 100,
+            divisions: 50,
             onChanged: (v) =>
                 ref.read(exportQualityProvider.notifier).set(v.round()),
           ),
@@ -99,24 +100,28 @@ class QualityTiles extends ConsumerWidget {
             tr('imageCacheCapacityHint'),
             style: const TextStyle(fontSize: 11, color: Colors.white54),
           ),
-          trailing: DropdownButton<int>(
-            value: ref.watch(imageCacheCapacityProvider),
-            items: [
-              DropdownMenuItem(
-                value: 0,
-                child: Text(
-                  tr('disabled'),
-                  style: const TextStyle(fontSize: 12),
-                ),
+          trailing: SizedBox(
+            width: 44,
+            child: Text(
+              '${ref.watch(imageCacheCapacityProvider)}',
+              style: const TextStyle(
+                fontSize: 12,
+                fontFamily: 'monospace',
+                color: Colors.white70,
               ),
-              for (final n in [2, 3, 5, 8])
-                DropdownMenuItem(value: n, child: Text('$n')),
-            ],
-            onChanged: (v) {
-              if (v != null) {
-                ref.read(imageCacheCapacityProvider.notifier).set(v);
-              }
-            },
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Slider(
+            value: ref.watch(imageCacheCapacityProvider).toDouble(),
+            min: 0,
+            max: 20,
+            divisions: 20,
+            onChanged: (v) =>
+                ref.read(imageCacheCapacityProvider.notifier).set(v.round()),
           ),
         ),
       ],

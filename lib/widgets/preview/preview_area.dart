@@ -30,23 +30,19 @@ class PreviewArea extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final uiImage = ref.watch(
+      imageNotifierProvider.select((async) => async.asData?.value?.uiImage),
+    );
     final imageAsync = ref.watch(imageNotifierProvider);
-    final params = ref.watch(effectiveParamsProvider);
-    final lutState = ref.watch(lutNotifierProvider);
-    final lutEnabled = ref.watch(effectiveLutEnabledProvider);
-    final cropEditMode = ref.watch(cropEditModeProvider);
 
     return imageAsync.when(
-      loading: () => imageAsync.value == null
-          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-          : _buildBody(
-              imageAsync.value!,
-              params,
-              lutState,
-              lutEnabled,
-              cropEditMode,
-              ref,
-            ),
+      loading: () {
+        final prev = imageAsync.value;
+        if (prev != null) {
+          return _PreviewContent(key: ObjectKey(prev.uiImage), state: prev);
+        }
+        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      },
       error: (e, _) => _CenterMessage(
         icon: Icons.warning_amber_rounded,
         color: Colors.orangeAccent,
@@ -55,39 +51,87 @@ class PreviewArea extends ConsumerWidget {
       ),
       data: (state) {
         if (state == null) return _buildEmpty(context, ref);
-        return _buildBody(
-          state,
-          params,
-          lutState,
-          lutEnabled,
-          cropEditMode,
-          ref,
-        );
+        return _PreviewContent(key: ObjectKey(uiImage), state: state);
       },
     );
   }
 
-  Widget _buildBody(
-    DecodedImageState state,
-    AdjustmentParams params,
-    LutState lut,
-    bool lutEnabled,
-    bool cropMode,
-    WidgetRef ref,
-  ) {
-    if (cropMode) return _buildCropEdit(state, params, lut, lutEnabled, ref);
+  Widget _buildEmpty(BuildContext context, WidgetRef ref) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.photo_library_outlined,
+            size: 64,
+            color: Colors.white.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: () async {
+              if (Platform.isAndroid) {
+                final paths = await openFolderImport(context);
+                if (paths != null && paths.isNotEmpty) {
+                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+                }
+              } else {
+                final result = await FilePicker.pickFiles();
+                if (result == null || result.files.isEmpty) return;
+                final paths = result.files
+                    .map((f) => f.path)
+                    .whereType<String>()
+                    .toList();
+                if (paths.isNotEmpty) {
+                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+                }
+              }
+            },
+            icon: Icon(
+              Platform.isAndroid
+                  ? Icons.folder_copy_outlined
+                  : Icons.folder_open,
+            ),
+            label: Text(
+              Platform.isAndroid ? tr("folderImport") : tr("imageChoose"),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: MediaQuery.of(context).size.width * 0.8,
+            child: _FormatMarquee(text: RawFormats.displayList),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// _PreviewContent — 图片内容渲染控件
+class _PreviewContent extends ConsumerWidget {
+  final DecodedImageState state;
+  const _PreviewContent({super.key, required this.state});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final params = ref.watch(effectiveParamsProvider);
+    final lutState = ref.watch(lutNotifierProvider);
+    final lutEnabled = ref.watch(effectiveLutEnabledProvider);
+    final cropEditMode = ref.watch(cropEditModeProvider);
+
+    if (cropEditMode) {
+      return _buildCropEdit(state, params, lutState, lutEnabled, ref);
+    }
     final compareMode = ref.watch(compareViewModeProvider);
     if (compareMode == CompareViewMode.split) {
-      return _buildSplitCompare(state, lut, lutEnabled, ref);
+      return _buildSplitCompare(state, lutState, lutEnabled, ref);
     }
-    // 水印边框预览
     final watermarkOn = ref.watch(
       watermarkConfigProvider.select((c) => c.enabled),
     );
     if (watermarkOn) {
-      return _buildWatermarkPreview(state, params, lut, lutEnabled, ref);
+      return _buildWatermarkPreview(state, params, lutState, lutEnabled, ref);
     }
-    return _buildCroppedPreview(state, params, lut, lutEnabled, ref);
+    return _buildCroppedPreview(state, params, lutState, lutEnabled, ref);
   }
 
   Widget _buildSplitCompare(
@@ -131,7 +175,6 @@ class PreviewArea extends ConsumerWidget {
     WidgetRef ref,
   ) {
     final draft = ref.watch(cropDraftProvider);
-
     return Container(
       color: Colors.black,
       child: Column(
@@ -141,7 +184,6 @@ class PreviewArea extends ConsumerWidget {
               builder: (ctx, constraints) {
                 final imgW = state.uiImage.width.toDouble();
                 final imgH = state.uiImage.height.toDouble();
-
                 final orientedW = draft.orientationSwapsAxes ? imgH : imgW;
                 final orientedH = draft.orientationSwapsAxes ? imgW : imgH;
                 final fit = applyBoxFit(
@@ -150,7 +192,6 @@ class PreviewArea extends ConsumerWidget {
                   constraints.biggest,
                 );
                 final displaySize = fit.destination;
-
                 final scale = displaySize.width / orientedW;
                 final matrix = Matrix4.identity()
                   ..translateByDouble(
@@ -175,7 +216,6 @@ class PreviewArea extends ConsumerWidget {
                     0,
                     1.0,
                   );
-
                 return Stack(
                   alignment: Alignment.center,
                   children: [
@@ -227,89 +267,6 @@ class PreviewArea extends ConsumerWidget {
     );
   }
 
-  /// 取色模式包装：把预览内容 + 取色层 + 读数浮层组合
-  /// [content] 该路径的预览内容；[displaySize] 图片实际显示矩形（裁剪后比例）
-  /// 非取色模式返回 null（调用方走原 _ZoomableView 分支）
-  Widget? _wrapColorPicker({
-    required WidgetRef ref,
-    required Widget content,
-    required Size displaySize,
-    required DecodedImageState state,
-    required AdjustmentParams params,
-    required LutState lut,
-    required bool lutEnabled,
-  }) {
-    final pickerOn = ref.watch(colorPickerModeProvider);
-    if (!pickerOn) return null;
-
-    final develop = ref.watch(shaderProgramProvider).value;
-    final maskProgram = ref.watch(maskShaderProgramProvider).value;
-    if (develop == null || maskProgram == null) {
-      return Container(
-        color: Colors.black,
-        child: Center(child: content),
-      );
-    }
-
-    final picked = ref.watch(pickedColorProvider);
-    return Container(
-      color: Colors.black,
-      child: Center(
-        child: SizedBox.fromSize(
-          size: displaySize,
-          child: Stack(
-            children: [
-              Positioned.fill(child: content),
-              Positioned.fill(
-                child: ColorPickerOverlay(
-                  developProgram: develop,
-                  maskProgram: maskProgram,
-                  sourceImage: state.uiImage,
-                  params: params,
-                  lutTexture: lutEnabled ? lut.textureA : null,
-                  lutSize: lutEnabled ? lut.sizeA : 0,
-                  lutTextureB: lutEnabled ? lut.textureB : null,
-                  lutSizeB: lutEnabled ? lut.sizeB : 0,
-                  curveTexture: ref.watch(effectiveCurveTextureProvider),
-                  sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
-                  denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
-                  displaySize: displaySize,
-                ),
-              ),
-              if (picked != null)
-                Builder(
-                  builder: (_) {
-                    const readoutW = 140.0;
-                    const readoutH = 56.0;
-                    const gap = 16.0;
-                    final cursorX = picked.nx * displaySize.width;
-                    final cursorY = picked.ny * displaySize.height;
-
-                    final placeLeft = cursorX > displaySize.width / 2;
-                    final placeAbove = cursorY > displaySize.height / 2;
-
-                    final left = placeLeft
-                        ? cursorX - gap - readoutW
-                        : cursorX + gap;
-                    final top = placeAbove
-                        ? cursorY - gap - readoutH
-                        : cursorY + gap;
-
-                    return Positioned(
-                      left: left.clamp(0.0, displaySize.width - readoutW),
-                      top: top.clamp(0.0, displaySize.height - readoutH),
-                      child: _ColorReadout(picked: picked),
-                    );
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 普通模式：显示已裁剪的画面（OverflowBox + Transform 模拟裁剪）
   Widget _buildCroppedPreview(
     DecodedImageState state,
     AdjustmentParams params,
@@ -325,7 +282,6 @@ class PreviewArea extends ConsumerWidget {
         params.denoiseLuma > 0.001 || params.denoiseColor > 0.001;
     final needFullPipeline = hasLocals || hasSharpen || hasDenoise;
 
-    // ============ 完整管线（local / 锐化 / 降噪）============
     if (needFullPipeline) {
       final maskProgram = ref.watch(maskShaderProgramProvider).value;
       final develop = ref.watch(shaderProgramProvider).value;
@@ -345,7 +301,6 @@ class PreviewArea extends ConsumerWidget {
             Size(outAspect, 1.0),
             constraints.biggest,
           ).destination;
-
           final preview = MultiPassPreview(
             developProgram: develop,
             maskProgram: maskProgram,
@@ -361,15 +316,14 @@ class PreviewArea extends ConsumerWidget {
             idleMaxEdge: idle,
             draggingMaxEdge: dragging,
           );
-
           return _wrapPreviewContent(
-            ref: ref,
-            content: SizedBox.fromSize(size: box, child: preview),
-            displaySize: box,
-            state: state,
-            params: params,
-            lut: lut,
-            lutEnabled: lutEnabled,
+            ref,
+            SizedBox.fromSize(size: box, child: preview),
+            box,
+            state,
+            params,
+            lut,
+            lutEnabled,
           );
         },
       );
@@ -378,7 +332,6 @@ class PreviewArea extends ConsumerWidget {
     final crop = params.crop;
     final image = state.uiImage;
 
-    // ============ 无 local 无锐化 + 无裁剪 ============
     if (crop.isIdentity) {
       return LayoutBuilder(
         builder: (ctx, constraints) {
@@ -388,8 +341,8 @@ class PreviewArea extends ConsumerWidget {
             constraints.biggest,
           );
           return _wrapPreviewContent(
-            ref: ref,
-            content: SizedBox.fromSize(
+            ref,
+            SizedBox.fromSize(
               size: fit.destination,
               child: PreviewRenderer(
                 image: image,
@@ -401,17 +354,16 @@ class PreviewArea extends ConsumerWidget {
                 curveTexture: ref.watch(effectiveCurveTextureProvider),
               ),
             ),
-            displaySize: fit.destination,
-            state: state,
-            params: params,
-            lut: lut,
-            lutEnabled: lutEnabled,
+            fit.destination,
+            state,
+            params,
+            lut,
+            lutEnabled,
           );
         },
       );
     }
 
-    // ============ 无 local 无锐化 + 有裁剪 ============
     return Container(
       color: Colors.black,
       child: LayoutBuilder(
@@ -424,17 +376,13 @@ class PreviewArea extends ConsumerWidget {
             Size(outAspect, 1.0),
             constraints.biggest,
           ).destination;
-
           final orientedW = crop.orientationSwapsAxes ? imgH : imgW;
           final orientedH = crop.orientationSwapsAxes ? imgW : imgH;
-
           final scale = box.width / (orientedW * crop.width);
           final renderedFullW = imgW * scale;
           final renderedFullH = imgH * scale;
           final renderedOrientedW = orientedW * scale;
           final renderedOrientedH = orientedH * scale;
-
-          // 把原图旋转成"完整 oriented 图" renderedOrientedW × H
           final orientedImage = SizedBox(
             width: renderedOrientedW,
             height: renderedOrientedH,
@@ -474,11 +422,9 @@ class PreviewArea extends ConsumerWidget {
               ),
             ),
           );
-
-          // 在 oriented 图上切 crop 矩形
           return _wrapPreviewContent(
-            ref: ref,
-            content: SizedBox.fromSize(
+            ref,
+            SizedBox.fromSize(
               size: box,
               child: ClipRect(
                 child: OverflowBox(
@@ -497,18 +443,17 @@ class PreviewArea extends ConsumerWidget {
                 ),
               ),
             ),
-            displaySize: box,
-            state: state,
-            params: params,
-            lut: lut,
-            lutEnabled: lutEnabled,
+            box,
+            state,
+            params,
+            lut,
+            lutEnabled,
           );
         },
       ),
     );
   }
 
-  /// 水印边框预览
   Widget _buildWatermarkPreview(
     DecodedImageState state,
     AdjustmentParams params,
@@ -529,19 +474,90 @@ class PreviewArea extends ConsumerWidget {
     );
   }
 
-  /// 预览包装：蒙版编辑 → 取色 → 缩放查看
-  Widget _wrapPreviewContent({
-    required WidgetRef ref,
-    required Widget content,
-    required Size displaySize,
-    required DecodedImageState state,
-    required AdjustmentParams params,
-    required LutState lut,
-    required bool lutEnabled,
-  }) {
-    final selectedLocalId = ref.watch(selectedLocalIdProvider);
+  Widget? _wrapColorPicker(
+    WidgetRef ref,
+    Widget content,
+    Size displaySize,
+    DecodedImageState state,
+    AdjustmentParams params,
+    LutState lut,
+    bool lutEnabled,
+  ) {
+    final pickerOn = ref.watch(colorPickerModeProvider);
+    if (!pickerOn) return null;
+    final develop = ref.watch(shaderProgramProvider).value;
+    final maskProgram = ref.watch(maskShaderProgramProvider).value;
+    if (develop == null || maskProgram == null) {
+      return Container(
+        color: Colors.black,
+        child: Center(child: content),
+      );
+    }
+    final picked = ref.watch(pickedColorProvider);
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: SizedBox.fromSize(
+          size: displaySize,
+          child: Stack(
+            children: [
+              Positioned.fill(child: content),
+              Positioned.fill(
+                child: ColorPickerOverlay(
+                  developProgram: develop,
+                  maskProgram: maskProgram,
+                  sourceImage: state.uiImage,
+                  params: params,
+                  lutTexture: lutEnabled ? lut.textureA : null,
+                  lutSize: lutEnabled ? lut.sizeA : 0,
+                  lutTextureB: lutEnabled ? lut.textureB : null,
+                  lutSizeB: lutEnabled ? lut.sizeB : 0,
+                  curveTexture: ref.watch(effectiveCurveTextureProvider),
+                  sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
+                  denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
+                  displaySize: displaySize,
+                ),
+              ),
+              if (picked != null)
+                Builder(
+                  builder: (_) {
+                    const readoutW = 140.0;
+                    const readoutH = 56.0;
+                    const gap = 16.0;
+                    final cursorX = picked.nx * displaySize.width;
+                    final cursorY = picked.ny * displaySize.height;
+                    final placeLeft = cursorX > displaySize.width / 2;
+                    final placeAbove = cursorY > displaySize.height / 2;
+                    final left = placeLeft
+                        ? cursorX - gap - readoutW
+                        : cursorX + gap;
+                    final top = placeAbove
+                        ? cursorY - gap - readoutH
+                        : cursorY + gap;
+                    return Positioned(
+                      left: left.clamp(0.0, displaySize.width - readoutW),
+                      top: top.clamp(0.0, displaySize.height - readoutH),
+                      child: _ColorReadout(picked: picked),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-    // 蒙版编辑中
+  Widget _wrapPreviewContent(
+    WidgetRef ref,
+    Widget content,
+    Size displaySize,
+    DecodedImageState state,
+    AdjustmentParams params,
+    LutState lut,
+    bool lutEnabled,
+  ) {
+    final selectedLocalId = ref.watch(selectedLocalIdProvider);
     if (selectedLocalId != null) {
       return Container(
         color: Colors.black,
@@ -565,20 +581,16 @@ class PreviewArea extends ConsumerWidget {
         ),
       );
     }
-
-    // 取色模式
     final picker = _wrapColorPicker(
-      ref: ref,
-      content: content,
-      displaySize: displaySize,
-      state: state,
-      params: params,
-      lut: lut,
-      lutEnabled: lutEnabled,
+      ref,
+      content,
+      displaySize,
+      state,
+      params,
+      lut,
+      lutEnabled,
     );
     if (picker != null) return picker;
-
-    // 纯查看
     return Container(
       color: Colors.black,
       child: Center(
@@ -587,55 +599,6 @@ class PreviewArea extends ConsumerWidget {
               ref.read(fullscreenPreviewProvider.notifier).state = true,
           child: content,
         ),
-      ),
-    );
-  }
-
-  Widget _buildEmpty(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.photo_library_outlined,
-            size: 64,
-            color: Colors.white.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: () async {
-              if (Platform.isAndroid) {
-                final paths = await openFolderImport(context);
-                if (paths != null && paths.isNotEmpty) {
-                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
-                }
-              } else {
-                final result = await FilePicker.pickFiles();
-                if (result == null || result.files.isEmpty) return;
-                final paths = result.files
-                    .map((f) => f.path)
-                    .whereType<String>()
-                    .toList();
-                if (paths.isNotEmpty) {
-                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
-                }
-              }
-            },
-            icon: Icon(
-              Platform.isAndroid
-                  ? Icons.folder_copy_outlined
-                  : Icons.folder_open,
-            ),
-            label: Text(
-              Platform.isAndroid ? tr("folderImport") : tr("imageChoose"),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: MediaQuery.of(context).size.width * 0.8,
-            child: _FormatMarquee(text: RawFormats.displayList),
-          ),
-        ],
       ),
     );
   }

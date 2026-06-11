@@ -22,8 +22,9 @@ class SmartRegionService {
     final params = ref.read(currentParamsNotifierProvider);
     final lut = ref.read(lutNotifierProvider);
     final lutEnabled = ref.read(effectiveLutEnabledProvider);
-    final tol = ref.read(wandToleranceProvider).clamp(0.01, 1.0);
-    final invert = ref.read(wandInvertProvider);
+    final brush = ref.read(brushSettingsProvider);
+    final tol = brush.wandTolerance.clamp(0.01, 1.0);
+    final invert = brush.wandInvert;
 
     // 1) 渲染 develop（~1280）
     const maxEdge = 1280;

@@ -9,7 +9,7 @@ import '../../core/models/adjustment_params.dart';
 import '../../core/models/crop_params.dart';
 import '../../core/models/watermark_config.dart';
 import '../../native/raw_bridge.dart';
-import '../../render/utils/image_loader_util.dart';
+import '../../utils/image_loader_util.dart';
 import '../../render/preview_renderer.dart';
 import '../../render/watermark_geometry.dart';
 import '../../services/watermark/watermark_logo_loader.dart';

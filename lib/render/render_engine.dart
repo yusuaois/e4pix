@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../core/models/adjustment_params.dart';
 import 'develop_uniforms.dart';
-import 'utils/shader_pass_util.dart';
+import '../utils/shader_pass_util.dart';
 
 class RenderEngine {
   static Future<ui.Image> renderToImage({

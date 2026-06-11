@@ -508,8 +508,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                       child: GestureDetector(
                         onPanUpdate: (details) {
                           _histDragAccum += details.delta;
-                          if (_histDragAccum.distance < _histDragThreshold)
+                          if (_histDragAccum.distance < _histDragThreshold) {
                             return;
+                          }
                           setState(() {
                             _histogramPosition = Offset(
                               (_histogramPosition.dx + _histDragAccum.dx).clamp(

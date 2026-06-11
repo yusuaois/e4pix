@@ -1,8 +1,8 @@
-import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'debouncer.dart';
 import '../../state/interaction_state.dart';
 
 /// 滑块拖拽期间的节流工具
@@ -10,7 +10,7 @@ import '../../state/interaction_state.dart';
 /// 封装 isUserDraggingSliderProvider 监听 + 拖拽期间延迟节流 + 拖拽结束后刷新
 class AdjustmentThrottler {
   final WidgetRef ref;
-  Timer? _throttle;
+  final _throttler = Throttler();
   ProviderSubscription<bool>? _dragSub;
 
   AdjustmentThrottler(this.ref);
@@ -22,8 +22,7 @@ class AdjustmentThrottler {
       next,
     ) {
       if (prev == true && next == false) {
-        _throttle?.cancel();
-        _throttle = null;
+        _throttler.cancel();
         onDragEnd();
       }
     });
@@ -32,17 +31,13 @@ class AdjustmentThrottler {
   /// 按当前拖拽状态节流执行 [action]
   /// 拖拽中延迟 50ms，空闲时延迟 33ms（或由 [dragDelay] 指定）
   void throttle(VoidCallback action, {Duration? dragDelay}) {
-    if (_throttle != null) return;
     final isDragging = ref.read(isUserDraggingSliderProvider);
     final delay = dragDelay ?? Duration(milliseconds: isDragging ? 50 : 33);
-    _throttle = Timer(delay, () {
-      _throttle = null;
-      action();
-    });
+    _throttler.run(delay, action);
   }
 
   void dispose() {
-    _throttle?.cancel();
+    _throttler.dispose();
     _dragSub?.close();
   }
 }

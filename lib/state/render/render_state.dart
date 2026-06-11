@@ -10,40 +10,60 @@ import '../../render/curve_baker.dart';
 import '../../render/lut_texture_cache.dart';
 import '../providers.dart';
 
-// Shader program — 加载后立即预编译，避免首帧 UI 线程上同步编译导致掉帧
-final shaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
-  final program = await ui.FragmentProgram.fromAsset(
-    'assets/shaders/develop.shader',
+@immutable
+class _ShaderBundle {
+  final ui.FragmentProgram develop;
+  final ui.FragmentProgram mask;
+  final ui.FragmentProgram sharpen;
+  final ui.FragmentProgram denoise;
+  const _ShaderBundle({
+    required this.develop,
+    required this.mask,
+    required this.sharpen,
+    required this.denoise,
+  });
+}
+
+// 并行加载全部 4 个 shader，首个访问触发批量加载
+final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
+  final results = await Future.wait([
+    ui.FragmentProgram.fromAsset('assets/shaders/develop.shader'),
+    ui.FragmentProgram.fromAsset('assets/shaders/develop_mask.shader'),
+    ui.FragmentProgram.fromAsset('assets/shaders/sharpen.shader'),
+    ui.FragmentProgram.fromAsset('assets/shaders/denoise.shader'),
+  ]);
+  for (final p in results) {
+    p.fragmentShader(); // 预热编译
+  }
+  return _ShaderBundle(
+    develop: results[0],
+    mask: results[1],
+    sharpen: results[2],
+    denoise: results[3],
   );
-  program.fragmentShader(); // 预热编译
-  return program;
 });
+
+// 保持 FutureProvider API 兼容：各 provider 复用并行加载结果
+final shaderProgramProvider = FutureProvider<ui.FragmentProgram>((ref) async {
+  return (await ref.watch(_allShadersProvider.future)).develop;
+});
+
 final maskShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   ref,
 ) async {
-  final program = await ui.FragmentProgram.fromAsset(
-    'assets/shaders/develop_mask.shader',
-  );
-  program.fragmentShader();
-  return program;
+  return (await ref.watch(_allShadersProvider.future)).mask;
 });
+
 final sharpenShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   ref,
 ) async {
-  final program = await ui.FragmentProgram.fromAsset(
-    'assets/shaders/sharpen.shader',
-  );
-  program.fragmentShader();
-  return program;
+  return (await ref.watch(_allShadersProvider.future)).sharpen;
 });
+
 final denoiseShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   ref,
 ) async {
-  final program = await ui.FragmentProgram.fromAsset(
-    'assets/shaders/denoise.shader',
-  );
-  program.fragmentShader();
-  return program;
+  return (await ref.watch(_allShadersProvider.future)).denoise;
 });
 
 // 1Hz ticker

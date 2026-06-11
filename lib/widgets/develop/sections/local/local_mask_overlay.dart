@@ -157,13 +157,14 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
       _paintingPoints = null;
       return;
     }
-    final radius = ref.read(brushRadiusProvider);
-    final hardness = ref.read(brushHardnessProvider);
-    final erase = ref.read(brushEraseProvider);
-    final flow = ref.read(brushFlowProvider);
-    final auto = ref.read(brushAutoMaskProvider);
-    final tol = ref.read(brushToleranceProvider);
-    final edge = ref.read(brushEdgeStrengthProvider);
+    final brush = ref.read(brushSettingsProvider);
+    final radius = brush.radius;
+    final hardness = brush.hardness;
+    final erase = brush.erase;
+    final flow = brush.flow;
+    final auto = brush.autoMask;
+    final tol = brush.tolerance;
+    final edge = brush.edgeStrength;
     LocalAdjustmentActions(ref).addStrokeTo(
       id,
       BrushStroke(
@@ -186,20 +187,21 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final id = ref.read(selectedLocalIdProvider);
     if (id == null) return;
     final seed = _screenToMask(pos);
-    ref.read(wandBusyProvider.notifier).state = true;
+    ref.read(brushSettingsProvider.notifier).setWandBusy(true);
     try {
       await SmartRegionService.compute(ref, maskId: id, seed: seed);
     } finally {
-      if (mounted) ref.read(wandBusyProvider.notifier).state = false;
+      if (mounted) ref.read(brushSettingsProvider.notifier).setWandBusy(false);
     }
   }
 
   Future<void> _runSubject(Offset pos) async {
     final id = ref.read(selectedLocalIdProvider);
     if (id == null) return;
-    final invert = ref.read(wandInvertProvider);
-    final negative = ref.read(samNegativeProvider);
-    ref.read(samBusyProvider.notifier).state = true;
+    final bs = ref.read(brushSettingsProvider);
+    final invert = bs.wandInvert;
+    final negative = bs.samNegative;
+    ref.read(brushSettingsProvider.notifier).setSamBusy(true);
     try {
       final ok = await SegmentationService.compute(
         ref,
@@ -209,10 +211,10 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         negative: negative,
       );
       if (!ok && mounted) {
-        ref.read(samUnavailableProvider.notifier).state = true;
+        ref.read(brushSettingsProvider.notifier).setSamUnavailable(true);
       }
     } finally {
-      if (mounted) ref.read(samBusyProvider.notifier).state = false;
+      if (mounted) ref.read(brushSettingsProvider.notifier).setSamBusy(false);
     }
   }
 
@@ -221,13 +223,14 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final params = ref.watch(currentParamsNotifierProvider);
     final selectedId = ref.watch(selectedLocalIdProvider);
     final selected = ref.watch(selectedLocalProvider);
-    final mode = ref.watch(brushModeProvider);
+    final brush = ref.watch(brushSettingsProvider);
+    final mode = brush.mode;
     final isBrush = selected != null && selected.mask is BrushMask;
     final isWand = isBrush && mode == BrushMode.wand;
     final isSubject = isBrush && mode == BrushMode.subject;
-    final brushRadius = ref.watch(brushRadiusProvider);
-    final brushErase = ref.watch(brushEraseProvider);
-    final busy = ref.watch(wandBusyProvider) || ref.watch(samBusyProvider);
+    final brushRadius = brush.radius;
+    final brushErase = brush.erase;
+    final busy = brush.wandBusy || brush.samBusy;
 
     final selBrush = (selected?.mask is BrushMask)
         ? selected!.mask as BrushMask
@@ -342,7 +345,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           brushErase: brushErase,
           wandMode: isWand || isSubject,
           baseViz: isBrush ? _baseViz : null,
-          subjectNegative: isSubject && ref.watch(samNegativeProvider),
+          subjectNegative: isSubject && brush.samNegative,
         ),
       ),
     );

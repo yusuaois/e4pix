@@ -102,18 +102,52 @@ final tetherSessionNotifierProvider =
 class ShotsNotifier extends Notifier<List<TetheredShot>> {
   bool _isDisposed = false;
 
+  // O(1) path→shot 查找缓存，随每次 state 变更同步维护
+  final Map<String, TetheredShot> _byPath = {};
+
+  /// O(1) 按路径查找 shot，不存在返回 null
+  TetheredShot? shotByPath(String path) => _byPath[path];
+
+  /// 路径 → shot 映射
+  Map<String, TetheredShot> get pathMap => Map.unmodifiable(_byPath);
+
+  void _rebuildCache(List<TetheredShot> list) {
+    _byPath.clear();
+    for (final s in list) {
+      _byPath[s.path] = s;
+    }
+  }
+
   @override
   List<TetheredShot> build() {
     _isDisposed = false;
+    _byPath.clear();
     ref.onDispose(() {
       _isDisposed = true;
-      for (final s in state) {
+      for (final s in _byPath.values) {
         try {
           s.disposeThumbnail();
         } catch (_) {}
       }
+      _byPath.clear();
     });
     return const [];
+  }
+
+  void _setState(List<TetheredShot> next) {
+    _rebuildCache(next);
+    state = next;
+  }
+
+  List<TetheredShot> _replaceOne(List<TetheredShot> list, TetheredShot shot) {
+    final result = List<TetheredShot>.of(list);
+    for (int i = 0; i < result.length; i++) {
+      if (result[i].path == shot.path) {
+        result[i] = shot;
+        break;
+      }
+    }
+    return result;
   }
 
   Future<void> onNewShot(File file) async {
@@ -129,12 +163,10 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
     if (mode == ImportMode.rawPriority) {
       final base = RawFormats.baseKey(path);
       final isRaw = RawFormats.isRaw(path);
-      // 已存在的同基名 shot
       final existing = state
           .where((s) => RawFormats.baseKey(s.path) == base)
           .toList();
       if (isRaw) {
-        // 新来 RAW：移除同名的标准图（RAW 优先）
         final standardDupes = existing
             .where((s) => RawFormats.isStandard(s.path))
             .toList();
@@ -142,11 +174,12 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
           for (final dup in standardDupes) {
             dup.disposeThumbnail();
           }
-          state = state.where((s) => !standardDupes.contains(s)).toList();
-          // 如果被移除的是当前激活图，激活新 RAW
+          final filtered = state
+              .where((s) => !standardDupes.contains(s))
+              .toList();
+          _setState(filtered);
         }
       } else {
-        // 新来标准图：若已有同名 RAW，跳过
         if (existing.any((s) => RawFormats.isRaw(s.path))) {
           return; // RAW 已在，丢弃 JPG
         }
@@ -155,16 +188,7 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
 
     final preserve = ref.read(preserveParamsProvider);
     final activePath = ref.read(activeShotPathProvider);
-
-    TetheredShot? activeShot;
-    if (activePath != null) {
-      for (final s in state) {
-        if (s.path == activePath) {
-          activeShot = s;
-          break;
-        }
-      }
-    }
+    final activeShot = activePath != null ? _byPath[activePath] : null;
 
     final inherited = preserve && activeShot != null
         ? activeShot.params
@@ -176,7 +200,6 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
       detectedAt: DateTime.now(),
       params: inherited,
     );
-    // 读 sidecar
     if (ref.read(sidecarEnabledProvider)) {
       final data = await SidecarService.read(file.path);
       if (data != null) {
@@ -187,7 +210,7 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
         );
       }
     }
-    state = [...state, shot];
+    _setState([...state, shot]);
 
     ref.read(activeShotPathProvider.notifier).set(shot.path);
     ref.read(activeFilePathProvider.notifier).set(shot.path);
@@ -199,7 +222,7 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
       return;
     }
 
-    state = [for (final s in state) s.path == shot.path ? loaded : s];
+    _setState(_replaceOne(state, loaded));
     ref.read(aiAutoNotifierProvider.notifier).onNewShotArrived(shot.path);
   }
 
@@ -209,8 +232,7 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
     paths = filterByImportMode(paths, mode);
     if (paths.isEmpty) return;
 
-    final existing = state.map((s) => s.path).toSet();
-    final fresh = paths.where((p) => !existing.contains(p)).toList();
+    final fresh = paths.where((p) => !_byPath.containsKey(p)).toList();
     if (fresh.isEmpty) {
       ref.read(activeShotPathProvider.notifier).set(paths.first);
       ref.read(activeFilePathProvider.notifier).set(paths.first);
@@ -227,7 +249,6 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
         detectedAt: DateTime.now(),
         params: AdjustmentParams.neutral,
       );
-      // 读 sidecar
       if (sidecarOn) {
         final data = await SidecarService.read(path);
         if (data != null) {
@@ -240,7 +261,7 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
       }
       newShots.add(shot);
     }
-    state = [...state, ...newShots];
+    _setState([...state, ...newShots]);
 
     final first = newShots.first;
     ref.read(activeShotPathProvider.notifier).set(first.path);
@@ -253,8 +274,8 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
         loaded.disposeThumbnail();
         return;
       }
-      if (state.any((s) => s.path == shot.path)) {
-        state = [for (final s in state) s.path == shot.path ? loaded : s];
+      if (_byPath.containsKey(shot.path)) {
+        _setState(_replaceOne(state, loaded));
       } else {
         loaded.disposeThumbnail();
       }
@@ -274,16 +295,14 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
         );
       }
     }
-    state = updated;
+    _setState(updated);
   }
 
   /// 单张参数更新
   void updateParams(String shotPath, AdjustmentParams newParams) {
-    final idx = state.indexWhere((s) => s.path == shotPath);
-    if (idx < 0) return;
-    final updated = List<TetheredShot>.of(state);
-    updated[idx] = updated[idx].copyWith(params: newParams);
-    state = updated;
+    final entry = _byPath[shotPath];
+    if (entry == null) return;
+    _setState(_replaceOne(state, entry.copyWith(params: newParams)));
   }
 
   /// 全量覆盖
@@ -292,31 +311,26 @@ class ShotsNotifier extends Notifier<List<TetheredShot>> {
     for (int i = 0; i < updated.length; i++) {
       updated[i] = updated[i].copyWith(params: newParams);
     }
-    state = updated;
+    _setState(updated);
   }
 
   void updateRating(String shotPath, int rating) {
-    final r = rating.clamp(0, 5);
-    final idx = state.indexWhere((s) => s.path == shotPath);
-    if (idx < 0) return;
-    final updated = List<TetheredShot>.of(state);
-    updated[idx] = updated[idx].copyWith(rating: r);
-    state = updated;
+    final entry = _byPath[shotPath];
+    if (entry == null) return;
+    _setState(_replaceOne(state, entry.copyWith(rating: rating.clamp(0, 5))));
   }
 
   void updateFlag(String shotPath, ShotFlag flag) {
-    final idx = state.indexWhere((s) => s.path == shotPath);
-    if (idx < 0) return;
-    final updated = List<TetheredShot>.of(state);
-    updated[idx] = updated[idx].copyWith(flag: flag);
-    state = updated;
+    final entry = _byPath[shotPath];
+    if (entry == null) return;
+    _setState(_replaceOne(state, entry.copyWith(flag: flag)));
   }
 
   void clear() {
-    for (final s in state) {
+    for (final s in _byPath.values) {
       s.disposeThumbnail();
     }
-    state = const [];
+    _setState(const []);
   }
 }
 
@@ -338,11 +352,13 @@ final activeShotPathProvider =
 final activeShotProvider = Provider<TetheredShot?>((ref) {
   final path = ref.watch(activeShotPathProvider);
   if (path == null) return null;
-  final shots = ref.watch(shotsNotifierProvider);
-  for (final s in shots) {
-    if (s.path == path) return s;
-  }
-  return null;
+  ref.watch(shotsNotifierProvider);
+  return ref.read(shotsNotifierProvider.notifier).shotByPath(path);
+});
+
+final shotByPathProvider = Provider.family<TetheredShot?, String>((ref, path) {
+  ref.watch(shotsNotifierProvider);
+  return ref.read(shotsNotifierProvider.notifier).shotByPath(path);
 });
 
 // 更新 activeShotPath 和 activeFilePath
@@ -395,8 +411,9 @@ class ImportModeNotifier extends Notifier<ImportMode> {
   }
 }
 
-final importModeProvider =
-    NotifierProvider<ImportModeNotifier, ImportMode>(ImportModeNotifier.new);
+final importModeProvider = NotifierProvider<ImportModeNotifier, ImportMode>(
+  ImportModeNotifier.new,
+);
 
 /// 按导入模式过滤 + 去重文件列表
 List<String> filterByImportMode(List<String> paths, ImportMode mode) {

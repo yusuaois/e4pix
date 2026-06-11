@@ -7,7 +7,7 @@ import '../core/models/adjustment_params.dart';
 import '../state/interaction_state.dart';
 import '../state/render/render_state.dart';
 import 'develop_uniforms.dart';
-import 'utils/adjustment_throttler.dart';
+import '../utils/adjustment_throttler.dart';
 
 class PreviewRenderer extends ConsumerStatefulWidget {
   final ui.Image image;
@@ -38,14 +38,19 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
   ui.FragmentShader? _cachedShader;
 
   late AdjustmentParams _displayedParams;
-  late final _throttler = AdjustmentThrottler(ref)
-    ..listen(
-      onDragEnd: () {
-        if (mounted && _displayedParams != widget.params) {
-          setState(() => _displayedParams = widget.params);
-        }
-      },
-    );
+  AdjustmentThrottler? _throttler;
+
+  AdjustmentThrottler _useThrottler() {
+    _throttler ??= AdjustmentThrottler(ref)
+      ..listen(
+        onDragEnd: () {
+          if (mounted && _displayedParams != widget.params) {
+            setState(() => _displayedParams = widget.params);
+          }
+        },
+      );
+    return _throttler!;
+  }
 
   static const _draggingInterval = Duration(milliseconds: 33);
 
@@ -71,7 +76,7 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
       _displayedParams = widget.params;
       return;
     }
-    _throttler.throttle(() {
+    _useThrottler().throttle(() {
       if (!mounted) return;
       if (_displayedParams != widget.params) {
         setState(() => _displayedParams = widget.params);
@@ -81,7 +86,7 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
 
   @override
   void dispose() {
-    _throttler.dispose();
+    _throttler?.dispose();
     super.dispose();
   }
 

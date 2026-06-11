@@ -27,9 +27,11 @@ class ImageInfoBar extends ConsumerWidget {
     final m = image?.metadata;
     final isPhone = MediaQuery.of(context).size.shortestSide < 600;
 
-    if (isPhone)
+    if (isPhone) {
       return _buildPhone(context, ref, image, isLoading, path, m, active);
-    return _buildDesktop(context, ref, image, isLoading, path, m, active);
+    } else {
+      return _buildDesktop(context, ref, image, isLoading, path, m, active);
+    }
   }
 
   // ── 手机紧凑布局（原 _buildVerticalInfoBar） ──

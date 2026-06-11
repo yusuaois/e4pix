@@ -17,8 +17,9 @@ class BrushControls extends ConsumerWidget {
     final mask = local.mask;
     if (mask is! BrushMask) return const SizedBox.shrink();
 
-    final mode = ref.watch(brushModeProvider);
-    final busy = ref.watch(wandBusyProvider);
+    final brush = ref.watch(brushSettingsProvider);
+    final mode = brush.mode;
+    final busy = brush.wandBusy;
 
     return Column(
       children: [
@@ -52,7 +53,7 @@ class BrushControls extends ConsumerWidget {
             showSelectedIcon: false,
             style: const ButtonStyle(visualDensity: VisualDensity.compact),
             onSelectionChanged: (s) {
-              ref.read(brushModeProvider.notifier).state = s.first;
+              ref.read(brushSettingsProvider.notifier).setMode(s.first);
               if (s.first != BrushMode.subject) {
                 SamSession.instance.resetPoints();
               }
@@ -119,8 +120,8 @@ class BrushControls extends ConsumerWidget {
   }
 
   Widget _wandControls(WidgetRef ref, bool busy) {
-    final tol = ref.watch(wandToleranceProvider);
-    final invert = ref.watch(wandInvertProvider);
+    final tol = ref.watch(brushSettingsProvider.select((s) => s.wandTolerance));
+    final invert = ref.watch(brushSettingsProvider.select((s) => s.wandInvert));
     return Column(
       children: [
         Padding(
@@ -150,7 +151,8 @@ class BrushControls extends ConsumerWidget {
           min: 0.02,
           max: 0.4,
           formatter: (v) => (v * 100).round().toString(),
-          onChanged: (v) => ref.read(wandToleranceProvider.notifier).state = v,
+          onChanged: (v) =>
+              ref.read(brushSettingsProvider.notifier).setWandTolerance(v),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -166,7 +168,7 @@ class BrushControls extends ConsumerWidget {
               Switch(
                 value: invert,
                 onChanged: (v) =>
-                    ref.read(wandInvertProvider.notifier).state = v,
+                    ref.read(brushSettingsProvider.notifier).setWandInvert(v),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ],
@@ -177,10 +179,11 @@ class BrushControls extends ConsumerWidget {
   }
 
   Widget _subjectControls(WidgetRef ref, String maskId) {
-    final busy = ref.watch(samBusyProvider);
-    final unavailable = ref.watch(samUnavailableProvider);
-    final invert = ref.watch(wandInvertProvider);
-    final negative = ref.watch(samNegativeProvider);
+    final brush = ref.watch(brushSettingsProvider);
+    final busy = brush.samBusy;
+    final unavailable = brush.samUnavailable;
+    final invert = brush.wandInvert;
+    final negative = brush.samNegative;
     return Column(
       children: [
         Padding(
@@ -232,8 +235,9 @@ class BrushControls extends ConsumerWidget {
             selected: {negative},
             showSelectedIcon: false,
             style: const ButtonStyle(visualDensity: VisualDensity.compact),
-            onSelectionChanged: (s) =>
-                ref.read(samNegativeProvider.notifier).state = s.first,
+            onSelectionChanged: (s) => ref
+                .read(brushSettingsProvider.notifier)
+                .setSamNegative(s.first),
           ),
         ),
         Padding(
@@ -250,7 +254,7 @@ class BrushControls extends ConsumerWidget {
               Switch(
                 value: invert,
                 onChanged: (v) =>
-                    ref.read(wandInvertProvider.notifier).state = v,
+                    ref.read(brushSettingsProvider.notifier).setWandInvert(v),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ],
@@ -261,13 +265,14 @@ class BrushControls extends ConsumerWidget {
   }
 
   Widget _paintControls(WidgetRef ref) {
-    final radius = ref.watch(brushRadiusProvider);
-    final hardness = ref.watch(brushHardnessProvider);
-    final erase = ref.watch(brushEraseProvider);
-    final flow = ref.watch(brushFlowProvider);
-    final auto = ref.watch(brushAutoMaskProvider);
-    final tol = ref.watch(brushToleranceProvider);
-    final edge = ref.watch(brushEdgeStrengthProvider);
+    final brush = ref.watch(brushSettingsProvider);
+    final radius = brush.radius;
+    final hardness = brush.hardness;
+    final erase = brush.erase;
+    final flow = brush.flow;
+    final auto = brush.autoMask;
+    final tol = brush.tolerance;
+    final edge = brush.edgeStrength;
 
     return Column(
       children: [
@@ -307,8 +312,9 @@ class BrushControls extends ConsumerWidget {
                   style: const ButtonStyle(
                     visualDensity: VisualDensity.compact,
                   ),
-                  onSelectionChanged: (s) =>
-                      ref.read(brushEraseProvider.notifier).state = s.first,
+                  onSelectionChanged: (s) => ref
+                      .read(brushSettingsProvider.notifier)
+                      .setErase(s.first),
                 ),
               ),
             ],
@@ -320,7 +326,8 @@ class BrushControls extends ConsumerWidget {
           min: 0.01,
           max: 0.30,
           formatter: (v) => (v * 100).toStringAsFixed(0),
-          onChanged: (v) => ref.read(brushRadiusProvider.notifier).state = v,
+          onChanged: (v) =>
+              ref.read(brushSettingsProvider.notifier).setRadius(v),
         ),
         MiniSlider(
           label: tr("localBrushHardness"),
@@ -328,7 +335,8 @@ class BrushControls extends ConsumerWidget {
           min: 0,
           max: 1,
           formatter: (v) => (v * 100).round().toString(),
-          onChanged: (v) => ref.read(brushHardnessProvider.notifier).state = v,
+          onChanged: (v) =>
+              ref.read(brushSettingsProvider.notifier).setHardness(v),
         ),
         MiniSlider(
           label: tr("localBrushFlow"),
@@ -336,7 +344,7 @@ class BrushControls extends ConsumerWidget {
           min: 0.05,
           max: 1.0,
           formatter: (v) => (v * 100).round().toString(),
-          onChanged: (v) => ref.read(brushFlowProvider.notifier).state = v,
+          onChanged: (v) => ref.read(brushSettingsProvider.notifier).setFlow(v),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
@@ -352,7 +360,7 @@ class BrushControls extends ConsumerWidget {
               Switch(
                 value: auto,
                 onChanged: (v) =>
-                    ref.read(brushAutoMaskProvider.notifier).state = v,
+                    ref.read(brushSettingsProvider.notifier).setAutoMask(v),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               const Spacer(),
@@ -371,7 +379,7 @@ class BrushControls extends ConsumerWidget {
             max: 0.6,
             formatter: (v) => (v * 100).round().toString(),
             onChanged: (v) =>
-                ref.read(brushToleranceProvider.notifier).state = v,
+                ref.read(brushSettingsProvider.notifier).setTolerance(v),
           ),
           MiniSlider(
             label: tr("localBrushAutoMaskEdgeStrength"),
@@ -380,7 +388,7 @@ class BrushControls extends ConsumerWidget {
             max: 1.0,
             formatter: (v) => (v * 100).round().toString(),
             onChanged: (v) =>
-                ref.read(brushEdgeStrengthProvider.notifier).state = v,
+                ref.read(brushSettingsProvider.notifier).setEdgeStrength(v),
           ),
         ],
       ],

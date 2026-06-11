@@ -10,7 +10,7 @@ import 'brush_rasterizer.dart';
 import 'crop_transform.dart';
 import 'mask_cache.dart';
 import 'render_engine.dart';
-import 'utils/shader_pass_util.dart';
+import '../utils/shader_pass_util.dart';
 
 class FullPipelineRenderer {
   // 非 brush mask pass 绑定的 1x1 dummy

@@ -7,7 +7,7 @@ import '../core/theme/app_colors.dart';
 import '../core/models/watermark_config.dart';
 import '../native/raw_bridge.dart';
 import '../services/watermark/watermark_logo_loader.dart';
-import 'utils/image_loader_util.dart';
+import '../utils/image_loader_util.dart';
 import 'watermark_geometry.dart';
 
 /// 纯离屏 Canvas 水印边框合成器

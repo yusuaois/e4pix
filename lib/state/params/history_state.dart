@@ -1,9 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
+import '../../utils/debouncer.dart';
 import '../providers.dart';
 
 @immutable
@@ -11,10 +10,7 @@ class HistoryState {
   final List<AdjustmentParams> undoStack;
   final List<AdjustmentParams> redoStack;
 
-  const HistoryState({
-    this.undoStack = const [],
-    this.redoStack = const [],
-  });
+  const HistoryState({this.undoStack = const [], this.redoStack = const []});
 
   bool get canUndo => undoStack.isNotEmpty;
   bool get canRedo => redoStack.isNotEmpty;
@@ -22,18 +18,17 @@ class HistoryState {
   HistoryState copyWith({
     List<AdjustmentParams>? undoStack,
     List<AdjustmentParams>? redoStack,
-  }) =>
-      HistoryState(
-        undoStack: undoStack ?? this.undoStack,
-        redoStack: redoStack ?? this.redoStack,
-      );
+  }) => HistoryState(
+    undoStack: undoStack ?? this.undoStack,
+    redoStack: redoStack ?? this.redoStack,
+  );
 }
 
 class HistoryNotifier extends Notifier<HistoryState> {
   static const int _maxStack = 50;
   static const Duration _debounceDelay = Duration(milliseconds: 300);
 
-  Timer? _debounceTimer;
+  final _debouncer = Debouncer();
 
   // 最近一次提交进栈基线 下一次变化时，把这个基线推到 undo
   AdjustmentParams? _pendingBaseline;
@@ -46,8 +41,7 @@ class HistoryNotifier extends Notifier<HistoryState> {
     // 切换文件清栈
     ref.listen<String?>(activeFilePathProvider, (prev, next) {
       if (prev == next) return;
-      _debounceTimer?.cancel();
-      _debounceTimer = null;
+      _debouncer.cancel();
       _pendingBaseline = null;
       _isApplying = false;
       state = const HistoryState();
@@ -64,8 +58,7 @@ class HistoryNotifier extends Notifier<HistoryState> {
   }
 
   void _scheduleSnapshot(AdjustmentParams next) {
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(_debounceDelay, () => _commit(next));
+    _debouncer.run(_debounceDelay, () => _commit(next));
   }
 
   void _commit(AdjustmentParams committed) {
@@ -86,7 +79,7 @@ class HistoryNotifier extends Notifier<HistoryState> {
 
   void undo() {
     if (!state.canUndo) return;
-    _debounceTimer?.cancel();
+    _debouncer.cancel();
 
     final newUndo = [...state.undoStack];
     final restored = newUndo.removeLast();
@@ -101,7 +94,7 @@ class HistoryNotifier extends Notifier<HistoryState> {
 
   void redo() {
     if (!state.canRedo) return;
-    _debounceTimer?.cancel();
+    _debouncer.cancel();
 
     final newRedo = [...state.redoStack];
     final restored = newRedo.removeLast();
@@ -121,7 +114,7 @@ class HistoryNotifier extends Notifier<HistoryState> {
     // 先把当前推进 undo 栈
     final current = ref.read(currentParamsNotifierProvider);
     if (current != neutral) {
-      _debounceTimer?.cancel();
+      _debouncer.cancel();
       final newUndo = [...state.undoStack, current];
       if (newUndo.length > _maxStack) {
         newUndo.removeRange(0, newUndo.length - _maxStack);
@@ -143,5 +136,6 @@ class HistoryNotifier extends Notifier<HistoryState> {
   }
 }
 
-final historyNotifierProvider =
-    NotifierProvider<HistoryNotifier, HistoryState>(HistoryNotifier.new);
+final historyNotifierProvider = NotifierProvider<HistoryNotifier, HistoryState>(
+  HistoryNotifier.new,
+);
