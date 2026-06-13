@@ -74,7 +74,43 @@ namespace
         {
             r->cam_mul[i] = d.color.cam_mul[i];
         }
+
+        // CA 校正系数（由 e4pix_set_ca_correction 在解码前设定，
+        // 作为 params.aber[] 而非图像元数据存储）
+        r->ca_red = 0.0f;
+        r->ca_blue = 0.0f;
+
+        // ── 镜头元数据（makernotes）──
+        // 卡口名称映射（LibRaw 内部枚举 → 可读字符串）
+        const auto &mn = d.lens.makernotes;
+        if (mn.Lens[0])
+        {
+            std::strncpy(r->lens_make, mn.Lens, sizeof(r->lens_make) - 1);
+        }
+        // LensFormat / CameraFormat — 直接存为数字或者用宏名
+        std::snprintf(r->lens_format, sizeof(r->lens_format), "%u", mn.LensFormat);
+        std::snprintf(r->camera_mount, sizeof(r->camera_mount), "%u", mn.CameraMount);
+        r->min_focal = mn.MinFocal;
+        r->max_focal = mn.MaxFocal;
+        r->min_focus_distance = mn.MinFocusDistance;
+        r->max_aperture = mn.MaxAp4MinFocal;
+        r->min_aperture = mn.MinAp4MaxFocal;
+        std::snprintf(r->focal_type, sizeof(r->focal_type), "%hd", mn.FocalType);
+
+        // 也尝试从 d.lens 获取焦距范围
+        if (r->min_focal <= 0.0f && d.lens.MinFocal > 0.0f)
+            r->min_focal = d.lens.MinFocal;
+        if (r->max_focal <= 0.0f && d.lens.MaxFocal > 0.0f)
+            r->max_focal = d.lens.MaxFocal;
+
+        // LensMount — 使用数字 ID
+        std::snprintf(r->lens_mount, sizeof(r->lens_mount), "%u", mn.LensMount);
     }
+
+    // ── CA 校正全局状态（被 e4pix_set_ca_correction 和 decode_internal 共享）──
+    static float s_ca_red = 0.0f;
+    static float s_ca_blue = 0.0f;
+    static bool s_ca_enabled = false;
 
     // ---------- 预设处理参数 ----------
     // 输出 LINEAR 光，gamma=1
@@ -112,6 +148,13 @@ namespace
         }
 
         configure_for_develop(raw, half_size, output_bps, quality);
+
+        // 应用 CA 校正参数（aber[0]=red, aber[2]=blue）
+        if (s_ca_enabled)
+        {
+            raw.imgdata.params.aber[0] = s_ca_red;
+            raw.imgdata.params.aber[2] = s_ca_blue;
+        }
 
         err = raw.unpack();
         if (err != LIBRAW_SUCCESS)
@@ -284,6 +327,53 @@ extern "C" void e4pix_free_result(E4pixDecodeResult *result)
         result->pixels = nullptr;
     }
     std::free(result);
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// CA 校正设置（修改全局 aber[]，影响后续所有 decode 调用）
+// ──────────────────────────────────────────────────────────────────────
+extern "C" void e4pix_set_ca_correction(int enabled, float ca_red, float ca_blue)
+{
+    s_ca_enabled = (enabled != 0);
+    s_ca_red = ca_red;
+    s_ca_blue = ca_blue;
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// 镜头元数据读取（不解码像素，仅返回镜头信息）
+// ──────────────────────────────────────────────────────────────────────
+extern "C" E4pixDecodeResult *e4pix_read_lens_metadata(const char *path)
+{
+    auto *result = alloc_result();
+    if (!result)
+        return nullptr;
+
+    LibRaw raw;
+    int err = open_file(raw, path);
+    if (err != LIBRAW_SUCCESS)
+    {
+        set_error(result, err, libraw_strerror(err));
+        return result;
+    }
+
+    // 仅 unpack（不解码），读取元数据后即可获取 lens 信息
+    err = raw.unpack();
+    if (err != LIBRAW_SUCCESS)
+    {
+        set_error(result, err, libraw_strerror(err));
+        raw.recycle();
+        return result;
+    }
+
+    result->width = raw.imgdata.sizes.width;
+    result->height = raw.imgdata.sizes.height;
+    result->channels = 3;
+    result->bits_per_channel = 0; // 未解码
+    copy_metadata(raw, result);
+    raw.recycle();
+
+    result->error_code = 0;
+    return result;
 }
 
 extern "C" const char *e4pix_libraw_version(void)

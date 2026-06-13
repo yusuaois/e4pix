@@ -8,6 +8,7 @@ import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
 import 'brush_rasterizer.dart';
 import 'crop_transform.dart';
+import 'homography.dart';
 import 'mask_cache.dart';
 import 'render_engine.dart';
 import '../utils/shader_pass_util.dart';
@@ -63,6 +64,17 @@ class FullPipelineRenderer {
       g.blueRatio,
       g.correlation,
       g.colorPreservation,
+      p.lensCorrection.enabled,
+      p.lensCorrection.caRed,
+      p.lensCorrection.caBlue,
+      p.lensCorrection.distortionEnabled,
+      p.lensCorrection.distortionK1,
+      p.lensCorrection.distortionK2,
+      p.lensCorrection.distortionK3,
+      p.lensCorrection.vignettingEnabled,
+      p.lensCorrection.vignettingK1,
+      p.lensCorrection.vignettingK2,
+      p.lensCorrection.vignettingK3,
     ]);
 
     return (bodyHash, identityHashCode(sourceImage), targetWidth, targetHeight);
@@ -88,6 +100,9 @@ class FullPipelineRenderer {
     required ui.FragmentProgram maskProgram,
     ui.FragmentProgram? sharpenProgram,
     ui.FragmentProgram? denoiseProgram,
+    ui.FragmentProgram? perspectiveProgram,
+    ui.FragmentProgram? lensCorrectProgram,
+    PerspectiveMatrixCache? perspectiveCache,
     required ui.Image sourceImage,
     required AdjustmentParams params,
     ui.Image? lutTexture,
@@ -144,16 +159,42 @@ class FullPipelineRenderer {
       }
     }
 
-    // Pass 0: global develop
+    // Pass 0a: lens correction (distortion + CA + vignetting)
     ui.Image develop;
     bool developOwned;
 
+    final wantLensCorrect =
+        lensCorrectProgram != null &&
+        (params.lensCorrection.isDistortionActive ||
+            params.lensCorrection.isCaActive ||
+            params.lensCorrection.isVignettingActive);
+
+    ui.Image developPassInput = developInput;
+    bool developPassInputOwned = developInputOwned;
+
+    if (wantLensCorrect) {
+      try {
+        final corrected = await _runLensCorrectPass(
+          program: lensCorrectProgram,
+          input: developPassInput,
+          params: params,
+          targetWidth: targetWidth,
+          targetHeight: targetHeight,
+        );
+        developPassInput = corrected;
+        developPassInputOwned = true;
+      } catch (e) {
+        debugPrint('Lens correct pass failed: $e');
+      }
+    }
+
+    // Pass 0: global develop
     if (useCache) {
       develop = await developCache.getOrCompute(
         devFp,
         () => RenderEngine.renderToImage(
           program: developProgram,
-          sourceImage: developInput, // 降噪后
+          sourceImage: developPassInput,
           params: params,
           lutTexture: lutTexture,
           lutSize: lutSize,
@@ -168,7 +209,7 @@ class FullPipelineRenderer {
     } else {
       develop = await RenderEngine.renderToImage(
         program: developProgram,
-        sourceImage: developInput, // 降噪后
+        sourceImage: developPassInput,
         params: params,
         lutTexture: lutTexture,
         lutSize: lutSize,
@@ -181,13 +222,30 @@ class FullPipelineRenderer {
       developOwned = true;
     }
 
-    if (developInputOwned) {
-      developInput.dispose();
-      developInputOwned = false;
+    if (developPassInputOwned) {
+      developPassInput.dispose();
+      developPassInputOwned = false;
     }
 
     ui.Image current = develop;
     bool currentOwned = developOwned;
+
+    // perspective (after develop, before crop)
+    if (!params.perspective.isIdentity && perspectiveProgram != null) {
+      try {
+        final warped = await _runPerspectivePass(
+          program: perspectiveProgram,
+          input: current,
+          params: params,
+          cache: perspectiveCache,
+        );
+        if (currentOwned) current.dispose();
+        current = warped;
+        currentOwned = true;
+      } catch (e) {
+        debugPrint('Perspective pass failed: $e');
+      }
+    }
 
     // crop
     if (!params.crop.isIdentity) {
@@ -442,6 +500,78 @@ class FullPipelineRenderer {
 
     // Debug: 确保 mask uniform 总数与 shader 定义一致（24 个 float）
     assert(i == 24, 'Mask uniform count mismatch: expected 24, got $i');
+  }
+
+  static Future<ui.Image> _runLensCorrectPass({
+    required ui.FragmentProgram program,
+    required ui.Image input,
+    required AdjustmentParams params,
+    required int targetWidth,
+    required int targetHeight,
+  }) async {
+    final lens = params.lensCorrection;
+    return runSingleShaderPass(
+      shader: program.fragmentShader(),
+      outputWidth: targetWidth,
+      outputHeight: targetHeight,
+      samplers: [input],
+      setUniforms: (s) {
+        int i = 0;
+        // uK1..uK5
+        s.setFloat(i++, lens.distortionEnabled ? lens.distortionK1 : 0.0);
+        s.setFloat(i++, lens.distortionEnabled ? lens.distortionK2 : 0.0);
+        s.setFloat(i++, lens.distortionEnabled ? lens.distortionK3 : 0.0);
+        s.setFloat(i++, lens.distortionEnabled ? lens.distortionK4 : 0.0);
+        s.setFloat(i++, lens.distortionEnabled ? lens.distortionK5 : 0.0);
+        // uOpticalCenter
+        s.setFloat(i++, lens.opticalCenterX);
+        s.setFloat(i++, lens.opticalCenterY);
+        // uDistortionEnabled
+        s.setFloat(i++, lens.distortionEnabled ? 1.0 : 0.0);
+        // uCARed, uCABlue
+        s.setFloat(i++, lens.enabled ? lens.caRed : 1.0);
+        s.setFloat(i++, lens.enabled ? lens.caBlue : 1.0);
+        // uCAEnabled
+        s.setFloat(i++, lens.isCaActive ? 1.0 : 0.0);
+        // uVK1..uVK3
+        s.setFloat(i++, lens.vignettingEnabled ? lens.vignettingK1 : 0.0);
+        s.setFloat(i++, lens.vignettingEnabled ? lens.vignettingK2 : 0.0);
+        s.setFloat(i++, lens.vignettingEnabled ? lens.vignettingK3 : 0.0);
+        // uVignettingEnabled
+        s.setFloat(i++, lens.vignettingEnabled ? 1.0 : 0.0);
+        // uSize
+        s.setFloat(i++, targetWidth.toDouble());
+        s.setFloat(i++, targetHeight.toDouble());
+      },
+    );
+  }
+
+  static Future<ui.Image> _runPerspectivePass({
+    required ui.FragmentProgram program,
+    required ui.Image input,
+    required AdjustmentParams params,
+    PerspectiveMatrixCache? cache,
+  }) async {
+    final w = input.width;
+    final h = input.height;
+    final matrixCache = cache ?? PerspectiveMatrixCache();
+
+    final invH = matrixCache.get(params.perspective, w, h);
+
+    return runSingleShaderPass(
+      shader: program.fragmentShader(),
+      outputWidth: w,
+      outputHeight: h,
+      samplers: [input],
+      setUniforms: (s) {
+        int i = 0;
+        s.setFloat(i++, w.toDouble());
+        s.setFloat(i++, h.toDouble());
+        for (int j = 0; j < 9; j++) {
+          s.setFloat(i++, invH[j]);
+        }
+      },
+    );
   }
 
   static Future<ui.Image> _runSharpenPass({

@@ -50,6 +50,22 @@ extern "C"
     // 白平衡系数
     float cam_mul[4]; // R, G1, B, G2
 
+    // CA 校正系数（来自 LibRaw aber[]）
+    float ca_red;
+    float ca_blue;
+
+    // ── 镜头元数据（来自 makernotes）──
+    char lens_mount[32];            // LibRaw_camera_mounts 枚举名
+    char lens_format[16];           // e.g. "FF", "APS-C"
+    char camera_mount[32];          // 机身卡口
+    char focal_type[16];            // "Prime" / "Zoom"
+    float min_focal;                // 最小焦距 mm
+    float max_focal;                // 最大焦距 mm
+    float min_focus_distance;       // 最近对焦距离 m
+    float max_aperture;             // 最大光圈（最小 f-number）
+    float min_aperture;             // 最小光圈（最大 f-number）
+    char lens_make[128];            // 镜头制造商
+
     // 缩略图标记：1=该结果是相机内嵌缩略图
     int32_t is_embedded_thumb;
     int32_t thumb_format; // 0=bitmap, 1=jpeg
@@ -71,6 +87,12 @@ extern "C"
 
   // 释放结果
   E4PIX_API void e4pix_free_result(E4pixDecodeResult *result);
+
+  // CA 校正设置（解码前调用，设置 aber[] 参数）
+  E4PIX_API void e4pix_set_ca_correction(int enabled, float ca_red, float ca_blue);
+
+  // 读取镜头元数据（透镜卡口/焦距/光圈等）
+  E4PIX_API E4pixDecodeResult *e4pix_read_lens_metadata(const char *path);
 
   // 工具
   E4PIX_API const char *e4pix_libraw_version(void);

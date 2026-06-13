@@ -11,6 +11,7 @@ enum DevelopTool {
   preset,
   local,
   watermark,
+  lens,
   info,
 }
 

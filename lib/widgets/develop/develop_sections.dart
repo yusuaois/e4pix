@@ -6,3 +6,5 @@ export 'sections/hsl_section.dart';
 export 'sections/lut_section.dart';
 export 'sections/detail_section.dart';
 export 'sections/watermark_section.dart';
+export 'sections/lens_section.dart';
+export 'sections/local_section.dart';

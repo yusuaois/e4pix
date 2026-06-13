@@ -46,6 +46,22 @@ class RawMetadata {
   final DateTime? timestamp;
   final List<double> cameraWhiteBalance; // [R, G1, B, G2]
 
+  // CA 校正系数
+  final double caRed;
+  final double caBlue;
+
+  // 镜头元数据（来自 makernotes）
+  final String lensMount; // 数字ID字符串
+  final String lensFormat;
+  final String cameraMount;
+  final String focalType; // 数字ID
+  final double minFocal;
+  final double maxFocal;
+  final double minFocusDistance;
+  final double maxAperture;
+  final double minAperture;
+  final String lensMake;
+
   const RawMetadata({
     required this.orientation,
     required this.iso,
@@ -57,6 +73,18 @@ class RawMetadata {
     required this.lensModel,
     required this.timestamp,
     required this.cameraWhiteBalance,
+    this.caRed = 0.0,
+    this.caBlue = 0.0,
+    this.lensMount = '',
+    this.lensFormat = '',
+    this.cameraMount = '',
+    this.focalType = '',
+    this.minFocal = 0.0,
+    this.maxFocal = 0.0,
+    this.minFocusDistance = 0.0,
+    this.maxAperture = 0.0,
+    this.minAperture = 0.0,
+    this.lensMake = '',
   });
 
   String get shutterDisplay {
@@ -185,6 +213,33 @@ class RawBridge {
     return image.metadata;
   }
 
+  /// 设置 CA 色差校正参数（全局，影响后续所有 decode）
+  /// [caRed] / [caBlue] 对应 LibRaw aber[0] / aber[2]
+  static void setCaCorrection({
+    required bool enabled,
+    double caRed = 1.0,
+    double caBlue = 1.0,
+  }) {
+    _ensureLoaded().setCaCorrection(enabled ? 1 : 0, caRed, caBlue);
+  }
+
+  /// 读取镜头元数据（不解码像素）
+  static Future<RawMetadata> readLensMetadata(String path) async {
+    final result = await Isolate.run(() {
+      final b = _ensureLoaded();
+      final pathPtr = path.toNativeUtf8();
+      Pointer<E4pixDecodeResult>? resultPtr;
+      try {
+        resultPtr = b.readLensMetadata(pathPtr);
+        return _convertResult(resultPtr.ref, isMetadataOnly: true);
+      } finally {
+        if (resultPtr != null) b.freeResult(resultPtr);
+        malloc.free(pathPtr);
+      }
+    });
+    return result.metadata;
+  }
+
   static RawDecodedImage _extractThumbSync(String path) {
     final b = _ensureLoaded();
     final pathPtr = path.toNativeUtf8();
@@ -257,6 +312,18 @@ class RawBridge {
           ? DateTime.fromMillisecondsSinceEpoch(r.timestamp * 1000, isUtc: true)
           : null,
       cameraWhiteBalance: List.generate(4, (i) => r.camMul[i]),
+      caRed: r.caRed,
+      caBlue: r.caBlue,
+      lensMount: _readFixedCString(r.lensMountBytes, 32),
+      lensFormat: _readFixedCString(r.lensFormatBytes, 16),
+      cameraMount: _readFixedCString(r.cameraMountBytes, 32),
+      focalType: _readFixedCString(r.focalTypeBytes, 16),
+      minFocal: r.minFocal,
+      maxFocal: r.maxFocal,
+      minFocusDistance: r.minFocusDistance,
+      maxAperture: r.maxAperture,
+      minAperture: r.minAperture,
+      lensMake: _readFixedCString(r.lensMakeBytes, 128),
     );
 
     return RawDecodedImage(

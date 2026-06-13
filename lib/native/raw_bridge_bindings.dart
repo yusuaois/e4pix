@@ -50,6 +50,34 @@ final class E4pixDecodeResult extends Struct {
   @Array(4)
   external Array<Float> camMul;
 
+  // CA 校正系数
+  @Float()
+  external double caRed;
+  @Float()
+  external double caBlue;
+
+  // 镜头元数据（makernotes）
+  @Array(32)
+  external Array<Uint8> lensMountBytes;
+  @Array(16)
+  external Array<Uint8> lensFormatBytes;
+  @Array(32)
+  external Array<Uint8> cameraMountBytes;
+  @Array(16)
+  external Array<Uint8> focalTypeBytes;
+  @Float()
+  external double minFocal;
+  @Float()
+  external double maxFocal;
+  @Float()
+  external double minFocusDistance;
+  @Float()
+  external double maxAperture;
+  @Float()
+  external double minAperture;
+  @Array(128)
+  external Array<Uint8> lensMakeBytes;
+
   @Int32()
   external int isEmbeddedThumb;
   @Int32()
@@ -67,6 +95,9 @@ typedef FreeDart = void Function(Pointer<E4pixDecodeResult>);
 
 typedef VersionC = Pointer<Utf8> Function();
 typedef VersionDart = Pointer<Utf8> Function();
+
+typedef SetCaCorrectionC = Void Function(Int32, Float, Float);
+typedef SetCaCorrectionDart = void Function(int, double, double);
 
 class RawBridgeBindings {
   final DynamicLibrary _lib;
@@ -90,6 +121,12 @@ class RawBridgeBindings {
   late final VersionDart version = _lib.lookupFunction<VersionC, VersionDart>(
     'e4pix_libraw_version',
   );
+  late final SetCaCorrectionDart setCaCorrection = _lib
+      .lookupFunction<SetCaCorrectionC, SetCaCorrectionDart>(
+        'e4pix_set_ca_correction',
+      );
+  late final DecodeDart readLensMetadata = _lib
+      .lookupFunction<DecodeC, DecodeDart>('e4pix_read_lens_metadata');
 
   RawBridgeBindings(this._lib);
 }

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
+import '../../render/homography.dart';
 import '../../render/mask_cache.dart';
 import '../../utils/adjustment_throttler.dart';
 import '../../state/providers.dart';
@@ -24,6 +25,8 @@ class MultiPassPreview extends ConsumerStatefulWidget {
   final ui.Image? curveTexture;
   final ui.FragmentProgram? sharpenProgram;
   final ui.FragmentProgram? denoiseProgram;
+  final ui.FragmentProgram? perspectiveProgram;
+  final ui.FragmentProgram? lensCorrectProgram;
   final int idleMaxEdge;
   final int draggingMaxEdge;
 
@@ -40,6 +43,8 @@ class MultiPassPreview extends ConsumerStatefulWidget {
     this.curveTexture,
     this.sharpenProgram,
     this.denoiseProgram,
+    this.perspectiveProgram,
+    this.lensCorrectProgram,
     this.idleMaxEdge = 2400,
     this.draggingMaxEdge = 800,
   });
@@ -60,6 +65,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
 
   final _developCache = DevelopPassCache();
   final _brushCache = BrushMaskCache();
+  final _perspectiveCache = PerspectiveMatrixCache();
 
   @override
   void initState() {
@@ -70,6 +76,9 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   @override
   void didUpdateWidget(MultiPassPreview old) {
     super.didUpdateWidget(old);
+    if (old.sourceImage != widget.sourceImage) {
+      _perspectiveCache.invalidate();
+    }
     if (old.sourceImage != widget.sourceImage ||
         old.params != widget.params ||
         old.lutTexture != widget.lutTexture ||
@@ -79,6 +88,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         old.curveTexture != widget.curveTexture ||
         old.sharpenProgram != widget.sharpenProgram ||
         old.denoiseProgram != widget.denoiseProgram ||
+        old.perspectiveProgram != widget.perspectiveProgram ||
+        old.lensCorrectProgram != widget.lensCorrectProgram ||
         old.idleMaxEdge != widget.idleMaxEdge ||
         old.draggingMaxEdge != widget.draggingMaxEdge) {
       _scheduleRender();
@@ -137,6 +148,9 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         curveTexture: widget.curveTexture,
         sharpenProgram: widget.sharpenProgram,
         denoiseProgram: widget.denoiseProgram,
+        perspectiveProgram: widget.perspectiveProgram,
+        lensCorrectProgram: widget.lensCorrectProgram,
+        perspectiveCache: _perspectiveCache,
         targetWidth: tw,
         targetHeight: th,
         developCache: _developCache,

@@ -1,6 +1,8 @@
 import 'package:e4pix/core/models/hsl_bands.dart';
 import 'package:e4pix/core/models/crop_params.dart';
 import 'package:e4pix/core/models/grain_params.dart';
+import 'package:e4pix/core/models/lens_correction_params.dart';
+import 'package:e4pix/core/models/perspective_params.dart';
 import 'package:flutter/foundation.dart';
 
 import 'local_adjustment.dart';
@@ -33,6 +35,8 @@ class AdjustmentParams {
   final GrainParams grain; // 胶片颗粒
   final CropParams crop;
   final List<LocalAdjustment> locals;
+  final LensCorrectionParams lensCorrection;
+  final PerspectiveParams perspective;
 
   const AdjustmentParams({
     this.exposure = 0.0,
@@ -59,6 +63,8 @@ class AdjustmentParams {
     this.grain = GrainParams.neutral,
     this.crop = CropParams.identity,
     this.locals = const [],
+    this.lensCorrection = LensCorrectionParams.neutral,
+    this.perspective = PerspectiveParams.identity,
   });
 
   static const neutral = AdjustmentParams();
@@ -88,6 +94,8 @@ class AdjustmentParams {
     GrainParams? grain,
     CropParams? crop,
     List<LocalAdjustment>? locals,
+    LensCorrectionParams? lensCorrection,
+    PerspectiveParams? perspective,
   }) => AdjustmentParams(
     exposure: exposure ?? this.exposure,
     temperature: temperature ?? this.temperature,
@@ -113,6 +121,8 @@ class AdjustmentParams {
     grain: grain ?? this.grain,
     crop: crop ?? this.crop,
     locals: locals ?? this.locals,
+    lensCorrection: lensCorrection ?? this.lensCorrection,
+    perspective: perspective ?? this.perspective,
   );
 
   @override
@@ -142,6 +152,8 @@ class AdjustmentParams {
           hsl == other.hsl &&
           grain == other.grain &&
           crop == other.crop &&
+          lensCorrection == other.lensCorrection &&
+          perspective == other.perspective &&
           listEquals(locals, other.locals);
 
   @override
@@ -169,6 +181,8 @@ class AdjustmentParams {
     hsl,
     grain,
     crop,
+    lensCorrection,
+    perspective,
     locals,
   ]);
 
@@ -196,6 +210,8 @@ class AdjustmentParams {
     'hsl': hsl.toJson(),
     'grain': grain.toJson(),
     'crop': crop.toJson(),
+    'lensCorrection': lensCorrection.toJson(),
+    'perspective': perspective.toJson(),
     'locals': locals.map((e) => e.toJson()).toList(),
   };
 
@@ -242,5 +258,13 @@ class AdjustmentParams {
             ?.map((e) => LocalAdjustment.fromJson(e as Map<String, dynamic>))
             .toList() ??
         const [],
+    lensCorrection: j['lensCorrection'] != null
+        ? LensCorrectionParams.fromJson(
+            j['lensCorrection'] as Map<String, dynamic>,
+          )
+        : LensCorrectionParams.neutral,
+    perspective: j['perspective'] != null
+        ? PerspectiveParams.fromJson(j['perspective'] as Map<String, dynamic>)
+        : PerspectiveParams.identity,
   );
 }

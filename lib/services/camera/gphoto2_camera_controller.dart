@@ -87,9 +87,6 @@ class Gphoto2CameraController implements CameraController {
     try {
       final shellPath = _toShellPath(saveFolder);
 
-      //   --port            指定相机
-      //   --capture-tethered 阻塞监听快门事件
-      //   --filename %f.%C  保留相机原始命名
       final args = [
         '--port',
         camera.port,
@@ -102,13 +99,11 @@ class Gphoto2CameraController implements CameraController {
 
       _events?.add(CameraConnected(camera.model));
 
-      // stdout：状态信息
       _process!.stdout
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen(_onStdoutLine);
 
-      // stderr：错误信息
       _process!.stderr
           .transform(utf8.decoder)
           .transform(const LineSplitter())
@@ -119,7 +114,6 @@ class Gphoto2CameraController implements CameraController {
             }
           });
 
-      // 进程退出
       final exitCode = await _process!.exitCode;
       _active = false;
       if (exitCode != 0 && _events != null && !_events!.isClosed) {
@@ -144,7 +138,6 @@ class Gphoto2CameraController implements CameraController {
       final filename = t.substring('Saving file as '.length);
       _events!.add(CameraShotSaved(filename));
     } else if (t.contains('UNKNOWN PTP Event c107')) {
-      // 快门已按
       _events!.add(const CameraTakingShot());
     }
   }

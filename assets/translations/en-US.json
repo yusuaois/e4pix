@@ -426,5 +426,22 @@
   "exitWithActiveExports": "Exports are in progress. Exiting now will cancel them.",
   "exitConfirmDontAskAgain": "Don't ask again",
   "settingsExitConfirm": "Exit Confirmation",
-  "settingsExitConfirmHint": "Show confirmation dialog when closing the window to prevent accidental exit"
+  "settingsExitConfirmHint": "Show confirmation dialog when closing the window to prevent accidental exit",
+  "lens": "Lens",
+  "lensCAEnabled": "CA Correction",
+  "lensCARed": "Red Channel",
+  "lensCABlue": "Blue Channel",
+  "lensDistortionEnabled": "Distortion Correction",
+  "lensDistortionK1": "K1",
+  "lensDistortionK2": "K2",
+  "lensDistortionK3": "K3",
+  "lensVignettingEnabled": "Vignetting Correction",
+  "lensVignettingK1": "K1",
+  "lensVignettingK2": "K2",
+  "lensVignettingK3": "K3",
+  "syncLens": "Lens Correction",
+  "perspective": "Perspective",
+  "perspectiveHorizontal": "Horizontal",
+  "perspectiveVertical": "Vertical",
+  "syncPerspective": "Perspective Correction"
 }

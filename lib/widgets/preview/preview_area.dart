@@ -163,6 +163,8 @@ class _PreviewContent extends ConsumerWidget {
         curve: ref.watch(effectiveCurveTextureProvider),
         sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
         denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
+        perspectiveProgram: ref.watch(perspectiveShaderProgramProvider).value,
+        lensCorrectProgram: ref.watch(lensCorrectShaderProgramProvider).value,
       ),
     );
   }
@@ -280,7 +282,14 @@ class _PreviewContent extends ConsumerWidget {
     final hasSharpen = params.sharpenAmount > 0.001;
     final hasDenoise =
         params.denoiseLuma > 0.001 || params.denoiseColor > 0.001;
-    final needFullPipeline = hasLocals || hasSharpen || hasDenoise;
+    final hasLensCorrection = !params.lensCorrection.isNeutral;
+    final hasPerspective = !params.perspective.isIdentity;
+    final needFullPipeline =
+        hasLocals ||
+        hasSharpen ||
+        hasDenoise ||
+        hasLensCorrection ||
+        hasPerspective;
 
     if (needFullPipeline) {
       final maskProgram = ref.watch(maskShaderProgramProvider).value;
@@ -313,6 +322,12 @@ class _PreviewContent extends ConsumerWidget {
             curveTexture: ref.watch(effectiveCurveTextureProvider),
             sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
             denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
+            perspectiveProgram: ref
+                .watch(perspectiveShaderProgramProvider)
+                .value,
+            lensCorrectProgram: ref
+                .watch(lensCorrectShaderProgramProvider)
+                .value,
             idleMaxEdge: idle,
             draggingMaxEdge: dragging,
           );

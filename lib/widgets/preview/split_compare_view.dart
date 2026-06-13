@@ -19,6 +19,8 @@ class SplitCompareView extends ConsumerStatefulWidget {
   final ui.Image? curve;
   final ui.FragmentProgram? sharpenProgram;
   final ui.FragmentProgram? denoiseProgram;
+  final ui.FragmentProgram? perspectiveProgram;
+  final ui.FragmentProgram? lensCorrectProgram;
 
   const SplitCompareView({
     super.key,
@@ -33,6 +35,8 @@ class SplitCompareView extends ConsumerStatefulWidget {
     this.curve,
     this.sharpenProgram,
     this.denoiseProgram,
+    this.perspectiveProgram,
+    this.lensCorrectProgram,
   });
 
   @override
@@ -94,6 +98,8 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
                           curveTexture: widget.curve,
                           sharpenProgram: widget.sharpenProgram,
                           denoiseProgram: widget.denoiseProgram,
+                          perspectiveProgram: widget.perspectiveProgram,
+                          lensCorrectProgram: widget.lensCorrectProgram,
                         ),
                       ),
 

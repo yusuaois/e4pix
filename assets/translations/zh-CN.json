@@ -426,5 +426,22 @@
   "exitWithActiveExports": "导出任务正在进行中，退出将取消所有导出任务。",
   "exitConfirmDontAskAgain": "不再询问",
   "settingsExitConfirm": "退出确认",
-  "settingsExitConfirmHint": "关闭窗口时弹出确认对话框，防止意外退出丢失编辑进度"
+  "settingsExitConfirmHint": "关闭窗口时弹出确认对话框，防止意外退出丢失编辑进度",
+  "lens": "镜头",
+  "lensCAEnabled": "色差校正",
+  "lensCARed": "红通道",
+  "lensCABlue": "蓝通道",
+  "lensDistortionEnabled": "畸变校正",
+  "lensDistortionK1": "K1",
+  "lensDistortionK2": "K2",
+  "lensDistortionK3": "K3",
+  "lensVignettingEnabled": "暗角校正",
+  "lensVignettingK1": "K1",
+  "lensVignettingK2": "K2",
+  "lensVignettingK3": "K3",
+  "syncLens": "镜头校正",
+  "perspective": "透视矫正",
+  "perspectiveHorizontal": "水平",
+  "perspectiveVertical": "垂直",
+  "syncPerspective": "透视矫正"
 }

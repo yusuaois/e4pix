@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
-import 'sections/local_section.dart';
 import 'sections/preset_section.dart';
 
 class HorizontalAdjustmentPanel extends ConsumerWidget {
@@ -50,6 +49,8 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
         return const LocalPanel();
       case DevelopTool.watermark:
         return const WatermarkSection();
+      case DevelopTool.lens:
+        return const LensSection();
       case DevelopTool.info:
         return info ?? const SizedBox.shrink();
     }
@@ -200,6 +201,12 @@ class _ToolRail extends StatelessWidget {
               tooltip: tr('watermark'),
               selected: selected == DevelopTool.watermark,
               onTap: () => onSelect(DevelopTool.watermark),
+            ),
+            _RailItem(
+              icon: Icons.camera_outlined,
+              tooltip: tr('lens'),
+              selected: selected == DevelopTool.lens,
+              onTap: () => onSelect(DevelopTool.lens),
             ),
             const SizedBox(height: 8),
           ],

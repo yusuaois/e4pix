@@ -16,11 +16,15 @@ class _ShaderBundle {
   final ui.FragmentProgram mask;
   final ui.FragmentProgram sharpen;
   final ui.FragmentProgram denoise;
+  final ui.FragmentProgram perspective;
+  final ui.FragmentProgram lensCorrect;
   const _ShaderBundle({
     required this.develop,
     required this.mask,
     required this.sharpen,
     required this.denoise,
+    required this.perspective,
+    required this.lensCorrect,
   });
 }
 
@@ -31,6 +35,8 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     ui.FragmentProgram.fromAsset('assets/shaders/develop_mask.shader'),
     ui.FragmentProgram.fromAsset('assets/shaders/sharpen.shader'),
     ui.FragmentProgram.fromAsset('assets/shaders/denoise.shader'),
+    ui.FragmentProgram.fromAsset('assets/shaders/perspective.shader'),
+    ui.FragmentProgram.fromAsset('assets/shaders/lens_correct.shader'),
   ]);
   for (final p in results) {
     p.fragmentShader(); // 预热编译
@@ -40,6 +46,8 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     mask: results[1],
     sharpen: results[2],
     denoise: results[3],
+    perspective: results[4],
+    lensCorrect: results[5],
   );
 });
 
@@ -64,6 +72,18 @@ final denoiseShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   ref,
 ) async {
   return (await ref.watch(_allShadersProvider.future)).denoise;
+});
+
+final perspectiveShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
+  ref,
+) async {
+  return (await ref.watch(_allShadersProvider.future)).perspective;
+});
+
+final lensCorrectShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
+  ref,
+) async {
+  return (await ref.watch(_allShadersProvider.future)).lensCorrect;
 });
 
 // 1Hz ticker

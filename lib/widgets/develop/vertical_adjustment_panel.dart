@@ -6,7 +6,6 @@ import '../../core/models/adjustment_params.dart';
 import '../../core/theme/app_colors.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
-import 'sections/local_section.dart';
 import 'sections/preset_section.dart';
 
 /// 手机布局下的底部工具面板
@@ -19,7 +18,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
     final params = ref.watch(currentParamsNotifierProvider);
 
     return DefaultTabController(
-      length: 9,
+      length: 10,
       child: Container(
         color: AppColors.panelBg,
         child: Column(
@@ -50,6 +49,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                           Tab(text: tr("preset"), height: 36),
                           Tab(text: tr("local"), height: 36),
                           Tab(text: tr("watermark"), height: 36),
+                          Tab(text: tr("lens"), height: 36),
                         ],
                       ),
                     ),
@@ -102,6 +102,10 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                   _LazyBuild(
                     builder: (_) =>
                         const SingleChildScrollView(child: WatermarkSection()),
+                  ),
+                  _LazyBuild(
+                    builder: (_) =>
+                        const SingleChildScrollView(child: LensSection()),
                   ),
                 ],
               ),

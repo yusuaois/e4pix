@@ -3,34 +3,34 @@ import 'adjustment_params.dart';
 /// 可选择性同步的调整项分组
 enum SyncItem {
   whiteBalance, // temperature, tint
-  tone,         // exposure, contrast, highlights, shadows, whites, blacks
-  presence,     // saturation, vibrance
+  tone, // exposure, contrast, highlights, shadows, whites, blacks
+  presence, // saturation, vibrance
   hsl,
   curves,
-  lut,          // lutIntensity, lutIntensityB
+  lut, // lutIntensity, lutIntensityB
   locals,
   crop,
+  lens, // lens correction params
+  perspective, // perspective correction
 }
 
 extension SyncItemLabel on SyncItem {
   String get labelKey => switch (this) {
-        SyncItem.whiteBalance => 'syncWhiteBalance',
-        SyncItem.tone => 'syncTone',
-        SyncItem.presence => 'syncPresence',
-        SyncItem.hsl => 'syncHsl',
-        SyncItem.curves => 'syncCurves',
-        SyncItem.lut => 'syncLut',
-        SyncItem.locals => 'syncLocals',
-        SyncItem.crop => 'syncCrop',
-      };
+    SyncItem.whiteBalance => 'syncWhiteBalance',
+    SyncItem.tone => 'syncTone',
+    SyncItem.presence => 'syncPresence',
+    SyncItem.hsl => 'syncHsl',
+    SyncItem.curves => 'syncCurves',
+    SyncItem.lut => 'syncLut',
+    SyncItem.locals => 'syncLocals',
+    SyncItem.crop => 'syncCrop',
+    SyncItem.lens => 'syncLens',
+    SyncItem.perspective => 'syncPerspective',
+  };
 }
 
 /// 默认勾选：调色风格类（保留各自曝光/白平衡/构图）
-const kDefaultSyncItems = {
-  SyncItem.presence,
-  SyncItem.hsl,
-  SyncItem.curves,
-};
+const kDefaultSyncItems = {SyncItem.presence, SyncItem.hsl, SyncItem.curves};
 
 /// 把 src 的选中项合并进 target，未选中项保留 target 原值
 AdjustmentParams mergeParams(
@@ -55,5 +55,7 @@ AdjustmentParams mergeParams(
     lutIntensityB: items.contains(SyncItem.lut) ? src.lutIntensityB : null,
     locals: items.contains(SyncItem.locals) ? src.locals : null,
     crop: items.contains(SyncItem.crop) ? src.crop : null,
+    lensCorrection: items.contains(SyncItem.lens) ? src.lensCorrection : null,
+    perspective: items.contains(SyncItem.perspective) ? src.perspective : null,
   );
 }
