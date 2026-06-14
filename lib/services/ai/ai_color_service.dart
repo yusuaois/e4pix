@@ -464,7 +464,7 @@ class AIColorService {
   ) {
     final hasIntent = intent != null && intent.trim().isNotEmpty;
     final langInstruction = languageCode != 'en'
-        ? '\n- ALL text fields (reasoning, mood, reason) MUST be written in language code: $languageCode.'
+        ? '\n- User-facing text fields (reasoning, mood, localSuggestions[].reason) MUST be translated to language code: $languageCode. (scene_analysis can remain in English).'
         : '';
     final intentBlock = hasIntent
         ? '''
@@ -544,21 +544,55 @@ $hslBlock$intentLine
 
 ---
 
-## STEP 1 — Scene Classification
-Classify the primary genre and light quality internally. These MUST dictate your HSL and Local decisions.
+## STEP 1 — Scene Classification (MANDATORY — DO NOT SKIP)
+
+You MUST identify the scene BEFORE touching any parameter. Scan for visual evidence:
+
+### Identify Lighting First
+- HARD sunlight (sharp shadows, high contrast, blown highlights) → reduce highlights -10 to -25, lift shadows +10 to +20.
+- SOFT overcast (flat light, no distinct shadows, low contrast) → contrast +5 to +15, clarity via subtle blacks -5 to -10.
+- GOLDEN hour (warm orange cast, long shadows, overall warmth) → preserve warmth, slight orange HSL boost.
+- TUNGSTEN / WARM indoor (strong yellow cast, 2700-3200K feel) → temperature -200 to -500K to neutralize.
+- FLUORESCENT / COOL indoor (greenish or bluish cast) → tint +5 to +15 toward magenta, temperature +100 to +300K.
+- MIXED lighting (multiple color temps in one scene) → prioritize subject/face over background.
+- NIGHT / LOW light (underexposed, noise, crushed blacks) → exposure +0.3 to +1.0, lift blacks +10 to +20.
+
+### Identify Content (pick ONE primary)
+- PORTRAIT / PEOPLE: face/skin is the #1 priority. Protect skin tones above all. HSL orange/red only ±5, saturation conservative.
+- LANDSCAPE / NATURE: foliage, sky, water. Green and blue HSL are active players. Vibrance preferred over saturation.
+- CITY / ARCHITECTURE: buildings, streets, geometric. Contrast and structure matter. Blues for sky, warm tones for building materials.
+- INDOOR / INTERIOR: walls, furniture, artificial light. White balance correction is critical. Shadows lift to reveal detail.
+- FOOD / STILL LIFE: saturated, warm-leaning, appetizing. Reds/oranges/yellows enhanced. Highlights soft.
+- NIGHT / ASTRO: dark dominant, point light sources. Blacks deep but not crushed. Star/light detail preserved.
+- PETS / ANIMALS: similar to portrait but fur/feather texture matters. Eye catchlight via local exposure.
+
+### CHECKLIST (You MUST answer these in the "scene_analysis" JSON field FIRST):
+1. What is the MAIN subject? (person / landscape / city / indoor / food / night / animal)
+2. What is the dominant light source? (sun / overcast / golden / tungsten / fluorescent / mixed / night)
+3. Is the white balance off? If yes, which direction?
+4. Are highlights blown or shadows crushed?
+5. Any specific color that dominates and needs taming or enhancing?
+
+Your HSL and Local decisions MUST be traceable back to this scene_analysis.
+If you classify wrong, every parameter downstream will be wrong.
 
 ## STEP 2 — User Intent
 $intentBlock
 
-## STEP 3 — Global Light & Color
-- Exposure: Do not touch unless metering is visibly wrong.
-- Tone Shaping: Pull highlights only if clipped. Lift shadows only if detail is lost.
-- White Balance: Do NOT adjust minor intentional casts. Correct only objective errors.
+## STEP 3 — Global Light & Color (apply scene rules from Step 1)
+- Exposure: Do NOT touch unless metering is visibly wrong or scene demands it (night +0.3~1.0, harsh sun -0.3~0.7).
+- Tone Shaping: Pull highlights only if clipped. Lift shadows only if detail is lost. Match the lighting type from Step 1.
+- White Balance: Do NOT adjust minor intentional casts. Correct only objective errors found in Step 1 checklist item #3.
 
-## STEP 4 — HSL: Color Precision Work
-Only modify bands that have a meaningful visual role in THIS specific image. 
-- HSL Constraints: Hue shift max ±15 (unless artistic). Saturation max ±30.
-- If color balance is already perfect, leave values as null.
+## STEP 4 — HSL: Color Precision Work (driven by Step 1 content type)
+Only modify bands that matter for the scene type you identified.
+- PORTRAIT: orange/red ±5 max. Skin first.
+- LANDSCAPE: green/blue/aqua are active. Sky and foliage.
+- INDOOR: yellow/orange for warm wood tones. Subtle.
+- FOOD: red/orange/yellow enhance appetite. Warm shift.
+- NIGHT: blue saturation cautious (noise). Purple/magenta for city lights.
+- HSL Constraints: Hue shift max ±15 (unless artistic intent). Saturation max ±30.
+- If a band has no role in this scene, leave its values as null.
 
 ## STEP 5 — Local Adjustments: Spatial Light Sculpting
 Use local adjustments ONLY to redirect viewer attention or fix regional problems (Max 3).
@@ -577,8 +611,9 @@ Use local adjustments ONLY to redirect viewer attention or fix regional problems
 ## JSON Output Schema
 
 {
-  "reasoning": "1-2 sentences: scene type, light character, main edit direction.",
-  "mood": "Short creative label.",
+  "scene_analysis": "Your step-by-step answers to the 5-point Checklist. Do this FIRST to guide your logic.",
+  "reasoning": "1-2 short sentences summarizing the edit direction for the user (MUST be in the requested language).",
+  "mood": "Short creative label (MUST be in the requested language).",
   "adjustments": {
     "exposure":    null, // or absolute float
     "contrast":    null, // or absolute integer [-100, 100]
@@ -638,6 +673,7 @@ Use local adjustments ONLY to redirect viewer attention or fix regional problems
       "params": {
         "exposure": null,
         "shadows": null
+        // all other params are allowed here too
       },
       "reason": "Rationale"
     }

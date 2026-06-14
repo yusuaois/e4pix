@@ -372,7 +372,7 @@ final selectShotProvider = Provider<void Function(TetheredShot)>((ref) {
 // Preserve params toggle
 class PreserveParamsNotifier extends Notifier<bool> {
   @override
-  bool build() => true; // 默认 preserve 模式
+  bool build() => false; // 默认隔离模式，用户手动开启同步
 
   void set(bool v) => state = v;
   void toggle() => state = !state;
