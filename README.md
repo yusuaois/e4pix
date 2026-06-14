@@ -124,7 +124,7 @@ e4pix 是一款跨平台的 RAW 照片编辑与联机拍摄工具。它从联机
 
 ```bash
 # 克隆（LibRaw 为 submodule）
-git clone --recursive https://github.com/yusuaois/e4pix.git
+git clone --recurse-submodules https://github.com/yusuaois/e4pix.git
 cd e4pix
 
 # 安装依赖
@@ -248,7 +248,7 @@ Under the hood: **LibRaw** (C++ via FFI) for RAW decoding, a custom **GPU shader
 ### Build
 
 ```bash
-git clone --recursive https://github.com/yusuaois/e4pix.git
+git clone --recurse-submodules https://github.com/yusuaois/e4pix.git
 cd e4pix
 flutter pub get
 flutter run -d windows   # or -d android
