@@ -1,3 +1,6 @@
 [submodule "third_party/libraw"]
 	path = third_party/libraw
 	url = https://github.com/LibRaw/LibRaw.git
+[submodule "assets/lensfun"]
+	path = assets/lensfun
+	url = https://github.com/lensfun/lensfun.git
