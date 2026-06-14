@@ -61,36 +61,3 @@ class KeyedDebouncer<T> {
     _timers.clear();
   }
 }
-
-/// 通用节流器 — 保证 [run] 之间至少间隔 [minInterval]
-///
-/// 如果距离上次执行不足 [minInterval]，则在剩余时间后执行一次。
-/// 适用于滑块拖拽期间的预览渲染节流（~30fps）
-class Throttler {
-  Timer? _timer;
-  DateTime _lastRun = DateTime(2000); // 初始化为过去时间，首次立即执行
-
-  /// 按 [minInterval] 节流执行 [action]
-  void run(Duration minInterval, void Function() action) {
-    final elapsed = DateTime.now().difference(_lastRun);
-    if (elapsed >= minInterval) {
-      _lastRun = DateTime.now();
-      action();
-      return;
-    }
-    _timer?.cancel();
-    _timer = Timer(minInterval - elapsed, () {
-      _lastRun = DateTime.now();
-      action();
-    });
-  }
-
-  /// 取消当前挂起的定时器
-  void cancel() {
-    _timer?.cancel();
-    _timer = null;
-  }
-
-  /// 清理定时器
-  void dispose() => cancel();
-}

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -55,3 +57,65 @@ final effectiveParamsProvider = Provider<AdjustmentParams>((ref) {
 final effectiveLutEnabledProvider = Provider<bool>((ref) {
   return ref.watch(compareViewModeProvider) != CompareViewMode.hold;
 });
+
+// ── 节流参数（渲染组件专用）──
+
+/// 对 [currentParamsNotifierProvider] 做拖拽感知节流。
+///
+/// - 滑块拖拽中：最多 33ms 更新一次，避免 GPU 过载
+/// - 松手瞬间：立刻 flush 最终值，保证精度
+///
+/// 渲染组件直接 watch 此 provider，无需各自做节流。
+class _ThrottledParamsNotifier extends Notifier<AdjustmentParams> {
+  Timer? _timer;
+  DateTime _lastEmit = DateTime(2000);
+  bool _isDragging = false;
+
+  static const _interval = Duration(milliseconds: 33);
+
+  @override
+  AdjustmentParams build() {
+    ref.onDispose(() => _timer?.cancel());
+
+    // 监听拖拽状态
+    ref.listen<bool>(isUserDraggingSliderProvider, (prev, next) {
+      _isDragging = next;
+      if (prev == true && next == false) {
+        // 拖拽结束 — 取消定时器，立刻 emit 最新值
+        _timer?.cancel();
+        _timer = null;
+        _lastEmit = DateTime(2000);
+        state = ref.read(currentParamsNotifierProvider);
+      }
+    });
+
+    // 监听原始参数 — 拖拽中节流，空闲时立即更新
+    ref.listen<AdjustmentParams>(currentParamsNotifierProvider, (prev, next) {
+      if (prev == next) return;
+      if (!_isDragging) {
+        _lastEmit = DateTime(2000);
+        state = next;
+        return;
+      }
+      // 拖拽中：节流
+      final elapsed = DateTime.now().difference(_lastEmit);
+      if (elapsed >= _interval) {
+        _lastEmit = DateTime.now();
+        state = next;
+        return;
+      }
+      _timer?.cancel();
+      _timer = Timer(_interval - elapsed, () {
+        _lastEmit = DateTime.now();
+        state = next;
+      });
+    });
+
+    return ref.read(currentParamsNotifierProvider);
+  }
+}
+
+final throttledParamsProvider =
+    NotifierProvider<_ThrottledParamsNotifier, AdjustmentParams>(
+      _ThrottledParamsNotifier.new,
+    );

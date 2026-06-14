@@ -4,10 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/adjustment_params.dart';
-import '../state/interaction_state.dart';
 import '../state/render/render_state.dart';
+import '../state/params/params_state.dart';
 import 'develop_uniforms.dart';
-import '../utils/adjustment_throttler.dart';
 
 class PreviewRenderer extends ConsumerStatefulWidget {
   final ui.Image image;
@@ -37,23 +36,6 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
   ui.FragmentProgram? _cachedProgram;
   ui.FragmentShader? _cachedShader;
 
-  late AdjustmentParams _displayedParams;
-  AdjustmentThrottler? _throttler;
-
-  AdjustmentThrottler _useThrottler() {
-    _throttler ??= AdjustmentThrottler(ref)
-      ..listen(
-        onDragEnd: () {
-          if (mounted && _displayedParams != widget.params) {
-            setState(() => _displayedParams = widget.params);
-          }
-        },
-      );
-    return _throttler!;
-  }
-
-  static const _draggingInterval = Duration(milliseconds: 33);
-
   ui.FragmentShader _shaderFor(ui.FragmentProgram program) {
     if (!identical(_cachedProgram, program)) {
       _cachedProgram = program;
@@ -63,36 +45,9 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _displayedParams = widget.params;
-  }
-
-  @override
-  void didUpdateWidget(PreviewRenderer old) {
-    super.didUpdateWidget(old);
-    if (old.params == widget.params) return;
-    if (!ref.read(isUserDraggingSliderProvider)) {
-      _displayedParams = widget.params;
-      return;
-    }
-    _useThrottler().throttle(() {
-      if (!mounted) return;
-      if (_displayedParams != widget.params) {
-        setState(() => _displayedParams = widget.params);
-      }
-    }, dragDelay: _draggingInterval);
-  }
-
-  @override
-  void dispose() {
-    _throttler?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final programAsync = ref.watch(shaderProgramProvider);
+    final params = ref.watch(throttledParamsProvider);
     return programAsync.when(
       loading: () =>
           const Center(child: CircularProgressIndicator(strokeWidth: 2)),
@@ -120,7 +75,7 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
                   painter: _DevelopPainter(
                     shader: shader,
                     image: widget.image,
-                    params: _displayedParams,
+                    params: params,
                     lut: widget.lutTexture,
                     lutSize: widget.lutSize,
                     lutB: widget.lutTextureB,

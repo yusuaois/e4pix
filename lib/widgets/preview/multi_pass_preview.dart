@@ -9,7 +9,6 @@ import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../render/homography.dart';
 import '../../render/mask_cache.dart';
-import '../../utils/adjustment_throttler.dart';
 import '../../state/providers.dart';
 
 /// 离屏多 pass 预览
@@ -60,9 +59,6 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   bool _isRendering = false;
   bool _pendingRender = false;
 
-  late final _throttler = AdjustmentThrottler(ref)
-    ..listen(onDragEnd: _scheduleHighQualityRerender);
-
   final _developCache = DevelopPassCache();
   final _brushCache = BrushMaskCache();
   final _perspectiveCache = PerspectiveMatrixCache();
@@ -70,7 +66,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   @override
   void initState() {
     super.initState();
-    _scheduleRender();
+    _runRender();
   }
 
   @override
@@ -80,7 +76,6 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       _perspectiveCache.invalidate();
     }
     if (old.sourceImage != widget.sourceImage ||
-        old.params != widget.params ||
         old.lutTexture != widget.lutTexture ||
         old.lutSize != widget.lutSize ||
         old.lutTextureB != widget.lutTextureB ||
@@ -92,28 +87,16 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         old.lensCorrectProgram != widget.lensCorrectProgram ||
         old.idleMaxEdge != widget.idleMaxEdge ||
         old.draggingMaxEdge != widget.draggingMaxEdge) {
-      _scheduleRender();
+      _runRender();
     }
   }
 
   @override
   void dispose() {
-    _throttler.dispose();
     _rendered?.dispose();
     _developCache.dispose();
     _brushCache.dispose();
     super.dispose();
-  }
-
-  void _scheduleRender() {
-    _throttler.throttle(_runRender);
-  }
-
-  void _scheduleHighQualityRerender() {
-    _throttler.throttle(
-      _runRender,
-      dragDelay: const Duration(milliseconds: 80),
-    );
   }
 
   Future<void> _runRender() async {
@@ -169,13 +152,17 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       _isRendering = false;
       if (_pendingRender) {
         _pendingRender = false;
-        _scheduleRender();
+        _runRender();
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(throttledParamsProvider, (prev, next) {
+      if (prev != next) _runRender();
+    });
+
     if (_rendered == null) {
       return const Center(
         child: SizedBox(
