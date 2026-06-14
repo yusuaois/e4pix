@@ -41,8 +41,15 @@ class AILocalSuggestion {
   });
 
   factory AILocalSuggestion.fromJson(Map<String, dynamic> j) {
-    final type = j['maskType'] as String;
-    final shapeJson = Map<String, dynamic>.from(j['maskShape'] as Map);
+    final type = j['maskType'] as String?;
+    if (type == null) {
+      throw AIException('Local suggestion missing maskType');
+    }
+    final shapeRaw = j['maskShape'];
+    if (shapeRaw is! Map) {
+      throw AIException('Local suggestion missing or invalid maskShape');
+    }
+    final shapeJson = Map<String, dynamic>.from(shapeRaw);
     shapeJson['type'] = type;
     return AILocalSuggestion(
       mask: MaskShape.fromJson(shapeJson),
@@ -146,16 +153,16 @@ class AIColorSuggestion {
     }
 
     return cur.copyWith(
-      exposure: d('exposure') ?? cur.exposure,
-      contrast: d('contrast') ?? cur.contrast,
-      highlights: d('highlights') ?? cur.highlights,
-      shadows: d('shadows') ?? cur.shadows,
-      whites: d('whites') ?? cur.whites,
-      blacks: d('blacks') ?? cur.blacks,
-      temperature: i('temperature') ?? cur.temperature,
-      tint: d('tint') ?? cur.tint,
-      saturation: d('saturation') ?? cur.saturation,
-      vibrance: d('vibrance') ?? cur.vibrance,
+      exposure: (d('exposure') ?? cur.exposure).clamp(-5.0, 5.0),
+      contrast: (d('contrast') ?? cur.contrast).clamp(-100.0, 100.0),
+      highlights: (d('highlights') ?? cur.highlights).clamp(-100.0, 100.0),
+      shadows: (d('shadows') ?? cur.shadows).clamp(-100.0, 100.0),
+      whites: (d('whites') ?? cur.whites).clamp(-100.0, 100.0),
+      blacks: (d('blacks') ?? cur.blacks).clamp(-100.0, 100.0),
+      temperature: (i('temperature') ?? cur.temperature).clamp(2000, 12000),
+      tint: (d('tint') ?? cur.tint).clamp(-100.0, 100.0),
+      saturation: (d('saturation') ?? cur.saturation).clamp(-100.0, 100.0),
+      vibrance: (d('vibrance') ?? cur.vibrance).clamp(-100.0, 100.0),
       hsl: newHsl,
       locals: newLocals,
     );
@@ -170,6 +177,7 @@ class AIColorService {
     required AdjustmentParams currentParams,
     String? userIntent,
     String mediaType = 'image/jpeg',
+    String languageCode = 'en',
   }) async {
     final providerId = await AISettings.getProvider();
     final provider = AIProvider.byId(providerId);
@@ -181,7 +189,7 @@ class AIColorService {
     }
     final model = await AISettings.getModel(providerId);
     final base64Image = base64Encode(imageBytes);
-    final prompt = _buildPrompt(currentParams, userIntent);
+    final prompt = _buildPrompt(currentParams, userIntent, languageCode);
 
     final text = provider.usesAnthropicFormat
         ? await _callAnthropic(
@@ -325,15 +333,28 @@ class AIColorService {
   // ============================================================
   static AIColorSuggestion _parseResponse(String text) {
     String cleaned = text.trim();
-    final fence = RegExp(r'^```(?:json)?\s*([\s\S]*?)\s*```$');
+    final fence = RegExp(r'```(?:json)?\s*([\s\S]*?)\s*```');
     final m = fence.firstMatch(cleaned);
     if (m != null) cleaned = m.group(1)!.trim();
 
-    final Map<String, dynamic> obj;
+    Map<String, dynamic>? obj;
     try {
       obj = jsonDecode(cleaned) as Map<String, dynamic>;
-    } catch (e) {
-      throw AIException(tr("aiColorSuggestionUndecodedResponse", args: [text]));
+    } catch (_) {
+      final start = cleaned.indexOf('{');
+      if (start != -1) {
+        final extracted = _extractFirstJsonObject(cleaned.substring(start));
+        if (extracted != null) {
+          try {
+            obj = jsonDecode(extracted) as Map<String, dynamic>;
+          } catch (_) {}
+        }
+      }
+      if (obj == null) {
+        throw AIException(
+          tr("aiColorSuggestionUndecodedResponse", args: [text]),
+        );
+      }
     }
 
     final adjMap = obj['adjustments'];
@@ -348,10 +369,7 @@ class AIColorService {
       mood: (obj['mood'] as String?) ?? '',
       raw: Map<String, num?>.fromEntries(
         adjMap.entries.map(
-          (e) => MapEntry(
-            e.key.toString(),
-            e.value is num ? e.value as num : null,
-          ),
+          (e) => MapEntry(e.key.toString(), _coerceNum(e.value)),
         ),
       ),
       hslRaw: hslMap is Map ? Map<String, dynamic>.from(hslMap) : null,
@@ -366,10 +384,53 @@ class AIColorService {
     );
   }
 
+  /// Coerce a JSON value to [num] or return null.
+  /// Handles int, double, and string-encoded numbers (LLMs sometimes quote them).
+  static num? _coerceNum(dynamic v) {
+    if (v is num) return v;
+    if (v is String) return num.tryParse(v);
+    return null;
+  }
+
+  /// Extract the first balanced JSON object from [s].
+  /// Returns null if no complete object is found.
+  static String? _extractFirstJsonObject(String s) {
+    if (s.isEmpty || s[0] != '{') return null;
+    int depth = 0;
+    bool inString = false;
+    bool escaped = false;
+    for (int i = 0; i < s.length; i++) {
+      final ch = s[i];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (ch == '\\' && inString) {
+        escaped = true;
+        continue;
+      }
+      if (ch == '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+      if (ch == '{') depth++;
+      if (ch == '}') {
+        depth--;
+        if (depth == 0) return s.substring(0, i + 1);
+      }
+    }
+    return null; // unbalanced braces
+  }
+
   // ============================================================
   // Prompt
   // ============================================================
-  static String _buildPrompt(AdjustmentParams cur, String? intent) {
+  static String _buildPrompt(
+    AdjustmentParams cur,
+    String? intent,
+    String languageCode,
+  ) {
     final intentLine = (intent != null && intent.trim().isNotEmpty)
         ? '\n\nUser intent: "${intent.trim()}"'
         : '';
@@ -385,102 +446,206 @@ class AIColorService {
       );
     }
 
+    return _buildPromptV4(
+      cur,
+      intent,
+      hslBlock.toString(),
+      intentLine,
+      languageCode,
+    );
+  }
+
+  static String _buildPromptV4(
+    AdjustmentParams cur,
+    String? intent,
+    String hslBlock,
+    String intentLine,
+    String languageCode,
+  ) {
+    final hasIntent = intent != null && intent.trim().isNotEmpty;
+    final langInstruction = languageCode != 'en'
+        ? '\n- ALL text fields (reasoning, mood, reason) MUST be written in language code: $languageCode.'
+        : '';
+    final intentBlock = hasIntent
+        ? '''
+<creative_intent>
+The user has specified a creative intent: "$intent"
+
+This is the HIGHEST-PRIORITY instruction. Map it to the following parameter philosophy and honor it faithfully:
+
+CINEMATIC / FILM (e.g. "王家卫", "film noir", "moody cinema", "电影感"):
+  → Crush blacks (-15 to -30), compress highlights (-10 to -25), reduce global contrast slightly.
+  → Lower saturation (-8 to -18) then selectively restore 1-2 key colors via HSL.
+  → Add subtle color cast: temperature ±100-250K or tint ±3-8 depending on desired warmth/cool.
+  → Local: radial on subject with +0.2 to +0.5 EV lift; optional vignette via inverted radial.
+
+CYBERPUNK / NEON (e.g. "赛博朋克", "neon night", "blade runner"):
+  → Cool the base (temperature -200 to -600K), deep blacks (-20 to -35).
+  → Blue S +15-30 / L -10-20 for deep night sky; purple S +10-20 for neon atmosphere.
+  → Orange/yellow H ±5-8 toward amber + S +10-20 for warm practical-light glow.
+
+JAPANESE SOFT / FILM EMULATION (e.g. "日系", "pastel", "小清新", "フィルム"):
+  → Lift blacks gently (+8 to +20), reduce contrast (-10 to -20), soft whites (+5 to +15).
+  → Global saturation -8 to -15; vibrance +5 to +10 for selective color retention.
+  → HSL: slightly desaturate greens/blues, keep orange (skin/warm tones) natural or +3-5 L.
+
+LANDSCAPE DRAMATIC (e.g. "大气风光", "epic landscape", "dramatic skies"):
+  → Recover highlights (-20 to -40), lift shadows (+10 to +25) for HDR-balanced range.
+  → Blue S +10-20 / L -10-20 for deeper sky; green S +5-15, H ±5 for foliage richness.
+  → Vibrance +10-20 (preferred over saturation for natural scenes).
+
+WARM / GOLDEN (e.g. "暖调", "golden hour", "warm film", "胶片暖"):
+  → Temperature +150-350K, tint +3-6.
+  → Orange H toward amber (+5-10), S +5-15, L +5-10 for radiant warmth.
+  → Highlights -5 to -15 to preserve glow without blowout.
+
+If the intent does not match the above templates exactly, extract the emotional keywords and translate them to parameters that serve the same feeling. Bias toward subtlety.
+</creative_intent>
+'''
+        : '''
+<technical_enhancement>
+No specific intent provided. Mode: Natural Technical Enhancement.
+
+Goal: Make the image look like the best possible version of its own light and content. Do NOT impose a style or mood.
+  1. Correct obvious technical failures only (blown highlights, crushed blacks, clear color casts).
+  2. Optimize tonal range to match the scene's natural light character.
+  3. Make edits invisible — the viewer should feel the image improved, not edited.
+  4. Hard cap on all global sliders: ±25 from current values (except exposure: ±1.5 EV max shift).
+</technical_enhancement>
+''';
+
     return '''
-You are an expert photo colorist analyzing a RAW preview rendered with these CURRENT settings:
+<absolute_rules>
+OUTPUT ONLY A SINGLE RAW JSON OBJECT.
+- NO ```json fences. NO markdown backticks of any kind.
+- NO prose, comments, or explanation outside the JSON.
+- Every character outside the JSON will crash the production app.$langInstruction
+</absolute_rules>
+
+Analyze the provided image first, then review the current parameters below. 
+CRITICAL: You must output ABSOLUTE target values for global adjustments (e.g., if current exposure is 1.0 and you want to add 0.5, output 1.5).
+
+## Current Parameters (what the user already set)
 
 [Light & Color]
-- Exposure: ${cur.exposure.toStringAsFixed(2)} EV
-- Contrast: ${cur.contrast.toInt()}
-- Highlights: ${cur.highlights.toInt()}
-- Shadows: ${cur.shadows.toInt()}
-- Whites: ${cur.whites.toInt()}
-- Blacks: ${cur.blacks.toInt()}
-- Temperature: ${cur.temperature} K
-- Tint: ${cur.tint.toInt()}
-- Saturation: ${cur.saturation.toInt()}
-- Vibrance: ${cur.vibrance.toInt()}
+  Exposure:     ${cur.exposure.toStringAsFixed(2)} EV
+  Contrast:     ${cur.contrast.toInt()}
+  Highlights:   ${cur.highlights.toInt()}
+  Shadows:      ${cur.shadows.toInt()}
+  Whites:       ${cur.whites.toInt()}
+  Blacks:       ${cur.blacks.toInt()}
+  Temperature:  ${cur.temperature} K
+  Tint:         ${cur.tint.toInt()}
+  Saturation:   ${cur.saturation.toInt()}
+  Vibrance:     ${cur.vibrance.toInt()}
 
-[HSL bands] (each band: H=hue shift, S=saturation, L=luminance; range -100..100)
+[HSL per-band] (H / S / L each in [-100, 100])
 $hslBlock$intentLine
 
-Suggest ABSOLUTE values (not deltas). Use `null` for sliders you don't want to touch.
+---
 
-You may ALSO suggest local adjustments (mask-based regional edits) when the image has clear
-regional differences global adjustments can't fix (e.g. blown-out sky + dark foreground).
-If not needed, leave "localSuggestions" as an empty array.
+## STEP 1 — Scene Classification
+Classify the primary genre and light quality internally. These MUST dictate your HSL and Local decisions.
 
-Respond with ONLY a JSON object — no markdown fences, no prose outside JSON:
+## STEP 2 — User Intent
+$intentBlock
+
+## STEP 3 — Global Light & Color
+- Exposure: Do not touch unless metering is visibly wrong.
+- Tone Shaping: Pull highlights only if clipped. Lift shadows only if detail is lost.
+- White Balance: Do NOT adjust minor intentional casts. Correct only objective errors.
+
+## STEP 4 — HSL: Color Precision Work
+Only modify bands that have a meaningful visual role in THIS specific image. 
+- HSL Constraints: Hue shift max ±15 (unless artistic). Saturation max ±30.
+- If color balance is already perfect, leave values as null.
+
+## STEP 5 — Local Adjustments: Spatial Light Sculpting
+Use local adjustments ONLY to redirect viewer attention or fix regional problems (Max 3).
+
+### SPATIAL COORDINATE SYSTEM
+- Normalized screen coordinate system [0.0 to 1.0].
+- X-axis: 0.0 is Left, 1.0 is Right.
+- Y-axis: 0.0 is TOP, 1.0 is BOTTOM. (A dark sky at the top means startY: 0.0 to endY: 0.4).
+
+### Mask Types
+- "linear": Best for horizon splits. Requires startX, startY, endX, endY.
+- "radial": Best for isolating subjects or vignettes. Requires centerX, centerY, radiusX, radiusY, rotation, feather, inverted (boolean).
+
+---
+
+## JSON Output Schema
+
 {
-  "reasoning": "1-2 sentences. Use Simplified Chinese if user intent is in Chinese, else English.",
-  "mood": "short label like 'natural daylight' or '电影感暖调'",
+  "reasoning": "1-2 sentences: scene type, light character, main edit direction.",
+  "mood": "Short creative label.",
   "adjustments": {
-    "exposure": null or -5..5,
-    "contrast": null or -100..100,
-    "highlights": null or -100..100,
-    "shadows": null or -100..100,
-    "whites": null or -100..100,
-    "blacks": null or -100..100,
-    "temperature": null or 2000..12000,
-    "tint": null or -100..100,
-    "saturation": null or -100..100,
-    "vibrance": null or -100..100
+    "exposure":    null, // or absolute float
+    "contrast":    null, // or absolute integer [-100, 100]
+    "highlights":  null, // or absolute integer [-100, 100]
+    "shadows":     null, // or absolute integer [-100, 100]
+    "whites":      null, // or absolute integer [-100, 100]
+    "blacks":      null, // or absolute integer [-100, 100]
+    "temperature": null, // or absolute integer [2000, 12000]
+    "tint":        null, // or absolute integer [-100, 100]
+    "saturation":  null, // or absolute integer [-100, 100]
+    "vibrance":    null  // or absolute integer [-100, 100]
   },
   "hsl": {
-    "red":     {"h": null or -100..100, "s": null or -100..100, "l": null or -100..100},
-    "orange":  {"h": ..., "s": ..., "l": ...},
-    "yellow":  {"h": ..., "s": ..., "l": ...},
-    "green":   {"h": ..., "s": ..., "l": ...},
-    "aqua":    {"h": ..., "s": ..., "l": ...},
-    "blue":    {"h": ..., "s": ..., "l": ...},
-    "purple":  {"h": ..., "s": ..., "l": ...},
-    "magenta": {"h": ..., "s": ..., "l": ...}
+    "red":     {"h": null, "s": null, "l": null}, // null or integer [-100, 100]
+    "orange":  {"h": null, "s": null, "l": null},
+    "yellow":  {"h": null, "s": null, "l": null},
+    "green":   {"h": null, "s": null, "l": null},
+    "aqua":    {"h": null, "s": null, "l": null},
+    "blue":    {"h": null, "s": null, "l": null},
+    "purple":  {"h": null, "s": null, "l": null},
+    "magenta": {"h": null, "s": null, "l": null}
   },
   "localSuggestions": [
     {
       "maskType": "linear",
       "maskShape": {
-        "startX": 0.0..1.0, "startY": 0.0..1.0,
-        "endX": 0.0..1.0,   "endY": 0.0..1.0
+        "startX": 0.5, // float [0.0, 1.0]
+        "startY": 0.0, // float [0.0, 1.0]
+        "endX": 0.5,   // float [0.0, 1.0]
+        "endY": 0.4    // float [0.0, 1.0]
       },
       "params": {
-        "exposure": -3..3, "contrast": -100..100,
-        "highlights": -100..100, "shadows": -100..100,
-        "whites": -100..100, "blacks": -100..100,
-        "temperatureShift": -3000..3000,
-        "tint": -100..100, "saturation": -100..100, "vibrance": -100..100
+        "exposure":    null, // or relative offset float [-5.0, 5.0]
+        "contrast":    null, // or relative offset integer
+        "highlights":  null, // or relative offset integer
+        "shadows":     null, // or relative offset integer
+        "whites":      null, // or relative offset integer
+        "blacks":      null, // or relative offset integer
+        "temperatureShift": null, // or relative offset integer [-3000, 3000]
+        "tint":        null, // or relative offset integer
+        "saturation":  null, // or relative offset integer
+        "vibrance":    null  // or relative offset integer
       },
-      "reason": "short Chinese / English label, e.g. '压暗天空'"
+      "reason": "Rationale"
     },
     {
       "maskType": "radial",
       "maskShape": {
-        "centerX": 0.0..1.0, "centerY": 0.0..1.0,
-        "radiusX": 0.0..1.0, "radiusY": 0.0..1.0,
-        "rotation": -3.14..3.14,
-        "feather": 0.0..1.0,
+        "centerX": 0.5, 
+        "centerY": 0.5, 
+        "radiusX": 0.3, 
+        "radiusY": 0.3, 
+        "rotation": 0.0, 
+        "feather": 0.5, 
         "inverted": false
       },
-      "params": { "exposure": 0.4 },
-      "reason": "提亮主体"
+      "params": {
+        "exposure": null,
+        "shadows": null
+      },
+      "reason": "Rationale"
     }
   ]
 }
 
-Guidelines:
-- Tasteful first: small adjustments (±5-25) usually look better than aggressive ones
-- HSL is your scalpel — use it for: skin (orange S/L), sky (blue/aqua S), foliage (green/yellow H/S)
-- Don't change temperature/tint unless WB is clearly off — current value is user's choice
-- Omit the entire "hsl" block (or use all nulls) if no per-color work is needed
-- Match scene's natural mood unless user requests otherwise
-
-Local adjustment rules:
-- At most 3 entries in localSuggestions; empty array means "no need"
-- Coordinates / radii are normalized [0..1] in the cropped output space (top-left origin)
-- Linear gradient: alpha smoothly ramps 0→1 from start to end point
-- Radial gradient: alpha=1 inside the (possibly rotated) ellipse, 0 outside; feather softens edge
-- All params fields are optional (default 0); never include HSL or LUT in local params
-- Only suggest locals for clearly regional issues (blown sky, dark subject, distracting bright corner)
-- Don't repeat what global adjustments already fixed
+YOUR JSON RESPONSE MUST START EXACTLY HERE:
+{
 ''';
   }
 }

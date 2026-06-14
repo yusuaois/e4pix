@@ -67,10 +67,10 @@ class LinearGradientMask extends MaskShape {
 
   factory LinearGradientMask.fromJson(Map<String, dynamic> j) =>
       LinearGradientMask(
-        startX: (j['startX'] as num).toDouble(),
-        startY: (j['startY'] as num).toDouble(),
-        endX: (j['endX'] as num).toDouble(),
-        endY: (j['endY'] as num).toDouble(),
+        startX: (j['startX'] as num?)?.toDouble() ?? 0.5,
+        startY: (j['startY'] as num?)?.toDouble() ?? 0.0,
+        endX: (j['endX'] as num?)?.toDouble() ?? 0.5,
+        endY: (j['endY'] as num?)?.toDouble() ?? 0.5,
       );
 
   @override

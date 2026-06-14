@@ -61,6 +61,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
     });
 
     try {
+      final languageCode = EasyLocalization.of(context)?.locale.languageCode ?? 'en';
       _tempPath = await widget.renderPreviewToFile();
       final bytes = await File(_tempPath!).readAsBytes();
 
@@ -68,6 +69,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
         imageBytes: bytes,
         currentParams: widget.currentParams,
         userIntent: _intentController.text,
+        languageCode: languageCode,
       );
 
       if (mounted) setState(() => _suggestion = result);

@@ -146,9 +146,11 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
       );
       final bytes = await File(tempPath).readAsBytes();
 
+      final languageCode = Platform.localeName.split('_').first;
       final result = await AIColorService.suggest(
         imageBytes: bytes,
         currentParams: params,
+        languageCode: languageCode,
       );
 
       if (!ref.mounted) return;

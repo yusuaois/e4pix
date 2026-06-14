@@ -15,6 +15,7 @@
 ## 🛠️ 底层改进 (Under the Hood)
 * 合并笔刷 StateProvider
 * 提取共享防抖/节流工具类
+* 优化AI调色提示词
 
 
 ---

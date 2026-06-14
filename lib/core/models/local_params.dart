@@ -2,16 +2,16 @@ import 'package:flutter/foundation.dart';
 
 @immutable
 class LocalParams {
-  final double exposure;      // EV [-3, +3]
-  final double contrast;      // [-100, +100]
-  final double highlights;    // [-100, +100]
+  final double exposure; // EV [-3, +3]
+  final double contrast; // [-100, +100]
+  final double highlights; // [-100, +100]
   final double shadows;
   final double whites;
   final double blacks;
   final int temperatureShift; // K 偏移 [-3000, +3000]
-  final double tint;          // [-100, +100]
-  final double saturation;    // [-100, +100]
-  final double vibrance;      // [-100, +100]
+  final double tint; // [-100, +100]
+  final double saturation; // [-100, +100]
+  final double vibrance; // [-100, +100]
 
   const LocalParams({
     this.exposure = 0.0,
@@ -51,45 +51,45 @@ class LocalParams {
     double? tint,
     double? saturation,
     double? vibrance,
-  }) =>
-      LocalParams(
-        exposure: exposure ?? this.exposure,
-        contrast: contrast ?? this.contrast,
-        highlights: highlights ?? this.highlights,
-        shadows: shadows ?? this.shadows,
-        whites: whites ?? this.whites,
-        blacks: blacks ?? this.blacks,
-        temperatureShift: temperatureShift ?? this.temperatureShift,
-        tint: tint ?? this.tint,
-        saturation: saturation ?? this.saturation,
-        vibrance: vibrance ?? this.vibrance,
-      );
+  }) => LocalParams(
+    exposure: exposure ?? this.exposure,
+    contrast: contrast ?? this.contrast,
+    highlights: highlights ?? this.highlights,
+    shadows: shadows ?? this.shadows,
+    whites: whites ?? this.whites,
+    blacks: blacks ?? this.blacks,
+    temperatureShift: temperatureShift ?? this.temperatureShift,
+    tint: tint ?? this.tint,
+    saturation: saturation ?? this.saturation,
+    vibrance: vibrance ?? this.vibrance,
+  );
 
   Map<String, dynamic> toJson() => {
-        'exposure': exposure,
-        'contrast': contrast,
-        'highlights': highlights,
-        'shadows': shadows,
-        'whites': whites,
-        'blacks': blacks,
-        'temperatureShift': temperatureShift,
-        'tint': tint,
-        'saturation': saturation,
-        'vibrance': vibrance,
-      };
+    'exposure': exposure,
+    'contrast': contrast,
+    'highlights': highlights,
+    'shadows': shadows,
+    'whites': whites,
+    'blacks': blacks,
+    'temperatureShift': temperatureShift,
+    'tint': tint,
+    'saturation': saturation,
+    'vibrance': vibrance,
+  };
 
   factory LocalParams.fromJson(Map<String, dynamic> j) => LocalParams(
-        exposure: (j['exposure'] as num?)?.toDouble() ?? 0.0,
-        contrast: (j['contrast'] as num?)?.toDouble() ?? 0.0,
-        highlights: (j['highlights'] as num?)?.toDouble() ?? 0.0,
-        shadows: (j['shadows'] as num?)?.toDouble() ?? 0.0,
-        whites: (j['whites'] as num?)?.toDouble() ?? 0.0,
-        blacks: (j['blacks'] as num?)?.toDouble() ?? 0.0,
-        temperatureShift: (j['temperatureShift'] as num?)?.toInt() ?? 0,
-        tint: (j['tint'] as num?)?.toDouble() ?? 0.0,
-        saturation: (j['saturation'] as num?)?.toDouble() ?? 0.0,
-        vibrance: (j['vibrance'] as num?)?.toDouble() ?? 0.0,
-      );
+    exposure: (j['exposure'] as num?)?.toDouble() ?? 0.0,
+    contrast: (j['contrast'] as num?)?.toDouble() ?? 0.0,
+    highlights: (j['highlights'] as num?)?.toDouble() ?? 0.0,
+    shadows: (j['shadows'] as num?)?.toDouble() ?? 0.0,
+    whites: (j['whites'] as num?)?.toDouble() ?? 0.0,
+    blacks: (j['blacks'] as num?)?.toDouble() ?? 0.0,
+    temperatureShift:
+        ((j['temperatureShift'] ?? j['temperature']) as num?)?.toInt() ?? 0,
+    tint: (j['tint'] as num?)?.toDouble() ?? 0.0,
+    saturation: (j['saturation'] as num?)?.toDouble() ?? 0.0,
+    vibrance: (j['vibrance'] as num?)?.toDouble() ?? 0.0,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -108,7 +108,15 @@ class LocalParams {
 
   @override
   int get hashCode => Object.hash(
-        exposure, contrast, highlights, shadows, whites, blacks,
-        temperatureShift, tint, saturation, vibrance,
-      );
+    exposure,
+    contrast,
+    highlights,
+    shadows,
+    whites,
+    blacks,
+    temperatureShift,
+    tint,
+    saturation,
+    vibrance,
+  );
 }
