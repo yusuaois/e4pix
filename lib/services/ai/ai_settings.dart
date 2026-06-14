@@ -8,7 +8,7 @@ class AISettings {
   static String _keyOf(AIProviderId id) => 'ai_key_${id.name}';
   static String _modelOf(AIProviderId id) => 'ai_model_${id.name}';
 
-  static const defaultMaxEdge = 768;
+  static const defaultMaxEdge = 1568;
   static const defaultProvider = AIProviderId.deepseek;
 
   static Future<AIProviderId> getProvider() async {
@@ -55,6 +55,11 @@ class AISettings {
   static Future<int> getMaxEdge() async {
     final p = await SharedPreferences.getInstance();
     return p.getInt(_kMaxEdge) ?? defaultMaxEdge;
+  }
+
+  static Future<void> setMaxEdge(int v) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setInt(_kMaxEdge, v.clamp(512, 4096));
   }
 
   // === 联机自动建议 ===
