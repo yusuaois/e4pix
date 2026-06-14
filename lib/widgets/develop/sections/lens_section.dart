@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/lens_correction_params.dart';
 import '../../../core/models/perspective_params.dart';
+import '../../../services/lens/lensfun_database.dart';
 import '../../../state/providers.dart';
 import 'shared.dart';
 
@@ -28,13 +29,79 @@ class LensSection extends ConsumerWidget {
           .update(params.copyWith(perspective: v));
     }
 
+    Future<void> autoDetect() async {
+      final metadata = ref.read(imageNotifierProvider).value?.metadata;
+      if (metadata == null) {
+        _snack(context, 'No image metadata');
+        return;
+      }
+      final db = LensfunDatabase.instance;
+      await db.ensureLoaded();
+      final cal = db.lookup(
+        cameraMake: metadata.cameraMake,
+        cameraModel: metadata.cameraModel,
+        lensModel: metadata.lensModel,
+        focalLength: metadata.focalLength,
+        aperture: metadata.aperture,
+      );
+      if (!context.mounted) return;
+      if (cal == null) {
+        _snack(context,
+            'No lens profile: ${metadata.cameraModel} / ${metadata.lensModel}');
+        return;
+      }
+
+      // TCA poly3: R 通道缩放 vr + br*r²，B 通道缩放 vb + bb*r²
+      // UI 的 caRed/caBlue 是常数缩放因子，取线性项 vr/vb 做主校正
+      ref.read(currentParamsNotifierProvider.notifier).update(
+        params.copyWith(
+          lensCorrection: LensCorrectionParams(
+            enabled: true,
+            caRed: cal.tcaVr,
+            caBlue: cal.tcaVb,
+            distortionEnabled: true,
+            distortionK1: cal.distortionA,
+            distortionK2: cal.distortionB,
+            distortionK3: cal.distortionC,
+            vignettingEnabled: true,
+            vignettingK1: cal.vignettingK1,
+            vignettingK2: cal.vignettingK2,
+            vignettingK3: cal.vignettingK3,
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SectionLabel(
           title: "lens",
-          trailing: !lens.isNeutral || !persp.isIdentity
-              ? GestureDetector(
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: autoDetect,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: Text(
+                    'Auto',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.cyanAccent.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              if (!lens.isNeutral || !persp.isIdentity) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () {
                     ref
                         .read(currentParamsNotifierProvider.notifier)
@@ -45,15 +112,23 @@ class LensSection extends ConsumerWidget {
                           ),
                         );
                   },
-                  child: Text(
-                    'reset',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.5),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    child: Text(
+                      'reset',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
                     ),
                   ),
-                )
-              : null,
+                ),
+              ],
+            ],
+          ),
         ),
 
         // ── CA 色差校正 ──
@@ -193,7 +268,6 @@ class LensSection extends ConsumerWidget {
   }
 }
 
-// ── 与 DetailSection grainAdvanced 风格对齐的 Switch 标题行 ──────────────
 class _SwitchHeader extends StatelessWidget {
   final String label;
   final bool value;
@@ -233,7 +307,16 @@ class _SwitchHeader extends StatelessWidget {
   }
 }
 
-// ── 与 DetailSection grainAdvanced 动画一致的展开区域 ────────────────────
+void _snack(BuildContext context, String msg) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(msg, style: const TextStyle(fontSize: 11)),
+      duration: const Duration(seconds: 2),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
+
 class _AnimatedSection extends StatelessWidget {
   final bool expanded;
   final List<Widget> children;
