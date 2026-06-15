@@ -45,12 +45,13 @@ jobs:
 
       - name: 🏷️ Rename Artifacts
         run: |
+          TOP="$GITHUB_WORKSPACE"
           cd build/app/outputs/flutter-apk
-          mv app-arm64-v8a-release.apk   e4pix_${{ github.ref_name }}_Android_arm64-v8a.apk
-          mv app-armeabi-v7a-release.apk e4pix_${{ github.ref_name }}_Android_armeabi-v7a.apk
-          mv app-x86_64-release.apk      e4pix_${{ github.ref_name }}_Android_x86_64.apk
-          mv app-release.apk             e4pix_${{ github.ref_name }}_Android_universal.apk
-          cd "$GITHUB_WORKSPACE"
+          mv app-arm64-v8a-release.apk   "$TOP/e4pix_${{ github.ref_name }}_Android_arm64-v8a.apk"
+          mv app-armeabi-v7a-release.apk "$TOP/e4pix_${{ github.ref_name }}_Android_armeabi-v7a.apk"
+          mv app-x86_64-release.apk      "$TOP/e4pix_${{ github.ref_name }}_Android_x86_64.apk"
+          mv app-release.apk             "$TOP/e4pix_${{ github.ref_name }}_Android_universal.apk"
+          cd "$TOP"
           mv build/app/outputs/bundle/release/app-release.aab e4pix_${{ github.ref_name }}_Android.aab
 
       - name: 📤 Upload Android Artifacts
@@ -58,8 +59,8 @@ jobs:
         with:
           name: android-release
           path: |
-            build/app/outputs/flutter-apk/e4pix_*.apk
-            e4pix_*.aab
+            e4pix_*_Android_*.apk
+            # e4pix_*_Android.aab
 
   build-windows:
     runs-on: windows-latest
