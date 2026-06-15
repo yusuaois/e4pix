@@ -17,6 +17,7 @@ import '../core/models/tethered_shot.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
+import '../services/lens/lensfun_database.dart';
 import '../services/app/app_settings.dart';
 import '../services/app/update_service.dart';
 import '../state/providers.dart';
@@ -385,6 +386,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     ref.listen(cameraNotifierProvider, (prev, next) {
       if (next.lastError != null && prev?.lastError != next.lastError) {
         _snack(tr('cameraError', args: [next.lastError!]));
+      }
+    });
+    // 加载lensfun数据库
+    ref.listen(imageNotifierProvider, (prev, next) {
+      if (next.value != null && prev?.value == null) {
+        LensfunDatabase.instance.ensureLoaded();
       }
     });
     if (isFullscreen) {

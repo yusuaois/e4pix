@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:xml/xml.dart';
@@ -98,73 +100,68 @@ class _CameraInfo {
   _CameraInfo(this.maker, this.model, this.cropfactor);
 }
 
-/// Lensfun XML 数据库解析与查表
-class LensfunDatabase {
-  LensfunDatabase._();
-  static final instance = LensfunDatabase._();
-  bool _loaded = false;
+/// 解析结果
+class _ParseResult {
+  final Map<String, _CameraInfo> cameras;
+  final Map<String, List<String>> camByMount;
+  final Map<String, List<_LensEntry>> byCameraLens;
+  final Map<String, List<_LensEntry>> byLensModel;
+  _ParseResult(this.cameras, this.camByMount, this.byCameraLens, this.byLensModel);
+}
 
-  final _cameras = <String, _CameraInfo>{}; // maker|model
-  final _camByMount = <String, List<String>>{}; // mount → [maker|model]
+String _text(XmlElement parent, String tag) {
+  final e = parent.findAllElements(tag).firstOrNull;
+  return e?.innerText.trim() ?? '';
+}
 
-  /// cameraMaker|model\x00lensModel（lowercased）→ entries
-  final Map<String, List<_LensEntry>> _byCameraLens = {};
+double _attrDouble(XmlElement parent, String tag, String attr, double fallback) {
+  final e = parent.findAllElements(tag).firstOrNull;
+  if (e == null) return fallback;
+  return double.tryParse(e.getAttribute(attr) ?? '') ?? fallback;
+}
 
-  /// lensModel（lowercased）→ entries
-  final Map<String, List<_LensEntry>> _byLensModel = {};
+double _doubleOr(XmlElement parent, String tag, double fallback) {
+  final e = parent.findAllElements(tag).firstOrNull;
+  if (e == null) return fallback;
+  return double.tryParse(e.innerText.trim()) ?? fallback;
+}
 
-  // ── 加载 ────────────────────────────────────────────────────────
+double _attr(XmlElement el, String attr, double fallback) {
+  return double.tryParse(el.getAttribute(attr) ?? '') ?? fallback;
+}
 
-  Future<void> ensureLoaded() async {
-    if (_loaded) return;
-    await _loadAll();
-    _loaded = true;
+// 解析入口
+_ParseResult _parseAllXml(List<String> xmlStrings) {
+  final cameras = <String, _CameraInfo>{};
+  final camByMount = <String, List<String>>{};
+  final byCameraLens = <String, List<_LensEntry>>{};
+  final byLensModel = <String, List<_LensEntry>>{};
+
+  final docs = <XmlDocument>[];
+
+  // Phase 1: parse DOMs & extract cameras
+  for (final xml in xmlStrings) {
+    try {
+      final doc = XmlDocument.parse(xml);
+      docs.add(doc);
+
+      for (final cam in doc.findAllElements('camera')) {
+        final maker = _text(cam, 'maker');
+        final model = _text(cam, 'model');
+        final mount = _text(cam, 'mount');
+        final crop = _doubleOr(cam, 'cropfactor', 1.0);
+        if (maker.isEmpty || model.isEmpty) continue;
+        final key = '$maker|$model';
+        cameras[key] = _CameraInfo(maker, model, crop);
+        if (mount.isNotEmpty) {
+          camByMount.putIfAbsent(mount.toLowerCase(), () => []).add(key);
+        }
+      }
+    } catch (_) {}
   }
 
-  Future<void> _loadAll() async {
-    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final keys = manifest
-        .listAssets()
-        .where((k) => k.startsWith('assets/lensfun/') && k.endsWith('.xml'))
-        .toList();
-
-    // Phase 1: 解析所有 camera
-    for (final key in keys) {
-      try {
-        final xml = await rootBundle.loadString(key);
-        _parseCameras(XmlDocument.parse(xml));
-      } catch (e) {
-        debugPrint('LensfunDatabase: failed to parse cameras from $key: $e');
-      }
-    }
-
-    // Phase 2: 解析所有 lens
-    for (final key in keys) {
-      try {
-        final xml = await rootBundle.loadString(key);
-        _parseLenses(XmlDocument.parse(xml));
-      } catch (e) {
-        debugPrint('LensfunDatabase: failed to parse lenses from $key: $e');
-      }
-    }
-  }
-
-  void _parseCameras(XmlDocument doc) {
-    for (final cam in doc.findAllElements('camera')) {
-      final maker = _text(cam, 'maker');
-      final model = _text(cam, 'model');
-      final mount = _text(cam, 'mount');
-      final crop = _doubleOr(cam, 'cropfactor', 1.0);
-      if (maker.isEmpty || model.isEmpty) continue;
-      final key = '$maker|$model';
-      _cameras[key] = _CameraInfo(maker, model, crop);
-      if (mount.isNotEmpty) {
-        _camByMount.putIfAbsent(mount.toLowerCase(), () => []).add(key);
-      }
-    }
-  }
-
-  void _parseLenses(XmlDocument doc) {
+  // Phase 2: re-use DOMs to extract lenses
+  for (final doc in docs) {
     for (final node in doc.rootElement.children.whereType<XmlElement>()) {
       if (node.name.local != 'lens') continue;
 
@@ -178,12 +175,11 @@ class LensfunDatabase {
       final apMax = _attrDouble(node, 'aperture', 'max', 0);
       final crop = _doubleOr(node, 'cropfactor', 1.0);
 
-      // 按 mount 匹配 camera（跨文件全局）
-      final candidates = _camByMount[mount.toLowerCase()];
+      final candidates = camByMount[mount.toLowerCase()];
       if (candidates == null || candidates.isEmpty) continue;
 
       for (final cKey in candidates) {
-        final cam = _cameras[cKey]!;
+        final cam = cameras[cKey]!;
 
         final dists = <_DistortionEntry>[];
         final tcas = <_TcaEntry>[];
@@ -194,28 +190,21 @@ class LensfunDatabase {
             if (d.getAttribute('model') != 'ptlens') continue;
             dists.add(_DistortionEntry(
               _attr(d, 'focal', focalRaw),
-              _attr(d, 'a', 0),
-              _attr(d, 'b', 0),
-              _attr(d, 'c', 0),
+              _attr(d, 'a', 0), _attr(d, 'b', 0), _attr(d, 'c', 0),
             ));
           }
           for (final t in cal.findAllElements('tca')) {
             if (t.getAttribute('model') != 'poly3') continue;
             tcas.add(_TcaEntry(
               _attr(t, 'focal', focalRaw),
-              _attr(t, 'br', 0),
-              _attr(t, 'vr', 1),
-              _attr(t, 'bb', 0),
-              _attr(t, 'vb', 1),
+              _attr(t, 'br', 0), _attr(t, 'vr', 1),
+              _attr(t, 'bb', 0), _attr(t, 'vb', 1),
             ));
           }
           for (final v in cal.findAllElements('vignetting')) {
             vigns.add(_VignettingEntry(
-              _attr(v, 'focal', focalRaw),
-              _attr(v, 'aperture', apMin),
-              _attr(v, 'k1', 0),
-              _attr(v, 'k2', 0),
-              _attr(v, 'k3', 0),
+              _attr(v, 'focal', focalRaw), _attr(v, 'aperture', apMin),
+              _attr(v, 'k1', 0), _attr(v, 'k2', 0), _attr(v, 'k3', 0),
             ));
           }
         }
@@ -223,25 +212,67 @@ class LensfunDatabase {
         if (dists.isEmpty && tcas.isEmpty && vigns.isEmpty) continue;
 
         final entry = _LensEntry(
-          cameraMaker: cam.maker,
-          cameraModel: cam.model,
-          lensMaker: lMaker,
-          lensModel: lModel,
-          focal: focalRaw,
-          focalMin: focalMin,
-          focalMax: focalMax,
+          cameraMaker: cam.maker, cameraModel: cam.model,
+          lensMaker: lMaker, lensModel: lModel,
+          focal: focalRaw, focalMin: focalMin, focalMax: focalMax,
           minAperture: apMin > 0 ? apMin : apMax,
           cropfactor: crop > 0 ? crop : cam.cropfactor,
-          distortions: dists,
-          tcas: tcas,
-          vignettings: vigns,
+          distortions: dists, tcas: tcas, vignettings: vigns,
         );
 
         final clKey = '${cam.maker}|${cam.model}\x00$lModel'.toLowerCase();
-        _byCameraLens.putIfAbsent(clKey, () => []).add(entry);
-        _byLensModel.putIfAbsent(lModel.toLowerCase(), () => []).add(entry);
+        byCameraLens.putIfAbsent(clKey, () => []).add(entry);
+        byLensModel.putIfAbsent(lModel.toLowerCase(), () => []).add(entry);
       }
     }
+  }
+
+  return _ParseResult(cameras, camByMount, byCameraLens, byLensModel);
+}
+
+/// Lensfun XML 数据库解析与查表
+class LensfunDatabase {
+  LensfunDatabase._();
+  static final instance = LensfunDatabase._();
+  bool _loaded = false;
+
+  final _cameras = <String, _CameraInfo>{};
+  final _camByMount = <String, List<String>>{};
+  final Map<String, List<_LensEntry>> _byCameraLens = {};
+  final Map<String, List<_LensEntry>> _byLensModel = {};
+
+  // 加载
+  Future<void> ensureLoaded() async {
+    if (_loaded) return;
+    await _loadAll();
+    _loaded = true;
+  }
+
+  Future<void> _loadAll() async {
+    // 读取所有 XML 文件为字符串
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final keys = manifest
+        .listAssets()
+        .where((k) => k.startsWith('assets/lensfun/data/db/') && k.endsWith('.xml'))
+        .toList();
+
+    final xmlStrings = <String>[];
+    for (final key in keys) {
+      try {
+        xmlStrings.add(await rootBundle.loadString(key));
+      } catch (e) {
+        debugPrint('LensfunDatabase: failed to load $key: $e');
+      }
+    }
+
+    // 后台解析
+    final result = await Isolate.run(() => _parseAllXml(xmlStrings));
+
+    // 挂载结果
+    _cameras.addAll(result.cameras);
+    _camByMount.addAll(result.camByMount);
+    _byCameraLens.addAll(result.byCameraLens);
+    _byLensModel.addAll(result.byLensModel);
   }
 
   // ── 查表 ────────────────────────────────────────────────────────
@@ -352,27 +383,5 @@ class LensfunDatabase {
     final ta = a.split(RegExp(r'\s+')).where((t) => t.length > 1).toSet();
     final tb = b.split(RegExp(r'\s+')).where((t) => t.length > 1).toSet();
     return ta.intersection(tb).length;
-  }
-
-  String _text(XmlElement parent, String tag) {
-    final e = parent.findAllElements(tag).firstOrNull;
-    return e?.innerText.trim() ?? '';
-  }
-
-  /// 读取某个 child element 的属性值
-  double _attrDouble(XmlElement parent, String tag, String attr, double fallback) {
-    final e = parent.findAllElements(tag).firstOrNull;
-    if (e == null) return fallback;
-    return double.tryParse(e.getAttribute(attr) ?? '') ?? fallback;
-  }
-
-  double _doubleOr(XmlElement parent, String tag, double fallback) {
-    final e = parent.findAllElements(tag).firstOrNull;
-    if (e == null) return fallback;
-    return double.tryParse(e.innerText.trim()) ?? fallback;
-  }
-
-  double _attr(XmlElement el, String attr, double fallback) {
-    return double.tryParse(el.getAttribute(attr) ?? '') ?? fallback;
   }
 }

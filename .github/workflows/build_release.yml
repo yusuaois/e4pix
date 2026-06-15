@@ -29,6 +29,14 @@ jobs:
       - name: 📦 Get Dependencies
         run: flutter pub get
 
+      - name: 🔐 Configure Android Signing
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/upload-keystore.jks
+          echo "storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}" > android/key.properties
+          echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/key.properties
+          echo "storeFile=../upload-keystore.jks" >> android/key.properties
+
       - name: 🏗️ Build APK & AAB
         run: |
           flutter build apk --release --split-per-abi
@@ -43,7 +51,7 @@ jobs:
           mv app-x86_64-release.apk      e4pix_${{ github.ref_name }}_Android_x86_64.apk
           mv app-release.apk             e4pix_${{ github.ref_name }}_Android_universal.apk
           cd "$GITHUB_WORKSPACE"
-          # mv build/app/outputs/bundle/release/app-release.aab e4pix_${{ github.ref_name }}_Android.aab
+          mv build/app/outputs/bundle/release/app-release.aab e4pix_${{ github.ref_name }}_Android.aab
 
       - name: 📤 Upload Android Artifacts
         uses: actions/upload-artifact@v4
@@ -51,7 +59,7 @@ jobs:
           name: android-release
           path: |
             build/app/outputs/flutter-apk/e4pix_*.apk
-            # e4pix_*.aab
+            e4pix_*.aab
 
   build-windows:
     runs-on: windows-latest
