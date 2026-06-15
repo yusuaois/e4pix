@@ -55,8 +55,8 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   local_notifier: ^0.1.6
   visibility_detector: ^0.4.0+2
-
 dev_dependencies:
+  msix: ^3.17.0
   flutter_test:
     sdk: flutter
 
@@ -115,3 +115,11 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+msix_config:
+  display_name: e4pix
+  publisher_display_name: yusuaois
+  identity_name: com.yusuaois.e4pix
+  msix_version: 2.8.6.89
+  logo_path: assets\icon\icon.png
+  install_certificate: false

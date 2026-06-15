@@ -77,18 +77,28 @@ jobs:
       - name: 📦 Get Dependencies
         run: flutter pub get
 
-      - name: 🏗️ Build Windows
-        run: flutter build windows --release
-
-      - name: 🗜️ Compress Windows Build (Zip)
+      - name: 🔐 Configure Windows Signing
         run: |
-          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath e4pix_${{ github.ref_name }}_Windows.zip
+          echo "${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}" | Out-File -Encoding ascii cert_base64.txt
+          certutil -decode cert_base64.txt cert.pfx
+
+      - name: 🏗️ Build Windows + Package MSIX
+        run: |
+          dart run msix:create --certificate-path cert.pfx --certificate-password "${{ secrets.WINDOWS_CERT_PASSWORD }}"
+
+      - name: 🗜️ Compress Portable Build (Zip)
+        run: |
+          Get-ChildItem build\windows\x64\runner\Release\ -File |
+            Where-Object { $_.Extension -ne '.msix' } |
+            Compress-Archive -DestinationPath e4pix_${{ github.ref_name }}_Windows_Portable.zip
 
       - name: 📤 Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
-          path: e4pix_*.zip
+          path: |
+            # build/windows/x64/runner/Release/*.msix
+            e4pix_*_Portable.zip
 
   create-release:
     needs: [build-android, build-windows]
