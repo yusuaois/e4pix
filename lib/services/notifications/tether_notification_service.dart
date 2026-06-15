@@ -15,8 +15,11 @@ class TetherNotificationService {
   static const int _cameraNotificationId = 2001;
   static const int _watcherNotificationId = 2002;
 
-  LocalNotification? _windowsCameraNotification;
-  LocalNotification? _windowsWatcherNotification;
+  LocalNotification? _desktopCameraNotification;
+  LocalNotification? _desktopWatcherNotification;
+
+  static bool get _isDesktop =>
+      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -27,7 +30,7 @@ class TetherNotificationService {
       );
       const settings = InitializationSettings(android: androidSettings);
       await _androidPlugin.initialize(settings);
-    } else if (Platform.isWindows) {
+    } else if (_isDesktop) {
       await localNotifier.setup(
         appName: 'e4pix',
         shortcutPolicy: ShortcutPolicy.requireCreate,
@@ -48,7 +51,7 @@ class TetherNotificationService {
     required String model,
     required String saveFolder,
   }) async {
-    if (!Platform.isAndroid && !Platform.isWindows) return;
+    if (!Platform.isAndroid && !_isDesktop) return;
     await _ensureInit();
 
     final title = tr('tetherCameraNotificationTitle');
@@ -61,15 +64,13 @@ class TetherNotificationService {
         body,
         _androidOngoingChannel('e4pix_camera_tether', 'Camera Tethering'),
       );
-    } else if (Platform.isWindows) {
+    } else if (_isDesktop) {
       await dismissCameraOngoing();
-      _windowsCameraNotification = LocalNotification(title: title, body: body);
-
-      _windowsCameraNotification?.onClick = () {
-        Process.run('explorer.exe', [saveFolder]);
+      _desktopCameraNotification = LocalNotification(title: title, body: body);
+      _desktopCameraNotification?.onClick = () {
+        _openFolder(saveFolder);
       };
-
-      await _windowsCameraNotification?.show();
+      await _desktopCameraNotification?.show();
     }
   }
 
@@ -77,9 +78,9 @@ class TetherNotificationService {
   Future<void> dismissCameraOngoing() async {
     if (Platform.isAndroid) {
       await _androidPlugin.cancel(_cameraNotificationId);
-    } else if (Platform.isWindows) {
-      await _windowsCameraNotification?.close();
-      _windowsCameraNotification = null;
+    } else if (_isDesktop) {
+      await _desktopCameraNotification?.close();
+      _desktopCameraNotification = null;
     }
   }
 
@@ -87,7 +88,7 @@ class TetherNotificationService {
 
   /// 显示/更新 文件夹监听常驻通知
   Future<void> showWatcherOngoing({required String watchPath}) async {
-    if (!Platform.isAndroid && !Platform.isWindows) return;
+    if (!Platform.isAndroid && !_isDesktop) return;
     await _ensureInit();
 
     final title = tr('tetherWatcherNotificationTitle');
@@ -100,15 +101,13 @@ class TetherNotificationService {
         body,
         _androidOngoingChannel('e4pix_folder_watcher', 'Folder Watcher'),
       );
-    } else if (Platform.isWindows) {
+    } else if (_isDesktop) {
       await dismissWatcherOngoing();
-      _windowsWatcherNotification = LocalNotification(title: title, body: body);
-
-      _windowsWatcherNotification?.onClick = () {
-        Process.run('explorer.exe', [watchPath]);
+      _desktopWatcherNotification = LocalNotification(title: title, body: body);
+      _desktopWatcherNotification?.onClick = () {
+        _openFolder(watchPath);
       };
-
-      await _windowsWatcherNotification?.show();
+      await _desktopWatcherNotification?.show();
     }
   }
 
@@ -116,13 +115,24 @@ class TetherNotificationService {
   Future<void> dismissWatcherOngoing() async {
     if (Platform.isAndroid) {
       await _androidPlugin.cancel(_watcherNotificationId);
-    } else if (Platform.isWindows) {
-      await _windowsWatcherNotification?.close();
-      _windowsWatcherNotification = null;
+    } else if (_isDesktop) {
+      await _desktopWatcherNotification?.close();
+      _desktopWatcherNotification = null;
     }
   }
 
   // —— 内部工具 ——
+
+  /// 在文件管理器中打开文件夹
+  void _openFolder(String path) {
+    if (Platform.isWindows) {
+      Process.run('explorer.exe', [path]);
+    } else if (Platform.isMacOS) {
+      Process.run('open', [path]);
+    } else if (Platform.isLinux) {
+      Process.run('xdg-open', [path]);
+    }
+  }
 
   /// 配置 Android 常驻通知通道
   NotificationDetails _androidOngoingChannel(

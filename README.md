@@ -116,8 +116,8 @@ e4pix 是一款跨平台的 RAW 照片编辑与联机拍摄工具。它从联机
 |------|------|
 | Windows | ✅ 主力开发平台 |
 | Android | ✅ 已适配（arm64-v8a / universal） |
-| macOS | 🚧 计划中 |
-| Linux | 🚧 计划中 |
+| macOS | ✅ 构建，未测试 |
+| Linux | ✅ 构建，未测试 |
 | iOS | 🚧 计划中 |
 
 ### 编译与运行
@@ -241,8 +241,8 @@ Under the hood: **LibRaw** (C++ via FFI) for RAW decoding, a custom **GPU shader
 |----------|--------|
 | Windows | ✅ Primary target |
 | Android | ✅ Supported (arm64-v8a / universal) |
-| macOS | 🚧 Planned |
-| Linux | 🚧 Planned |
+| macOS | ✅ Built, untested |
+| Linux | ✅ Built, untested |
 | iOS | 🚧 Planned |
 
 ### Build

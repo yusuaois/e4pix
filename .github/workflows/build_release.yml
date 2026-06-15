@@ -101,8 +101,259 @@ jobs:
             # build/windows/x64/runner/Release/*.msix
             e4pix_*_Portable.zip
 
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: "true"
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: 📦 Install Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkg-config libgtk-3-dev libglib2.0-dev libnotify-dev
+
+      - name: 📥 Get Dependencies
+        run: flutter pub get
+
+      - name: 🏗️ Build Linux Release
+        run: flutter build linux --release
+
+      - name: 📦 Package AppImage
+        run: |
+          BUNDLE_DIR="build/linux/x64/release/bundle"
+          BUILD_DIR="build/appimage"
+          APPDIR="$BUILD_DIR/AppDir"
+          OUTPUT="e4pix_${{ github.ref_name }}_Linux_AppImage.AppImage"
+
+          mkdir -p "$BUILD_DIR"
+
+          # Download linuxdeploy
+          LINUXDEPLOY="$BUILD_DIR/linuxdeploy-x86_64.AppImage"
+          if [ ! -f "$LINUXDEPLOY" ]; then
+            wget -q -O "$LINUXDEPLOY" \
+              "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+            chmod +x "$LINUXDEPLOY"
+          fi
+
+          # Download GTK plugin
+          PLUGIN_GTK="$BUILD_DIR/linuxdeploy-plugin-gtk.sh"
+          if [ ! -f "$PLUGIN_GTK" ]; then
+            wget -q -O "$PLUGIN_GTK" \
+              "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
+            chmod +x "$PLUGIN_GTK"
+          fi
+
+          # Create AppDir from Flutter bundle
+          rm -rf "$APPDIR"
+          mkdir -p "$APPDIR"
+          cp -R "$BUNDLE_DIR"/* "$APPDIR/"
+
+          # Create .desktop entry
+          mkdir -p "$APPDIR/usr/share/applications"
+          cat > "$APPDIR/usr/share/applications/e4pix.desktop" << 'EOF'
+          [Desktop Entry]
+          Name=e4pix
+          Comment=RAW Photo Editor
+          Exec=e4pix
+          Icon=e4pix
+          Type=Application
+          Categories=Graphics;Photography;
+          EOF
+
+          # Copy app icon
+          if [ -f "assets/icon/icon.png" ]; then
+            mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+            cp "assets/icon/icon.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/e4pix.png"
+            cp "assets/icon/icon.png" "$APPDIR/e4pix.png"
+          fi
+
+          export LDAI_OUTPUT="$OUTPUT"
+          export DEPLOY_GTK_VERSION=3
+
+          # Run linuxdeploy (fallback to --appimage-extract-and-run if FUSE unavailable)
+          "$LINUXDEPLOY" --appdir "$APPDIR" \
+            --executable "$APPDIR/e4pix" \
+            --desktop-file "$APPDIR/usr/share/applications/e4pix.desktop" \
+            --plugin gtk \
+            --output appimage 2>&1 || {
+              "$LINUXDEPLOY" --appimage-extract-and-run --appdir "$APPDIR" \
+                --executable "$APPDIR/e4pix" \
+                --desktop-file "$APPDIR/usr/share/applications/e4pix.desktop" \
+                --plugin gtk \
+                --output appimage
+            }
+
+          # Rename if needed
+          for f in e4pix-*.AppImage; do
+            if [ -f "$f" ] && [ "$f" != "$OUTPUT" ]; then
+              mv "$f" "$OUTPUT"
+              break
+            fi
+          done
+
+          ls -lh "$OUTPUT"
+
+      - name: 🗜️ Compress Portable Build (tar.gz)
+        run: |
+          cd build/linux/x64/release/bundle
+          tar -czf "$GITHUB_WORKSPACE/e4pix_${{ github.ref_name }}_Linux_Portable.tar.gz" .
+
+      - name: 📦 Package Debian (.deb)
+        run: |
+          VERSION="${{ github.ref_name }}"   # e.g. v2.8.6
+          VERSION_CLEAN="${VERSION#v}"        # 2.8.6
+          BUNDLE="build/linux/x64/release/bundle"
+          DEB_DIR="build/deb/e4pix_${VERSION}_amd64"
+          DEB_FILE="e4pix_${VERSION}_Linux_amd64.deb"
+
+          mkdir -p "$DEB_DIR/opt/e4pix"
+          mkdir -p "$DEB_DIR/usr/share/applications"
+          mkdir -p "$DEB_DIR/usr/share/icons/hicolor/256x256/apps"
+          mkdir -p "$DEB_DIR/DEBIAN"
+
+          # Copy Flutter bundle
+          cp -R "$BUNDLE"/* "$DEB_DIR/opt/e4pix/"
+
+          # .desktop entry
+          cat > "$DEB_DIR/usr/share/applications/e4pix.desktop" << 'EOF'
+          [Desktop Entry]
+          Name=e4pix
+          Comment=RAW Photo Editor
+          Exec=/opt/e4pix/e4pix
+          Icon=e4pix
+          Type=Application
+          Categories=Graphics;Photography;
+          EOF
+
+          # Icon
+          if [ -f "assets/icon/icon.png" ]; then
+            cp "assets/icon/icon.png" "$DEB_DIR/usr/share/icons/hicolor/256x256/apps/e4pix.png"
+          fi
+
+          # DEBIAN control
+          cat > "$DEB_DIR/DEBIAN/control" << EOF
+          Package: e4pix
+          Version: ${VERSION_CLEAN}
+          Section: graphics
+          Priority: optional
+          Architecture: amd64
+          Maintainer: yusuaois
+          Description: RAW photo editor with AI-powered color grading and tethered shooting.
+           e4pix is a cross-platform RAW photo adjustment and camera tethering tool.
+           It supports RAW decoding via LibRaw, GPU shader-based real-time preview,
+           AI segmentation via EdgeSAM, and USB tethered shooting via gPhoto2.
+          Homepage: https://github.com/yusuaois/e4pix
+          Depends: libgtk-3-0, libglib2.0-0, libnotify4
+          EOF
+
+          dpkg-deb --build --root-owner-group "$DEB_DIR" "$DEB_FILE"
+          ls -lh "$DEB_FILE"
+
+      - name: 📤 Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release
+          path: |
+            e4pix_*_Linux_AppImage.AppImage
+            e4pix_*_Linux_Portable.tar.gz
+            e4pix_*_Linux_amd64.deb
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: "true"
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: 📥 Get Dependencies
+        run: flutter pub get
+
+      - name: 🔧 Build Native Framework
+        run: |
+          mkdir -p build/macos_framework/build
+
+          # Build universal binary
+          cmake -S native/raw_bridge -B build/macos_framework/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+            -DCMAKE_CXX_STANDARD=17 \
+            -DCMAKE_CXX_VISIBILITY_PRESET=hidden \
+            -DCMAKE_VISIBILITY_INLINES_HIDDEN=ON
+
+          cmake --build build/macos_framework/build --config Release -j$(sysctl -n hw.logicalcpu)
+
+          # Locate the built dylib
+          DYLIB=$(find build/macos_framework/build -name "libe4pix_raw.dylib" -type f | head -1)
+
+          # Create .framework bundle structure
+          FW="build/macos_framework/e4pix_raw.framework"
+          mkdir -p "$FW/Versions/A/Resources"
+
+          cp "$DYLIB" "$FW/Versions/A/e4pix_raw"
+
+          install_name_tool -id "@rpath/e4pix_raw.framework/e4pix_raw" \
+            "$FW/Versions/A/e4pix_raw"
+
+          ln -sf A "$FW/Versions/Current"
+          ln -sf Versions/Current/e4pix_raw "$FW/e4pix_raw"
+          ln -sf Versions/Current/Resources "$FW/Resources"
+
+          cat > "$FW/Versions/A/Resources/Info.plist" << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleDevelopmentRegion</key> <string>en</string>
+              <key>CFBundleExecutable</key>          <string>e4pix_raw</string>
+              <key>CFBundleIdentifier</key>          <string>com.yusuaois.e4pix.raw</string>
+              <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+              <key>CFBundleName</key>                <string>e4pix_raw</string>
+              <key>CFBundlePackageType</key>         <string>FMWK</string>
+              <key>CFBundleVersion</key>             <string>1.0</string>
+          </dict>
+          </plist>
+          PLIST
+
+          echo "Framework built: $(file "$FW/Versions/A/e4pix_raw")"
+
+      - name: 🏗️ Build macOS Release
+        run: flutter build macos --release
+
+      - name: 📦 Bundle Framework into .app
+        run: |
+          mkdir -p build/macos/Build/Products/Release/e4pix.app/Contents/Frameworks/
+          cp -R build/macos_framework/e4pix_raw.framework \
+            build/macos/Build/Products/Release/e4pix.app/Contents/Frameworks/
+
+      - name: 💿 Create DMG
+        run: |
+          APP="build/macos/Build/Products/Release/e4pix.app"
+          DMG="e4pix_${{ github.ref_name }}_macOS.dmg"
+          hdiutil create -volname "e4pix" -srcfolder "$APP" -ov -format UDZO "$DMG"
+
+      - name: 📤 Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: |
+            e4pix_*_macOS.dmg
+
   create-release:
-    needs: [build-android, build-windows]
+    needs: [build-android, build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     steps:
       - name: ⬇️ Checkout Repository

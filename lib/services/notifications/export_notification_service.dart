@@ -13,6 +13,9 @@ class ExportNotificationService {
   bool _initialized = false;
   int _idCounter = 0;
 
+  static bool get _isDesktop =>
+      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+
   /// 初始化通知服务
   Future<void> init() async {
     if (_initialized) return;
@@ -31,8 +34,8 @@ class ExportNotificationService {
             AndroidFlutterLocalNotificationsPlugin
           >()
           ?.requestNotificationsPermission();
-    } else if (Platform.isWindows) {
-      // --- Windows 初始化 ---
+    } else if (_isDesktop) {
+      // --- 桌面平台初始化 ---
       await localNotifier.setup(
         appName: 'e4pix',
         shortcutPolicy: ShortcutPolicy.requireCreate,
@@ -47,7 +50,7 @@ class ExportNotificationService {
     required String filename,
     required String outputPath,
   }) async {
-    if (!Platform.isAndroid && !Platform.isWindows) return;
+    if (!Platform.isAndroid && !_isDesktop) return;
     await _ensureInit();
 
     final title = tr('exportNotifyDoneTitle');
@@ -55,8 +58,8 @@ class ExportNotificationService {
 
     if (Platform.isAndroid) {
       await _androidPlugin.show(_nextId(), title, body, _androidChannel());
-    } else if (Platform.isWindows) {
-      _showWindowsToast(title: title, body: body, outputDir: outputPath);
+    } else if (_isDesktop) {
+      _showDesktopToast(title: title, body: body, outputDir: outputPath);
     }
   }
 
@@ -65,7 +68,7 @@ class ExportNotificationService {
     required int count,
     required String outputDir,
   }) async {
-    if (!Platform.isAndroid && !Platform.isWindows) return;
+    if (!Platform.isAndroid && !_isDesktop) return;
     await _ensureInit();
 
     final title = tr('exportNotifyBatchDoneTitle');
@@ -73,8 +76,8 @@ class ExportNotificationService {
 
     if (Platform.isAndroid) {
       await _androidPlugin.show(_nextId(), title, body, _androidChannel());
-    } else if (Platform.isWindows) {
-      _showWindowsToast(title: title, body: body, outputDir: outputDir);
+    } else if (_isDesktop) {
+      _showDesktopToast(title: title, body: body, outputDir: outputDir);
     }
   }
 
@@ -84,7 +87,7 @@ class ExportNotificationService {
     required String error,
     required String outputDir,
   }) async {
-    if (!Platform.isAndroid && !Platform.isWindows) return;
+    if (!Platform.isAndroid && !_isDesktop) return;
     await _ensureInit();
 
     final title = tr('exportNotifyFailedTitle');
@@ -92,8 +95,8 @@ class ExportNotificationService {
 
     if (Platform.isAndroid) {
       await _androidPlugin.show(_nextId(), title, body, _androidChannel());
-    } else if (Platform.isWindows) {
-      _showWindowsToast(title: title, body: body, outputDir: outputDir);
+    } else if (_isDesktop) {
+      _showDesktopToast(title: title, body: body, outputDir: outputDir);
     }
   }
 
@@ -117,16 +120,27 @@ class ExportNotificationService {
     ),
   );
 
-  /// Windows Toast 通知统一发送方法
-  void _showWindowsToast({
+  /// 桌面 Toast 通知统一发送方法
+  void _showDesktopToast({
     required String title,
     required String body,
     required String outputDir,
   }) {
     final notification = LocalNotification(title: title, body: body);
     notification.onClick = () {
-      Process.run('explorer.exe', [outputDir]);
+      _openFolder(outputDir);
     };
     notification.show();
+  }
+
+  /// 在文件管理器中打开文件夹
+  void _openFolder(String path) {
+    if (Platform.isWindows) {
+      Process.run('explorer.exe', [path]);
+    } else if (Platform.isMacOS) {
+      Process.run('open', [path]);
+    } else if (Platform.isLinux) {
+      Process.run('xdg-open', [path]);
+    }
   }
 }

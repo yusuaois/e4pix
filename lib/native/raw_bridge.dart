@@ -169,7 +169,9 @@ class RawBridge {
     if (Platform.isWindows) {
       return DynamicLibrary.open('e4pix_raw.dll');
     } else if (Platform.isMacOS) {
-      return DynamicLibrary.open('e4pix_raw.framework/e4pix_raw');
+      return DynamicLibrary.open(
+        '@executable_path/../Frameworks/e4pix_raw.framework/e4pix_raw',
+      );
     } else if (Platform.isLinux) {
       return DynamicLibrary.open('libe4pix_raw.so');
     } else if (Platform.isAndroid) {
