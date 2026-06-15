@@ -207,8 +207,10 @@ jobs:
 
       - name: 📦 Package Debian (.deb)
         run: |
-          VERSION="${{ github.ref_name }}"   # e.g. v2.8.6
-          VERSION_CLEAN="${VERSION#v}"        # 2.8.6
+          RAW="${{ github.ref_name }}"
+          VERSION="${RAW#v}"                           # strip leading 'v' if present
+          VERSION_CLEAN=$(echo "$VERSION" | sed 's/[^0-9.]//g')  # ensure digits only
+          [ -z "$VERSION_CLEAN" ] && VERSION_CLEAN="0.0.0"
           BUNDLE="build/linux/x64/release/bundle"
           DEB_DIR="build/deb/e4pix_${VERSION}_amd64"
           DEB_FILE="e4pix_${VERSION}_Linux_amd64.deb"
