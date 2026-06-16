@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../render/mask_cache.dart';
@@ -204,9 +205,9 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
         width: double.infinity,
         margin: const EdgeInsets.fromLTRB(16, 14, 16, 6),
         decoration: BoxDecoration(
-          color: const Color(0xFF0B0B10),
+          color: AppColors.scaffoldBg,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(color: AppColors.subtleBorder),
         ),
         child: Stack(
           children: [
@@ -227,7 +228,7 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
                   fontSize: 8.5,
                   fontFamily: 'monospace',
                   letterSpacing: 1,
-                  color: Colors.white.withValues(alpha: 0.35),
+                  color: AppColors.disabledText,
                 ),
               ),
             ),
@@ -281,9 +282,9 @@ class _HistogramPainter extends CustomPainter {
       );
     }
 
-    line(h.red, const Color(0xFFFF6464).withValues(alpha: 0.9));
-    line(h.green, const Color(0xFF60E060).withValues(alpha: 0.9));
-    line(h.blue, const Color(0xFF6088FF).withValues(alpha: 0.9));
+    line(h.red, AppColors.histRed.withValues(alpha: 0.9));
+    line(h.green, AppColors.histGreen.withValues(alpha: 0.9));
+    line(h.blue, AppColors.histBlue.withValues(alpha: 0.9));
     _clipWarn(canvas, size);
   }
 
@@ -296,12 +297,12 @@ class _HistogramPainter extends CustomPainter {
     final norm = (peak * 1.15).toDouble();
     canvas.drawPath(
       _fillPath(h.luma, size, norm),
-      Paint()..color = Colors.white.withValues(alpha: 0.5),
+      Paint()..color = AppColors.faintText,
     );
     canvas.drawPath(
       _strokePath(h.luma, size, norm),
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.85)
+        ..color = AppColors.prominentText
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1,
     );
@@ -329,7 +330,8 @@ class _HistogramPainter extends CustomPainter {
   }
 
   void _clipWarn(Canvas canvas, Size size) {
-    final clip = Paint()..color = Colors.redAccent.withValues(alpha: 0.65);
+    final clip = Paint()
+      ..color = AppColors.semanticError.withValues(alpha: 0.65);
     final th = h.totalPixels * 0.01;
     if (h.red[0] > th || h.green[0] > th || h.blue[0] > th) {
       canvas.drawRect(Rect.fromLTWH(0, 0, 3, size.height), clip);

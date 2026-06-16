@@ -40,10 +40,7 @@ class ExportQueuePanel extends ConsumerWidget {
                 if (pending > 0)
                   Text(
                     tr('exportQueueRemaining', args: ['$pending']),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.6),
-                    ),
+                    style: TextStyle(fontSize: 11, color: AppColors.mediumText),
                   ),
               ],
             ),
@@ -57,7 +54,7 @@ class ExportQueuePanel extends ConsumerWidget {
                     tr('exportQueueEmpty'),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.4),
+                      color: AppColors.disabledText,
                     ),
                   ),
                 ),
@@ -102,7 +99,7 @@ class ExportQueuePanel extends ConsumerWidget {
                       style: const TextStyle(fontSize: 12),
                     ),
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.redAccent,
+                      foregroundColor: AppColors.semanticError,
                     ),
                   ),
               ],
@@ -147,9 +144,9 @@ class _JobRow extends StatelessWidget {
                           ? null // 取消中：不确定进度（来回动）
                           : job.progress,
                       minHeight: 3,
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
+                      backgroundColor: AppColors.dividerLine,
                       color: job.status == ExportJobStatus.cancelling
-                          ? Colors.orangeAccent.withValues(alpha: 0.7)
+                          ? AppColors.semanticWarning.withValues(alpha: 0.7)
                           : null,
                     ),
                   ),
@@ -161,8 +158,8 @@ class _JobRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 9.5,
                       color: job.status == ExportJobStatus.cancelling
-                          ? Colors.orangeAccent.withValues(alpha: 0.7)
-                          : Colors.white.withValues(alpha: 0.45),
+                          ? AppColors.semanticWarning.withValues(alpha: 0.7)
+                          : AppColors.disabledText,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -174,7 +171,7 @@ class _JobRow extends StatelessWidget {
                     job.error!,
                     style: const TextStyle(
                       fontSize: 9.5,
-                      color: Colors.redAccent,
+                      color: AppColors.semanticError,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -187,7 +184,7 @@ class _JobRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 9.5,
                       fontFamily: 'monospace',
-                      color: Colors.greenAccent.withValues(alpha: 0.6),
+                      color: AppColors.semanticSuccess.withValues(alpha: 0.6),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -212,11 +209,7 @@ class _JobRow extends StatelessWidget {
   Widget _statusIcon() {
     switch (job.status) {
       case ExportJobStatus.queued:
-        return Icon(
-          Icons.schedule,
-          size: 18,
-          color: Colors.white.withValues(alpha: 0.4),
-        );
+        return Icon(Icons.schedule, size: 18, color: AppColors.disabledText);
       case ExportJobStatus.running:
         return const SizedBox(
           width: 18,
@@ -229,27 +222,23 @@ class _JobRow extends StatelessWidget {
           height: 18,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: Colors.orangeAccent.withValues(alpha: 0.8),
+            color: AppColors.semanticWarning.withValues(alpha: 0.8),
           ),
         );
       case ExportJobStatus.done:
         return const Icon(
           Icons.check_circle,
           size: 18,
-          color: Colors.greenAccent,
+          color: AppColors.semanticSuccess,
         );
       case ExportJobStatus.failed:
         return const Icon(
           Icons.error_outline,
           size: 18,
-          color: Colors.redAccent,
+          color: AppColors.semanticError,
         );
       case ExportJobStatus.cancelled:
-        return Icon(
-          Icons.block,
-          size: 18,
-          color: Colors.white.withValues(alpha: 0.3),
-        );
+        return Icon(Icons.block, size: 18, color: AppColors.disabledText);
     }
   }
 }

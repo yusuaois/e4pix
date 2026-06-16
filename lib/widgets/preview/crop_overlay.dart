@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
+import '../../core/theme/app_colors.dart';
 import '../../state/providers.dart';
 
 class CropOverlay extends ConsumerStatefulWidget {
@@ -236,14 +237,14 @@ class _CropPainter extends CustomPainter {
 
     // 边框
     final border = Paint()
-      ..color = Colors.white.withValues(alpha: 0.9)
+      ..color = AppColors.activeValue
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawRect(r, border);
 
     // 三分线
     final grid = Paint()
-      ..color = Colors.white.withValues(alpha: 0.25)
+      ..color = AppColors.dividerLine
       ..strokeWidth = 0.5;
     for (int i = 1; i <= 2; i++) {
       final dx = r.left + r.width * i / 3;
@@ -253,7 +254,7 @@ class _CropPainter extends CustomPainter {
     }
 
     // 8 个 handle
-    final handle = Paint()..color = Colors.white;
+    final handle = Paint()..color = AppColors.textPrimary;
     void hSquare(Offset c) => canvas.drawRect(
       Rect.fromCenter(center: c, width: 10, height: 10),
       handle,
@@ -268,11 +269,7 @@ class _CropPainter extends CustomPainter {
     hSquare(Offset(r.right, r.center.dy));
 
     // 旋转 knob
-    canvas.drawCircle(
-      knobPosition,
-      14,
-      Paint()..color = Colors.white.withValues(alpha: 0.92),
-    );
+    canvas.drawCircle(knobPosition, 14, Paint()..color = AppColors.activeValue);
     canvas.drawCircle(
       knobPosition,
       14,
@@ -302,7 +299,7 @@ class _CropPainter extends CustomPainter {
         text:
             '${crop.straighten >= 0 ? "+" : ""}${crop.straighten.toStringAsFixed(1)}°',
         style: const TextStyle(
-          color: Colors.white,
+          color: AppColors.textPrimary,
           fontSize: 11,
           fontWeight: FontWeight.w500,
           shadows: [Shadow(blurRadius: 2, color: Colors.black)],

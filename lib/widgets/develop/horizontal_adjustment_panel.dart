@@ -63,13 +63,11 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
     return SizedBox(
       width: 340,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.panelBg,
-                border: Border(left: BorderSide(color: AppColors.subtleBorder)),
-              ),
+              decoration: const BoxDecoration(color: Colors.transparent),
               child: Column(
                 children: [
                   if (histogram != null)
@@ -117,10 +115,7 @@ class _ToolRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 46,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceBg,
-        border: Border(left: BorderSide(color: AppColors.subtleBorder)),
-      ),
+      decoration: const BoxDecoration(color: AppColors.surfaceBg),
       child: SingleChildScrollView(
         child: Column(
           children: [
@@ -142,11 +137,11 @@ class _ToolRail extends StatelessWidget {
               tooltip: tr("reset"),
               onTap: onReset,
             ),
-            const Divider(
+            Divider(
               height: 14,
               indent: 10,
               endIndent: 10,
-              color: Colors.white12,
+              color: AppColors.faintBorder,
             ),
             _RailItem(
               icon: Icons.light_mode_outlined,
@@ -232,7 +227,7 @@ class _RailItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = selected
         ? Theme.of(context).colorScheme.primary
-        : Colors.white.withValues(alpha: 0.6);
+        : AppColors.mediumText;
     return Tooltip(
       message: tooltip,
       child: InkWell(

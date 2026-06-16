@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/adjustment_params.dart';
 import '../../../core/models/grain_params.dart';
+import '../../../core/theme/app_colors.dart';
 import 'shared.dart';
 
 class DetailSection extends StatefulWidget {
@@ -102,9 +103,9 @@ class _DetailSectionState extends State<DetailSection> {
                   style: TextStyle(
                     fontSize: 10,
                     letterSpacing: 1.4,
-                    color: Colors.white.withValues(
-                      alpha: _grainAdvanced ? 0.6 : 0.4,
-                    ),
+                    color: _grainAdvanced
+                        ? AppColors.mediumText
+                        : AppColors.disabledText,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -116,9 +117,9 @@ class _DetailSectionState extends State<DetailSection> {
                   child: Icon(
                     Icons.expand_more,
                     size: 16,
-                    color: Colors.white.withValues(
-                      alpha: _grainAdvanced ? 0.6 : 0.35,
-                    ),
+                    color: _grainAdvanced
+                        ? AppColors.mediumText
+                        : AppColors.disabledText,
                   ),
                 ),
               ],

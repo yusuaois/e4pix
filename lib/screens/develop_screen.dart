@@ -14,6 +14,7 @@ import '../core/models/export_config.dart';
 import '../core/models/export_job.dart';
 import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
+import '../core/theme/app_colors.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
@@ -473,150 +474,188 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     );
   }
 
+  /// 统一卡片包裹器 — 圆角 + 悬浮间距
+  Widget _buildFloatingCard({
+    required Widget child,
+    double? width,
+    BorderRadius borderRadius = const BorderRadius.all(Radius.circular(10)),
+  }) {
+    return Container(
+      width: width,
+      decoration: BoxDecoration(
+        color: AppColors.panelBg,
+        borderRadius: borderRadius,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: child,
+    );
+  }
+
   Widget _buildVerticalLayout() {
     final d = _buildLayoutData();
     final hasImage = d.image != null && d.program != null;
 
-    return Column(
-      children: [
-        DevelopTopBar(
-          onExport: _showExportDialog,
-          onSync: _syncToSelected,
-          onTetherFolder: _startFolderTether,
-          onTetherCamera: _startCameraTether,
-          onStopTether: _stopAllTether,
-          onAI: _showAISuggestion,
-          onAILongPress: _showAISettings,
-        ),
-        if (d.session != null)
-          _buildTetherStatusBar(
-            d.session!,
-            d.shots.length,
-            d.preserve,
-            d.cameraState,
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          _buildFloatingCard(
+            child: DevelopTopBar(
+              onExport: _showExportDialog,
+              onSync: _syncToSelected,
+              onTetherFolder: _startFolderTether,
+              onTetherCamera: _startCameraTether,
+              onStopTether: _stopAllTether,
+              onAI: _showAISuggestion,
+              onAILongPress: _showAISettings,
+            ),
           ),
-        const AIBanner(),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final previewSize = Size(
-                constraints.maxWidth,
-                constraints.maxHeight,
-              );
-              return Stack(
-                children: [
-                  const Positioned.fill(child: PreviewArea()),
-                  if (hasImage)
-                    Positioned(
-                      left: _histogramPosition.dx,
-                      top: _histogramPosition.dy,
-                      width: _miniHistogramW,
-                      height: _miniHistogramH,
-                      child: GestureDetector(
-                        onPanUpdate: (details) {
-                          _histDragAccum += details.delta;
-                          if (_histDragAccum.distance < _histDragThreshold) {
-                            return;
-                          }
-                          setState(() {
-                            _histogramPosition = Offset(
-                              (_histogramPosition.dx + _histDragAccum.dx).clamp(
-                                0.0,
-                                previewSize.width - _miniHistogramW,
+          const SizedBox(height: 12),
+          if (d.session != null) ...[
+            _buildFloatingCard(
+              child: _buildTetherStatusBar(
+                d.session!,
+                d.shots.length,
+                d.preserve,
+                d.cameraState,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          const AIBanner(),
+          // ── 预览区域：悬浮卡片 ──
+          Expanded(
+            child: _buildFloatingCard(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final previewSize = Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  );
+                  return Stack(
+                    children: [
+                      const Positioned.fill(child: PreviewArea()),
+                      if (hasImage)
+                        Positioned(
+                          left: _histogramPosition.dx,
+                          top: _histogramPosition.dy,
+                          width: _miniHistogramW,
+                          height: _miniHistogramH,
+                          child: GestureDetector(
+                            onPanUpdate: (details) {
+                              _histDragAccum += details.delta;
+                              if (_histDragAccum.distance <
+                                  _histDragThreshold) {
+                                return;
+                              }
+                              setState(() {
+                                _histogramPosition = Offset(
+                                  (_histogramPosition.dx + _histDragAccum.dx)
+                                      .clamp(
+                                        0.0,
+                                        previewSize.width - _miniHistogramW,
+                                      ),
+                                  (_histogramPosition.dy + _histDragAccum.dy)
+                                      .clamp(
+                                        0.0,
+                                        previewSize.height - _miniHistogramH,
+                                      ),
+                                );
+                              });
+                              _histDragAccum = Offset.zero;
+                            },
+                            onPanEnd: (_) => _histDragAccum = Offset.zero,
+                            onPanCancel: () => _histDragAccum = Offset.zero,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Opacity(
+                                opacity: 0.9,
+                                child: _buildHistogram(d.program!, d.image!),
                               ),
-                              (_histogramPosition.dy + _histDragAccum.dy).clamp(
-                                0.0,
-                                previewSize.height - _miniHistogramH,
-                              ),
-                            );
-                          });
-                          _histDragAccum = Offset.zero;
-                        },
-                        onPanEnd: (_) => _histDragAccum = Offset.zero,
-                        onPanCancel: () => _histDragAccum = Offset.zero,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: Opacity(
-                            opacity: 0.9,
-                            child: _buildHistogram(d.program!, d.image!),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+          if (hasImage) ...[
+            const SizedBox(height: 12),
+            // 底部调整面板：悬浮卡片 可拖拽高度 + 折叠
+            _buildFloatingCard(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                curve: Curves.easeOut,
+                height: _bottomPanelHeight,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 拖拽手柄 — 点击折叠 / 恢复图片滑块
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        setState(() {
+                          _bottomPanelCollapsed = !_bottomPanelCollapsed;
+                        });
+                      },
+                      onVerticalDragUpdate: (details) {
+                        _panelDragAccum += details.delta.dy;
+                        if (_panelDragAccum.abs() < _panelDragThreshold) return;
+                        setState(() {
+                          _bottomPanelHeight =
+                              (_bottomPanelHeight - _panelDragAccum).clamp(
+                                _bottomPanelMinHeight,
+                                _bottomPanelMaxHeight,
+                              );
+                        });
+                        _panelDragAccum = 0;
+                      },
+                      onVerticalDragEnd: (_) => _panelDragAccum = 0,
+                      onVerticalDragCancel: () => _panelDragAccum = 0,
+                      child: Container(
+                        height: _handleBarHeight,
+                        color: AppColors.subtleBorder,
+                        child: Center(
+                          child: Container(
+                            width: 36,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: AppColors.faintText,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                ],
-              );
-            },
-          ),
-        ),
-        if (hasImage)
-          // 可拖拽 / 点击折叠底部面板
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            curve: Curves.easeOut,
-            height: _bottomPanelHeight,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 拖拽手柄 — 点击折叠 / 恢复图片滑块
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    setState(() {
-                      _bottomPanelCollapsed = !_bottomPanelCollapsed;
-                    });
-                  },
-                  onVerticalDragUpdate: (details) {
-                    _panelDragAccum += details.delta.dy;
-                    if (_panelDragAccum.abs() < _panelDragThreshold) return;
-                    setState(() {
-                      _bottomPanelHeight =
-                          (_bottomPanelHeight - _panelDragAccum).clamp(
-                            _bottomPanelMinHeight,
-                            _bottomPanelMaxHeight,
-                          );
-                    });
-                    _panelDragAccum = 0;
-                  },
-                  onVerticalDragEnd: (_) => _panelDragAccum = 0,
-                  onVerticalDragCancel: () => _panelDragAccum = 0,
-                  child: Container(
-                    height: _handleBarHeight,
-                    color: Colors.white.withValues(alpha: 0.04),
-                    child: Center(
-                      child: Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
+                    // 图片滑块 — 点击手柄折叠 / 恢复
+                    if (!_bottomPanelCollapsed &&
+                        d.shots.isNotEmpty &&
+                        !d.cropEditMode)
+                      TetherThumbStrip(
+                        shots: ref.watch(filteredShotsProvider),
+                        activeShot: d.activeShot,
+                        onSelect: _onThumbTap,
+                        multiSelectMode: d.selection.multiSelectMode,
+                        selectedShots: ref.watch(selectedShotsProvider),
+                      ),
+                    // 信息栏
+                    ImageInfoBar(onImport: _importImages),
+                    // 调整面板 — 填充剩余空间
+                    Expanded(
+                      child: VerticalAdjustmentPanel(
+                        onChanged: _onParamsChanged,
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                // 图片滑块 — 点击手柄折叠 / 恢复
-                if (!_bottomPanelCollapsed &&
-                    d.shots.isNotEmpty &&
-                    !d.cropEditMode)
-                  TetherThumbStrip(
-                    shots: ref.watch(filteredShotsProvider),
-                    activeShot: d.activeShot,
-                    onSelect: _onThumbTap,
-                    multiSelectMode: d.selection.multiSelectMode,
-                    selectedShots: ref.watch(selectedShotsProvider),
-                  ),
-                // 信息栏
-                ImageInfoBar(onImport: _importImages),
-                // 调整面板 — 填充剩余空间
-                Expanded(
-                  child: VerticalAdjustmentPanel(onChanged: _onParamsChanged),
-                ),
-              ],
+              ),
             ),
-          )
-        else
-          ImageInfoBar(onImport: _importImages),
-      ],
+          ] else
+            ImageInfoBar(onImport: _importImages),
+        ],
+      ),
     );
   }
 
@@ -624,53 +663,73 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final d = _buildLayoutData();
     final params = ref.watch(currentParamsNotifierProvider);
 
-    return Column(
-      children: [
-        DevelopTopBar(
-          onExport: _showExportDialog,
-          onSync: _syncToSelected,
-          onTetherFolder: _startFolderTether,
-          onTetherCamera: _startCameraTether,
-          onStopTether: _stopAllTether,
-          onAI: _showAISuggestion,
-          onAILongPress: _showAISettings,
-        ),
-        if (d.session != null)
-          _buildTetherStatusBar(
-            d.session!,
-            d.shots.length,
-            d.preserve,
-            d.cameraState,
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          _buildFloatingCard(
+            child: DevelopTopBar(
+              onExport: _showExportDialog,
+              onSync: _syncToSelected,
+              onTetherFolder: _startFolderTether,
+              onTetherCamera: _startCameraTether,
+              onStopTether: _stopAllTether,
+              onAI: _showAISuggestion,
+              onAILongPress: _showAISettings,
+            ),
           ),
-        const AIBanner(),
-        Expanded(
-          child: Row(
-            children: [
-              if (d.shots.isNotEmpty && !d.cropEditMode)
-                TetherThumbStrip(
-                  shots: ref.watch(filteredShotsProvider),
-                  activeShot: d.activeShot,
-                  onSelect: _onThumbTap,
-                  multiSelectMode: d.selection.multiSelectMode,
-                  selectedShots: ref.watch(selectedShotsProvider),
-                  axis: Axis.vertical,
-                ),
-              const Expanded(child: PreviewArea()),
-              if (d.image != null)
-                HorizontalAdjustmentPanel(
-                  params: params,
-                  onChanged: _onParamsChanged,
-                  histogram: d.program == null
-                      ? null
-                      : _buildHistogram(d.program!, d.image!),
-                  presetBar: const PresetBar(),
-                  info: ImageInfoBar(onImport: _importImages),
-                  onEnterCrop: () => enterCropMode(ref),
-                ),
-            ],
+          const SizedBox(height: 12),
+          if (d.session != null) ...[
+            _buildFloatingCard(
+              child: _buildTetherStatusBar(
+                d.session!,
+                d.shots.length,
+                d.preserve,
+                d.cameraState,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          const AIBanner(),
+          Expanded(
+            child: Row(
+              children: [
+                if (d.shots.isNotEmpty && !d.cropEditMode)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: _buildFloatingCard(
+                      child: TetherThumbStrip(
+                        shots: ref.watch(filteredShotsProvider),
+                        activeShot: d.activeShot,
+                        onSelect: _onThumbTap,
+                        multiSelectMode: d.selection.multiSelectMode,
+                        selectedShots: ref.watch(selectedShotsProvider),
+                        axis: Axis.vertical,
+                      ),
+                    ),
+                  ),
+                Expanded(child: _buildFloatingCard(child: const PreviewArea())),
+                if (d.image != null) ...[
+                  const SizedBox(width: 12),
+                  _buildFloatingCard(
+                    width: 340,
+                    child: HorizontalAdjustmentPanel(
+                      params: params,
+                      onChanged: _onParamsChanged,
+                      histogram: d.program == null
+                          ? null
+                          : _buildHistogram(d.program!, d.image!),
+                      presetBar: const PresetBar(),
+                      info: ImageInfoBar(onImport: _importImages),
+                      onEnterCrop: () => enterCropMode(ref),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -735,7 +794,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     'syncToCount',
                     args: ['${selection.selectedPaths.length}'],
                   ),
-                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                  style: TextStyle(fontSize: 12, color: AppColors.mediumText),
                 ),
                 const SizedBox(height: 8),
                 for (final item in SyncItem.values)
@@ -753,7 +812,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                             tr('syncLocalsWarn'),
                             style: TextStyle(
                               fontSize: 10.5,
-                              color: Colors.orangeAccent.withValues(alpha: 0.8),
+                              color: AppColors.semanticWarning.withValues(
+                                alpha: 0.8,
+                              ),
                             ),
                           )
                         : null,

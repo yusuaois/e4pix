@@ -259,7 +259,7 @@ class WatermarkExporter {
       case BackgroundType.solidColor:
         cvs.drawRect(
           ui.Rect.fromLTWH(0, 0, cw.toDouble(), ch.toDouble()),
-          ui.Paint()..color = ui.Color(config.backgroundColor),
+          ui.Paint()..color = config.backgroundColor,
         );
       case BackgroundType.blurredOriginal:
         _drawImageBgOrFallback(cvs, bgBlur, cw, ch);

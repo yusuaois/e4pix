@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 import '../../core/constants/app_info.dart';
+import '../../core/theme/app_colors.dart';
 import '../../services/app/update_service.dart';
 
 class AboutTiles extends StatelessWidget {
@@ -25,10 +26,10 @@ class AboutTiles extends StatelessWidget {
               title: Text(tr("version"), style: TextStyle(fontSize: 13.5)),
               trailing: Text(
                 ver,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontFamily: 'monospace',
-                  color: Colors.white70,
+                  color: AppColors.mediumText,
                 ),
               ),
             ),
@@ -36,9 +37,9 @@ class AboutTiles extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.code, size: 20),
               title: Text(tr("projectUrl"), style: TextStyle(fontSize: 13.5)),
-              subtitle: const Text(
+              subtitle: Text(
                 AppInfo.repoDisplay,
-                style: TextStyle(fontSize: 11, color: Colors.white54),
+                style: TextStyle(fontSize: 11, color: AppColors.faintText),
               ),
               trailing: const Icon(Icons.open_in_new, size: 14),
               onTap: () {
@@ -136,7 +137,7 @@ class UpdateDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF1A1A20),
+      backgroundColor: AppColors.elevatedBg,
       title: Text(
         tr("updateAvailable", args: [info.latestVersion]),
         style: const TextStyle(fontSize: 16),
@@ -167,12 +168,12 @@ class UpdateDialog extends StatelessWidget {
                       height: 1.8,
                     ),
                     listBullet: const TextStyle(fontSize: 12.5),
-                    blockquote: const TextStyle(
+                    blockquote: TextStyle(
                       fontSize: 11.5,
-                      color: Colors.white54,
+                      color: AppColors.faintText,
                     ),
                     blockquoteDecoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.04),
+                      color: AppColors.subtleBorder,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),

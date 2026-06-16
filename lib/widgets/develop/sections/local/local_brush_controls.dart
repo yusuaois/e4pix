@@ -1,3 +1,4 @@
+import 'package:e4pix/core/theme/app_colors.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,9 +76,9 @@ class BrushControls extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     '${tr("localBrushStroke", args: ["${mask.strokes.length}"])}${mask.baseRaster != null ? tr("localBrushIntellgentAreaChosen") : ""}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10.5,
-                      color: Colors.white38,
+                      color: AppColors.disabledText,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -131,7 +132,7 @@ class BrushControls extends ConsumerWidget {
               Icon(
                 busy ? Icons.hourglass_top : Icons.touch_app,
                 size: 13,
-                color: Colors.white54,
+                color: AppColors.faintText,
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -139,7 +140,7 @@ class BrushControls extends ConsumerWidget {
                   busy
                       ? tr("localBrushIntellgentAreaCalculating")
                       : tr("localBrushIntellgentAreaHint"),
-                  style: const TextStyle(fontSize: 10.5, color: Colors.white54),
+                  style: TextStyle(fontSize: 10.5, color: AppColors.faintText),
                 ),
               ),
             ],
@@ -193,7 +194,7 @@ class BrushControls extends ConsumerWidget {
               Icon(
                 busy ? Icons.hourglass_top : Icons.touch_app,
                 size: 13,
-                color: Colors.white54,
+                color: AppColors.faintText,
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -205,7 +206,7 @@ class BrushControls extends ConsumerWidget {
                       : negative
                       ? tr("localBrushSubjectExcludeHint")
                       : tr("localBrushSubjectHint"),
-                  style: const TextStyle(fontSize: 10.5, color: Colors.white54),
+                  style: TextStyle(fontSize: 10.5, color: AppColors.faintText),
                 ),
               ),
             ],
@@ -366,7 +367,7 @@ class BrushControls extends ConsumerWidget {
               const Spacer(),
               Text(
                 tr("localBrushEdgeSnap"),
-                style: TextStyle(fontSize: 10, color: Colors.white38),
+                style: TextStyle(fontSize: 10, color: AppColors.disabledText),
               ),
             ],
           ),

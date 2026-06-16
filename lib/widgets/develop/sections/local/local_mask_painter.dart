@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/models/local_adjustment.dart';
 import '../../../../core/models/mask_shape.dart';
 
@@ -40,12 +41,10 @@ class MaskPainter extends CustomPainter {
       final stroke = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = selected ? 2.0 : 1.0
-        ..color = selected
-            ? primaryColor
-            : Colors.white.withValues(alpha: 0.45);
+        ..color = selected ? primaryColor : AppColors.disabledText;
       final fill = Paint()
         ..style = PaintingStyle.fill
-        ..color = selected ? primaryColor : Colors.white.withValues(alpha: 0.5);
+        ..color = selected ? primaryColor : AppColors.faintText;
 
       final shape = l.mask;
       if (shape is LinearGradientMask) {
@@ -218,7 +217,7 @@ class MaskPainter extends CustomPainter {
         ..color = Colors.black54
         ..strokeWidth = 2.5;
       final p2 = Paint()
-        ..color = Colors.white
+        ..color = AppColors.textPrimary
         ..strokeWidth = 1.2;
       const len = 11.0;
       for (final p in [p1, p2]) {
@@ -228,7 +227,7 @@ class MaskPainter extends CustomPainter {
       canvas.drawCircle(
         c,
         3,
-        Paint()..color = negative ? Colors.redAccent : primaryColor,
+        Paint()..color = negative ? AppColors.semanticError : primaryColor,
       );
       return;
     }
@@ -247,7 +246,7 @@ class MaskPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2
-        ..color = Colors.white,
+        ..color = AppColors.textPrimary,
     );
   }
 

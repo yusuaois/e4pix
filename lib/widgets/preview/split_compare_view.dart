@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
+import '../../core/theme/app_colors.dart';
 import '../../state/providers.dart';
 import 'multi_pass_preview.dart';
 
@@ -147,7 +148,7 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
                             child: IgnorePointer(
                               child: Container(
                                 width: 2,
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: AppColors.activeValue,
                               ),
                             ),
                           ),
@@ -177,7 +178,7 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
                                   width: 32,
                                   height: 40,
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.9),
+                                    color: AppColors.activeValue,
                                     borderRadius: BorderRadius.circular(4),
                                     boxShadow: [
                                       BoxShadow(
@@ -284,7 +285,7 @@ class _Label extends StatelessWidget {
       text,
       style: TextStyle(
         fontSize: 10 * scale,
-        color: Colors.white.withValues(alpha: alpha),
+        color: AppColors.textPrimary.withValues(alpha: alpha),
       ),
     ),
   );

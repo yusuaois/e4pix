@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/lens_correction_params.dart';
 import '../../../core/models/perspective_params.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../services/lens/lensfun_database.dart';
 import '../../../state/providers.dart';
 import 'shared.dart';
@@ -46,30 +47,34 @@ class LensSection extends ConsumerWidget {
       );
       if (!context.mounted) return;
       if (cal == null) {
-        _snack(context,
-            'No lens profile: ${metadata.cameraModel} / ${metadata.lensModel}');
+        _snack(
+          context,
+          'No lens profile: ${metadata.cameraModel} / ${metadata.lensModel}',
+        );
         return;
       }
 
       // TCA poly3: R 通道缩放 vr + br*r²，B 通道缩放 vb + bb*r²
       // UI 的 caRed/caBlue 是常数缩放因子，取线性项 vr/vb 做主校正
-      ref.read(currentParamsNotifierProvider.notifier).update(
-        params.copyWith(
-          lensCorrection: LensCorrectionParams(
-            enabled: true,
-            caRed: cal.tcaVr,
-            caBlue: cal.tcaVb,
-            distortionEnabled: true,
-            distortionK1: cal.distortionA,
-            distortionK2: cal.distortionB,
-            distortionK3: cal.distortionC,
-            vignettingEnabled: true,
-            vignettingK1: cal.vignettingK1,
-            vignettingK2: cal.vignettingK2,
-            vignettingK3: cal.vignettingK3,
-          ),
-        ),
-      );
+      ref
+          .read(currentParamsNotifierProvider.notifier)
+          .update(
+            params.copyWith(
+              lensCorrection: LensCorrectionParams(
+                enabled: true,
+                caRed: cal.tcaVr,
+                caBlue: cal.tcaVb,
+                distortionEnabled: true,
+                distortionK1: cal.distortionA,
+                distortionK2: cal.distortionB,
+                distortionK3: cal.distortionC,
+                vignettingEnabled: true,
+                vignettingK1: cal.vignettingK1,
+                vignettingK2: cal.vignettingK2,
+                vignettingK3: cal.vignettingK3,
+              ),
+            ),
+          );
     }
 
     return Column(
@@ -92,7 +97,7 @@ class LensSection extends ConsumerWidget {
                     'Auto',
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.cyanAccent.withValues(alpha: 0.7),
+                      color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -121,7 +126,7 @@ class LensSection extends ConsumerWidget {
                       'reset',
                       style: TextStyle(
                         fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: AppColors.faintText,
                       ),
                     ),
                   ),
@@ -240,7 +245,7 @@ class LensSection extends ConsumerWidget {
         ),
 
         const SizedBox(height: 8),
-        const Divider(height: 1, color: Colors.white12),
+        Divider(height: 1, color: AppColors.faintBorder),
 
         // ── 透视矫正 ──
         SectionLabel(title: tr('perspective')),
@@ -292,7 +297,7 @@ class _SwitchHeader extends StatelessWidget {
                 fontSize: 10,
                 letterSpacing: 1.4,
                 fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: value ? 0.6 : 0.4),
+                color: value ? AppColors.mediumText : AppColors.disabledText,
               ),
             ),
           ),

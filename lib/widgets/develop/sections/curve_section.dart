@@ -44,10 +44,10 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
   };
 
   Color _channelColor(BuildContext ctx) => switch (_channel) {
-    1 => const Color(0xFFE5534B),
-    2 => const Color(0xFF4CAF50),
-    3 => const Color(0xFF5B8DEF),
-    4 => const Color(0xFFCCCCCC),
+    1 => AppColors.curveRed,
+    2 => AppColors.curveGreen,
+    3 => AppColors.curveBlue,
+    4 => AppColors.curveLum,
     _ => Theme.of(ctx).colorScheme.primary,
   };
 
@@ -104,10 +104,10 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
           child: Row(
             children: [
               _chTab('RGB', 0, Theme.of(context).colorScheme.primary),
-              _chTab('R', 1, const Color(0xFFE5534B)),
-              _chTab('G', 2, const Color(0xFF4CAF50)),
-              _chTab('B', 3, const Color(0xFF5B8DEF)),
-              _chTab(tr("lum"), 4, const Color(0xFFCCCCCC)),
+              _chTab('R', 1, AppColors.curveRed),
+              _chTab('G', 2, AppColors.curveGreen),
+              _chTab('B', 3, AppColors.curveBlue),
+              _chTab(tr("lum"), 4, AppColors.curveLum),
             ],
           ),
         ),
@@ -173,10 +173,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
             children: [
               Text(
                 tr("curveHint"),
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color: Colors.white.withValues(alpha: 0.4),
-                ),
+                style: TextStyle(fontSize: 10.5, color: AppColors.disabledText),
               ),
               TextButton(
                 style: TextButton.styleFrom(
@@ -222,7 +219,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
             overflow: TextOverflow.clip,
             style: TextStyle(
               fontSize: 10.5,
-              color: sel ? color : Colors.white.withValues(alpha: 0.6),
+              color: sel ? color : AppColors.mediumText,
               fontWeight: sel ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
@@ -318,7 +315,7 @@ class _CurvePainter extends CustomPainter {
     final vh = h - 2 * overflow; // 可视区域高
 
     // 背景和网格绘制在可视区域
-    final bg = Paint()..color = AppColors.deepBg;
+    final bg = Paint()..color = AppColors.scaffoldBg;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Offset(overflow, overflow) & Size(vw, vh),
@@ -328,7 +325,7 @@ class _CurvePainter extends CustomPainter {
     );
 
     final grid = Paint()
-      ..color = Colors.white.withValues(alpha: 0.08)
+      ..color = AppColors.dividerLine
       ..strokeWidth = 1;
     for (int i = 1; i < 4; i++) {
       final x = overflow + vw * i / 4;
@@ -369,7 +366,7 @@ class _CurvePainter extends CustomPainter {
     // 控制点使用 overflow 偏移
     for (final p in curve.points) {
       final c = Offset(overflow + p.x * vw, overflow + (1 - p.y) * vh);
-      canvas.drawCircle(c, _pointR, Paint()..color = AppColors.deepBg);
+      canvas.drawCircle(c, _pointR, Paint()..color = AppColors.scaffoldBg);
       canvas.drawCircle(
         c,
         _pointR,

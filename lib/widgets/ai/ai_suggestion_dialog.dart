@@ -61,7 +61,8 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
     });
 
     try {
-      final languageCode = EasyLocalization.of(context)?.locale.languageCode ?? 'en';
+      final languageCode =
+          EasyLocalization.of(context)?.locale.languageCode ?? 'en';
       _tempPath = await widget.renderPreviewToFile();
       final bytes = await File(_tempPath!).readAsBytes();
 
@@ -143,17 +144,17 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withValues(alpha: 0.1),
+                    color: AppColors.semanticError.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                      color: Colors.redAccent.withValues(alpha: 0.3),
+                      color: AppColors.semanticError.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(
                     _error!,
                     style: const TextStyle(
                       fontSize: 11,
-                      color: Colors.redAccent,
+                      color: AppColors.semanticError,
                     ),
                   ),
                 )
@@ -166,7 +167,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                     tr("aiColorSuggestionDescription"),
                     style: TextStyle(
                       fontSize: 11.5,
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: AppColors.mediumText,
                     ),
                   ),
                 ),
@@ -293,7 +294,7 @@ class _SuggestionView extends StatelessWidget {
         if (basic.isNotEmpty)
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF0E0E14),
+              color: AppColors.surfaceBg,
               borderRadius: BorderRadius.circular(4),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -331,7 +332,7 @@ class _SuggestionView extends StatelessWidget {
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF0E0E14),
+              color: AppColors.surfaceBg,
               borderRadius: BorderRadius.circular(4),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -343,7 +344,7 @@ class _SuggestionView extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     letterSpacing: 1.2,
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: AppColors.faintText,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

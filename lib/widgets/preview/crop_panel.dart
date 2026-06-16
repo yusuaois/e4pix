@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
+import '../../core/theme/app_colors.dart';
 import '../../state/providers.dart';
 
 class CropPanel extends ConsumerStatefulWidget {
@@ -43,7 +44,7 @@ class _CropPanelState extends ConsumerState<CropPanel> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xCC0B0B10),
+        color: AppColors.scaffoldBg.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -98,7 +99,7 @@ class _CropPanelState extends ConsumerState<CropPanel> {
               Container(
                 width: 1,
                 height: 22,
-                color: Colors.white24,
+                color: AppColors.lightBorder,
                 margin: const EdgeInsets.symmetric(horizontal: 4),
               ),
               // 右：固定按钮
@@ -220,19 +221,16 @@ class _CropPanelState extends ConsumerState<CropPanel> {
               Container(
                 width: 1,
                 height: 16,
-                color: Colors.white12,
+                color: AppColors.faintBorder,
                 margin: const EdgeInsets.symmetric(horizontal: 12), // 增加分割线左右间距
               ),
 
-              const Icon(Icons.straighten, size: 14, color: Colors.white54),
+              Icon(Icons.straighten, size: 14, color: AppColors.faintText),
               const SizedBox(width: 4),
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 2,
-                    activeTrackColor: Colors.white70,
-                    inactiveTrackColor: Colors.white10,
-                    thumbColor: Colors.white,
                     thumbShape: const RoundSliderThumbShape(
                       enabledThumbRadius: 5,
                     ),
@@ -255,10 +253,10 @@ class _CropPanelState extends ConsumerState<CropPanel> {
                 child: Text(
                   '${draft.straighten.toStringAsFixed(1)}°',
                   textAlign: TextAlign.right,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontFamily: 'monospace',
-                    color: Colors.white70,
+                    color: AppColors.mediumText,
                   ),
                 ),
               ),
@@ -292,7 +290,7 @@ class _AspectChip extends ConsumerWidget {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: AppColors.dividerLine,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(label, style: const TextStyle(fontSize: 11)),

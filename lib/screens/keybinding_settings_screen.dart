@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/theme/app_colors.dart';
 import '../core/keybindings/app_action.dart';
 import '../core/keybindings/keybinding_service.dart';
 
@@ -48,7 +49,7 @@ class KeybindingSettingsScreen extends ConsumerWidget {
         final ok = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            backgroundColor: const Color(0xFF1A1A20),
+            backgroundColor: AppColors.elevatedBg,
             title: Text(tr('keyConflictTitle')),
             content: Text(
               tr(
@@ -75,10 +76,10 @@ class KeybindingSettingsScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0E),
+      backgroundColor: AppColors.scaffoldBg,
       appBar: AppBar(
         title: Text(tr('settingsKeybindings')),
-        backgroundColor: const Color(0xFF0A0A0E),
+        backgroundColor: AppColors.scaffoldBg,
         elevation: 0,
         actions: [
           TextButton(
@@ -86,7 +87,7 @@ class KeybindingSettingsScreen extends ConsumerWidget {
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (_) => AlertDialog(
-                  backgroundColor: const Color(0xFF1A1A20),
+                  backgroundColor: AppColors.elevatedBg,
                   title: Text(tr('keyResetTitle')),
                   content: Text(tr('keyResetBody')),
                   actions: [
@@ -114,11 +115,11 @@ class KeybindingSettingsScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
               child: Text(
                 tr(entry.key).toUpperCase(),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.2,
-                  color: Colors.white54,
+                  color: AppColors.faintText,
                 ),
               ),
             ),
@@ -137,12 +138,12 @@ class KeybindingSettingsScreen extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: st.keyFor(action) == null
                         ? Colors.transparent
-                        : Colors.white.withValues(alpha: 0.08),
+                        : AppColors.dividerLine,
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                       color: st.keyFor(action) == null
-                          ? Colors.orangeAccent.withValues(alpha: 0.5)
-                          : Colors.white24,
+                          ? AppColors.semanticWarning.withValues(alpha: 0.5)
+                          : AppColors.lightBorder,
                     ),
                   ),
                   child: Text(
@@ -151,8 +152,8 @@ class KeybindingSettingsScreen extends ConsumerWidget {
                       fontSize: 12,
                       fontFamily: 'monospace',
                       color: st.keyFor(action) == null
-                          ? Colors.orangeAccent
-                          : Colors.white,
+                          ? AppColors.semanticWarning
+                          : AppColors.textPrimary,
                     ),
                   ),
                 ),
@@ -194,7 +195,7 @@ class _KeyRecordDialogState extends State<_KeyRecordDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF1A1A20),
+      backgroundColor: AppColors.elevatedBg,
       title: Text(tr(widget.action.labelKey)),
       content: Focus(
         autofocus: true,
@@ -220,17 +221,17 @@ class _KeyRecordDialogState extends State<_KeyRecordDialog> {
           children: [
             Text(
               tr('keyPressPrompt'),
-              style: const TextStyle(fontSize: 13, color: Colors.white70),
+              style: TextStyle(fontSize: 13, color: AppColors.mediumText),
             ),
             const SizedBox(height: 12),
-            const Icon(Icons.keyboard, size: 40, color: Colors.white38),
+            Icon(Icons.keyboard, size: 40, color: AppColors.disabledText),
             if (_error != null) ...[
               const SizedBox(height: 10),
               Text(
                 _error!,
                 style: const TextStyle(
                   fontSize: 11.5,
-                  color: Colors.orangeAccent,
+                  color: AppColors.semanticWarning,
                 ),
               ),
             ],

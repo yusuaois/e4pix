@@ -1,5 +1,8 @@
+import 'dart:ui';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
+import '../theme/app_colors.dart';
 
 /// 背景类型
 enum BackgroundType {
@@ -200,7 +203,8 @@ class WatermarkConfig {
 
   // ── 背景 ──
   final BackgroundType backgroundType;
-  final int backgroundColor; // 32-bit ARGB
+  final Color backgroundColor;
+
   /// 自定义背景图文件名（位于 e4pix/custom_watermarks/ 下）
   final String? customBackgroundPath;
 
@@ -243,7 +247,7 @@ class WatermarkConfig {
     this.cornerRadius = 12.0,
     this.shadowIntensity = 0.35,
     this.backgroundType = BackgroundType.blurredOriginal,
-    this.backgroundColor = 0xFF1A1A1A,
+    this.backgroundColor = AppColors.fallbackBg,
     this.customBackgroundPath,
     this.canvasAspectRatio = CanvasAspectRatio.auto,
     this.logoSource = LogoSource.builtin,
@@ -276,7 +280,7 @@ class WatermarkConfig {
     double? cornerRadius,
     double? shadowIntensity,
     BackgroundType? backgroundType,
-    int? backgroundColor,
+    Color? backgroundColor,
     String? customBackgroundPath,
     bool clearCustomBg = false,
     CanvasAspectRatio? canvasAspectRatio,
@@ -411,7 +415,7 @@ class WatermarkConfig {
     'cornerRadius': cornerRadius,
     'shadowIntensity': shadowIntensity,
     'backgroundType': backgroundType.name,
-    'backgroundColor': backgroundColor,
+    'backgroundColor': backgroundColor.toARGB32(),
     'customBackgroundPath': customBackgroundPath,
     'canvasAspectRatio': canvasAspectRatio.name,
     'logoSource': logoSource.name,
@@ -448,7 +452,9 @@ class WatermarkConfig {
       backgroundType: BackgroundType.values.byName(
         json['backgroundType'] as String? ?? 'blurredOriginal',
       ),
-      backgroundColor: json['backgroundColor'] as int? ?? 0xFF1A1A1A,
+      backgroundColor: json['backgroundColor'] != null
+          ? Color(json['backgroundColor'] as int)
+          : AppColors.fallbackBg,
       customBackgroundPath: json['customBackgroundPath'] as String?,
       canvasAspectRatio: CanvasAspectRatio.values.byName(
         json['canvasAspectRatio'] as String? ?? 'auto',

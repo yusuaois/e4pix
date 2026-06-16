@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../state/providers.dart';
 import '../app/theme_color_picker.dart';
 
@@ -9,10 +10,10 @@ class ThemeTiles extends ConsumerWidget {
   const ThemeTiles({super.key});
 
   static const List<Color> _presets = [
-    Color(0xFF6B5BFF),
-    Color(0xFF1E88E5),
-    Color(0xFF43A047),
-    Color(0xFFFB8C00),
+    Color(0xFFC0C0C0), // 亮灰
+    Color(0xFFA0A0A0), // 中性灰
+    Color(0xFF808080), // 中暗灰
+    Color(0xFF606060), // 暗灰
   ];
 
   @override
@@ -31,7 +32,7 @@ class ThemeTiles extends ConsumerWidget {
           ),
           subtitle: Text(
             tr("settingsDynamicColorHint"),
-            style: const TextStyle(fontSize: 11, color: Colors.white54),
+            style: TextStyle(fontSize: 11, color: AppColors.faintText),
           ),
           value: dynamicEnabled,
           onChanged: (v) =>
@@ -44,7 +45,7 @@ class ThemeTiles extends ConsumerWidget {
               children: [
                 Text(
                   tr("settingsCustomColor"),
-                  style: const TextStyle(fontSize: 12.5, color: Colors.white70),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.mediumText),
                 ),
                 const SizedBox(width: 16),
                 for (final c in _presets) ...[
@@ -117,25 +118,29 @@ class Swatch extends StatelessWidget {
           gradient: isWheel
               ? const SweepGradient(
                   colors: [
-                    Color(0xFFFF0000),
-                    Color(0xFFFFFF00),
-                    Color(0xFF00FF00),
-                    Color(0xFF00FFFF),
-                    Color(0xFF0000FF),
-                    Color(0xFFFF00FF),
-                    Color(0xFFFF0000),
+                    Color(0xFF121212),
+                    Color(0xFF444444),
+                    Color(0xFF999999),
+                    Color(0xFFEEEEEE),
+                    Color(0xFF999999),
+                    Color(0xFF444444),
+                    Color(0xFF121212),
                   ],
                 )
               : null,
           border: Border.all(
-            color: selected ? Colors.white : Colors.white24,
+            color: selected ? AppColors.textPrimary : AppColors.lightBorder,
             width: selected ? 3 : 1,
           ),
         ),
         child: isWheel
-            ? const Icon(Icons.colorize, size: 15, color: Colors.white)
+            ? const Icon(Icons.colorize, size: 15, color: AppColors.textPrimary)
             : (selected
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  ? const Icon(
+                      Icons.check,
+                      size: 16,
+                      color: AppColors.textPrimary,
+                    )
                   : null),
       ),
     );

@@ -144,10 +144,7 @@ class DevelopTopBar extends ConsumerWidget {
         horizontal: isVertical ? 8 : 16,
         vertical: isVertical ? 3 : 8,
       ),
-      decoration: BoxDecoration(
-        color: AppColors.panelBg,
-        border: Border(bottom: BorderSide(color: AppColors.subtleBorder)),
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: Row(
         children: [
           if (hasImage) ...[
@@ -178,8 +175,8 @@ class DevelopTopBar extends ConsumerWidget {
               onLongPressEnd: (_) =>
                   ref.read(compareViewModeProvider.notifier).endHold(),
               color: compareMode != CompareViewMode.off
-                  ? Colors.amber
-                  : Colors.white70,
+                  ? AppColors.textPrimary
+                  : AppColors.mediumText,
             ),
             if (shots.isNotEmpty)
               _buildFilterButton(ref, isVertical, primary, filterActive),
@@ -196,8 +193,8 @@ class DevelopTopBar extends ConsumerWidget {
               onStopTether,
               isVertical,
               color: cameraState.shutterFlash
-                  ? Colors.greenAccent
-                  : AppColors.activeValue,
+                  ? AppColors.semanticSuccess
+                  : AppColors.textPrimary,
             ),
           Expanded(
             child: LayoutBuilder(
@@ -276,7 +273,7 @@ class DevelopTopBar extends ConsumerWidget {
   void _showQueuePanel(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1A1A20),
+      backgroundColor: AppColors.elevatedBg,
       showDragHandle: true,
       builder: (_) => const ExportQueuePanel(),
     );
@@ -304,7 +301,7 @@ class DevelopTopBar extends ConsumerWidget {
     if (badgeCount > 0) {
       iconWidget = Badge(
         label: Text('$badgeCount', style: const TextStyle(fontSize: 9)),
-        backgroundColor: Colors.orangeAccent,
+        backgroundColor: AppColors.semanticWarning,
         child: iconWidget,
       );
     }

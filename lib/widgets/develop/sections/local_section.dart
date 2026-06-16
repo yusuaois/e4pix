@@ -78,7 +78,7 @@ class LocalPanel extends ConsumerWidget {
             padding: EdgeInsets.fromLTRB(20, 4, 16, 8),
             child: Text(
               tr("notAddedLocalAdjustment"),
-              style: TextStyle(fontSize: 10.5, color: Colors.white38),
+              style: TextStyle(fontSize: 10.5, color: AppColors.disabledText),
             ),
           )
         else
@@ -86,10 +86,10 @@ class LocalPanel extends ConsumerWidget {
             _MaskListItem(local: local, isSelected: local.id == selectedId),
         if (selected != null) ...[
           const SizedBox(height: 6),
-          const Divider(height: 1, color: Colors.white12),
+          Divider(height: 1, color: AppColors.faintBorder),
           LocalShapeControls(local: selected),
           BrushControls(local: selected),
-          const Divider(height: 1, color: Colors.white12),
+          Divider(height: 1, color: AppColors.faintBorder),
           LocalParamsControls(local: selected),
           const SizedBox(height: 8),
           Padding(
@@ -119,9 +119,7 @@ class _MaskListItem extends ConsumerWidget {
         : mask is RadialGradientMask
         ? Icons.brightness_5
         : Icons.brush;
-    final color = isSelected
-        ? const Color(0xFF6B5BFF)
-        : Colors.white.withValues(alpha: 0.7);
+    final color = isSelected ? AppColors.textPrimary : AppColors.mediumText;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -148,7 +146,7 @@ class _MaskListItem extends ConsumerWidget {
                 icon: Icon(
                   local.enabled ? Icons.visibility : Icons.visibility_off,
                   size: 14,
-                  color: Colors.white54,
+                  color: AppColors.faintText,
                 ),
                 onPressed: () => LocalAdjustmentActions(
                   ref,
@@ -158,7 +156,7 @@ class _MaskListItem extends ConsumerWidget {
                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
               ),
               IconButton(
-                icon: const Icon(Icons.close, size: 14, color: Colors.white54),
+                icon: Icon(Icons.close, size: 14, color: AppColors.faintText),
                 onPressed: () => {
                   LocalAdjustmentActions(ref).deleteLocal(local.id),
                   SamSession.instance.resetPoints(),
@@ -204,10 +202,7 @@ class MiniSlider extends StatelessWidget {
           ),
           Expanded(
             child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 2,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-              ),
+              data: SliderTheme.of(context).copyWith(trackHeight: 2),
               child: TrackedSlider(
                 value: value.clamp(min, max),
                 min: min,
@@ -224,7 +219,7 @@ class MiniSlider extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 10.5,
                 fontFamily: 'monospace',
-                color: Colors.greenAccent,
+                color: AppColors.textPrimary,
               ),
             ),
           ),

@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/theme/app_colors.dart';
 
 import '../widgets/settings/tether_tiles.dart';
 import '../widgets/settings/import_tiles.dart';
@@ -18,10 +19,10 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0E),
+      backgroundColor: AppColors.scaffoldBg,
       appBar: AppBar(
         title: Text(tr("settings")),
-        backgroundColor: const Color(0xFF0A0A0E),
+        backgroundColor: AppColors.scaffoldBg,
         elevation: 0,
       ),
       body: ListView(
@@ -65,11 +66,11 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
       child: Text(
         title.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
-          color: Colors.white54,
+          color: AppColors.faintText,
         ),
       ),
     );

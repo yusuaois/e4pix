@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../core/theme/app_colors.dart';
 import '../core/constants/raw_formats.dart';
 import '../native/raw_bridge.dart';
 
@@ -91,9 +92,9 @@ class _FolderImportScreenState extends State<_FolderImportScreen> {
     final allSelected =
         _rawPaths.isNotEmpty && _selected.length == _rawPaths.length;
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0E),
+      backgroundColor: AppColors.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A0E),
+        backgroundColor: AppColors.scaffoldBg,
         title: Text(
           p.basename(widget.dirPath),
           style: const TextStyle(fontSize: 15),
@@ -118,7 +119,7 @@ class _FolderImportScreenState extends State<_FolderImportScreen> {
                 child: Text(
                   _error!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.orangeAccent),
+                  style: const TextStyle(color: AppColors.semanticWarning),
                 ),
               ),
             )
@@ -126,7 +127,7 @@ class _FolderImportScreenState extends State<_FolderImportScreen> {
           ? Center(
               child: Text(
                 tr('folderImportEmpty'),
-                style: const TextStyle(color: Colors.white54),
+                style: TextStyle(color: AppColors.faintText),
               ),
             )
           : GridView.builder(
@@ -248,7 +249,7 @@ class _RawGridTileState extends State<_RawGridTile>
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: Container(
-              color: Colors.white.withValues(alpha: 0.04),
+              color: AppColors.subtleBorder,
               child: FutureBuilder<ui.Image>(
                 future: _thumbFuture,
                 builder: (ctx, snap) {
@@ -266,7 +267,7 @@ class _RawGridTileState extends State<_RawGridTile>
                       child: Icon(
                         Icons.broken_image_outlined,
                         size: 20,
-                        color: Colors.redAccent.withValues(alpha: 0.5),
+                        color: AppColors.semanticError.withValues(alpha: 0.5),
                       ),
                     );
                   }
@@ -286,7 +287,10 @@ class _RawGridTileState extends State<_RawGridTile>
                 p.basename(widget.path),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 10, color: Colors.white),
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
           ),
@@ -310,14 +314,18 @@ class _RawGridTileState extends State<_RawGridTile>
                     : Colors.black.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white.withValues(
-                    alpha: widget.selected ? 1 : 0.6,
-                  ),
+                  color: widget.selected
+                      ? AppColors.textPrimary
+                      : AppColors.mediumText,
                   width: 1.5,
                 ),
               ),
               child: widget.selected
-                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  ? const Icon(
+                      Icons.check,
+                      size: 14,
+                      color: AppColors.textPrimary,
+                    )
                   : null,
             ),
           ),

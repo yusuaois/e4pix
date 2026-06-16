@@ -45,7 +45,7 @@ class PreviewArea extends ConsumerWidget {
       },
       error: (e, _) => _CenterMessage(
         icon: Icons.warning_amber_rounded,
-        color: Colors.orangeAccent,
+        color: AppColors.semanticWarning,
         title: tr("decodeFailed"),
         body: e.toString(),
       ),
@@ -64,7 +64,7 @@ class PreviewArea extends ConsumerWidget {
           Icon(
             Icons.photo_library_outlined,
             size: 64,
-            color: Colors.white.withValues(alpha: 0.3),
+            color: AppColors.disabledText,
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
@@ -639,7 +639,7 @@ class _FormatMarqueeState extends State<_FormatMarquee>
 
   static final _style = TextStyle(
     fontSize: 11,
-    color: Colors.white.withValues(alpha: 0.4),
+    color: AppColors.disabledText,
     fontFamily: 'monospace',
   );
 
@@ -743,7 +743,7 @@ class _CenterMessage extends ConsumerWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: AppColors.mediumText,
                   fontFamily: 'monospace',
                 ),
               ),
@@ -882,7 +882,7 @@ class _ColorReadout extends StatelessWidget {
             decoration: BoxDecoration(
               color: Color.fromARGB(255, picked.r, picked.g, picked.b),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+              border: Border.all(color: AppColors.disabledText),
             ),
           ),
           const SizedBox(width: 8),
@@ -895,7 +895,7 @@ class _ColorReadout extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 10.5,
                   fontFamily: 'monospace',
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                 ),
               ),
               Text(
@@ -903,7 +903,7 @@ class _ColorReadout extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10,
                   fontFamily: 'monospace',
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: AppColors.mediumText,
                 ),
               ),
             ],

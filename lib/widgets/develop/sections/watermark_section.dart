@@ -35,10 +35,7 @@ class WatermarkSection extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: Text(
               tr('watermarkDisabledHint'),
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.3),
-              ),
+              style: TextStyle(fontSize: 11, color: AppColors.disabledText),
             ),
           ),
 
@@ -71,9 +68,8 @@ class WatermarkSection extends ConsumerWidget {
           if (cfg.backgroundType == BackgroundType.solidColor)
             _ColorTile(
               label: tr('watermarkBgColor'),
-              color: Color(cfg.backgroundColor),
-              onChanged: (c) =>
-                  set(cfg.copyWith(backgroundColor: c.toARGB32())),
+              color: cfg.backgroundColor,
+              onChanged: (c) => set(cfg.copyWith(backgroundColor: c)),
             ),
           if (cfg.backgroundType == BackgroundType.image) ...[
             const SizedBox(height: 6),
@@ -409,7 +405,7 @@ class WatermarkSection extends ConsumerWidget {
               label: Text(tr('reset')),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: AppColors.lightBorder),
-                foregroundColor: Colors.white.withValues(alpha: 0.6),
+                foregroundColor: AppColors.mediumText,
               ),
             ),
           ),
@@ -484,7 +480,7 @@ class _DropdownTile<T> extends StatelessWidget {
               height: 34,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                border: Border.all(color: AppColors.activeBg),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: DropdownButtonHideUnderline(
@@ -492,8 +488,11 @@ class _DropdownTile<T> extends StatelessWidget {
                   value: value,
                   isExpanded: true,
                   isDense: true,
-                  dropdownColor: const Color(0xFF1E1E24),
-                  style: const TextStyle(fontSize: 12, color: Colors.white),
+                  dropdownColor: AppColors.panelBg,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textPrimary,
+                  ),
                   items: items,
                   onChanged: onChanged,
                 ),
@@ -557,7 +556,7 @@ class _ColorTile extends StatelessWidget {
               decoration: BoxDecoration(
                 color: color,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                border: Border.all(color: AppColors.dividerLine),
               ),
             ),
           ),
@@ -567,7 +566,7 @@ class _ColorTile extends StatelessWidget {
             style: TextStyle(
               fontSize: 10.5,
               fontFamily: 'monospace',
-              color: Colors.white.withValues(alpha: 0.5),
+              color: AppColors.faintText,
             ),
           ),
         ],
@@ -619,11 +618,11 @@ class _SegmentedTile<T> extends StatelessWidget {
                             ? Theme.of(
                                 context,
                               ).colorScheme.primary.withValues(alpha: 0.2)
-                            : Colors.white.withValues(alpha: 0.04),
+                            : AppColors.subtleBorder,
                         border: Border.all(
                           color: selected
                               ? Theme.of(context).colorScheme.primary
-                              : Colors.white.withValues(alpha: 0.08),
+                              : AppColors.dividerLine,
                         ),
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -633,7 +632,7 @@ class _SegmentedTile<T> extends StatelessWidget {
                           fontSize: 11.5,
                           color: selected
                               ? Theme.of(context).colorScheme.primary
-                              : Colors.white.withValues(alpha: 0.6),
+                              : AppColors.mediumText,
                         ),
                       ),
                     ),
@@ -687,7 +686,7 @@ class _ShadowIntensityTile extends StatelessWidget {
                     fontSize: 11.5,
                     fontFamily: 'monospace',
                     color: isNeutral
-                        ? Colors.white.withValues(alpha: 0.4)
+                        ? AppColors.disabledText
                         : AppColors.activeValue,
                   ),
                 ),
@@ -695,11 +694,7 @@ class _ShadowIntensityTile extends StatelessWidget {
             ],
           ),
           SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 3,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
-            ),
+            data: SliderTheme.of(context).copyWith(trackHeight: 3),
             child: TrackedSlider(
               value: value.clamp(0.0, 1.0),
               onChanged: onChanged,
@@ -758,7 +753,7 @@ class _FontFamilyTile extends StatelessWidget {
               height: 34,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                border: Border.all(color: AppColors.activeBg),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: DropdownButtonHideUnderline(
@@ -766,8 +761,11 @@ class _FontFamilyTile extends StatelessWidget {
                   value: value,
                   isExpanded: true,
                   isDense: true,
-                  dropdownColor: const Color(0xFF1E1E24),
-                  style: const TextStyle(fontSize: 12, color: Colors.white),
+                  dropdownColor: AppColors.panelBg,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textPrimary,
+                  ),
                   items: fonts.map((f) {
                     return DropdownMenuItem<String?>(
                       value: f,
@@ -852,19 +850,14 @@ class _ExifTextFieldState extends State<_ExifTextField> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: TextField(
         controller: _controller,
-        style: const TextStyle(fontSize: 12, color: Colors.white),
+        style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
         decoration: InputDecoration(
           isDense: true,
           hintText: tr('watermarkExifCustomHint'),
-          hintStyle: TextStyle(
-            fontSize: 11,
-            color: Colors.white.withValues(alpha: 0.3),
-          ),
+          hintStyle: TextStyle(fontSize: 11, color: AppColors.disabledText),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(4),
-            borderSide: BorderSide(
-              color: AppColors.faintBorder,
-            ),
+            borderSide: BorderSide(color: AppColors.faintBorder),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(4),
@@ -934,11 +927,11 @@ class _FontWeightTile extends StatelessWidget {
                             ? Theme.of(
                                 context,
                               ).colorScheme.primary.withValues(alpha: 0.2)
-                            : Colors.white.withValues(alpha: 0.04),
+                            : AppColors.subtleBorder,
                         border: Border.all(
                           color: selected
                               ? Theme.of(context).colorScheme.primary
-                              : Colors.white.withValues(alpha: 0.08),
+                              : AppColors.dividerLine,
                         ),
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -949,7 +942,7 @@ class _FontWeightTile extends StatelessWidget {
                           fontWeight: fw,
                           color: selected
                               ? Theme.of(context).colorScheme.primary
-                              : Colors.white.withValues(alpha: 0.6),
+                              : AppColors.mediumText,
                         ),
                       ),
                     ),
@@ -999,7 +992,7 @@ class _ImportTile extends StatelessWidget {
                       Icon(
                         Icons.image,
                         size: 14,
-                        color: Colors.greenAccent.withValues(alpha: 0.8),
+                        color: AppColors.semanticSuccess.withValues(alpha: 0.8),
                       ),
                       const SizedBox(width: 6),
                       Expanded(
@@ -1008,7 +1001,7 @@ class _ImportTile extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 10.5,
                             fontFamily: 'monospace',
-                            color: Colors.white.withValues(alpha: 0.6),
+                            color: AppColors.mediumText,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1020,7 +1013,7 @@ class _ImportTile extends StatelessWidget {
                         child: Icon(
                           Icons.close,
                           size: 14,
-                          color: Colors.white.withValues(alpha: 0.4),
+                          color: AppColors.disabledText,
                         ),
                       ),
                     ],
@@ -1034,10 +1027,8 @@ class _ImportTile extends StatelessWidget {
                     ),
                     style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
-                      side: BorderSide(
-                        color: AppColors.lightBorder,
-                      ),
-                      foregroundColor: Colors.white.withValues(alpha: 0.7),
+                      side: BorderSide(color: AppColors.lightBorder),
+                      foregroundColor: AppColors.mediumText,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 4,
@@ -1076,7 +1067,7 @@ class _ExifFieldChip extends StatelessWidget {
           border: Border.all(
             color: selected
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
-                : Colors.white.withValues(alpha: 0.1),
+                : AppColors.activeBg,
           ),
           borderRadius: BorderRadius.circular(4),
         ),
@@ -1086,7 +1077,7 @@ class _ExifFieldChip extends StatelessWidget {
             fontSize: 10.5,
             color: selected
                 ? Theme.of(context).colorScheme.primary
-                : Colors.white.withValues(alpha: 0.5),
+                : AppColors.faintText,
           ),
         ),
       ),

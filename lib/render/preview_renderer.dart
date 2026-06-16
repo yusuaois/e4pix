@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/theme/app_colors.dart';
 import '../core/models/adjustment_params.dart';
 import '../state/render/render_state.dart';
 import '../state/params/params_state.dart';
@@ -54,7 +55,7 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
       error: (e, _) => Center(
         child: Text(
           'Shader load failed: $e',
-          style: const TextStyle(color: Colors.redAccent),
+          style: const TextStyle(color: AppColors.semanticError),
         ),
       ),
       data: (program) {

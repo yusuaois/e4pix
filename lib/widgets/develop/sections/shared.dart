@@ -53,7 +53,7 @@ class DevelopSliderTile extends StatelessWidget {
                     fontSize: 11.5,
                     fontFamily: 'monospace',
                     color: isNeutral
-                        ? Colors.white.withValues(alpha: 0.4)
+                        ? AppColors.disabledText
                         : AppColors.activeValue,
                   ),
                 ),
@@ -61,11 +61,7 @@ class DevelopSliderTile extends StatelessWidget {
             ],
           ),
           SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 3,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
-            ),
+            data: SliderTheme.of(context).copyWith(trackHeight: 3),
             child: TrackedSlider(
               value: value.clamp(min, max),
               min: min,
@@ -96,7 +92,7 @@ class SectionLabel extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               letterSpacing: 1.4,
-              color: Colors.white.withValues(alpha: 0.4),
+              color: AppColors.disabledText,
               fontWeight: FontWeight.w600,
             ),
           ),

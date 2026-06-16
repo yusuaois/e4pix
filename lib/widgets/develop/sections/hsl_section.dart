@@ -19,14 +19,14 @@ class _HslSectionState extends State<HslSection> {
   int _mode = 0; // 0=Hue, 1=Sat, 2=Lum
 
   static const _bandColors = [
-    Color(0xFFE53935),
-    Color(0xFFFB8C00),
-    Color(0xFFFDD835),
-    Color(0xFF43A047),
-    Color(0xFF00ACC1),
-    Color(0xFF1E88E5),
-    Color(0xFF8E24AA),
-    Color(0xFFD81B60),
+    AppColors.hslBand0,
+    AppColors.hslBand1,
+    AppColors.hslBand2,
+    AppColors.hslBand3,
+    AppColors.hslBand4,
+    AppColors.hslBand5,
+    AppColors.hslBand6,
+    AppColors.hslBand7,
   ];
   final _bandLabels = [
     tr("red"),
@@ -67,10 +67,7 @@ class _HslSectionState extends State<HslSection> {
                   onTap: () => widget.onChanged(HslBands.neutral),
                   child: Text(
                     'reset',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.5),
-                    ),
+                    style: TextStyle(fontSize: 10, color: AppColors.faintText),
                   ),
                 )
               : null,
@@ -142,11 +139,7 @@ class _BandRow extends StatelessWidget {
           ),
           Expanded(
             child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 2.5,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-              ),
+              data: SliderTheme.of(context).copyWith(trackHeight: 2.5),
               child: TrackedSlider(
                 value: value.clamp(-100.0, 100.0),
                 min: -100,
@@ -166,7 +159,7 @@ class _BandRow extends StatelessWidget {
                   fontSize: 10.5,
                   fontFamily: 'monospace',
                   color: isNeutral
-                      ? Colors.white.withValues(alpha: 0.4)
+                      ? AppColors.disabledText
                       : AppColors.activeValue,
                 ),
               ),

@@ -2,6 +2,7 @@ import 'package:e4pix/state/export/export_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import '../../core/theme/app_colors.dart';
 
 import '../../render/cpu_denoise.dart';
 import '../../render/export_template.dart';
@@ -102,7 +103,7 @@ Future<ExportDialogResult?> showExportDialog(
                 style: TextStyle(
                   fontSize: 10.5,
                   fontFamily: 'monospace',
-                  color: Colors.greenAccent.withValues(alpha: 0.7),
+                  color: AppColors.semanticSuccess.withValues(alpha: 0.7),
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -118,7 +119,7 @@ Future<ExportDialogResult?> showExportDialog(
                   tr('exportFilenameBatchWarn'),
                   style: TextStyle(
                     fontSize: 10,
-                    color: Colors.orangeAccent.withValues(alpha: 0.8),
+                    color: AppColors.semanticWarning.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -129,7 +130,7 @@ Future<ExportDialogResult?> showExportDialog(
                   style: TextStyle(
                     fontSize: 9.5,
                     fontFamily: 'monospace',
-                    color: Colors.white.withValues(alpha: 0.35),
+                    color: AppColors.disabledText,
                   ),
                 ),
               ),
@@ -163,19 +164,13 @@ Future<ExportDialogResult?> showExportDialog(
                   denoiseEngine == DenoiseEngine.cpu
                       ? tr('denoiseEngineCpuHint')
                       : tr('denoiseEngineGpuHint'),
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
+                  style: TextStyle(fontSize: 10.5, color: AppColors.faintText),
                 ),
               ],
               const SizedBox(height: 8),
               Text(
                 tr('exportDescription'),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.6),
-                ),
+                style: TextStyle(fontSize: 11, color: AppColors.mediumText),
               ),
               if (format == ExportFormat.jpeg) ...[
                 const SizedBox(height: 8),
@@ -192,7 +187,7 @@ Future<ExportDialogResult?> showExportDialog(
                     tr('exportWriteExifDesc'),
                     style: TextStyle(
                       fontSize: 10.5,
-                      color: Colors.white.withValues(alpha: 0.5),
+                      color: AppColors.faintText,
                     ),
                   ),
                   onChanged: (v) => setS(() => writeExif = v ?? true),

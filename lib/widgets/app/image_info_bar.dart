@@ -47,13 +47,7 @@ class ImageInfoBar extends ConsumerWidget {
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.panelBg,
-        border: Border(
-          top: BorderSide(color: AppColors.subtleBorder),
-          bottom: BorderSide(color: AppColors.subtleBorder),
-        ),
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -77,7 +71,7 @@ class ImageInfoBar extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 10,
                     fontFamily: 'monospace',
-                    color: Colors.greenAccent.withValues(alpha: 0.8),
+                    color: AppColors.semanticSuccess.withValues(alpha: 0.8),
                   ),
                 ),
                 if (image.isPreliminary) ...[
@@ -87,7 +81,7 @@ class ImageInfoBar extends ConsumerWidget {
                     height: 9,
                     child: CircularProgressIndicator(
                       strokeWidth: 1.2,
-                      color: Colors.amberAccent.withValues(alpha: 0.7),
+                      color: AppColors.semanticWarning.withValues(alpha: 0.7),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -95,7 +89,7 @@ class ImageInfoBar extends ConsumerWidget {
                     'HD…',
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.amberAccent.withValues(alpha: 0.7),
+                      color: AppColors.semanticWarning.withValues(alpha: 0.7),
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -168,7 +162,7 @@ class ImageInfoBar extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 9.5,
                       fontFamily: 'monospace',
-                      color: Colors.greenAccent.withValues(alpha: 0.75),
+                      color: AppColors.semanticSuccess.withValues(alpha: 0.75),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -181,7 +175,7 @@ class ImageInfoBar extends ConsumerWidget {
                     height: 9,
                     child: CircularProgressIndicator(
                       strokeWidth: 1.2,
-                      color: Colors.amberAccent.withValues(alpha: 0.7),
+                      color: AppColors.semanticWarning.withValues(alpha: 0.7),
                     ),
                   ),
                 ],

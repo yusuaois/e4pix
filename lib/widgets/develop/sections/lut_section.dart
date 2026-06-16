@@ -176,7 +176,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
               fontSize: 10,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.0,
-              color: Colors.white.withValues(alpha: 0.4),
+              color: AppColors.disabledText,
             ),
           ),
         ),
@@ -214,10 +214,10 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const Icon(
+                            Icon(
                               Icons.arrow_drop_down,
                               size: 18,
-                              color: Colors.white54,
+                              color: AppColors.faintText,
                             ),
                           ],
                         ),
@@ -241,9 +241,9 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                             dense: true,
                             title: Text(
                               tr("notChosen"),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.white54,
+                                color: AppColors.faintText,
                               ),
                             ),
                             onTap: () => onSelect(null),
@@ -287,7 +287,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                 Icon(
                   Icons.error_outline,
                   size: 13,
-                  color: Colors.orangeAccent.withValues(alpha: 0.85),
+                  color: AppColors.semanticWarning.withValues(alpha: 0.85),
                 ),
                 const SizedBox(width: 5),
                 Expanded(
@@ -295,7 +295,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                     tr('lutMissing', args: [widget.lutName!]),
                     style: TextStyle(
                       fontSize: 10.5,
-                      color: Colors.orangeAccent.withValues(alpha: 0.85),
+                      color: AppColors.semanticWarning.withValues(alpha: 0.85),
                     ),
                     maxLines: 2,
                   ),
@@ -310,7 +310,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
               tr("lutVltHint"),
               style: TextStyle(
                 fontSize: 10.5,
-                color: Colors.orangeAccent.withValues(alpha: 0.75),
+                color: AppColors.semanticWarning.withValues(alpha: 0.75),
               ),
             ),
           ),
@@ -329,12 +329,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                 ),
                 Expanded(
                   child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 7,
-                      ),
-                    ),
+                    data: SliderTheme.of(context).copyWith(trackHeight: 3),
                     child: TrackedSlider(
                       value: widget.intensity.clamp(0.0, 1.0),
                       onChanged: onIntensityChanged,
@@ -379,7 +374,9 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.semanticError,
+            ),
             child: Text(tr("delete")),
           ),
         ],
@@ -469,13 +466,13 @@ class _LutMenuItemState extends State<_LutMenuItem> {
                   child: widget.thumb != null
                       ? RawImage(image: widget.thumb, fit: BoxFit.cover)
                       : Container(
-                          color: Colors.white.withValues(alpha: 0.06),
+                          color: AppColors.subtleBorder,
                           child: widget.isRendering
-                              ? const Padding(
-                                  padding: EdgeInsets.all(6),
+                              ? Padding(
+                                  padding: const EdgeInsets.all(6),
                                   child: CircularProgressIndicator(
                                     strokeWidth: 1.5,
-                                    color: Colors.white30,
+                                    color: AppColors.disabledText,
                                   ),
                                 )
                               : null,
@@ -486,7 +483,10 @@ class _LutMenuItemState extends State<_LutMenuItem> {
               Expanded(
                 child: Text(
                   widget.entry.name,
-                  style: const TextStyle(fontSize: 12, color: Colors.white),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textPrimary,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -498,8 +498,8 @@ class _LutMenuItemState extends State<_LutMenuItem> {
                   fontSize: 9.5,
                   fontFamily: 'monospace',
                   color: widget.entry.ext == 'vlt'
-                      ? Colors.orangeAccent.withValues(alpha: 0.7)
-                      : Colors.white.withValues(alpha: 0.24),
+                      ? AppColors.semanticWarning.withValues(alpha: 0.7)
+                      : AppColors.dividerLine,
                 ),
               ),
             ],

@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import '../../services/ai/ai_providers.dart';
 import '../../services/ai/ai_settings.dart';
 
@@ -196,10 +197,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
               const SizedBox(height: 4),
               Text(
                 _keyOriginFor(_providerId),
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.white.withValues(alpha: 0.5),
-                ),
+                style: TextStyle(fontSize: 10, color: AppColors.faintText),
               ),
 
               const Divider(height: 28),
@@ -232,7 +230,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                               tr("aiColorSuggestionTetherAutoDescription"),
                               style: TextStyle(
                                 fontSize: 10.5,
-                                color: Colors.white60,
+                                color: AppColors.mediumText,
                               ),
                             ),
                           ],

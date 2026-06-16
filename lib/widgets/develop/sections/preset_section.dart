@@ -8,6 +8,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../services/export/xmp_export.dart';
 import '../../../services/export/xmp_import.dart';
 import '../../../state/providers.dart';
@@ -44,7 +45,7 @@ class _PresetBarState extends ConsumerState<PresetBar> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.style, size: 16, color: Colors.white70),
+            Icon(Icons.style, size: 16, color: AppColors.mediumText),
             const SizedBox(width: 8),
             Expanded(
               child: SizedBox(
@@ -310,18 +311,18 @@ class PresetChip extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: preset.isBuiltin
-              ? Colors.blueGrey.withValues(alpha: 0.3)
-              : Colors.deepPurple.withValues(alpha: 0.3),
+          color: preset.isBuiltin ? AppColors.subtleBorder : AppColors.activeBg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: preset.isBuiltin ? Colors.blueGrey : Colors.deepPurpleAccent,
+            color: preset.isBuiltin
+                ? AppColors.dividerLine
+                : AppColors.lightBorder,
             width: 0.6,
           ),
         ),
         child: Text(
           preset.name,
-          style: const TextStyle(fontSize: 12, color: Colors.white),
+          style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
         ),
       ),
     );
@@ -381,10 +382,10 @@ Future<void> showPresetOptions(
             onTap: () => Navigator.pop(ctx, 'rename'),
           ),
           ListTile(
-            leading: const Icon(Icons.delete, color: Colors.redAccent),
+            leading: const Icon(Icons.delete, color: AppColors.semanticError),
             title: Text(
               tr("delete"),
-              style: TextStyle(color: Colors.redAccent),
+              style: TextStyle(color: AppColors.semanticError),
             ),
             onTap: () => Navigator.pop(ctx, 'delete'),
           ),

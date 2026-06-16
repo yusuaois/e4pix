@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../state/providers.dart';
 
 class ImportModeTiles extends ConsumerWidget {
@@ -21,7 +22,7 @@ class ImportModeTiles extends ConsumerWidget {
         title: Text(title, style: const TextStyle(fontSize: 13)),
         subtitle: Text(
           desc,
-          style: const TextStyle(fontSize: 11, color: Colors.white54),
+          style: TextStyle(fontSize: 11, color: AppColors.faintText),
         ),
       );
     }

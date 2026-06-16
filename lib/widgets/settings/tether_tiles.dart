@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../state/providers.dart';
 
 class TetherFolderTile extends ConsumerWidget {
@@ -29,7 +30,7 @@ class TetherFolderTile extends ConsumerWidget {
         style: TextStyle(
           fontSize: 11,
           fontFamily: folder != null ? 'monospace' : null,
-          color: folder == null ? Colors.white38 : Colors.white70,
+          color: folder == null ? AppColors.disabledText : AppColors.mediumText,
         ),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,

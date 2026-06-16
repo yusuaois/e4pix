@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../state/providers.dart';
 
 class QualityTiles extends ConsumerWidget {
@@ -68,14 +69,14 @@ class QualityTiles extends ConsumerWidget {
           ),
           subtitle: Text(
             tr("settingsExportQualityHint"),
-            style: const TextStyle(fontSize: 11, color: Colors.white54),
+            style: TextStyle(fontSize: 11, color: AppColors.faintText),
           ),
           trailing: Text(
             '$eq',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontFamily: 'monospace',
-              color: Colors.white70,
+              color: AppColors.mediumText,
             ),
           ),
         ),
@@ -98,16 +99,16 @@ class QualityTiles extends ConsumerWidget {
           ),
           subtitle: Text(
             tr('imageCacheCapacityHint'),
-            style: const TextStyle(fontSize: 11, color: Colors.white54),
+            style: TextStyle(fontSize: 11, color: AppColors.faintText),
           ),
           trailing: SizedBox(
             width: 44,
             child: Text(
               '${ref.watch(imageCacheCapacityProvider)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontFamily: 'monospace',
-                color: Colors.white70,
+                color: AppColors.mediumText,
               ),
               textAlign: TextAlign.center,
             ),

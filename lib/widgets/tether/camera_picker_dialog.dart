@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 
 import '../../services/app/app_settings.dart';
 import '../../services/camera/camera_controller.dart';
@@ -106,11 +107,9 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
               const SizedBox(height: 6),
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0E0E14),
+                  color: AppColors.surfaceBg,
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.06),
-                  ),
+                  border: Border.all(color: AppColors.subtleBorder),
                 ),
                 padding: const EdgeInsets.all(8),
                 constraints: const BoxConstraints(minHeight: 70),
@@ -127,7 +126,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                         _error!,
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Colors.redAccent,
+                          color: AppColors.semanticError,
                         ),
                       )
                     : _cameras.isEmpty
@@ -136,7 +135,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                               '${tr("noCamerasFound")}\n· Android: ${tr("tetherOtherModeHint")}',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.white.withValues(alpha: 0.6),
+                                color: AppColors.mediumText,
                               ),
                             )
                           : (Platform.isWindows
@@ -147,9 +146,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                                     '   - usbipd attach --wsl --busid <busid>\n',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: Colors.white.withValues(
-                                        alpha: 0.6,
-                                      ),
+                                      color: AppColors.mediumText,
                                     ),
                                   )
                                 : Text(
@@ -157,9 +154,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                                     '· Linux/macOS: ${tr("tetherOtherModeHint")}',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: Colors.white.withValues(
-                                        alpha: 0.6,
-                                      ),
+                                      color: AppColors.mediumText,
                                     ),
                                   ))
                     : Column(
@@ -178,7 +173,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                                     size: 14,
                                     color: isSel
                                         ? Theme.of(context).colorScheme.primary
-                                        : Colors.white.withValues(alpha: 0.4),
+                                        : AppColors.disabledText,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
@@ -192,9 +187,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontFamily: 'monospace',
-                                      color: Colors.white.withValues(
-                                        alpha: 0.5,
-                                      ),
+                                      color: AppColors.faintText,
                                     ),
                                   ),
                                 ],
@@ -224,7 +217,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                       tr("settingsUsingDefaultFolder"),
                       style: TextStyle(
                         fontSize: 10.5,
-                        color: Colors.white.withValues(alpha: 0.55),
+                        color: AppColors.faintText,
                       ),
                     ),
                   ],
@@ -261,11 +254,9 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0E0E14),
+                        color: AppColors.surfaceBg,
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.06),
-                        ),
+                        border: Border.all(color: AppColors.subtleBorder),
                       ),
                       child: Text(
                         _folder ?? tr("notChosen"),
@@ -273,7 +264,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                           fontSize: 11.5,
                           fontFamily: 'monospace',
                           color: _folder == null
-                              ? Colors.white.withValues(alpha: 0.4)
+                              ? AppColors.disabledText
                               : null,
                         ),
                         maxLines: 1,

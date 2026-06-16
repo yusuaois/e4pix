@@ -39,6 +39,8 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                         tabAlignment: TabAlignment.start,
                         indicatorSize: TabBarIndicatorSize.label,
                         labelStyle: const TextStyle(fontSize: 11),
+                        labelColor: AppColors.textPrimary,
+                        unselectedLabelColor: AppColors.textTertiary,
                         tabs: [
                           Tab(text: tr("light"), height: 36),
                           Tab(text: tr("color"), height: 36),

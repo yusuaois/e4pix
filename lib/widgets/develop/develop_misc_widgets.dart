@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../core/models/tethered_shot.dart';
 import '../../state/providers.dart';
 
@@ -45,8 +46,8 @@ class RatingFlagBar extends ConsumerWidget {
                 i <= active.rating ? Icons.star : Icons.star_border,
                 size: 18,
                 color: i <= active.rating
-                    ? Colors.amberAccent
-                    : Colors.white.withValues(alpha: 0.3),
+                    ? AppColors.semanticWarning
+                    : AppColors.disabledText,
               ),
             ),
           ),
@@ -57,8 +58,8 @@ class RatingFlagBar extends ConsumerWidget {
             Icons.flag,
             size: 16,
             color: active.flag == ShotFlag.pick
-                ? Colors.greenAccent
-                : Colors.white.withValues(alpha: 0.4),
+                ? AppColors.semanticSuccess
+                : AppColors.disabledText,
           ),
           tooltip: tr('flagPick'),
           visualDensity: VisualDensity.compact,
@@ -75,8 +76,8 @@ class RatingFlagBar extends ConsumerWidget {
             Icons.block,
             size: 16,
             color: active.flag == ShotFlag.reject
-                ? Colors.redAccent
-                : Colors.white.withValues(alpha: 0.4),
+                ? AppColors.semanticError
+                : AppColors.disabledText,
           ),
           tooltip: tr('flagReject'),
           visualDensity: VisualDensity.compact,
@@ -106,7 +107,11 @@ class FullscreenExitButton extends ConsumerWidget {
         onTap: () => ref.read(fullscreenPreviewProvider.notifier).state = false,
         child: const Padding(
           padding: EdgeInsets.all(8),
-          child: Icon(Icons.fullscreen_exit, size: 22, color: Colors.white),
+          child: Icon(
+            Icons.fullscreen_exit,
+            size: 22,
+            color: AppColors.textPrimary,
+          ),
         ),
       ),
     );
@@ -138,10 +143,7 @@ class AIBanner extends ConsumerWidget {
             const SizedBox(width: 10),
             Text(
               tr("aiColorInProgress"),
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
+              style: TextStyle(fontSize: 11, color: AppColors.mediumText),
             ),
           ],
         ),
@@ -206,10 +208,7 @@ class AIBanner extends ConsumerWidget {
                 ),
                 child: Text(
                   tr("ignore"),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.6),
-                  ),
+                  style: TextStyle(fontSize: 11, color: AppColors.mediumText),
                 ),
               ),
             ],

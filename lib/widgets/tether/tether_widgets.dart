@@ -47,19 +47,16 @@ class TetherStatusBar extends ConsumerWidget {
   Widget _buildPhone(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A2A1A),
-        border: Border(bottom: BorderSide(color: AppColors.subtleBorder)),
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: Row(
         children: [
-          const _PulsingDot(color: Colors.greenAccent),
+          const _PulsingDot(color: AppColors.semanticSuccess),
           const SizedBox(width: 8),
           Text(
             'Tether',
             style: TextStyle(
               fontSize: 11.5,
-              color: AppColors.activeValue,
+              color: AppColors.textPrimary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -68,10 +65,7 @@ class TetherStatusBar extends ConsumerWidget {
             child: Text(
               '${tr("shotCount", args: [shotCount.toString()])}'
               '${lastShotAt == null ? '' : ' · ${_ago(lastShotAt!)}'}',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.6),
-              ),
+              style: TextStyle(fontSize: 11, color: AppColors.mediumText),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -86,7 +80,7 @@ class TetherStatusBar extends ConsumerWidget {
               preserveParams ? Icons.link_rounded : Icons.link_off_rounded,
               color: preserveParams
                   ? AppColors.activeValue
-                  : Colors.orangeAccent.withValues(alpha: 0.85),
+                  : AppColors.semanticWarning.withValues(alpha: 0.85),
             ),
           ),
           IconButton(
@@ -98,7 +92,7 @@ class TetherStatusBar extends ConsumerWidget {
             onPressed: onStop,
             icon: const Icon(
               Icons.stop_circle_outlined,
-              color: Colors.redAccent,
+              color: AppColors.semanticError,
             ),
           ),
         ],
@@ -109,13 +103,10 @@ class TetherStatusBar extends ConsumerWidget {
   Widget _buildDesktop(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A2A1A),
-        border: Border(bottom: BorderSide(color: AppColors.subtleBorder)),
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: Row(
         children: [
-          _PulsingDot(color: Colors.greenAccent),
+          _PulsingDot(color: AppColors.semanticSuccess),
           const SizedBox(width: 10),
           Text(
             'Tether',
@@ -131,7 +122,7 @@ class TetherStatusBar extends ConsumerWidget {
               watchPath,
               style: TextStyle(
                 fontSize: 11.5,
-                color: Colors.white.withValues(alpha: 0.7),
+                color: AppColors.mediumText,
                 fontFamily: 'monospace',
               ),
               overflow: TextOverflow.ellipsis,
@@ -141,10 +132,7 @@ class TetherStatusBar extends ConsumerWidget {
           Text(
             '${tr("shotCount", args: [shotCount.toString()])}'
             '${lastShotAt == null ? '' : ' · ${_ago(lastShotAt!)}'}',
-            style: TextStyle(
-              fontSize: 11.5,
-              color: Colors.white.withValues(alpha: 0.6),
-            ),
+            style: TextStyle(fontSize: 11.5, color: AppColors.mediumText),
           ),
           const SizedBox(width: 14),
 
@@ -159,7 +147,7 @@ class TetherStatusBar extends ConsumerWidget {
             icon: const Icon(Icons.stop_circle_outlined, size: 14),
             label: Text(tr("stop"), style: TextStyle(fontSize: 11)),
             style: TextButton.styleFrom(
-              foregroundColor: Colors.redAccent,
+              foregroundColor: AppColors.semanticError,
               visualDensity: VisualDensity.compact,
             ),
           ),
@@ -178,7 +166,7 @@ class _PreserveToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = preserved
         ? AppColors.activeValue
-        : Colors.orangeAccent.withValues(alpha: 0.85);
+        : AppColors.semanticWarning.withValues(alpha: 0.85);
     return Tooltip(
       message: preserved
           ? tr("preserveModeDescription")
@@ -285,17 +273,7 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
     return Container(
       width: vertical ? 96 : null,
       height: vertical ? null : 92,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B0B10),
-        border: Border(
-          top: vertical
-              ? BorderSide.none
-              : BorderSide(color: AppColors.subtleBorder),
-          right: vertical
-              ? BorderSide(color: AppColors.subtleBorder)
-              : BorderSide.none,
-        ),
-      ),
+      decoration: const BoxDecoration(color: AppColors.surfaceBg),
       child: ScrollConfiguration(
         behavior: ScrollConfiguration.of(context).copyWith(
           dragDevices: {
@@ -369,9 +347,8 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                         ? Icon(
                                             Icons.broken_image_outlined,
                                             size: 18,
-                                            color: Colors.redAccent.withValues(
-                                              alpha: 0.6,
-                                            ),
+                                            color: AppColors.semanticError
+                                                .withValues(alpha: 0.6),
                                           )
                                         : const SizedBox(
                                             width: 14,
@@ -396,7 +373,7 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                         (_) => const Icon(
                                           Icons.star,
                                           size: 9,
-                                          color: Colors.amberAccent,
+                                          color: AppColors.semanticWarning,
                                         ),
                                       ),
                                     ),
@@ -411,8 +388,8 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                           : Icons.flag_outlined,
                                       size: 12,
                                       color: shot.flag == ShotFlag.pick
-                                          ? Colors.greenAccent
-                                          : Colors.redAccent,
+                                          ? AppColors.semanticSuccess
+                                          : AppColors.semanticError,
                                     ),
                                   ),
                                 if (widget.multiSelectMode && isActive)
@@ -434,7 +411,7 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                         'Now',
                                         style: TextStyle(
                                           fontSize: 8.5,
-                                          color: Colors.white,
+                                          color: AppColors.textPrimary,
                                           letterSpacing: 0.5,
                                         ),
                                       ),
@@ -458,9 +435,9 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                   : Colors.black.withValues(alpha: 0.55),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.white.withValues(
-                                  alpha: isPicked ? 1 : 0.7,
-                                ),
+                                color: isPicked
+                                    ? AppColors.textPrimary
+                                    : AppColors.mediumText,
                                 width: 1.5,
                               ),
                             ),
@@ -468,7 +445,7 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                 ? const Icon(
                                     Icons.check,
                                     size: 11,
-                                    color: Colors.white,
+                                    color: AppColors.textPrimary,
                                   )
                                 : null,
                           ),

@@ -62,7 +62,7 @@ class WatermarkPreview extends ConsumerWidget {
     );
 
     final textColor = config.colorMode == WatermarkColorMode.light
-        ? Colors.white
+        ? AppColors.textPrimary
         : Colors.black;
 
     // ── 渲染路径选择 ──
@@ -221,7 +221,7 @@ class _WatermarkCanvas extends StatelessWidget {
         width: geometry.canvasSize.width,
         height: geometry.canvasSize.height,
         color: config.backgroundType == BackgroundType.solidColor
-            ? Color(config.backgroundColor)
+            ? config.backgroundColor
             : Colors.black,
         child: Stack(
           clipBehavior: Clip.hardEdge,
