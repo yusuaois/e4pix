@@ -86,7 +86,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         old.perspectiveProgram != widget.perspectiveProgram ||
         old.lensCorrectProgram != widget.lensCorrectProgram ||
         old.idleMaxEdge != widget.idleMaxEdge ||
-        old.draggingMaxEdge != widget.draggingMaxEdge) {
+        old.draggingMaxEdge != widget.draggingMaxEdge ||
+        old.params != widget.params) {
       _runRender();
     }
   }
@@ -99,7 +100,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     super.dispose();
   }
 
-  Future<void> _runRender() async {
+  Future<void> _runRender([AdjustmentParams? params]) async {
     if (_isRendering) {
       _pendingRender = true;
       return;
@@ -123,7 +124,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         developProgram: widget.developProgram,
         maskProgram: widget.maskProgram,
         sourceImage: src,
-        params: widget.params,
+        params: params ?? widget.params,
         lutTexture: widget.lutTexture,
         lutSize: widget.lutSize,
         lutTextureB: widget.lutTextureB,
@@ -160,7 +161,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   @override
   Widget build(BuildContext context) {
     ref.listen(throttledParamsProvider, (prev, next) {
-      if (prev != next) _runRender();
+      if (prev != next) _runRender(next);
     });
 
     if (_rendered == null) {

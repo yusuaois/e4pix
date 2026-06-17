@@ -240,7 +240,6 @@ class _PreviewContent extends ConsumerWidget {
                               height: imgH * scale,
                               child: PreviewRenderer(
                                 image: state.uiImage,
-                                params: params,
                                 lutTexture: lutEnabled ? lut.textureA : null,
                                 lutSize: lutEnabled ? lut.sizeA : 0,
                                 lutTextureB: lutEnabled ? lut.textureB : null,
@@ -364,7 +363,6 @@ class _PreviewContent extends ConsumerWidget {
               size: fit.destination,
               child: PreviewRenderer(
                 image: image,
-                params: params,
                 lutTexture: lutEnabled ? lut.textureA : null,
                 lutSize: lutEnabled ? lut.sizeA : 0,
                 lutTextureB: lutEnabled ? lut.textureB : null,
@@ -428,7 +426,6 @@ class _PreviewContent extends ConsumerWidget {
                     height: renderedFullH,
                     child: PreviewRenderer(
                       image: image,
-                      params: params,
                       lutTexture: lutEnabled ? lut.textureA : null,
                       lutSize: lutEnabled ? lut.sizeA : 0,
                       lutTextureB: lutEnabled ? lut.textureB : null,

@@ -318,7 +318,6 @@ class _SimpleImageLayer extends ConsumerWidget {
         size: targetSize,
         child: PreviewRenderer(
           image: image,
-          params: params,
           lutTexture: lutTexture,
           lutSize: lutSize,
           lutTextureB: lutTextureB,
@@ -365,7 +364,6 @@ class _SimpleImageLayer extends ConsumerWidget {
               height: renderedFullH,
               child: PreviewRenderer(
                 image: image,
-                params: params,
                 lutTexture: lutTexture,
                 lutSize: lutSize,
                 lutTextureB: lutTextureB,
@@ -526,7 +524,6 @@ class _BlurredBackgroundLayer extends ConsumerWidget {
                   height: image.height.toDouble(),
                   child: PreviewRenderer(
                     image: image,
-                    params: params,
                     lutTexture: lutTexture,
                     lutSize: lutSize,
                     lutTextureB: lutTextureB,

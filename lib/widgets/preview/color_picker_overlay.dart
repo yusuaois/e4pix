@@ -68,7 +68,9 @@ class _ColorPickerOverlayState extends ConsumerState<ColorPickerOverlay> {
         old.sourceImage != widget.sourceImage ||
         old.lutTexture != widget.lutTexture ||
         old.lutTextureB != widget.lutTextureB ||
-        old.curveTexture != widget.curveTexture) {
+        old.curveTexture != widget.curveTexture ||
+        old.sharpenProgram != widget.sharpenProgram ||
+        old.denoiseProgram != widget.denoiseProgram) {
       _render();
     }
   }

@@ -11,7 +11,6 @@ import 'develop_uniforms.dart';
 
 class PreviewRenderer extends ConsumerStatefulWidget {
   final ui.Image image;
-  final AdjustmentParams params;
   final ui.Image? lutTexture;
   final int lutSize;
   final ui.Image? lutTextureB;
@@ -21,7 +20,6 @@ class PreviewRenderer extends ConsumerStatefulWidget {
   const PreviewRenderer({
     super.key,
     required this.image,
-    required this.params,
     this.lutTexture,
     this.lutSize = 0,
     this.lutTextureB,
