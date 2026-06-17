@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/lens_correction_params.dart';
 import '../../../core/models/perspective_params.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../services/lens/lensfun_database.dart';
 import '../../../state/providers.dart';
 import 'shared.dart';
@@ -95,8 +96,7 @@ class LensSection extends ConsumerWidget {
                   ),
                   child: Text(
                     'Auto',
-                    style: TextStyle(
-                      fontSize: 10,
+                    style: AppTypography.labelSmall.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
@@ -124,8 +124,7 @@ class LensSection extends ConsumerWidget {
                     ),
                     child: Text(
                       'reset',
-                      style: TextStyle(
-                        fontSize: 10,
+                      style: AppTypography.labelSmall.copyWith(
                         color: AppColors.faintText,
                       ),
                     ),
@@ -293,9 +292,7 @@ class _SwitchHeader extends StatelessWidget {
           Expanded(
             child: Text(
               label.toUpperCase(),
-              style: TextStyle(
-                fontSize: 10,
-                letterSpacing: 1.4,
+              style: AppTypography.labelSmall.copyWith(
                 fontWeight: FontWeight.w600,
                 color: value ? AppColors.mediumText : AppColors.disabledText,
               ),
@@ -315,7 +312,7 @@ class _SwitchHeader extends StatelessWidget {
 void _snack(BuildContext context, String msg) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text(msg, style: const TextStyle(fontSize: 11)),
+      content: Text(msg, style: AppTypography.bodySmall),
       duration: const Duration(seconds: 2),
       behavior: SnackBarBehavior.floating,
     ),

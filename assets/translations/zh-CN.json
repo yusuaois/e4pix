@@ -443,5 +443,6 @@
   "perspective": "透视矫正",
   "perspectiveHorizontal": "水平",
   "perspectiveVertical": "垂直",
-  "syncPerspective": "透视矫正"
+  "syncPerspective": "透视矫正",
+  "hide": "隐藏"
 }

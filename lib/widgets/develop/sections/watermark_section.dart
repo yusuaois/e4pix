@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/watermark_config.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../services/watermark/watermark_asset_manager.dart';
 import '../../../state/providers.dart';
 import '../../app/theme_color_picker.dart';
@@ -35,7 +36,9 @@ class WatermarkSection extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: Text(
               tr('watermarkDisabledHint'),
-              style: TextStyle(fontSize: 11, color: AppColors.disabledText),
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.disabledText,
+              ),
             ),
           ),
 
@@ -435,7 +438,7 @@ class _SwitchTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 12.5))),
+          Expanded(child: Text(label, style: AppTypography.titleSmall)),
           Switch(
             value: value,
             onChanged: onChanged,
@@ -470,7 +473,7 @@ class _DropdownTile<T> extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(fontSize: 12),
+              style: AppTypography.bodyLarge,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -489,8 +492,7 @@ class _DropdownTile<T> extends StatelessWidget {
                   isExpanded: true,
                   isDense: true,
                   dropdownColor: AppColors.panelBg,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: AppTypography.bodyLarge.copyWith(
                     color: AppColors.textPrimary,
                   ),
                   items: items,
@@ -512,7 +514,7 @@ class _DropLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(fontSize: 12));
+    return Text(text, style: AppTypography.bodyLarge);
   }
 }
 
@@ -537,7 +539,7 @@ class _ColorTile extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(fontSize: 12),
+              style: AppTypography.bodyLarge,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -563,8 +565,7 @@ class _ColorTile extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             '#${color.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()}',
-            style: TextStyle(
-              fontSize: 10.5,
+            style: AppTypography.labelMedium.copyWith(
               fontFamily: 'monospace',
               color: AppColors.faintText,
             ),
@@ -598,7 +599,7 @@ class _SegmentedTile<T> extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(fontSize: 12),
+              style: AppTypography.bodyLarge,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -628,8 +629,7 @@ class _SegmentedTile<T> extends StatelessWidget {
                       ),
                       child: Text(
                         item.label,
-                        style: TextStyle(
-                          fontSize: 11.5,
+                        style: AppTypography.bodyMedium.copyWith(
                           color: selected
                               ? Theme.of(context).colorScheme.primary
                               : AppColors.mediumText,
@@ -675,15 +675,12 @@ class _ShadowIntensityTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(
-                child: Text(label, style: const TextStyle(fontSize: 12.5)),
-              ),
+              Expanded(child: Text(label, style: AppTypography.titleSmall)),
               GestureDetector(
                 onDoubleTap: () => onChanged(0.35),
                 child: Text(
                   '$scaled%',
-                  style: TextStyle(
-                    fontSize: 11.5,
+                  style: AppTypography.bodyMedium.copyWith(
                     fontFamily: 'monospace',
                     color: isNeutral
                         ? AppColors.disabledText
@@ -743,7 +740,7 @@ class _FontFamilyTile extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(fontSize: 12),
+              style: AppTypography.bodyLarge,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -762,8 +759,7 @@ class _FontFamilyTile extends StatelessWidget {
                   isExpanded: true,
                   isDense: true,
                   dropdownColor: AppColors.panelBg,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: AppTypography.bodyLarge.copyWith(
                     color: AppColors.textPrimary,
                   ),
                   items: fonts.map((f) {
@@ -771,7 +767,7 @@ class _FontFamilyTile extends StatelessWidget {
                       value: f,
                       child: Text(
                         f ?? tr('watermarkFontSystem'),
-                        style: TextStyle(fontSize: 12, fontFamily: f),
+                        style: AppTypography.bodyLarge.copyWith(fontFamily: f),
                       ),
                     );
                   }).toList(),
@@ -850,11 +846,13 @@ class _ExifTextFieldState extends State<_ExifTextField> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: TextField(
         controller: _controller,
-        style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+        style: AppTypography.bodyLarge.copyWith(color: AppColors.textPrimary),
         decoration: InputDecoration(
           isDense: true,
           hintText: tr('watermarkExifCustomHint'),
-          hintStyle: TextStyle(fontSize: 11, color: AppColors.disabledText),
+          hintStyle: AppTypography.bodySmall.copyWith(
+            color: AppColors.disabledText,
+          ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(4),
             borderSide: BorderSide(color: AppColors.faintBorder),
@@ -906,7 +904,7 @@ class _FontWeightTile extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(fontSize: 12),
+              style: AppTypography.bodyLarge,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -937,8 +935,7 @@ class _FontWeightTile extends StatelessWidget {
                       ),
                       child: Text(
                         name,
-                        style: TextStyle(
-                          fontSize: 10,
+                        style: AppTypography.labelSmall.copyWith(
                           fontWeight: fw,
                           color: selected
                               ? Theme.of(context).colorScheme.primary
@@ -980,7 +977,7 @@ class _ImportTile extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: const TextStyle(fontSize: 12),
+              style: AppTypography.bodyLarge,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -998,8 +995,7 @@ class _ImportTile extends StatelessWidget {
                       Expanded(
                         child: Text(
                           currentFile!,
-                          style: TextStyle(
-                            fontSize: 10.5,
+                          style: AppTypography.labelMedium.copyWith(
                             fontFamily: 'monospace',
                             color: AppColors.mediumText,
                           ),
@@ -1021,10 +1017,7 @@ class _ImportTile extends StatelessWidget {
                 : OutlinedButton.icon(
                     onPressed: onImport,
                     icon: const Icon(Icons.file_upload_outlined, size: 14),
-                    label: Text(
-                      tr('import'),
-                      style: const TextStyle(fontSize: 11),
-                    ),
+                    label: Text(tr('import'), style: AppTypography.bodySmall),
                     style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       side: BorderSide(color: AppColors.lightBorder),
@@ -1073,8 +1066,7 @@ class _ExifFieldChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 10.5,
+          style: AppTypography.labelMedium.copyWith(
             color: selected
                 ? Theme.of(context).colorScheme.primary
                 : AppColors.faintText,

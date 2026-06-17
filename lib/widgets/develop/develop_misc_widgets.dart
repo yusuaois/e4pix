@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/models/tethered_shot.dart';
+import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 
 // 星级 + 旗标条
@@ -143,7 +144,9 @@ class AIBanner extends ConsumerWidget {
             const SizedBox(width: 10),
             Text(
               tr("aiColorInProgress"),
-              style: TextStyle(fontSize: 11, color: AppColors.mediumText),
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.mediumText,
+              ),
             ),
           ],
         ),
@@ -174,8 +177,7 @@ class AIBanner extends ConsumerWidget {
                     children: [
                       TextSpan(
                         text: tr("aiColorSuggestionLabel"),
-                        style: const TextStyle(
-                          fontSize: 11.5,
+                        style: AppTypography.bodyMedium.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -183,7 +185,7 @@ class AIBanner extends ConsumerWidget {
                         text: s.mood.isNotEmpty
                             ? s.mood
                             : tr("aiColorSuggestionReady"),
-                        style: const TextStyle(fontSize: 11.5),
+                        style: AppTypography.bodyMedium,
                       ),
                     ],
                   ),
@@ -197,7 +199,7 @@ class AIBanner extends ConsumerWidget {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                 ),
-                child: Text(tr("apply"), style: const TextStyle(fontSize: 11)),
+                child: Text(tr("apply"), style: AppTypography.bodySmall),
               ),
               TextButton(
                 onPressed: () =>
@@ -208,7 +210,9 @@ class AIBanner extends ConsumerWidget {
                 ),
                 child: Text(
                   tr("ignore"),
-                  style: TextStyle(fontSize: 11, color: AppColors.mediumText),
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.mediumText,
+                  ),
                 ),
               ),
             ],

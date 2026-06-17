@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_colors.dart';
+import '../core/theme/app_typography.dart';
 
 import '../widgets/settings/tether_tiles.dart';
 import '../widgets/settings/import_tiles.dart';
@@ -66,8 +67,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
       child: Text(
         title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 10,
+        style: AppTypography.labelSmall.copyWith(
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
           color: AppColors.faintText,

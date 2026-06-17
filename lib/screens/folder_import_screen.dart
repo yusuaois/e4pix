@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/theme/app_colors.dart';
+import '../core/theme/app_typography.dart';
 import '../core/constants/raw_formats.dart';
 import '../native/raw_bridge.dart';
 
@@ -97,7 +98,7 @@ class _FolderImportScreenState extends State<_FolderImportScreen> {
         backgroundColor: AppColors.scaffoldBg,
         title: Text(
           p.basename(widget.dirPath),
-          style: const TextStyle(fontSize: 15),
+          style: AppTypography.headlineSmall,
         ),
         actions: [
           if (_rawPaths.isNotEmpty)
@@ -105,7 +106,7 @@ class _FolderImportScreenState extends State<_FolderImportScreen> {
               onPressed: allSelected ? _selectNone : _selectAll,
               child: Text(
                 allSelected ? tr('deselectAll') : tr('selectAll'),
-                style: const TextStyle(fontSize: 13),
+                style: AppTypography.bodyLarge,
               ),
             ),
         ],
@@ -287,8 +288,7 @@ class _RawGridTileState extends State<_RawGridTile>
                 p.basename(widget.path),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 10,
+                style: AppTypography.labelSmall.copyWith(
                   color: AppColors.textPrimary,
                 ),
               ),

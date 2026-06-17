@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 import '../../core/constants/app_info.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../services/app/update_service.dart';
 
 class AboutTiles extends StatelessWidget {
@@ -23,11 +24,10 @@ class AboutTiles extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.info_outline, size: 20),
-              title: Text(tr("version"), style: TextStyle(fontSize: 13.5)),
+              title: Text(tr("version"), style: AppTypography.titleMedium),
               trailing: Text(
                 ver,
-                style: TextStyle(
-                  fontSize: 11,
+                style: AppTypography.bodySmall.copyWith(
                   fontFamily: 'monospace',
                   color: AppColors.mediumText,
                 ),
@@ -36,10 +36,12 @@ class AboutTiles extends StatelessWidget {
             const CheckUpdateTile(),
             ListTile(
               leading: const Icon(Icons.code, size: 20),
-              title: Text(tr("projectUrl"), style: TextStyle(fontSize: 13.5)),
+              title: Text(tr("projectUrl"), style: AppTypography.titleMedium),
               subtitle: Text(
                 AppInfo.repoDisplay,
-                style: TextStyle(fontSize: 11, color: AppColors.faintText),
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.faintText,
+                ),
               ),
               trailing: const Icon(Icons.open_in_new, size: 14),
               onTap: () {
@@ -96,7 +98,7 @@ class _CheckUpdateTileState extends State<CheckUpdateTile> {
   Widget build(BuildContext context) {
     return ListTile(
       leading: const Icon(Icons.system_update_alt, size: 20),
-      title: Text(tr("checkUpdate"), style: const TextStyle(fontSize: 13.5)),
+      title: Text(tr("checkUpdate"), style: AppTypography.titleMedium),
       trailing: _busy
           ? const SizedBox(
               width: 16,
@@ -140,7 +142,7 @@ class UpdateDialog extends StatelessWidget {
       backgroundColor: AppColors.elevatedBg,
       title: Text(
         tr("updateAvailable", args: [info.latestVersion]),
-        style: const TextStyle(fontSize: 16),
+        style: AppTypography.headlineMedium,
       ),
       content: SizedBox(
         width: 360,
@@ -148,7 +150,7 @@ class UpdateDialog extends StatelessWidget {
           child: info.body.trim().isEmpty
               ? Text(
                   tr("updateNoNotes"),
-                  style: const TextStyle(fontSize: 12.5, height: 1.5),
+                  style: AppTypography.titleSmall.copyWith(height: 1.5),
                 )
               : MarkdownBody(
                   data: info.body,
@@ -161,15 +163,13 @@ class UpdateDialog extends StatelessWidget {
                     }
                   },
                   styleSheet: MarkdownStyleSheet(
-                    p: const TextStyle(fontSize: 12.5, height: 1.5),
-                    h2: const TextStyle(
-                      fontSize: 14,
+                    p: AppTypography.titleSmall.copyWith(height: 1.5),
+                    h2: AppTypography.headlineSmall.copyWith(
                       fontWeight: FontWeight.bold,
                       height: 1.8,
                     ),
-                    listBullet: const TextStyle(fontSize: 12.5),
-                    blockquote: TextStyle(
-                      fontSize: 11.5,
+                    listBullet: AppTypography.titleSmall,
+                    blockquote: AppTypography.bodyMedium.copyWith(
                       color: AppColors.faintText,
                     ),
                     blockquoteDecoration: BoxDecoration(

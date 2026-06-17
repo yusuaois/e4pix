@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import '../../core/theme/app_colors.dart';
 
+import '../../core/theme/app_typography.dart';
 import '../../render/cpu_denoise.dart';
 import '../../render/export_template.dart';
 import '../../render/exporter.dart';
@@ -59,7 +60,7 @@ Future<ExportDialogResult?> showExportDialog(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(tr('format'), style: const TextStyle(fontSize: 12)),
+              Text(tr('format'), style: AppTypography.bodyLarge),
               const SizedBox(height: 8),
               SegmentedButton<ExportFormat>(
                 segments: const [
@@ -73,7 +74,7 @@ Future<ExportDialogResult?> showExportDialog(
                 const SizedBox(height: 14),
                 Text(
                   '${tr('quality')}: $quality',
-                  style: const TextStyle(fontSize: 12),
+                  style: AppTypography.bodyLarge,
                 ),
                 Slider(
                   value: quality.toDouble(),
@@ -83,11 +84,13 @@ Future<ExportDialogResult?> showExportDialog(
                 ),
               ],
               const SizedBox(height: 14),
-              Text(tr('exportFilename'), style: const TextStyle(fontSize: 12)),
+              Text(tr('exportFilename'), style: AppTypography.bodyLarge),
               const SizedBox(height: 6),
               TextFormField(
                 initialValue: template,
-                style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
+                style: AppTypography.bodyLarge.copyWith(
+                  fontFamily: 'monospace',
+                ),
                 decoration: InputDecoration(
                   isDense: true,
                   border: const OutlineInputBorder(),
@@ -100,8 +103,7 @@ Future<ExportDialogResult?> showExportDialog(
               Text(
                 '${tr('exportFilenamePreview')}: '
                 '${ExportTemplate.apply(template: template.isEmpty ? ExportTemplate.defaultTemplate : template, originalName: firstName, seq: 1)}.${format.extension}',
-                style: TextStyle(
-                  fontSize: 10.5,
+                style: AppTypography.labelMedium.copyWith(
                   fontFamily: 'monospace',
                   color: AppColors.semanticSuccess.withValues(alpha: 0.7),
                 ),
@@ -117,8 +119,7 @@ Future<ExportDialogResult?> showExportDialog(
                 const SizedBox(height: 4),
                 Text(
                   tr('exportFilenameBatchWarn'),
-                  style: TextStyle(
-                    fontSize: 10,
+                  style: AppTypography.labelSmall.copyWith(
                     color: AppColors.semanticWarning.withValues(alpha: 0.8),
                   ),
                 ),
@@ -127,8 +128,7 @@ Future<ExportDialogResult?> showExportDialog(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   '{name} {seq} {seq3} {date} {camera} {iso}',
-                  style: TextStyle(
-                    fontSize: 9.5,
+                  style: AppTypography.labelSmall.copyWith(
                     fontFamily: 'monospace',
                     color: AppColors.disabledText,
                   ),
@@ -136,7 +136,7 @@ Future<ExportDialogResult?> showExportDialog(
               ),
               if (hasDenoise) ...[
                 const SizedBox(height: 14),
-                Text(tr('denoiseEngine'), style: const TextStyle(fontSize: 12)),
+                Text(tr('denoiseEngine'), style: AppTypography.bodyLarge),
                 const SizedBox(height: 8),
                 SegmentedButton<DenoiseEngine>(
                   segments: [
@@ -144,14 +144,14 @@ Future<ExportDialogResult?> showExportDialog(
                       value: DenoiseEngine.cpu,
                       label: Text(
                         tr('denoiseEngineCpu'),
-                        style: const TextStyle(fontSize: 11),
+                        style: AppTypography.bodySmall,
                       ),
                     ),
                     ButtonSegment(
                       value: DenoiseEngine.gpu,
                       label: Text(
                         tr('denoiseEngineGpu'),
-                        style: const TextStyle(fontSize: 11),
+                        style: AppTypography.bodySmall,
                       ),
                     ),
                   ],
@@ -164,13 +164,17 @@ Future<ExportDialogResult?> showExportDialog(
                   denoiseEngine == DenoiseEngine.cpu
                       ? tr('denoiseEngineCpuHint')
                       : tr('denoiseEngineGpuHint'),
-                  style: TextStyle(fontSize: 10.5, color: AppColors.faintText),
+                  style: AppTypography.labelMedium.copyWith(
+                    color: AppColors.faintText,
+                  ),
                 ),
               ],
               const SizedBox(height: 8),
               Text(
                 tr('exportDescription'),
-                style: TextStyle(fontSize: 11, color: AppColors.mediumText),
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.mediumText,
+                ),
               ),
               if (format == ExportFormat.jpeg) ...[
                 const SizedBox(height: 8),
@@ -181,12 +185,11 @@ Future<ExportDialogResult?> showExportDialog(
                   value: writeExif,
                   title: Text(
                     tr('exportWriteExif'),
-                    style: const TextStyle(fontSize: 12.5),
+                    style: AppTypography.titleSmall,
                   ),
                   subtitle: Text(
                     tr('exportWriteExifDesc'),
-                    style: TextStyle(
-                      fontSize: 10.5,
+                    style: AppTypography.labelMedium.copyWith(
                       color: AppColors.faintText,
                     ),
                   ),

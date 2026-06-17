@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/rgb_curves.dart';
 import '../../../core/models/tone_curve.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../state/providers.dart';
 import 'shared.dart';
 
@@ -173,7 +174,9 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
             children: [
               Text(
                 tr("curveHint"),
-                style: TextStyle(fontSize: 10.5, color: AppColors.disabledText),
+                style: AppTypography.labelMedium.copyWith(
+                  color: AppColors.disabledText,
+                ),
               ),
               TextButton(
                 style: TextButton.styleFrom(
@@ -187,7 +190,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
                 onPressed: curve.isIdentity
                     ? null
                     : () => commit(ToneCurve.identity),
-                child: Text(tr("reset"), style: const TextStyle(fontSize: 12)),
+                child: Text(tr("reset"), style: AppTypography.bodyLarge),
               ),
             ],
           ),
@@ -217,8 +220,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
             label,
             maxLines: 1,
             overflow: TextOverflow.clip,
-            style: TextStyle(
-              fontSize: 10.5,
+            style: AppTypography.labelMedium.copyWith(
               color: sel ? color : AppColors.mediumText,
               fontWeight: sel ? FontWeight.w600 : FontWeight.normal,
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
+import '../../../core/theme/app_typography.dart';
 import '../tracked_slider.dart';
 
 // 通用滑块 tile
@@ -42,15 +43,12 @@ class DevelopSliderTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(
-                child: Text(label, style: const TextStyle(fontSize: 12.5)),
-              ),
+              Expanded(child: Text(label, style: AppTypography.titleSmall)),
               GestureDetector(
                 onDoubleTap: () => onChanged(neutralValue),
                 child: Text(
                   '$sign$display$suffix',
-                  style: TextStyle(
-                    fontSize: 11.5,
+                  style: AppTypography.bodyMedium.copyWith(
                     fontFamily: 'monospace',
                     color: isNeutral
                         ? AppColors.disabledText
@@ -89,9 +87,7 @@ class SectionLabel extends StatelessWidget {
         children: [
           Text(
             title.toUpperCase(),
-            style: TextStyle(
-              fontSize: 10,
-              letterSpacing: 1.4,
+            style: AppTypography.labelSmall.copyWith(
               color: AppColors.disabledText,
               fontWeight: FontWeight.w600,
             ),

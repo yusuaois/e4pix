@@ -15,6 +15,7 @@ import '../core/models/export_job.dart';
 import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
 import '../core/theme/app_colors.dart';
+import '../core/theme/app_typography.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
@@ -117,7 +118,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           title: Text(tr("settingsRememberFolder")),
           content: Text(
             '${tr("settingsRememberAsDefaultDesc")}\n\n$picked',
-            style: const TextStyle(fontSize: 12),
+            style: AppTypography.bodyLarge,
           ),
           actions: [
             TextButton(
@@ -794,7 +795,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     'syncToCount',
                     args: ['${selection.selectedPaths.length}'],
                   ),
-                  style: TextStyle(fontSize: 12, color: AppColors.mediumText),
+                  style: AppTypography.bodyLarge.copyWith(
+                    color: AppColors.mediumText,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 for (final item in SyncItem.values)
@@ -805,13 +808,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     value: items.contains(item),
                     title: Text(
                       tr(item.labelKey),
-                      style: const TextStyle(fontSize: 13),
+                      style: AppTypography.bodyLarge,
                     ),
                     subtitle: item == SyncItem.locals
                         ? Text(
                             tr('syncLocalsWarn'),
-                            style: TextStyle(
-                              fontSize: 10.5,
+                            style: AppTypography.labelMedium.copyWith(
                               color: AppColors.semanticWarning.withValues(
                                 alpha: 0.8,
                               ),

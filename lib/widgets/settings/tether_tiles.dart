@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 
 class TetherFolderTile extends ConsumerWidget {
@@ -24,11 +25,10 @@ class TetherFolderTile extends ConsumerWidget {
 
     return ListTile(
       leading: const Icon(Icons.folder_outlined, size: 20),
-      title: Text(tr("settingsTetherFolder"), style: TextStyle(fontSize: 13.5)),
+      title: Text(tr("settingsTetherFolder"), style: AppTypography.titleMedium),
       subtitle: Text(
         folder ?? tr("settingsTetherFolderNone"),
-        style: TextStyle(
-          fontSize: 11,
+        style: AppTypography.bodySmall.copyWith(
           fontFamily: folder != null ? 'monospace' : null,
           color: folder == null ? AppColors.disabledText : AppColors.mediumText,
         ),
@@ -47,7 +47,7 @@ class TetherFolderTile extends ConsumerWidget {
             ),
           TextButton(
             onPressed: pick,
-            child: Text(tr("browse"), style: TextStyle(fontSize: 12)),
+            child: Text(tr("browse"), style: AppTypography.bodyLarge),
           ),
         ],
       ),

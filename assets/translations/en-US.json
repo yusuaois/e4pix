@@ -443,5 +443,6 @@
   "perspective": "Perspective",
   "perspectiveHorizontal": "Horizontal",
   "perspectiveVertical": "Vertical",
-  "syncPerspective": "Perspective Correction"
+  "syncPerspective": "Perspective Correction",
+  "hide": "Hide"
 }

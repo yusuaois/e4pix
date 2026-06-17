@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../services/export/xmp_export.dart';
 import '../../../services/export/xmp_import.dart';
 import '../../../state/providers.dart';
@@ -91,6 +92,7 @@ class _PresetBarState extends ConsumerState<PresetBar> {
               tooltip: tr("saveCurrentAsPreset"),
               onPressed: () => showSavePresetDialog(context, notifier),
               padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             ),
             IconButton(
@@ -98,6 +100,7 @@ class _PresetBarState extends ConsumerState<PresetBar> {
               tooltip: tr("xmpImport"),
               onPressed: () => importXmpPreset(context, ref),
               padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             ),
             IconButton(
@@ -105,6 +108,7 @@ class _PresetBarState extends ConsumerState<PresetBar> {
               tooltip: tr("exportPreset"),
               onPressed: () => exportXmpPreset(context, ref),
               padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             ),
           ],
@@ -144,44 +148,53 @@ class PresetGrid extends ConsumerWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.bookmark_add_outlined, size: 14),
-                      label: Text(
-                        tr("saveCurrentAsPreset"),
-                        style: const TextStyle(fontSize: 10),
-                      ),
+                    child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
                       ),
                       onPressed: () => showSavePresetDialog(context, notifier),
+                      child: Text(
+                        tr("saveCurrentAsPreset"),
+                        style: AppTypography.labelSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.input, size: 14),
-                      label: Text(
-                        tr("xmpImport"),
-                        style: const TextStyle(fontSize: 10),
-                      ),
+                    child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
                       ),
                       onPressed: () => importXmpPreset(context, ref),
+                      child: Text(
+                        tr("xmpImport"),
+                        style: AppTypography.labelSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.file_download_outlined, size: 14),
-                      label: Text(
-                        tr("exportPreset"),
-                        style: const TextStyle(fontSize: 10),
-                      ),
+                    child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
                       ),
                       onPressed: () => exportXmpPreset(context, ref),
+                      child: Text(
+                        tr("exportPreset"),
+                        style: AppTypography.labelSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                 ],
@@ -273,7 +286,7 @@ class _PresetCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     preset.name,
-                    style: TextStyle(fontSize: 10.5, color: primary),
+                    style: AppTypography.labelMedium.copyWith(color: primary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -322,7 +335,7 @@ class PresetChip extends ConsumerWidget {
         ),
         child: Text(
           preset.name,
-          style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+          style: AppTypography.bodyLarge.copyWith(color: AppColors.textPrimary),
         ),
       ),
     );

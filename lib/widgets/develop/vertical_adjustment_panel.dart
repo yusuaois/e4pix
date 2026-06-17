@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
 import 'sections/preset_section.dart';
@@ -38,7 +39,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                         isScrollable: true,
                         tabAlignment: TabAlignment.start,
                         indicatorSize: TabBarIndicatorSize.label,
-                        labelStyle: const TextStyle(fontSize: 11),
+                        labelStyle: AppTypography.bodySmall,
                         labelColor: AppColors.textPrimary,
                         unselectedLabelColor: AppColors.textTertiary,
                         tabs: [

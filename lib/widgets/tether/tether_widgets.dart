@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/tethered_shot.dart';
+import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 
 // 顶部状态条
@@ -54,8 +55,7 @@ class TetherStatusBar extends ConsumerWidget {
           const SizedBox(width: 8),
           Text(
             'Tether',
-            style: TextStyle(
-              fontSize: 11.5,
+            style: AppTypography.bodyMedium.copyWith(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.w600,
             ),
@@ -65,7 +65,9 @@ class TetherStatusBar extends ConsumerWidget {
             child: Text(
               '${tr("shotCount", args: [shotCount.toString()])}'
               '${lastShotAt == null ? '' : ' · ${_ago(lastShotAt!)}'}',
-              style: TextStyle(fontSize: 11, color: AppColors.mediumText),
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.mediumText,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -110,8 +112,7 @@ class TetherStatusBar extends ConsumerWidget {
           const SizedBox(width: 10),
           Text(
             'Tether',
-            style: TextStyle(
-              fontSize: 11.5,
+            style: AppTypography.bodyMedium.copyWith(
               color: AppColors.activeValue,
               fontWeight: FontWeight.w600,
             ),
@@ -120,8 +121,7 @@ class TetherStatusBar extends ConsumerWidget {
           Expanded(
             child: Text(
               watchPath,
-              style: TextStyle(
-                fontSize: 11.5,
+              style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.mediumText,
                 fontFamily: 'monospace',
               ),
@@ -132,7 +132,9 @@ class TetherStatusBar extends ConsumerWidget {
           Text(
             '${tr("shotCount", args: [shotCount.toString()])}'
             '${lastShotAt == null ? '' : ' · ${_ago(lastShotAt!)}'}',
-            style: TextStyle(fontSize: 11.5, color: AppColors.mediumText),
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.mediumText,
+            ),
           ),
           const SizedBox(width: 14),
 
@@ -145,7 +147,7 @@ class TetherStatusBar extends ConsumerWidget {
           TextButton.icon(
             onPressed: onStop,
             icon: const Icon(Icons.stop_circle_outlined, size: 14),
-            label: Text(tr("stop"), style: TextStyle(fontSize: 11)),
+            label: Text(tr("stop"), style: AppTypography.bodySmall),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.semanticError,
               visualDensity: VisualDensity.compact,
@@ -180,7 +182,7 @@ class _PreserveToggle extends StatelessWidget {
         ),
         label: Text(
           preserved ? tr("preserveMode") : tr("isolateMode"),
-          style: TextStyle(fontSize: 11, color: color),
+          style: AppTypography.bodySmall.copyWith(color: color),
         ),
         style: TextButton.styleFrom(
           visualDensity: VisualDensity.compact,
@@ -407,13 +409,13 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
                                         ),
                                         borderRadius: BorderRadius.circular(2),
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'Now',
-                                        style: TextStyle(
-                                          fontSize: 8.5,
-                                          color: AppColors.textPrimary,
-                                          letterSpacing: 0.5,
-                                        ),
+                                        style: AppTypography.labelSmall
+                                            .copyWith(
+                                              color: AppColors.textPrimary,
+                                              letterSpacing: 0.5,
+                                            ),
                                       ),
                                     ),
                                   ),

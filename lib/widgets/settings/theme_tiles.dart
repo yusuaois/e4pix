@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 import '../app/theme_color_picker.dart';
 
@@ -28,11 +29,11 @@ class ThemeTiles extends ConsumerWidget {
           secondary: const Icon(Icons.palette_outlined, size: 20),
           title: Text(
             tr("settingsDynamicColor"),
-            style: const TextStyle(fontSize: 13.5),
+            style: AppTypography.titleMedium,
           ),
           subtitle: Text(
             tr("settingsDynamicColorHint"),
-            style: TextStyle(fontSize: 11, color: AppColors.faintText),
+            style: AppTypography.bodySmall.copyWith(color: AppColors.faintText),
           ),
           value: dynamicEnabled,
           onChanged: (v) =>
@@ -45,7 +46,9 @@ class ThemeTiles extends ConsumerWidget {
               children: [
                 Text(
                   tr("settingsCustomColor"),
-                  style: TextStyle(fontSize: 12.5, color: AppColors.mediumText),
+                  style: AppTypography.titleSmall.copyWith(
+                    color: AppColors.mediumText,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 for (final c in _presets) ...[

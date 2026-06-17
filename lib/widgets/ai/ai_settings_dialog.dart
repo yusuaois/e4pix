@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../services/ai/ai_providers.dart';
 import '../../services/ai/ai_settings.dart';
 
@@ -104,7 +105,9 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
               // —— 1. Provider —— //
               Text(
                 tr("aiProvider"),
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: AppTypography.bodyLarge.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 6),
               DropdownButtonFormField<AIProviderId>(
@@ -123,7 +126,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                         value: p.id,
                         child: Text(
                           p.displayName,
-                          style: const TextStyle(fontSize: 12),
+                          style: AppTypography.bodyLarge,
                         ),
                       ),
                     )
@@ -135,7 +138,9 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
               // —— 2. Model —— //
               Text(
                 tr("model"),
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: AppTypography.bodyLarge.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
@@ -152,10 +157,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                     .map(
                       (m) => DropdownMenuItem(
                         value: m.id,
-                        child: Text(
-                          m.label,
-                          style: const TextStyle(fontSize: 12),
-                        ),
+                        child: Text(m.label, style: AppTypography.bodyLarge),
                       ),
                     )
                     .toList(),
@@ -167,8 +169,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
               // —— 3. API Key —— //
               Text(
                 '${provider.displayName} ${tr("apiKey")}',
-                style: const TextStyle(
-                  fontSize: 12,
+                style: AppTypography.bodyLarge.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -192,12 +193,16 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                 ),
-                style: const TextStyle(fontSize: 11.5, fontFamily: 'monospace'),
+                style: AppTypography.bodyMedium.copyWith(
+                  fontFamily: 'monospace',
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 _keyOriginFor(_providerId),
-                style: TextStyle(fontSize: 10, color: AppColors.faintText),
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.faintText,
+                ),
               ),
 
               const Divider(height: 28),
@@ -220,16 +225,14 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                           children: [
                             Text(
                               tr("aiColorSuggestionTetherAuto"),
-                              style: TextStyle(
-                                fontSize: 12,
+                              style: AppTypography.bodyLarge.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             SizedBox(height: 2),
                             Text(
                               tr("aiColorSuggestionTetherAutoDescription"),
-                              style: TextStyle(
-                                fontSize: 10.5,
+                              style: AppTypography.labelMedium.copyWith(
                                 color: AppColors.mediumText,
                               ),
                             ),

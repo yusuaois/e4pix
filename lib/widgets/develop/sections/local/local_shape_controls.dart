@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/local_adjustment.dart';
 import '../../../../core/models/mask_shape.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../state/providers.dart';
 import '../local_section.dart';
 
@@ -48,7 +49,7 @@ class LocalShapeControls extends ConsumerWidget {
             children: [
               SizedBox(
                 width: 64,
-                child: Text(tr("invert"), style: TextStyle(fontSize: 10.5)),
+                child: Text(tr("invert"), style: AppTypography.labelMedium),
               ),
               Switch(
                 value: shape.inverted,

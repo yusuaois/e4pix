@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/tethered_shot.dart';
+import '../../core/theme/app_typography.dart';
 import '../../screens/settings_screen.dart';
 import '../../state/providers.dart';
 import '../export/export_queue_panel.dart';
@@ -300,7 +301,7 @@ class DevelopTopBar extends ConsumerWidget {
     // 角标
     if (badgeCount > 0) {
       iconWidget = Badge(
-        label: Text('$badgeCount', style: const TextStyle(fontSize: 9)),
+        label: Text('$badgeCount', style: AppTypography.labelSmall),
         backgroundColor: AppColors.semanticWarning,
         child: iconWidget,
       );
@@ -441,8 +442,7 @@ class DevelopTopBar extends ConsumerWidget {
             ),
             child: Text(
               tr('selectedShots', args: ['${selection.selectedPaths.length}']),
-              style: TextStyle(
-                fontSize: 10,
+              style: AppTypography.labelSmall.copyWith(
                 fontWeight: FontWeight.w600,
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -470,7 +470,7 @@ class DevelopTopBar extends ConsumerWidget {
           selection.selectedPaths.length == shots.length
               ? tr('selectNone')
               : tr('selectAll'),
-          style: const TextStyle(fontSize: 10),
+          style: AppTypography.labelSmall,
         ),
       ),
     ];

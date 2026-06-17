@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/local_adjustment.dart';
 import '../../../core/models/mask_shape.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../services/local/sam_session.dart';
 import '../../../state/providers.dart';
 import '../develop_sections.dart';
@@ -33,40 +34,58 @@ class LocalPanel extends ConsumerWidget {
           child: Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.gradient, size: 14),
-                  label: Text(tr("linear"), style: TextStyle(fontSize: 10)),
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
                   onPressed: atLimit
                       ? null
                       : () => LocalAdjustmentActions(ref).addLinear(),
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
+                  child: Text(
+                    tr("linear"),
+                    style: AppTypography.labelSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.brightness_5, size: 14),
-                  label: Text(tr("radial"), style: TextStyle(fontSize: 10)),
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
                   onPressed: atLimit
                       ? null
                       : () => LocalAdjustmentActions(ref).addRadial(),
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
+                  child: Text(
+                    tr("radial"),
+                    style: AppTypography.labelSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.brush, size: 14),
-                  label: Text(tr("brush"), style: TextStyle(fontSize: 10)),
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
                   onPressed: atLimit
                       ? null
                       : () => LocalAdjustmentActions(ref).addBrush(),
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
+                  child: Text(
+                    tr("brush"),
+                    style: AppTypography.labelSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -78,7 +97,9 @@ class LocalPanel extends ConsumerWidget {
             padding: EdgeInsets.fromLTRB(20, 4, 16, 8),
             child: Text(
               tr("notAddedLocalAdjustment"),
-              style: TextStyle(fontSize: 10.5, color: AppColors.disabledText),
+              style: AppTypography.labelMedium.copyWith(
+                color: AppColors.disabledText,
+              ),
             ),
           )
         else
@@ -97,7 +118,7 @@ class LocalPanel extends ConsumerWidget {
             child: TextButton(
               onPressed: () =>
                   ref.read(selectedLocalIdProvider.notifier).state = null,
-              child: Text(tr("completed"), style: TextStyle(fontSize: 10)),
+              child: Text(tr("completed"), style: AppTypography.labelSmall),
             ),
           ),
         ],
@@ -137,7 +158,7 @@ class _MaskListItem extends ConsumerWidget {
               Expanded(
                 child: Text(
                   local.name,
-                  style: TextStyle(fontSize: 12, color: color),
+                  style: AppTypography.bodyLarge.copyWith(color: color),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -198,7 +219,7 @@ class MiniSlider extends StatelessWidget {
         children: [
           SizedBox(
             width: 64,
-            child: Text(label, style: const TextStyle(fontSize: 10.5)),
+            child: Text(label, style: AppTypography.labelMedium),
           ),
           Expanded(
             child: SliderTheme(
@@ -216,8 +237,7 @@ class MiniSlider extends StatelessWidget {
             child: Text(
               formatter != null ? formatter!(value) : value.round().toString(),
               textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontSize: 10.5,
+              style: AppTypography.labelMedium.copyWith(
                 fontFamily: 'monospace',
                 color: AppColors.textPrimary,
               ),

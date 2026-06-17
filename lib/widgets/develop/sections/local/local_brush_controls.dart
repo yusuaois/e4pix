@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/local_adjustment.dart';
 import '../../../../core/models/mask_shape.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../services/local/sam_session.dart';
 import '../../../../state/providers.dart';
 import '../local_section.dart';
@@ -30,14 +31,14 @@ class BrushControls extends ConsumerWidget {
             segments: [
               ButtonSegment(
                 value: BrushMode.paint,
-                label: Text(tr("brush"), style: TextStyle(fontSize: 10)),
+                label: Text(tr("brush"), style: AppTypography.labelSmall),
                 icon: Icon(Icons.brush, size: 14),
               ),
               ButtonSegment(
                 value: BrushMode.wand,
                 label: Text(
                   tr("localBrushIntellgentArea"),
-                  style: TextStyle(fontSize: 10),
+                  style: AppTypography.labelSmall,
                 ),
                 icon: Icon(Icons.auto_fix_high, size: 14),
               ),
@@ -45,7 +46,7 @@ class BrushControls extends ConsumerWidget {
                 value: BrushMode.subject,
                 label: Text(
                   tr("localBrushSubject"),
-                  style: TextStyle(fontSize: 10),
+                  style: AppTypography.labelSmall,
                 ),
                 icon: Icon(Icons.center_focus_strong, size: 14),
               ),
@@ -76,8 +77,7 @@ class BrushControls extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     '${tr("localBrushStroke", args: ["${mask.strokes.length}"])}${mask.baseRaster != null ? tr("localBrushIntellgentAreaChosen") : ""}',
-                    style: TextStyle(
-                      fontSize: 10.5,
+                    style: AppTypography.labelMedium.copyWith(
                       color: AppColors.disabledText,
                     ),
                     maxLines: 1,
@@ -96,7 +96,7 @@ class BrushControls extends ConsumerWidget {
                     ),
                     child: Text(
                       tr("localBrushIntellgentAreaClear"),
-                      style: TextStyle(fontSize: 10),
+                      style: AppTypography.labelSmall,
                     ),
                   ),
                 if (mask.strokes.isNotEmpty)
@@ -109,7 +109,7 @@ class BrushControls extends ConsumerWidget {
                     ),
                     child: Text(
                       tr("localBrushStrokeClear"),
-                      style: TextStyle(fontSize: 10),
+                      style: AppTypography.labelSmall,
                     ),
                   ),
               ],
@@ -140,7 +140,9 @@ class BrushControls extends ConsumerWidget {
                   busy
                       ? tr("localBrushIntellgentAreaCalculating")
                       : tr("localBrushIntellgentAreaHint"),
-                  style: TextStyle(fontSize: 10.5, color: AppColors.faintText),
+                  style: AppTypography.labelMedium.copyWith(
+                    color: AppColors.faintText,
+                  ),
                 ),
               ),
             ],
@@ -163,7 +165,7 @@ class BrushControls extends ConsumerWidget {
                 width: 64,
                 child: Text(
                   tr("localBrushInverse"),
-                  style: TextStyle(fontSize: 10.5),
+                  style: AppTypography.labelMedium,
                 ),
               ),
               Switch(
@@ -206,7 +208,9 @@ class BrushControls extends ConsumerWidget {
                       : negative
                       ? tr("localBrushSubjectExcludeHint")
                       : tr("localBrushSubjectHint"),
-                  style: TextStyle(fontSize: 10.5, color: AppColors.faintText),
+                  style: AppTypography.labelMedium.copyWith(
+                    color: AppColors.faintText,
+                  ),
                 ),
               ),
             ],
@@ -220,7 +224,7 @@ class BrushControls extends ConsumerWidget {
                 value: false,
                 label: Text(
                   tr("localBrushSubjectExcludeAdd"),
-                  style: TextStyle(fontSize: 10),
+                  style: AppTypography.labelSmall,
                 ),
                 icon: Icon(Icons.add, size: 14),
               ),
@@ -228,7 +232,7 @@ class BrushControls extends ConsumerWidget {
                 value: true,
                 label: Text(
                   tr("localBrushSubjectExcludeSubtract"),
-                  style: TextStyle(fontSize: 10),
+                  style: AppTypography.labelSmall,
                 ),
                 icon: Icon(Icons.remove, size: 14),
               ),
@@ -249,7 +253,7 @@ class BrushControls extends ConsumerWidget {
                 width: 64,
                 child: Text(
                   tr("localBrushInverse"),
-                  style: TextStyle(fontSize: 10.5),
+                  style: AppTypography.labelMedium,
                 ),
               ),
               Switch(
@@ -285,7 +289,7 @@ class BrushControls extends ConsumerWidget {
                 width: 64,
                 child: Text(
                   tr("localBrushMode"),
-                  style: TextStyle(fontSize: 10.5),
+                  style: AppTypography.labelMedium,
                 ),
               ),
               Expanded(
@@ -295,7 +299,7 @@ class BrushControls extends ConsumerWidget {
                       value: false,
                       label: Text(
                         tr("localBrushModePaint"),
-                        style: TextStyle(fontSize: 10),
+                        style: AppTypography.labelSmall,
                       ),
                       icon: Icon(Icons.add, size: 14),
                     ),
@@ -303,7 +307,7 @@ class BrushControls extends ConsumerWidget {
                       value: true,
                       label: Text(
                         tr("localBrushModeErase"),
-                        style: TextStyle(fontSize: 10),
+                        style: AppTypography.labelSmall,
                       ),
                       icon: Icon(Icons.remove, size: 14),
                     ),
@@ -355,7 +359,7 @@ class BrushControls extends ConsumerWidget {
                 width: 64,
                 child: Text(
                   tr("localBrushAutoMask"),
-                  style: TextStyle(fontSize: 10.5),
+                  style: AppTypography.labelMedium,
                 ),
               ),
               Switch(
@@ -367,7 +371,9 @@ class BrushControls extends ConsumerWidget {
               const Spacer(),
               Text(
                 tr("localBrushEdgeSnap"),
-                style: TextStyle(fontSize: 10, color: AppColors.disabledText),
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.disabledText,
+                ),
               ),
             ],
           ),

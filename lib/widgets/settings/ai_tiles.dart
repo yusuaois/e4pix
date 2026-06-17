@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../ai/ai_settings_dialog.dart';
 
 class AISettingsLink extends StatelessWidget {
@@ -13,11 +14,11 @@ class AISettingsLink extends StatelessWidget {
       leading: const Icon(Icons.auto_awesome, size: 20),
       title: Text(
         tr("settingsAIConfiguration"),
-        style: TextStyle(fontSize: 13.5),
+        style: AppTypography.titleMedium,
       ),
       subtitle: Text(
         tr("settingsAIConfigurationHint"),
-        style: TextStyle(fontSize: 11, color: AppColors.faintText),
+        style: AppTypography.bodySmall.copyWith(color: AppColors.faintText),
       ),
       trailing: const Icon(Icons.arrow_forward_ios, size: 14),
       onTap: () {

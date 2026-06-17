@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../render/mask_cache.dart';
@@ -224,8 +225,7 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
                   HistogramMode.luma => 'LUMA',
                   HistogramMode.color => 'COLOR',
                 },
-                style: TextStyle(
-                  fontSize: 8.5,
+                style: AppTypography.labelSmall.copyWith(
                   fontFamily: 'monospace',
                   letterSpacing: 1,
                   color: AppColors.disabledText,

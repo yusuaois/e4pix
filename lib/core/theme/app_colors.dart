@@ -5,6 +5,7 @@ class AppColors {
   AppColors._();
 
   // ── 背景（中性黑/灰梯度）──
+  static const pureBlack = Color(0xFF000000); // 纯黑（预览区/全屏）
   static const scaffoldBg = Color(0xFF121212); // 主屏背景：极深炭黑
   static const panelBg = Color(0xFF1E1E1E); // 卡片/面板背景：中性深灰
   static const surfaceBg = Color(0xFF242424); // 悬浮元素背景：稍浅灰

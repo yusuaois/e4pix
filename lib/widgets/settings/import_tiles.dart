@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 
 class ImportModeTiles extends ConsumerWidget {
@@ -19,10 +20,10 @@ class ImportModeTiles extends ConsumerWidget {
         dense: true,
         controlAffinity: ListTileControlAffinity.leading,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-        title: Text(title, style: const TextStyle(fontSize: 13)),
+        title: Text(title, style: AppTypography.bodyLarge),
         subtitle: Text(
           desc,
-          style: TextStyle(fontSize: 11, color: AppColors.faintText),
+          style: AppTypography.bodySmall.copyWith(color: AppColors.faintText),
         ),
       );
     }
@@ -41,7 +42,7 @@ class ImportModeTiles extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     tr('importMode'),
-                    style: const TextStyle(fontSize: 13.5),
+                    style: AppTypography.titleMedium,
                   ),
                 ),
               ],

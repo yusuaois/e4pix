@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/models/tethered_shot.dart';
+import '../../core/theme/app_typography.dart';
 import '../../native/raw_bridge.dart';
 import '../../state/providers.dart';
 import '../develop/develop_misc_widgets.dart';
@@ -60,7 +61,7 @@ class ImageInfoBar extends ConsumerWidget {
                       : (path != null
                             ? p.basename(path)
                             : tr('imageNotChosen')),
-                  style: const TextStyle(fontSize: 11),
+                  style: AppTypography.bodySmall,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -68,8 +69,7 @@ class ImageInfoBar extends ConsumerWidget {
               if (image != null) ...[
                 Text(
                   '${image.width}×${image.height}',
-                  style: TextStyle(
-                    fontSize: 10,
+                  style: AppTypography.labelSmall.copyWith(
                     fontFamily: 'monospace',
                     color: AppColors.semanticSuccess.withValues(alpha: 0.8),
                   ),
@@ -87,8 +87,7 @@ class ImageInfoBar extends ConsumerWidget {
                   const SizedBox(width: 4),
                   Text(
                     'HD…',
-                    style: TextStyle(
-                      fontSize: 10,
+                    style: AppTypography.labelSmall.copyWith(
                       color: AppColors.semanticWarning.withValues(alpha: 0.7),
                       fontFamily: 'monospace',
                     ),
@@ -145,7 +144,7 @@ class ImageInfoBar extends ConsumerWidget {
             m?.summary.isNotEmpty == true
                 ? m!.summary
                 : (path != null ? p.basename(path) : tr('imageNotChosen')),
-            style: const TextStyle(fontSize: 11),
+            style: AppTypography.bodySmall,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -159,8 +158,7 @@ class ImageInfoBar extends ConsumerWidget {
                     '${image.bitsPerChannel}-bit · '
                     'decode ${image.decodeTime.inMilliseconds}ms · '
                     'convert ${image.convertTime.inMilliseconds}ms',
-                    style: TextStyle(
-                      fontSize: 9.5,
+                    style: AppTypography.labelSmall.copyWith(
                       fontFamily: 'monospace',
                       color: AppColors.semanticSuccess.withValues(alpha: 0.75),
                     ),
@@ -199,7 +197,7 @@ class ImageInfoBar extends ConsumerWidget {
               ),
               label: Text(
                 Platform.isAndroid ? tr("folderImport") : tr("imageChoose"),
-                style: const TextStyle(fontSize: 12),
+                style: AppTypography.bodyLarge,
               ),
               style: OutlinedButton.styleFrom(
                 visualDensity: VisualDensity.compact,

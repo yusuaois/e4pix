@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 
 class CropPanel extends ConsumerStatefulWidget {
@@ -112,7 +113,7 @@ class _CropPanelState extends ConsumerState<CropPanel> {
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(tr("reset"), style: TextStyle(fontSize: 12)),
+                child: Text(tr("reset"), style: AppTypography.bodyLarge),
               ),
               TextButton(
                 onPressed: () => cancelCrop(ref),
@@ -121,7 +122,7 @@ class _CropPanelState extends ConsumerState<CropPanel> {
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(tr("cancel"), style: TextStyle(fontSize: 12)),
+                child: Text(tr("cancel"), style: AppTypography.bodyLarge),
               ),
               const SizedBox(width: 4),
               FilledButton(
@@ -132,7 +133,7 @@ class _CropPanelState extends ConsumerState<CropPanel> {
                   visualDensity: VisualDensity.compact,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(tr("apply"), style: TextStyle(fontSize: 12)),
+                child: Text(tr("apply"), style: AppTypography.bodyLarge),
               ),
             ],
           ),
@@ -253,8 +254,7 @@ class _CropPanelState extends ConsumerState<CropPanel> {
                 child: Text(
                   '${draft.straighten.toStringAsFixed(1)}°',
                   textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: 10,
+                  style: AppTypography.labelSmall.copyWith(
                     fontFamily: 'monospace',
                     color: AppColors.mediumText,
                   ),
@@ -293,7 +293,7 @@ class _AspectChip extends ConsumerWidget {
           color: AppColors.dividerLine,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(label, style: const TextStyle(fontSize: 11)),
+        child: Text(label, style: AppTypography.bodySmall),
       ),
     );
   }

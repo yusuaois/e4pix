@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
 import '../../../core/models/hsl_bands.dart';
+import '../../../core/theme/app_typography.dart';
 import '../tracked_slider.dart';
 import 'shared.dart';
 
@@ -67,7 +68,9 @@ class _HslSectionState extends State<HslSection> {
                   onTap: () => widget.onChanged(HslBands.neutral),
                   child: Text(
                     'reset',
-                    style: TextStyle(fontSize: 10, color: AppColors.faintText),
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.faintText,
+                    ),
                   ),
                 )
               : null,
@@ -78,7 +81,7 @@ class _HslSectionState extends State<HslSection> {
           child: SegmentedButton<int>(
             style: SegmentedButton.styleFrom(
               visualDensity: VisualDensity.compact,
-              textStyle: const TextStyle(fontSize: 11),
+              textStyle: AppTypography.bodySmall,
             ),
             segments: [
               ButtonSegment(value: 0, label: Text(tr("hue"))),
@@ -135,7 +138,7 @@ class _BandRow extends StatelessWidget {
           const SizedBox(width: 8),
           SizedBox(
             width: 56,
-            child: Text(label, style: const TextStyle(fontSize: 11.5)),
+            child: Text(label, style: AppTypography.bodyMedium),
           ),
           Expanded(
             child: SliderTheme(
@@ -155,8 +158,7 @@ class _BandRow extends StatelessWidget {
               child: Text(
                 '$sign${value.toStringAsFixed(0)}',
                 textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: 10.5,
+                style: AppTypography.labelMedium.copyWith(
                   fontFamily: 'monospace',
                   color: isNeutral
                       ? AppColors.disabledText

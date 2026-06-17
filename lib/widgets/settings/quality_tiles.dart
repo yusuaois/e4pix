@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 
 class QualityTiles extends ConsumerWidget {
@@ -24,7 +25,7 @@ class QualityTiles extends ConsumerWidget {
               Expanded(
                 child: Text(
                   tr("settingsPreviewQuality"),
-                  style: const TextStyle(fontSize: 13.5),
+                  style: AppTypography.titleMedium,
                 ),
               ),
             ],
@@ -36,24 +37,18 @@ class QualityTiles extends ConsumerWidget {
             segments: [
               ButtonSegment(
                 value: PreviewQuality.low,
-                label: Text(
-                  tr("qualityLow"),
-                  style: const TextStyle(fontSize: 12),
-                ),
+                label: Text(tr("qualityLow"), style: AppTypography.bodyLarge),
               ),
               ButtonSegment(
                 value: PreviewQuality.medium,
                 label: Text(
                   tr("qualityMedium"),
-                  style: const TextStyle(fontSize: 12),
+                  style: AppTypography.bodyLarge,
                 ),
               ),
               ButtonSegment(
                 value: PreviewQuality.high,
-                label: Text(
-                  tr("qualityHigh"),
-                  style: const TextStyle(fontSize: 12),
-                ),
+                label: Text(tr("qualityHigh"), style: AppTypography.bodyLarge),
               ),
             ],
             selected: {pq},
@@ -65,16 +60,15 @@ class QualityTiles extends ConsumerWidget {
           leading: const Icon(Icons.high_quality_outlined, size: 20),
           title: Text(
             tr("settingsExportQuality"),
-            style: const TextStyle(fontSize: 13.5),
+            style: AppTypography.titleMedium,
           ),
           subtitle: Text(
             tr("settingsExportQualityHint"),
-            style: TextStyle(fontSize: 11, color: AppColors.faintText),
+            style: AppTypography.bodySmall.copyWith(color: AppColors.faintText),
           ),
           trailing: Text(
             '$eq',
-            style: TextStyle(
-              fontSize: 12,
+            style: AppTypography.bodyLarge.copyWith(
               fontFamily: 'monospace',
               color: AppColors.mediumText,
             ),
@@ -95,18 +89,17 @@ class QualityTiles extends ConsumerWidget {
           leading: const Icon(Icons.cached, size: 20),
           title: Text(
             tr('imageCacheCapacity'),
-            style: const TextStyle(fontSize: 13.5),
+            style: AppTypography.titleMedium,
           ),
           subtitle: Text(
             tr('imageCacheCapacityHint'),
-            style: TextStyle(fontSize: 11, color: AppColors.faintText),
+            style: AppTypography.bodySmall.copyWith(color: AppColors.faintText),
           ),
           trailing: SizedBox(
             width: 44,
             child: Text(
               '${ref.watch(imageCacheCapacityProvider)}',
-              style: TextStyle(
-                fontSize: 12,
+              style: AppTypography.bodyLarge.copyWith(
                 fontFamily: 'monospace',
                 color: AppColors.mediumText,
               ),

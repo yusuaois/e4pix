@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 
 class CropOverlay extends ConsumerStatefulWidget {
@@ -298,11 +299,10 @@ class _CropPainter extends CustomPainter {
       text: TextSpan(
         text:
             '${crop.straighten >= 0 ? "+" : ""}${crop.straighten.toStringAsFixed(1)}°',
-        style: const TextStyle(
+        style: AppTypography.bodySmall.copyWith(
           color: AppColors.textPrimary,
-          fontSize: 11,
           fontWeight: FontWeight.w500,
-          shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+          shadows: [const Shadow(blurRadius: 2, color: Colors.black)],
         ),
       ),
       textDirection: TextDirection.ltr,

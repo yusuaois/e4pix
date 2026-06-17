@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
+import '../../core/theme/app_typography.dart';
 import '../../services/app/app_settings.dart';
 import '../../services/camera/camera_controller.dart';
 
@@ -93,7 +94,9 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                 children: [
                   Text(
                     tr("detectedCameras"),
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    style: AppTypography.bodyLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
@@ -124,8 +127,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                     : _error != null
                     ? Text(
                         _error!,
-                        style: const TextStyle(
-                          fontSize: 11,
+                        style: AppTypography.bodySmall.copyWith(
                           color: AppColors.semanticError,
                         ),
                       )
@@ -133,8 +135,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                     ? Platform.isAndroid
                           ? Text(
                               '${tr("noCamerasFound")}\n· Android: ${tr("tetherOtherModeHint")}',
-                              style: TextStyle(
-                                fontSize: 11,
+                              style: AppTypography.bodySmall.copyWith(
                                 color: AppColors.mediumText,
                               ),
                             )
@@ -144,16 +145,14 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                                     '· Windows: ${tr("tetherWindowsModeHint")}\n'
                                     '   - usbipd list\n'
                                     '   - usbipd attach --wsl --busid <busid>\n',
-                                    style: TextStyle(
-                                      fontSize: 11,
+                                    style: AppTypography.bodySmall.copyWith(
                                       color: AppColors.mediumText,
                                     ),
                                   )
                                 : Text(
                                     '${tr("noCamerasFound")}\n'
                                     '· Linux/macOS: ${tr("tetherOtherModeHint")}',
-                                    style: TextStyle(
-                                      fontSize: 11,
+                                    style: AppTypography.bodySmall.copyWith(
                                       color: AppColors.mediumText,
                                     ),
                                   ))
@@ -179,13 +178,12 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                                   Expanded(
                                     child: Text(
                                       c.model,
-                                      style: const TextStyle(fontSize: 12),
+                                      style: AppTypography.bodyLarge,
                                     ),
                                   ),
                                   Text(
                                     c.port,
-                                    style: TextStyle(
-                                      fontSize: 10,
+                                    style: AppTypography.labelSmall.copyWith(
                                       fontFamily: 'monospace',
                                       color: AppColors.faintText,
                                     ),
@@ -200,7 +198,9 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
               const SizedBox(height: 14),
               Text(
                 tr("saveTo"),
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: AppTypography.bodyLarge.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
               // 标记 "正在使用默认"
@@ -215,8 +215,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                     const SizedBox(width: 4),
                     Text(
                       tr("settingsUsingDefaultFolder"),
-                      style: TextStyle(
-                        fontSize: 10.5,
+                      style: AppTypography.labelMedium.copyWith(
                         color: AppColors.faintText,
                       ),
                     ),
@@ -240,7 +239,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                     const SizedBox(width: 6),
                     Text(
                       tr("settingsRememberAsDefault"),
-                      style: TextStyle(fontSize: 11),
+                      style: AppTypography.bodySmall,
                     ),
                   ],
                 ),
@@ -260,8 +259,7 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
                       ),
                       child: Text(
                         _folder ?? tr("notChosen"),
-                        style: TextStyle(
-                          fontSize: 11.5,
+                        style: AppTypography.bodyMedium.copyWith(
                           fontFamily: 'monospace',
                           color: _folder == null
                               ? AppColors.disabledText

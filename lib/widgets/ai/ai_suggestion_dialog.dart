@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
 import '../../core/models/adjustment_params.dart';
+import '../../core/theme/app_typography.dart';
 import '../../services/ai/ai_color_service.dart';
 
 class AISuggestionDialog extends StatefulWidget {
@@ -108,7 +109,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                 enabled: !_loading,
                 decoration: InputDecoration(
                   hintText: tr("aiColorSuggestionPrompt"),
-                  hintStyle: const TextStyle(fontSize: 11.5),
+                  hintStyle: AppTypography.bodyMedium,
                   isDense: true,
                   border: const OutlineInputBorder(),
                   contentPadding: const EdgeInsets.symmetric(
@@ -116,7 +117,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                     vertical: 10,
                   ),
                 ),
-                style: const TextStyle(fontSize: 12),
+                style: AppTypography.bodyLarge,
                 maxLines: 2,
               ),
               const SizedBox(height: 14),
@@ -134,7 +135,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                         SizedBox(height: 10),
                         Text(
                           tr("aiColorInProgress"),
-                          style: TextStyle(fontSize: 11.5),
+                          style: AppTypography.bodyMedium,
                         ),
                       ],
                     ),
@@ -152,8 +153,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                   ),
                   child: Text(
                     _error!,
-                    style: const TextStyle(
-                      fontSize: 11,
+                    style: AppTypography.bodySmall.copyWith(
                       color: AppColors.semanticError,
                     ),
                   ),
@@ -165,8 +165,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Text(
                     tr("aiColorSuggestionDescription"),
-                    style: TextStyle(
-                      fontSize: 11.5,
+                    style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.mediumText,
                     ),
                   ),
@@ -242,13 +241,10 @@ class _SuggestionView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 1.5),
             child: Row(
               children: [
-                Expanded(
-                  child: Text(band, style: const TextStyle(fontSize: 11)),
-                ),
+                Expanded(child: Text(band, style: AppTypography.bodySmall)),
                 Text(
                   parts.join('  '),
-                  style: TextStyle(
-                    fontSize: 10.5,
+                  style: AppTypography.labelMedium.copyWith(
                     fontFamily: 'monospace',
                     color: AppColors.activeValue,
                   ),
@@ -274,8 +270,7 @@ class _SuggestionView extends StatelessWidget {
             ),
             child: Text(
               suggestion.mood,
-              style: TextStyle(
-                fontSize: 10,
+              style: AppTypography.labelSmall.copyWith(
                 color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
@@ -286,7 +281,7 @@ class _SuggestionView extends StatelessWidget {
         if (suggestion.reasoning.isNotEmpty)
           Text(
             suggestion.reasoning,
-            style: const TextStyle(fontSize: 12, height: 1.4),
+            style: AppTypography.bodyLarge.copyWith(height: 1.4),
           ),
         const SizedBox(height: 12),
 
@@ -306,15 +301,11 @@ class _SuggestionView extends StatelessWidget {
                       child: Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              e.key,
-                              style: const TextStyle(fontSize: 11),
-                            ),
+                            child: Text(e.key, style: AppTypography.bodySmall),
                           ),
                           Text(
                             _fmt(e.key, e.value!),
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: AppTypography.bodySmall.copyWith(
                               fontFamily: 'monospace',
                               color: AppColors.activeValue,
                             ),
@@ -341,8 +332,7 @@ class _SuggestionView extends StatelessWidget {
               children: [
                 Text(
                   'HSL',
-                  style: TextStyle(
-                    fontSize: 10,
+                  style: AppTypography.labelSmall.copyWith(
                     letterSpacing: 1.2,
                     color: AppColors.faintText,
                     fontWeight: FontWeight.w600,
@@ -358,7 +348,9 @@ class _SuggestionView extends StatelessWidget {
         if (basic.isEmpty && hslRows.isEmpty)
           Text(
             tr("aiColorSuggestionNone"),
-            style: TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic),
+            style: AppTypography.bodyMedium.copyWith(
+              fontStyle: FontStyle.italic,
+            ),
           ),
       ],
     );

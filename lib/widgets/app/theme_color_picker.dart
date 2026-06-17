@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 
 class ThemeColorWheelDialog extends StatefulWidget {
   final Color initial;
@@ -33,7 +34,7 @@ class _ThemeColorWheelDialogState extends State<ThemeColorWheelDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.elevatedBg,
-      title: Text(tr("colorPickerTitle"), style: const TextStyle(fontSize: 15)),
+      title: Text(tr("colorPickerTitle"), style: AppTypography.headlineSmall),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

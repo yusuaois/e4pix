@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/constants/lut_formats.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../render/lut_texture_cache.dart';
 import '../../../services/lut/lut_library.dart';
 import '../../../state/providers.dart';
@@ -172,8 +173,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 2),
           child: Text(
             widget.label,
-            style: TextStyle(
-              fontSize: 10,
+            style: AppTypography.labelSmall.copyWith(
               fontWeight: FontWeight.bold,
               letterSpacing: 1.0,
               color: AppColors.disabledText,
@@ -209,7 +209,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                                     : (widget.library.isEmpty
                                           ? tr("notImportedLUT")
                                           : tr("notChosen")),
-                                style: const TextStyle(fontSize: 12),
+                                style: AppTypography.bodyLarge,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -231,7 +231,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                             child: Center(
                               child: Text(
                                 tr("notImportedLUT"),
-                                style: const TextStyle(fontSize: 12),
+                                style: AppTypography.bodyLarge,
                               ),
                             ),
                           ),
@@ -241,8 +241,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                             dense: true,
                             title: Text(
                               tr("notChosen"),
-                              style: TextStyle(
-                                fontSize: 12,
+                              style: AppTypography.bodyLarge.copyWith(
                                 color: AppColors.faintText,
                               ),
                             ),
@@ -293,8 +292,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                 Expanded(
                   child: Text(
                     tr('lutMissing', args: [widget.lutName!]),
-                    style: TextStyle(
-                      fontSize: 10.5,
+                    style: AppTypography.labelMedium.copyWith(
                       color: AppColors.semanticWarning.withValues(alpha: 0.85),
                     ),
                     maxLines: 2,
@@ -308,8 +306,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
             padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
             child: Text(
               tr("lutVltHint"),
-              style: TextStyle(
-                fontSize: 10.5,
+              style: AppTypography.labelMedium.copyWith(
                 color: AppColors.semanticWarning.withValues(alpha: 0.75),
               ),
             ),
@@ -322,10 +319,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
               children: [
                 SizedBox(
                   width: 64,
-                  child: Text(
-                    tr("intensity"),
-                    style: const TextStyle(fontSize: 11.5),
-                  ),
+                  child: Text(tr("intensity"), style: AppTypography.bodyMedium),
                 ),
                 Expanded(
                   child: SliderTheme(
@@ -341,8 +335,7 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
                   child: Text(
                     '${(widget.intensity * 100).round()}',
                     textAlign: TextAlign.right,
-                    style: TextStyle(
-                      fontSize: 10.5,
+                    style: AppTypography.labelMedium.copyWith(
                       fontFamily: 'monospace',
                       color: AppColors.activeValue,
                     ),
@@ -483,8 +476,7 @@ class _LutMenuItemState extends State<_LutMenuItem> {
               Expanded(
                 child: Text(
                   widget.entry.name,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: AppTypography.bodyLarge.copyWith(
                     color: AppColors.textPrimary,
                   ),
                   maxLines: 1,
@@ -494,8 +486,7 @@ class _LutMenuItemState extends State<_LutMenuItem> {
               const SizedBox(width: 6),
               Text(
                 widget.entry.ext.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 9.5,
+                style: AppTypography.labelSmall.copyWith(
                   fontFamily: 'monospace',
                   color: widget.entry.ext == 'vlt'
                       ? AppColors.semanticWarning.withValues(alpha: 0.7)

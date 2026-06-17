@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/export_job.dart';
+import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 
 /// 导出队列面板（底部弹出） 实时显示每个任务的状态/进度，可取消
@@ -31,8 +32,7 @@ class ExportQueuePanel extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Text(
                   tr('exportQueueTitle'),
-                  style: const TextStyle(
-                    fontSize: 15,
+                  style: AppTypography.headlineSmall.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -40,7 +40,9 @@ class ExportQueuePanel extends ConsumerWidget {
                 if (pending > 0)
                   Text(
                     tr('exportQueueRemaining', args: ['$pending']),
-                    style: TextStyle(fontSize: 11, color: AppColors.mediumText),
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.mediumText,
+                    ),
                   ),
               ],
             ),
@@ -52,8 +54,7 @@ class ExportQueuePanel extends ConsumerWidget {
                 child: Center(
                   child: Text(
                     tr('exportQueueEmpty'),
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppTypography.bodyLarge.copyWith(
                       color: AppColors.disabledText,
                     ),
                   ),
@@ -86,7 +87,7 @@ class ExportQueuePanel extends ConsumerWidget {
                     icon: const Icon(Icons.clear_all, size: 16),
                     label: Text(
                       tr('exportQueueClearFinished'),
-                      style: const TextStyle(fontSize: 12),
+                      style: AppTypography.bodyLarge,
                     ),
                   ),
                 const Spacer(),
@@ -96,7 +97,7 @@ class ExportQueuePanel extends ConsumerWidget {
                     icon: const Icon(Icons.cancel_outlined, size: 16),
                     label: Text(
                       tr('exportQueueCancelAll'),
-                      style: const TextStyle(fontSize: 12),
+                      style: AppTypography.bodyLarge,
                     ),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.semanticError,
@@ -130,7 +131,7 @@ class _JobRow extends StatelessWidget {
               children: [
                 Text(
                   job.displayName,
-                  style: const TextStyle(fontSize: 12.5),
+                  style: AppTypography.titleSmall,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -155,8 +156,7 @@ class _JobRow extends StatelessWidget {
                     job.status == ExportJobStatus.cancelling
                         ? tr('exportCancelling') // "正在取消…"
                         : (job.stage ?? ''),
-                    style: TextStyle(
-                      fontSize: 9.5,
+                    style: AppTypography.labelSmall.copyWith(
                       color: job.status == ExportJobStatus.cancelling
                           ? AppColors.semanticWarning.withValues(alpha: 0.7)
                           : AppColors.disabledText,
@@ -169,8 +169,7 @@ class _JobRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     job.error!,
-                    style: const TextStyle(
-                      fontSize: 9.5,
+                    style: AppTypography.labelSmall.copyWith(
                       color: AppColors.semanticError,
                     ),
                     maxLines: 1,
@@ -181,8 +180,7 @@ class _JobRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     job.outputPath!,
-                    style: TextStyle(
-                      fontSize: 9.5,
+                    style: AppTypography.labelSmall.copyWith(
                       fontFamily: 'monospace',
                       color: AppColors.semanticSuccess.withValues(alpha: 0.6),
                     ),

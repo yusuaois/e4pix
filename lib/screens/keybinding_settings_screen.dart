@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
+import '../core/theme/app_typography.dart';
 import '../core/keybindings/app_action.dart';
 import '../core/keybindings/keybinding_service.dart';
 
@@ -115,8 +116,7 @@ class KeybindingSettingsScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
               child: Text(
                 tr(entry.key).toUpperCase(),
-                style: TextStyle(
-                  fontSize: 10,
+                style: AppTypography.labelSmall.copyWith(
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.2,
                   color: AppColors.faintText,
@@ -128,7 +128,7 @@ class KeybindingSettingsScreen extends ConsumerWidget {
                 dense: true,
                 title: Text(
                   tr(action.labelKey),
-                  style: const TextStyle(fontSize: 13.5),
+                  style: AppTypography.titleMedium,
                 ),
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(
@@ -148,8 +148,7 @@ class KeybindingSettingsScreen extends ConsumerWidget {
                   ),
                   child: Text(
                     keyDisplayName(st.keyFor(action)),
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppTypography.bodyLarge.copyWith(
                       fontFamily: 'monospace',
                       color: st.keyFor(action) == null
                           ? AppColors.semanticWarning
@@ -221,7 +220,9 @@ class _KeyRecordDialogState extends State<_KeyRecordDialog> {
           children: [
             Text(
               tr('keyPressPrompt'),
-              style: TextStyle(fontSize: 13, color: AppColors.mediumText),
+              style: AppTypography.bodyLarge.copyWith(
+                color: AppColors.mediumText,
+              ),
             ),
             const SizedBox(height: 12),
             Icon(Icons.keyboard, size: 40, color: AppColors.disabledText),
@@ -229,8 +230,7 @@ class _KeyRecordDialogState extends State<_KeyRecordDialog> {
               const SizedBox(height: 10),
               Text(
                 _error!,
-                style: const TextStyle(
-                  fontSize: 11.5,
+                style: AppTypography.bodyMedium.copyWith(
                   color: AppColors.semanticWarning,
                 ),
               ),
