@@ -66,8 +66,10 @@ class ThemeTiles extends ConsumerWidget {
                   onTap: () async {
                     final picked = await showDialog<Color>(
                       context: context,
-                      builder: (_) =>
-                          ThemeColorWheelDialog(initial: Color(seed)),
+                      builder: (_) => ThemeColorWheelDialog(
+                        initial: Color(seed),
+                        isGrayscale: true,
+                      ),
                     );
                     if (picked != null) {
                       ref
