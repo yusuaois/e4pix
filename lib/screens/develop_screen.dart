@@ -872,11 +872,14 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
   Future<void> _importImages() async {
     if (Platform.isAndroid) {
-      final paths = await openFolderImport(context);
+      final navigator = Navigator.of(context);
+      final notifier = ref.read(shotsNotifierProvider.notifier);
+      final paths = await openFolderImport(navigator);
       if (paths != null && paths.isNotEmpty) {
-        ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+        notifier.addFiles(paths);
       }
     } else {
+      final notifier = ref.read(shotsNotifierProvider.notifier);
       final result = await FilePicker.pickFiles();
       if (result == null || result.files.isEmpty) return;
       final paths = result.files
@@ -884,7 +887,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           .whereType<String>()
           .toList();
       if (paths.isNotEmpty) {
-        ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+        notifier.addFiles(paths);
       }
     }
   }

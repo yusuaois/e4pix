@@ -13,14 +13,13 @@ import '../core/theme/app_typography.dart';
 import '../core/constants/raw_formats.dart';
 import '../native/raw_bridge.dart';
 
-Future<List<String>?> openFolderImport(BuildContext context) async {
+Future<List<String>?> openFolderImport(NavigatorState navigator) async {
   final dir = await FilePicker.getDirectoryPath(
     dialogTitle: tr('folderImportPickDir'),
   );
   if (dir == null || dir.isEmpty || dir == '/') return null;
-  if (!context.mounted) return null;
 
-  return Navigator.of(context).push<List<String>>(
+  return navigator.push<List<String>>(
     MaterialPageRoute(builder: (_) => _FolderImportScreen(dirPath: dir)),
   );
 }

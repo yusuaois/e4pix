@@ -70,11 +70,14 @@ class PreviewArea extends ConsumerWidget {
           FilledButton.icon(
             onPressed: () async {
               if (Platform.isAndroid) {
-                final paths = await openFolderImport(context);
+                final navigator = Navigator.of(context);
+                final notifier = ref.read(shotsNotifierProvider.notifier);
+                final paths = await openFolderImport(navigator);
                 if (paths != null && paths.isNotEmpty) {
-                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+                  notifier.addFiles(paths);
                 }
               } else {
+                final notifier = ref.read(shotsNotifierProvider.notifier);
                 final result = await FilePicker.pickFiles();
                 if (result == null || result.files.isEmpty) return;
                 final paths = result.files
@@ -82,7 +85,7 @@ class PreviewArea extends ConsumerWidget {
                     .whereType<String>()
                     .toList();
                 if (paths.isNotEmpty) {
-                  ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+                  notifier.addFiles(paths);
                 }
               }
             },
@@ -752,11 +755,14 @@ class _CenterMessage extends ConsumerWidget {
             FilledButton.icon(
               onPressed: () async {
                 if (Platform.isAndroid) {
-                  final paths = await openFolderImport(context);
+                  final navigator = Navigator.of(context);
+                  final notifier = ref.read(shotsNotifierProvider.notifier);
+                  final paths = await openFolderImport(navigator);
                   if (paths != null && paths.isNotEmpty) {
-                    ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+                    notifier.addFiles(paths);
                   }
                 } else {
+                  final notifier = ref.read(shotsNotifierProvider.notifier);
                   final result = await FilePicker.pickFiles();
                   if (result == null || result.files.isEmpty) return;
                   final paths = result.files
@@ -764,7 +770,7 @@ class _CenterMessage extends ConsumerWidget {
                       .whereType<String>()
                       .toList();
                   if (paths.isNotEmpty) {
-                    ref.read(shotsNotifierProvider.notifier).addFiles(paths);
+                    notifier.addFiles(paths);
                   }
                 }
               },

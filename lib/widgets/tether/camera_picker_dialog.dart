@@ -71,12 +71,11 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
     final folder = await FilePicker.getDirectoryPath(
       dialogTitle: tr("saveFolderChoose"),
     );
-    if (folder != null) {
-      setState(() {
-        _folder = folder;
-        _loadedDefault = false;
-      });
-    }
+    if (folder == null || !mounted) return;
+    setState(() {
+      _folder = folder;
+      _loadedDefault = false;
+    });
   }
 
   @override
