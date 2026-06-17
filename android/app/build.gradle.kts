@@ -25,9 +25,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }   
+
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
@@ -70,6 +73,10 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+        }
+        debug {
+            // 给 debug 包的包名自动加上 .debug 后缀
+            applicationIdSuffix = ".debug"
         }
     }
 
