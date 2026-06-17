@@ -407,6 +407,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         onKeyEvent: (node, event) => handleDevelopKeyEvent(ref, event, keys),
         child: Scaffold(
           body: SafeArea(
+            left: isVertical,
             child: isVertical
                 ? _buildVerticalLayout()
                 : _buildHorizontalLayout(),

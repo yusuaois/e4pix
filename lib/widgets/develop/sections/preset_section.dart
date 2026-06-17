@@ -374,7 +374,7 @@ Future<void> showSavePresetDialog(
       await notifier.saveCurrentAs(name);
     }
   } finally {
-    controller.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
   }
 }
 
@@ -435,7 +435,7 @@ Future<void> showPresetOptions(
             .rename(preset.id, newName);
       }
     } finally {
-      controller.dispose();
+      WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
     }
   }
 }

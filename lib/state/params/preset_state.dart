@@ -33,6 +33,7 @@ class Preset {
 class PresetNotifier extends AsyncNotifier<List<Preset>> {
   String? _dir;
   static const _spKey = 'e4pix_deleted_presets';
+  static const _spReleasedKey = 'e4pix_released_presets';
 
   Future<String> get _presetsDir async {
     if (_dir != null) return _dir!;
@@ -61,6 +62,7 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
   /// 首次启动时将 assets/presets/*.xmp 释放到用户目录（跳过用户已删除的）
   Future<void> _releaseBuiltins(String dir) async {
     final deleted = await _loadDeleted();
+    final released = await _loadReleased();
     try {
       final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
       for (final key in manifest.listAssets()) {
@@ -69,11 +71,13 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
         }
         final name = p.basenameWithoutExtension(key);
         if (deleted.contains(name)) continue;
+        if (released.contains(name)) continue;
         final dest = p.join(dir, '$name.xmp');
         if (await File(dest).exists()) continue;
         try {
           final xmp = await rootBundle.loadString(key);
           await File(dest).writeAsString(xmp);
+          await _markReleased(name);
         } catch (_) {}
       }
     } catch (_) {}
@@ -149,6 +153,24 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
     set.add(id);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_spKey, jsonEncode(set.toList()));
+  }
+
+  Future<Set<String>> _loadReleased() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_spReleasedKey);
+    if (raw == null) return {};
+    try {
+      return Set<String>.from(jsonDecode(raw) as List);
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> _markReleased(String id) async {
+    final set = await _loadReleased();
+    set.add(id);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_spReleasedKey, jsonEncode(set.toList()));
   }
 
   void apply(String id) {

@@ -123,8 +123,6 @@ class E4pixCameraPlugin(
                 return
             }
 
-            val nativeDir = activity.applicationInfo.nativeLibraryDir
-
             val initRet = withContext(Dispatchers.IO) {
                 GPhoto2Native.nativeInit(camPath, ioPath)
             }
