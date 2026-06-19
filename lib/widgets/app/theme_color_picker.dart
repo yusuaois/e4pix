@@ -189,7 +189,7 @@ class _WheelPainter extends CustomPainter {
     Color(0xFFFF0000), // red     0°
     Color(0xFFFFFF00), // yellow  60°
     Color(0xFF00FF00), // green   120°
-    Color(0xFF00FFFF), // cyan    180°
+    Color(0xFF00FFFF), // aqua    180°
     Color(0xFF0000FF), // blue    240°
     Color(0xFFFF00FF), // magenta 300°
     Color(0xFFFF0000), // red     360°

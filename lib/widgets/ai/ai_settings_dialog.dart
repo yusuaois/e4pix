@@ -13,9 +13,12 @@ class AISettingsDialog extends StatefulWidget {
 
 class _AISettingsDialogState extends State<AISettingsDialog> {
   final _keyController = TextEditingController();
+  final _endpointController = TextEditingController();
+  final _customModelController = TextEditingController();
   bool _obscure = true;
   AIProviderId _providerId = AISettings.defaultProvider;
   String _modelId = '';
+  String _customFormat = 'anthropic';
   bool _autoAI = false;
   bool _loaded = false;
 
@@ -30,6 +33,11 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
     final key = await AISettings.getApiKey(_providerId);
     _modelId = await AISettings.getModel(_providerId);
     _autoAI = await AISettings.getAutoAI();
+    if (_providerId == AIProviderId.custom) {
+      _customFormat = await AISettings.getCustomFormat();
+      _endpointController.text = await AISettings.getCustomEndpoint();
+      _customModelController.text = _modelId;
+    }
     if (mounted) {
       setState(() {
         _keyController.text = key ?? '';
@@ -41,22 +49,51 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
   /// 切换 provider 时：保存当前 provider 的 key，再读新 provider 的配置
   Future<void> _onProviderChanged(AIProviderId? id) async {
     if (id == null || id == _providerId) return;
-    await AISettings.setApiKey(_providerId, _keyController.text.trim());
-    final newKey = await AISettings.getApiKey(id);
-    final newModel = await AISettings.getModel(id);
-    if (mounted) {
-      setState(() {
-        _providerId = id;
-        _keyController.text = newKey ?? '';
-        _modelId = newModel;
-      });
+    if (_providerId == AIProviderId.custom) {
+      await AISettings.setCustomEndpoint(_endpointController.text.trim());
+      await AISettings.setCustomFormat(_customFormat);
+      _modelId = _customModelController.text.trim();
+      await AISettings.setModel(_providerId, _modelId);
+    } else {
+      await AISettings.setApiKey(_providerId, _keyController.text.trim());
+      await AISettings.setModel(_providerId, _modelId);
+    }
+    if (id == AIProviderId.custom) {
+      _customFormat = await AISettings.getCustomFormat();
+      _endpointController.text = await AISettings.getCustomEndpoint();
+      _modelId = await AISettings.getModel(id);
+      _customModelController.text = _modelId;
+      final newKey = await AISettings.getApiKey(id);
+      if (mounted) {
+        setState(() {
+          _providerId = id;
+          _keyController.text = newKey ?? '';
+        });
+      }
+    } else {
+      final newKey = await AISettings.getApiKey(id);
+      final newModel = await AISettings.getModel(id);
+      if (mounted) {
+        setState(() {
+          _providerId = id;
+          _keyController.text = newKey ?? '';
+          _modelId = newModel;
+        });
+      }
     }
   }
 
   Future<void> _save() async {
     await AISettings.setProvider(_providerId);
     await AISettings.setApiKey(_providerId, _keyController.text.trim());
-    await AISettings.setModel(_providerId, _modelId);
+    if (_providerId == AIProviderId.custom) {
+      await AISettings.setCustomEndpoint(_endpointController.text.trim());
+      await AISettings.setCustomFormat(_customFormat);
+      _modelId = _customModelController.text.trim();
+      await AISettings.setModel(_providerId, _modelId);
+    } else {
+      await AISettings.setModel(_providerId, _modelId);
+    }
     await AISettings.setAutoAI(_autoAI);
     if (mounted) Navigator.pop(context, true);
   }
@@ -64,6 +101,8 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
   @override
   void dispose() {
     _keyController.dispose();
+    _endpointController.dispose();
+    _customModelController.dispose();
     super.dispose();
   }
 
@@ -71,12 +110,14 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
     AIProviderId.anthropic => 'sk-ant-api03-...',
     AIProviderId.openai => 'sk-proj-... / sk-...',
     AIProviderId.deepseek => 'sk-...',
+    AIProviderId.custom => 'sk-...',
   };
 
   String _keyOriginFor(AIProviderId id) => switch (id) {
     AIProviderId.anthropic => tr("getAnthropicKeyFromPlatform"),
     AIProviderId.openai => tr("getOpenaiKeyFromPlatform"),
     AIProviderId.deepseek => tr("getDeepseekKeyFromPlatform"),
+    AIProviderId.custom => tr("aiCustomGetKeyFrom"),
   };
 
   @override
@@ -135,40 +176,132 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
               ),
               const SizedBox(height: 14),
 
-              // —— 2. Model —— //
-              Text(
-                tr("model"),
-                style: AppTypography.bodyLarge.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
-                initialValue: effectiveModelId,
-                isDense: true,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
+              if (_providerId == AIProviderId.custom) ...[
+                // —— Custom: API Format —— //
+                Text(
+                  tr("aiCustomFormat"),
+                  style: AppTypography.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                items: provider.models
-                    .map(
-                      (m) => DropdownMenuItem(
-                        value: m.id,
-                        child: Text(m.label, style: AppTypography.bodyLarge),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  initialValue: _customFormat,
+                  isDense: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'anthropic',
+                      child: Text(
+                        tr("aiCustomFormatAnthropic"),
+                        style: AppTypography.bodyLarge,
                       ),
-                    )
-                    .toList(),
-                onChanged: (v) =>
-                    setState(() => _modelId = v ?? provider.defaultModelId),
-              ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'openai',
+                      child: Text(
+                        tr("aiCustomFormatOpenAI"),
+                        style: AppTypography.bodyLarge,
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _customFormat = v ?? 'anthropic'),
+                ),
+                const SizedBox(height: 14),
+
+                // —— Custom: Endpoint —— //
+                Text(
+                  tr("aiCustomEndpoint"),
+                  style: AppTypography.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _endpointController,
+                  decoration: InputDecoration(
+                    hintText: tr("aiCustomEndpointHint"),
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                  ),
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // —— Custom: Model Name —— //
+                Text(
+                  tr("aiCustomModel"),
+                  style: AppTypography.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _customModelController,
+                  decoration: InputDecoration(
+                    hintText: tr("aiCustomModelHint"),
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                  ),
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ] else ...[
+                // —— 2. Model —— //
+                Text(
+                  tr("model"),
+                  style: AppTypography.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  initialValue: effectiveModelId,
+                  isDense: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                  ),
+                  items: provider.models
+                      .map(
+                        (m) => DropdownMenuItem(
+                          value: m.id,
+                          child: Text(m.label, style: AppTypography.bodyLarge),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) =>
+                      setState(() => _modelId = v ?? provider.defaultModelId),
+                ),
+              ],
               const SizedBox(height: 14),
 
               // —— 3. API Key —— //
               Text(
-                '${provider.displayName} ${tr("apiKey")}',
+                _providerId == AIProviderId.custom
+                    ? tr("apiKey")
+                    : '${provider.displayName} ${tr("apiKey")}',
                 style: AppTypography.bodyLarge.copyWith(
                   fontWeight: FontWeight.w600,
                 ),

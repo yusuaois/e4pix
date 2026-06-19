@@ -1,7 +1,20 @@
 import 'package:flutter/foundation.dart';
 
 /// 8 个色相通道：红 橙 黄 绿 青 蓝 紫 品红
-enum HslBand { red, orange, yellow, green, cyan, blue, purple, magenta }
+enum HslBand {
+  red,
+  orange,
+  yellow,
+  green,
+  aqua,
+  blue,
+  purple,
+  magenta;
+
+  String get adobeName {
+    return name[0].toUpperCase() + name.substring(1);
+  }
+}
 
 @immutable
 class HslBands {

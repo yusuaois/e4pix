@@ -1,4 +1,4 @@
-enum AIProviderId { anthropic, openai, deepseek }
+enum AIProviderId { anthropic, openai, deepseek, custom }
 
 class AIModelOption {
   final String id;
@@ -23,6 +23,9 @@ class AIProvider {
 
   bool get usesAnthropicFormat =>
       id == AIProviderId.anthropic || id == AIProviderId.deepseek;
+
+  static const kAnthropicFormat = 'anthropic';
+  static const kOpenAIFormat = 'openai';
 
   static const _anthropic = AIProvider(
     id: AIProviderId.anthropic,
@@ -59,8 +62,15 @@ class AIProvider {
     ],
   );
 
-  static const all = <AIProvider>[_anthropic, _openai, _deepseek];
+  static const _custom = AIProvider(
+    id: AIProviderId.custom,
+    displayName: 'Custom',
+    endpoint: '',
+    defaultModelId: '',
+    models: [],
+  );
 
-  static AIProvider byId(AIProviderId id) =>
-      all.firstWhere((p) => p.id == id);
+  static const all = <AIProvider>[_anthropic, _openai, _deepseek, _custom];
+
+  static AIProvider byId(AIProviderId id) => all.firstWhere((p) => p.id == id);
 }

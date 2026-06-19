@@ -62,6 +62,34 @@ class AISettings {
     await p.setInt(_kMaxEdge, v.clamp(512, 4096));
   }
 
+  // === 自定义 API 提供商 ===
+  static const _kCustomEndpoint = 'ai_custom_endpoint';
+  static const _kCustomFormat = 'ai_custom_format';
+
+  static Future<String> getCustomEndpoint() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getString(_kCustomEndpoint) ?? '';
+  }
+
+  static Future<void> setCustomEndpoint(String url) async {
+    final p = await SharedPreferences.getInstance();
+    if (url.isEmpty) {
+      await p.remove(_kCustomEndpoint);
+    } else {
+      await p.setString(_kCustomEndpoint, url);
+    }
+  }
+
+  static Future<String> getCustomFormat() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getString(_kCustomFormat) ?? AIProvider.kAnthropicFormat;
+  }
+
+  static Future<void> setCustomFormat(String format) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_kCustomFormat, format);
+  }
+
   // === 联机自动建议 ===
   static Future<bool> getAutoAI() async {
     final p = await SharedPreferences.getInstance();

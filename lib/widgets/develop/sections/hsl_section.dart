@@ -34,7 +34,7 @@ class _HslSectionState extends State<HslSection> {
     tr("orange"),
     tr("yellow"),
     tr("green"),
-    tr("cyan"),
+    tr("aqua"),
     tr("blue"),
     tr("purple"),
     tr("magenta"),

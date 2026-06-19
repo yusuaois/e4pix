@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:e4pix/core/models/hsl_bands.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
@@ -226,7 +227,7 @@ class _SuggestionView extends StatelessWidget {
     final hslRows = <Widget>[];
     if (hslRaw != null) {
       for (final band in _hslBandNames) {
-        final m = hslRaw[band];
+        final m = hslRaw[band.name];
         if (m is! Map) continue;
         final parts = <String>[];
         for (final field in ['h', 's', 'l']) {
@@ -241,7 +242,9 @@ class _SuggestionView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 1.5),
             child: Row(
               children: [
-                Expanded(child: Text(band, style: AppTypography.bodySmall)),
+                Expanded(
+                  child: Text(band.name, style: AppTypography.bodySmall),
+                ),
                 Text(
                   parts.join('  '),
                   style: AppTypography.labelMedium.copyWith(
@@ -357,13 +360,4 @@ class _SuggestionView extends StatelessWidget {
   }
 }
 
-const _hslBandNames = [
-  'red',
-  'orange',
-  'yellow',
-  'green',
-  'aqua',
-  'blue',
-  'purple',
-  'magenta',
-];
+final _hslBandNames = HslBand.values;

@@ -142,25 +142,18 @@ class XmpImport {
       hit.add(tr('denoiseColor'));
     }
 
-    // HSL（红橙黄绿青蓝紫品红）
-    const adobeColors = [
-      'Red',
-      'Orange',
-      'Yellow',
-      'Green',
-      'Aqua',
-      'Blue',
-      'Purple',
-      'Magenta',
-    ];
     final hues = List<double>.from(base.hsl.hues);
     final sats = List<double>.from(base.hsl.sats);
     final lums = List<double>.from(base.hsl.lums);
     bool hslHit = false;
-    for (int i = 0; i < 8; i++) {
-      final h = _d(values, 'HueAdjustment${adobeColors[i]}');
-      final s = _d(values, 'SaturationAdjustment${adobeColors[i]}');
-      final l = _d(values, 'LuminanceAdjustment${adobeColors[i]}');
+    for (int i = 0; i < HslBand.values.length; i++) {
+      // HSL（红橙黄绿青蓝紫品红）
+      final band = HslBand.values[i];
+      final adobeColor = band.adobeName;
+
+      final h = _d(values, 'HueAdjustment$adobeColor');
+      final s = _d(values, 'SaturationAdjustment$adobeColor');
+      final l = _d(values, 'LuminanceAdjustment$adobeColor');
       if (h != null) {
         hues[i] = h.clamp(-100.0, 100.0);
         hslHit = true;

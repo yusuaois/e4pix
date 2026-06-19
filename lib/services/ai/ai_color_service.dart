@@ -18,16 +18,7 @@ class AIException implements Exception {
   String toString() => message;
 }
 
-const _hslBandNames = [
-  'red',
-  'orange',
-  'yellow',
-  'green',
-  'aqua',
-  'blue',
-  'purple',
-  'magenta',
-];
+const _hslBandNames = HslBand.values;
 
 class AILocalSuggestion {
   final MaskShape mask;
@@ -108,7 +99,7 @@ class AIColorSuggestion {
     HslBands newHsl = cur.hsl;
     if (hslRaw != null) {
       for (int idx = 0; idx < _hslBandNames.length; idx++) {
-        final band = hslRaw![_hslBandNames[idx]];
+        final band = hslRaw![_hslBandNames[idx].name];
         if (band is! Map) continue;
         if (band['h'] is num) {
           newHsl = newHsl.setHue(
@@ -188,20 +179,38 @@ class AIColorService {
       );
     }
     final model = await AISettings.getModel(providerId);
+
+    final String endpoint;
+    final bool isAnthropic;
+    if (providerId == AIProviderId.custom) {
+      endpoint = await AISettings.getCustomEndpoint();
+      if (endpoint.isEmpty) {
+        throw AIException(
+          tr("aiColorSuggestionLackEndPoint", args: [provider.displayName]),
+        );
+      }
+      isAnthropic =
+          await AISettings.getCustomFormat() == AIProvider.kAnthropicFormat;
+    } else {
+      endpoint = provider.endpoint;
+      isAnthropic = provider.usesAnthropicFormat;
+    }
+
     final base64Image = base64Encode(imageBytes);
     final prompt = _buildPrompt(currentParams, userIntent, languageCode);
 
-    final text = provider.usesAnthropicFormat
+    final text = isAnthropic
         ? await _callAnthropic(
-            provider,
+            endpoint,
             apiKey,
             model,
             prompt,
             base64Image,
             mediaType,
+            isDeepSeek: providerId == AIProviderId.deepseek,
           )
         : await _callOpenAI(
-            provider,
+            endpoint,
             apiKey,
             model,
             prompt,
@@ -216,13 +225,14 @@ class AIColorService {
   // Anthropic format（Anthropic 和 DeepSeek/anthropic）
   // ============================================================
   static Future<String> _callAnthropic(
-    AIProvider provider,
+    String endpoint,
     String apiKey,
     String model,
     String prompt,
     String base64Image,
-    String mediaType,
-  ) async {
+    String mediaType, {
+    bool isDeepSeek = false,
+  }) async {
     final body = <String, dynamic>{
       'model': model,
       'max_tokens': 2048,
@@ -244,13 +254,13 @@ class AIColorService {
       ],
     };
 
-    if (provider.id == AIProviderId.deepseek) {
+    if (isDeepSeek) {
       body['thinking'] = {'type': 'disabled'};
     }
 
     final res = await http
         .post(
-          Uri.parse(provider.endpoint),
+          Uri.parse(endpoint),
           headers: {
             'x-api-key': apiKey,
             'anthropic-version': _anthropicVersion,
@@ -274,7 +284,7 @@ class AIColorService {
   // OpenAI format
   // ============================================================
   static Future<String> _callOpenAI(
-    AIProvider provider,
+    String endpoint,
     String apiKey,
     String model,
     String prompt,
@@ -283,7 +293,7 @@ class AIColorService {
   ) async {
     final res = await http
         .post(
-          Uri.parse(provider.endpoint),
+          Uri.parse(endpoint),
           headers: {
             'Authorization': 'Bearer $apiKey',
             'content-type': 'application/json',
@@ -439,7 +449,7 @@ class AIColorService {
     final hslBlock = StringBuffer();
     for (int i = 0; i < 8; i++) {
       hslBlock.writeln(
-        '  ${_hslBandNames[i].padRight(8)}: '
+        '  ${_hslBandNames[i].name.padRight(8)}: '
         'H=${h.hues[i].toInt().toString().padLeft(4)}, '
         'S=${h.sats[i].toInt().toString().padLeft(4)}, '
         'L=${h.lums[i].toInt().toString().padLeft(4)}',
