@@ -55,7 +55,8 @@ final effectiveParamsProvider = Provider<AdjustmentParams>((ref) {
 });
 
 final effectiveLutEnabledProvider = Provider<bool>((ref) {
-  return ref.watch(compareViewModeProvider) != CompareViewMode.hold;
+  return ref.watch(compareViewModeProvider) != CompareViewMode.hold &&
+      !ref.watch(compareBypassProvider);
 });
 
 // ── 节流参数（渲染组件专用）──
@@ -85,12 +86,12 @@ class _ThrottledParamsNotifier extends Notifier<AdjustmentParams> {
         _timer?.cancel();
         _timer = null;
         _lastEmit = DateTime(2000);
-        state = ref.read(currentParamsNotifierProvider);
+        state = ref.read(effectiveParamsProvider);
       }
     });
 
     // 监听原始参数 — 拖拽中节流，空闲时立即更新
-    ref.listen<AdjustmentParams>(currentParamsNotifierProvider, (prev, next) {
+    ref.listen<AdjustmentParams>(effectiveParamsProvider, (prev, next) {
       if (prev == next) return;
       if (!_isDragging) {
         _lastEmit = DateTime(2000);
@@ -111,7 +112,7 @@ class _ThrottledParamsNotifier extends Notifier<AdjustmentParams> {
       });
     });
 
-    return ref.read(currentParamsNotifierProvider);
+    return ref.read(effectiveParamsProvider);
   }
 }
 

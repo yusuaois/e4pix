@@ -100,7 +100,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     super.dispose();
   }
 
-  Future<void> _runRender([AdjustmentParams? params]) async {
+  Future<void> _runRender() async {
     if (_isRendering) {
       _pendingRender = true;
       return;
@@ -124,7 +124,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         developProgram: widget.developProgram,
         maskProgram: widget.maskProgram,
         sourceImage: src,
-        params: params ?? widget.params,
+        params: widget.params,
         lutTexture: widget.lutTexture,
         lutSize: widget.lutSize,
         lutTextureB: widget.lutTextureB,
@@ -161,7 +161,12 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   @override
   Widget build(BuildContext context) {
     ref.listen(throttledParamsProvider, (prev, next) {
-      if (prev != next) _runRender(next);
+      if (prev != next) _runRender();
+    });
+    ref.listen(isUserDraggingSliderProvider, (prev, next) {
+      if (prev == true && next == false) {
+        _runRender();
+      }
     });
 
     if (_rendered == null) {

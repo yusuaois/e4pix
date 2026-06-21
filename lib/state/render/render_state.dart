@@ -236,6 +236,9 @@ final curveTextureProvider = NotifierProvider<CurveTextureNotifier, ui.Image?>(
 );
 
 final effectiveCurveTextureProvider = Provider<ui.Image?>((ref) {
-  if (ref.watch(compareBypassProvider)) return null;
+  if (ref.watch(compareBypassProvider) ||
+      ref.watch(compareViewModeProvider) == CompareViewMode.hold) {
+    return null;
+  }
   return ref.watch(curveTextureProvider);
 });
