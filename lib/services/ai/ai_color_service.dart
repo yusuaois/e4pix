@@ -34,11 +34,11 @@ class AILocalSuggestion {
   factory AILocalSuggestion.fromJson(Map<String, dynamic> j) {
     final type = j['maskType'] as String?;
     if (type == null) {
-      throw AIException('Local suggestion missing maskType');
+      throw AIException(tr("aiLocalSuggestionMissingMaskType"));
     }
     final shapeRaw = j['maskShape'];
     if (shapeRaw is! Map) {
-      throw AIException('Local suggestion missing or invalid maskShape');
+      throw AIException(tr("aiLocalSuggestionMissingMaskShape"));
     }
     final shapeJson = Map<String, dynamic>.from(shapeRaw);
     shapeJson['type'] = type;
@@ -170,36 +170,26 @@ class AIColorService {
     String mediaType = 'image/jpeg',
     String languageCode = 'en',
   }) async {
-    final providerId = await AISettings.getProvider();
-    final provider = AIProvider.byId(providerId);
-    final apiKey = await AISettings.getApiKey(providerId);
+    final presetId = await AISettings.getProvider();
+    final preset = AIProviderPreset.byId(presetId);
+    final apiKey = await AISettings.getApiKey(presetId);
     if (apiKey == null || apiKey.isEmpty) {
       throw AIException(
-        tr("aiColorSuggestionLackApiKey", args: [provider.displayName]),
+        tr("aiColorSuggestionLackApiKey", args: [preset.displayName]),
       );
     }
-    final model = await AISettings.getModel(providerId);
-
-    final String endpoint;
-    final bool isAnthropic;
-    if (providerId == AIProviderId.custom) {
-      endpoint = await AISettings.getCustomEndpoint();
-      if (endpoint.isEmpty) {
-        throw AIException(
-          tr("aiColorSuggestionLackEndPoint", args: [provider.displayName]),
-        );
-      }
-      isAnthropic =
-          await AISettings.getCustomFormat() == AIProvider.kAnthropicFormat;
-    } else {
-      endpoint = provider.endpoint;
-      isAnthropic = provider.usesAnthropicFormat;
+    final model = await AISettings.getModel(presetId);
+    final endpoint = await AISettings.getEndpoint(presetId);
+    if (endpoint.isEmpty) {
+      throw AIException(
+        tr("aiColorSuggestionLackEndPoint", args: [preset.displayName]),
+      );
     }
 
     final base64Image = base64Encode(imageBytes);
     final prompt = _buildPrompt(currentParams, userIntent, languageCode);
 
-    final text = isAnthropic
+    final text = preset.protocol == AIProtocol.anthropic
         ? await _callAnthropic(
             endpoint,
             apiKey,
@@ -207,7 +197,7 @@ class AIColorService {
             prompt,
             base64Image,
             mediaType,
-            isDeepSeek: providerId == AIProviderId.deepseek,
+            extraRequestBody: preset.extraRequestBody,
           )
         : await _callOpenAI(
             endpoint,
@@ -222,7 +212,7 @@ class AIColorService {
   }
 
   // ============================================================
-  // Anthropic format（Anthropic 和 DeepSeek/anthropic）
+  // Anthropic format
   // ============================================================
   static Future<String> _callAnthropic(
     String endpoint,
@@ -231,7 +221,7 @@ class AIColorService {
     String prompt,
     String base64Image,
     String mediaType, {
-    bool isDeepSeek = false,
+    Map<String, dynamic>? extraRequestBody,
   }) async {
     final body = <String, dynamic>{
       'model': model,
@@ -254,8 +244,9 @@ class AIColorService {
       ],
     };
 
-    if (isDeepSeek) {
-      body['thinking'] = {'type': 'disabled'};
+    // Merge provider-specific extra fields (e.g. DeepSeek thinking: disabled)
+    if (extraRequestBody != null) {
+      body.addAll(extraRequestBody);
     }
 
     final res = await http

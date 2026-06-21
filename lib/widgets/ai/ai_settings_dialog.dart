@@ -16,9 +16,9 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
   final _endpointController = TextEditingController();
   final _customModelController = TextEditingController();
   bool _obscure = true;
-  AIProviderId _providerId = AISettings.defaultProvider;
+  String _presetId = AIProviderPreset.all.first.id;
   String _modelId = '';
-  String _customFormat = 'anthropic';
+  bool _useCustomModel = false;
   bool _autoAI = false;
   bool _loaded = false;
 
@@ -29,14 +29,22 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
   }
 
   Future<void> _load() async {
-    _providerId = await AISettings.getProvider();
-    final key = await AISettings.getApiKey(_providerId);
-    _modelId = await AISettings.getModel(_providerId);
+    _presetId = await AISettings.getProvider();
+    final preset = AIProviderPreset.byId(_presetId);
+    final key = await AISettings.getApiKey(_presetId);
+    _modelId = await AISettings.getModel(_presetId);
     _autoAI = await AISettings.getAutoAI();
-    if (_providerId == AIProviderId.custom) {
-      _customFormat = await AISettings.getCustomFormat();
-      _endpointController.text = await AISettings.getCustomEndpoint();
+
+    if (preset.requiresEndpoint) {
+      _endpointController.text = await AISettings.getEndpoint(_presetId);
+    }
+    if (preset.allowsCustomModels) {
       _customModelController.text = _modelId;
+      // If saved model isn't in preconfigured list, user was using a custom model
+      if (preset.preconfiguredModels.isNotEmpty &&
+          !preset.preconfiguredModels.any((m) => m.id == _modelId)) {
+        _useCustomModel = true;
+      }
     }
     if (mounted) {
       setState(() {
@@ -46,54 +54,61 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
     }
   }
 
-  /// 切换 provider 时：保存当前 provider 的 key，再读新 provider 的配置
-  Future<void> _onProviderChanged(AIProviderId? id) async {
-    if (id == null || id == _providerId) return;
-    if (_providerId == AIProviderId.custom) {
-      await AISettings.setCustomEndpoint(_endpointController.text.trim());
-      await AISettings.setCustomFormat(_customFormat);
-      _modelId = _customModelController.text.trim();
-      await AISettings.setModel(_providerId, _modelId);
-    } else {
-      await AISettings.setApiKey(_providerId, _keyController.text.trim());
-      await AISettings.setModel(_providerId, _modelId);
+  /// Save data for the currently selected preset (without changing provider).
+  Future<void> _saveCurrentPreset() async {
+    final preset = AIProviderPreset.byId(_presetId);
+    await AISettings.setApiKey(_presetId, _keyController.text.trim());
+    if (preset.requiresEndpoint) {
+      await AISettings.setEndpoint(_presetId, _endpointController.text.trim());
     }
-    if (id == AIProviderId.custom) {
-      _customFormat = await AISettings.getCustomFormat();
-      _endpointController.text = await AISettings.getCustomEndpoint();
-      _modelId = await AISettings.getModel(id);
+    final effectiveModel = preset.allowsCustomModels
+        ? _customModelController.text.trim()
+        : _modelId;
+    if (effectiveModel.isNotEmpty) {
+      await AISettings.setModel(_presetId, effectiveModel);
+    }
+  }
+
+  /// Switch to a different provider preset.
+  Future<void> _onProviderChanged(String? newId) async {
+    if (newId == null || newId == _presetId) return;
+
+    // Save old preset's data
+    await _saveCurrentPreset();
+
+    // Switch to new preset
+    _presetId = newId;
+    _useCustomModel = false;
+    final preset = AIProviderPreset.byId(newId);
+
+    // Load new preset's data
+    final newKey = await AISettings.getApiKey(newId);
+    _modelId = await AISettings.getModel(newId);
+    if (preset.requiresEndpoint) {
+      _endpointController.text = await AISettings.getEndpoint(newId);
+    } else {
+      _endpointController.clear();
+    }
+    if (preset.allowsCustomModels) {
       _customModelController.text = _modelId;
-      final newKey = await AISettings.getApiKey(id);
-      if (mounted) {
-        setState(() {
-          _providerId = id;
-          _keyController.text = newKey ?? '';
-        });
+      if (preset.preconfiguredModels.isNotEmpty &&
+          !preset.preconfiguredModels.any((m) => m.id == _modelId)) {
+        _useCustomModel = true;
       }
     } else {
-      final newKey = await AISettings.getApiKey(id);
-      final newModel = await AISettings.getModel(id);
-      if (mounted) {
-        setState(() {
-          _providerId = id;
-          _keyController.text = newKey ?? '';
-          _modelId = newModel;
-        });
-      }
+      _customModelController.clear();
+    }
+
+    if (mounted) {
+      setState(() {
+        _keyController.text = newKey ?? '';
+      });
     }
   }
 
   Future<void> _save() async {
-    await AISettings.setProvider(_providerId);
-    await AISettings.setApiKey(_providerId, _keyController.text.trim());
-    if (_providerId == AIProviderId.custom) {
-      await AISettings.setCustomEndpoint(_endpointController.text.trim());
-      await AISettings.setCustomFormat(_customFormat);
-      _modelId = _customModelController.text.trim();
-      await AISettings.setModel(_providerId, _modelId);
-    } else {
-      await AISettings.setModel(_providerId, _modelId);
-    }
+    await AISettings.setProvider(_presetId);
+    await _saveCurrentPreset();
     await AISettings.setAutoAI(_autoAI);
     if (mounted) Navigator.pop(context, true);
   }
@@ -106,20 +121,6 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
     super.dispose();
   }
 
-  String _keyHintFor(AIProviderId id) => switch (id) {
-    AIProviderId.anthropic => 'sk-ant-api03-...',
-    AIProviderId.openai => 'sk-proj-... / sk-...',
-    AIProviderId.deepseek => 'sk-...',
-    AIProviderId.custom => 'sk-...',
-  };
-
-  String _keyOriginFor(AIProviderId id) => switch (id) {
-    AIProviderId.anthropic => tr("getAnthropicKeyFromPlatform"),
-    AIProviderId.openai => tr("getOpenaiKeyFromPlatform"),
-    AIProviderId.deepseek => tr("getDeepseekKeyFromPlatform"),
-    AIProviderId.custom => tr("aiCustomGetKeyFrom"),
-  };
-
   @override
   Widget build(BuildContext context) {
     if (!_loaded) {
@@ -130,9 +131,10 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
         ),
       );
     }
-    final provider = AIProvider.byId(_providerId);
-    final modelInList = provider.models.any((m) => m.id == _modelId);
-    final effectiveModelId = modelInList ? _modelId : provider.defaultModelId;
+
+    final preset = AIProviderPreset.byId(_presetId);
+    final modelInList = preset.preconfiguredModels.any((m) => m.id == _modelId);
+    final effectiveModelId = modelInList ? _modelId : preset.defaultModelId;
 
     return AlertDialog(
       title: Text(tr("aiColorSettings")),
@@ -151,8 +153,8 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                 ),
               ),
               const SizedBox(height: 6),
-              DropdownButtonFormField<AIProviderId>(
-                initialValue: _providerId,
+              DropdownButtonFormField<String>(
+                initialValue: _presetId,
                 isDense: true,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
@@ -161,7 +163,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                     vertical: 10,
                   ),
                 ),
-                items: AIProvider.all
+                items: AIProviderPreset.all
                     .map(
                       (p) => DropdownMenuItem(
                         value: p.id,
@@ -176,47 +178,8 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
               ),
               const SizedBox(height: 14),
 
-              if (_providerId == AIProviderId.custom) ...[
-                // —— Custom: API Format —— //
-                Text(
-                  tr("aiCustomFormat"),
-                  style: AppTypography.bodyLarge.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  initialValue: _customFormat,
-                  isDense: true,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
-                    ),
-                  ),
-                  items: [
-                    DropdownMenuItem(
-                      value: 'anthropic',
-                      child: Text(
-                        tr("aiCustomFormatAnthropic"),
-                        style: AppTypography.bodyLarge,
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'openai',
-                      child: Text(
-                        tr("aiCustomFormatOpenAI"),
-                        style: AppTypography.bodyLarge,
-                      ),
-                    ),
-                  ],
-                  onChanged: (v) =>
-                      setState(() => _customFormat = v ?? 'anthropic'),
-                ),
-                const SizedBox(height: 14),
-
-                // —— Custom: Endpoint —— //
+              // —— Endpoint (shown only if preset requires it) —— //
+              if (preset.requiresEndpoint) ...[
                 Text(
                   tr("aiCustomEndpoint"),
                   style: AppTypography.bodyLarge.copyWith(
@@ -240,8 +203,42 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                   ),
                 ),
                 const SizedBox(height: 14),
+              ],
 
-                // —— Custom: Model Name —— //
+              // —— 2. Model —— //
+              Text(
+                tr("model"),
+                style: AppTypography.bodyLarge.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+
+              // Branch A: Standard dropdown only (no custom models allowed)
+              if (!preset.allowsCustomModels)
+                DropdownButtonFormField<String>(
+                  initialValue: effectiveModelId,
+                  isDense: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                  ),
+                  items: preset.preconfiguredModels
+                      .map(
+                        (m) => DropdownMenuItem(
+                          value: m.id,
+                          child: Text(m.label, style: AppTypography.bodyLarge),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) =>
+                      setState(() => _modelId = v ?? preset.defaultModelId),
+                )
+              // Branch B: Custom models only, no preconfigured list → just text field
+              else if (preset.preconfiguredModels.isEmpty) ...[
                 Text(
                   tr("aiCustomModel"),
                   style: AppTypography.bodyLarge.copyWith(
@@ -264,17 +261,13 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                     fontFamily: 'monospace',
                   ),
                 ),
-              ] else ...[
-                // —— 2. Model —— //
-                Text(
-                  tr("model"),
-                  style: AppTypography.bodyLarge.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
+              ]
+              // Branch C: Preconfigured models + "Custom..." option
+              else ...[
                 DropdownButtonFormField<String>(
-                  initialValue: effectiveModelId,
+                  initialValue: _useCustomModel
+                      ? '__custom__'
+                      : effectiveModelId,
                   isDense: true,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
@@ -283,60 +276,102 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                       vertical: 10,
                     ),
                   ),
-                  items: provider.models
-                      .map(
-                        (m) => DropdownMenuItem(
-                          value: m.id,
-                          child: Text(m.label, style: AppTypography.bodyLarge),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) =>
-                      setState(() => _modelId = v ?? provider.defaultModelId),
+                  items: [
+                    ...preset.preconfiguredModels.map(
+                      (m) => DropdownMenuItem(
+                        value: m.id,
+                        child: Text(m.label, style: AppTypography.bodyLarge),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: '__custom__',
+                      child: Text(tr("aiCustomModelOption")),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v == '__custom__') {
+                      setState(() {
+                        _useCustomModel = true;
+                        _customModelController.text = _modelId;
+                      });
+                    } else {
+                      setState(() {
+                        _useCustomModel = false;
+                        _modelId = v ?? preset.defaultModelId;
+                      });
+                    }
+                  },
                 ),
+                if (_useCustomModel) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    tr("aiCustomModel"),
+                    style: AppTypography.bodyLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _customModelController,
+                    decoration: InputDecoration(
+                      hintText: tr("aiCustomModelHint"),
+                      isDense: true,
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
+                    ),
+                    style: AppTypography.bodyMedium.copyWith(
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
               ],
+
               const SizedBox(height: 14),
 
-              // —— 3. API Key —— //
-              Text(
-                _providerId == AIProviderId.custom
-                    ? tr("apiKey")
-                    : '${provider.displayName} ${tr("apiKey")}',
-                style: AppTypography.bodyLarge.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _keyController,
-                obscureText: _obscure,
-                decoration: InputDecoration(
-                  hintText: _keyHintFor(_providerId),
-                  isDense: true,
-                  border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
+              // —— 3. API Key (shown only if preset requires it) —— //
+              if (preset.requiresApiKey) ...[
+                Text(
+                  '${preset.displayName} ${tr("apiKey")}',
+                  style: AppTypography.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscure ? Icons.visibility : Icons.visibility_off,
-                      size: 16,
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _keyController,
+                  obscureText: _obscure,
+                  decoration: InputDecoration(
+                    hintText: preset.apiKeyHint ?? 'sk-...',
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
                     ),
-                    onPressed: () => setState(() => _obscure = !_obscure),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscure ? Icons.visibility : Icons.visibility_off,
+                        size: 16,
+                      ),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                  ),
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontFamily: 'monospace',
                   ),
                 ),
-                style: AppTypography.bodyMedium.copyWith(
-                  fontFamily: 'monospace',
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _keyOriginFor(_providerId),
-                style: AppTypography.labelSmall.copyWith(
-                  color: AppColors.faintText,
-                ),
-              ),
+                const SizedBox(height: 4),
+                if (preset.apiKeyOriginTrKey != null)
+                  Text(
+                    tr(preset.apiKeyOriginTrKey!),
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.faintText,
+                    ),
+                  ),
+              ],
 
               const Divider(height: 28),
 
@@ -362,7 +397,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            SizedBox(height: 2),
+                            const SizedBox(height: 2),
                             Text(
                               tr("aiColorSuggestionTetherAutoDescription"),
                               style: AppTypography.labelMedium.copyWith(

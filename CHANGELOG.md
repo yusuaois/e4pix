@@ -1,13 +1,14 @@
 ## ✨ 新改变  (New Changes)
 
 ## 🚀 新功能 (New Features)
-* **AI调色**：新增自定义AI提供商
+* **AI调色**：新增自定义AI提供商与OpenRouter提供商
 
 ## 🐛 问题修复 (Bug Fixes)
 
 ## ⚡ 性能优化 (Performance)
 
 ## 🛠️ 底层改进 (Under the Hood)
+* **AI配置**：重构AI配置写法
 
 ---
 
