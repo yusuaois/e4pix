@@ -1,5 +1,13 @@
 import 'dart:ui' as ui;
 
+/// 纹理已被 dispose 时抛出，调用方可跳过本帧渲染
+class DisposedImageException implements Exception {
+  final String message;
+  const DisposedImageException([this.message = 'Image has been disposed']);
+  @override
+  String toString() => 'DisposedImageException: $message';
+}
+
 /// 通用 GPU 着色器单 pass 执行工具
 ///
 /// fragmentShader → set uniforms → PictureRecorder → drawRect → toImage
@@ -11,7 +19,11 @@ Future<ui.Image> runSingleShaderPass({
   required List<ui.Image> samplers,
 }) async {
   for (int i = 0; i < samplers.length; i++) {
-    shader.setImageSampler(i, samplers[i]);
+    try {
+      shader.setImageSampler(i, samplers[i]);
+    } on AssertionError {
+      throw DisposedImageException('sampler[$i] disposed');
+    }
   }
   setUniforms(shader);
 

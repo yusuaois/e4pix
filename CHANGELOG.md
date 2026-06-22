@@ -7,6 +7,7 @@
 ## 🚀 新功能 (New Features)
 
 ## 🐛 问题修复 (Bug Fixes)
+* **图片切换崩溃**：修复快速切换图片时 `Image has been disposed` 和 `ref used after unmount` 两个未处理异常
 * **国际化补全**：修复镜头错误提示、HD 加载标签、预设加载失败提示、水印 EXIF 字段标签等硬编码英文
 
 ## ⚡ 性能优化 (Performance)

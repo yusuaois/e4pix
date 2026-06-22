@@ -10,6 +10,7 @@ import '../../render/full_pipeline_renderer.dart';
 import '../../render/homography.dart';
 import '../../render/mask_cache.dart';
 import '../../state/providers.dart';
+import '../../utils/shader_pass_util.dart';
 
 /// 离屏多 pass 预览
 class MultiPassPreview extends ConsumerStatefulWidget {
@@ -149,9 +150,12 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       final old = _rendered;
       setState(() => _rendered = result);
       old?.dispose();
+    } on DisposedImageException {
+      // 纹理已 dispose，跳过本帧，等待下次渲染
+      debugPrint('[MultiPassPreview] Skipped render: source image disposed');
     } finally {
       _isRendering = false;
-      if (_pendingRender) {
+      if (_pendingRender && mounted) {
         _pendingRender = false;
         _runRender();
       }

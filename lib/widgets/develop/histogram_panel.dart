@@ -10,6 +10,7 @@ import '../../core/theme/app_typography.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../render/mask_cache.dart';
+import '../../utils/shader_pass_util.dart';
 import '../../state/providers.dart';
 
 class Histogram {
@@ -189,6 +190,9 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
       } finally {
         rendered.dispose();
       }
+    } on DisposedImageException {
+      // 纹理已 dispose，跳过本帧
+      debugPrint('[Histogram] Skipped compute: source image disposed');
     } finally {
       _computing = false;
     }
