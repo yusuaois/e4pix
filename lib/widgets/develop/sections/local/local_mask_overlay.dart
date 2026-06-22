@@ -220,7 +220,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final params = ref.watch(currentParamsNotifierProvider);
+    final locals = ref.watch(
+      currentParamsNotifierProvider.select((p) => p.locals),
+    );
     final selectedId = ref.watch(selectedLocalIdProvider);
     final selected = ref.watch(selectedLocalProvider);
     final brush = ref.watch(brushSettingsProvider);
@@ -237,7 +239,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         : null;
     _ensureBaseViz(selBrush);
 
-    if (params.locals.isEmpty) return const SizedBox.shrink();
+    if (locals.isEmpty) return const SizedBox.shrink();
 
     final gesture = GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -256,7 +258,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           setState(() {});
           return;
         }
-        final hit = _hitTest(d.localPosition, params.locals, selectedId);
+        final hit = _hitTest(d.localPosition, locals, selectedId);
         if (hit == null) {
           _drag = _Handle.none;
           _dragId = null;
@@ -265,9 +267,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         _dragId = hit.$1;
         _drag = hit.$2;
         _dragStartPos = d.localPosition;
-        _shapeAtDragStart = params.locals
-            .firstWhere((l) => l.id == _dragId)
-            .mask;
+        _shapeAtDragStart = locals.firstWhere((l) => l.id == _dragId).mask;
         if (selectedId != _dragId) {
           ref.read(selectedLocalIdProvider.notifier).state = _dragId;
         }
@@ -323,7 +323,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           _finishBrush();
           return;
         }
-        final hit = _hitTest(d.localPosition, params.locals, selectedId);
+        final hit = _hitTest(d.localPosition, locals, selectedId);
         if (hit == null) {
           ref.read(selectedLocalIdProvider.notifier).state = null;
         } else if (hit.$1 != selectedId) {
@@ -333,7 +333,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
       child: CustomPaint(
         size: widget.imageDisplaySize,
         painter: MaskPainter(
-          locals: params.locals,
+          locals: locals,
           selectedId: selectedId,
           displaySize: widget.imageDisplaySize,
           primaryColor: Theme.of(context).colorScheme.primary,

@@ -21,7 +21,12 @@ class LutSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lut = ref.watch(lutNotifierProvider);
-    final params = ref.watch(currentParamsNotifierProvider);
+    final lutIntensity = ref.watch(
+      currentParamsNotifierProvider.select((p) => p.lutIntensity),
+    );
+    final lutIntensityB = ref.watch(
+      currentParamsNotifierProvider.select((p) => p.lutIntensityB),
+    );
     final library = ref.watch(lutLibraryNotifierProvider).value ?? const [];
 
     LutTextureCache.instance.protect(lut.nameA, lut.nameB);
@@ -39,7 +44,7 @@ class LutSection extends ConsumerWidget {
           slot: 0,
           label: 'LUT A',
           lutName: lut.nameA,
-          intensity: params.lutIntensity,
+          intensity: lutIntensity,
           library: library,
           thumbs: thumbs,
           rendering: rendering,
@@ -51,7 +56,7 @@ class LutSection extends ConsumerWidget {
           slot: 1,
           label: 'LUT B',
           lutName: lut.nameB,
-          intensity: params.lutIntensityB,
+          intensity: lutIntensityB,
           library: library,
           thumbs: thumbs,
           rendering: rendering,

@@ -197,6 +197,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       context: context,
       builder: (_) => const AISettingsDialog(),
     );
+    if (!mounted) return;
     final auto = await AISettings.getAutoAI();
     ref.read(aiAutoNotifierProvider.notifier).setEnabled(auto);
   }
@@ -272,13 +273,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       initialTemplate: ref.read(exportTemplateProvider),
     );
     if (result == null) return;
+    if (!mounted) return;
 
     // 记住模板
     ref.read(exportTemplateProvider.notifier).set(result.filenameTemplate);
-
-    if (!mounted) return;
     final folder = await FilePicker.getDirectoryPath(dialogTitle: tr('saveTo'));
-    if (folder == null) return;
+    if (folder == null || !mounted) return;
 
     // 快照当前全局 LUT
     final config = ExportConfig(
@@ -846,7 +846,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       ),
     );
 
-    if (ok != true) return;
+    if (!mounted || ok != true) return;
 
     // 1) 更新状态
     ref

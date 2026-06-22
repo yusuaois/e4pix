@@ -42,7 +42,7 @@ class RatingFlagBar extends ConsumerWidget {
               writeSidecar();
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
               child: Icon(
                 i <= active.rating ? Icons.star : Icons.star_border,
                 size: 18,

@@ -60,12 +60,14 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
 
   @override
   Widget build(BuildContext context) {
-    final params = ref.watch(currentParamsNotifierProvider);
-    final curves = params.curves;
+    final curves = ref.watch(
+      currentParamsNotifierProvider.select((p) => p.curves),
+    );
     final curve = _curveOf(curves);
     final lineColor = _channelColor(context);
 
     void commit(ToneCurve next) {
+      final params = ref.read(currentParamsNotifierProvider);
       ref
           .read(currentParamsNotifierProvider.notifier)
           .update(params.copyWith(curves: _withChannel(curves, next)));

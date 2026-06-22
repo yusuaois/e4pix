@@ -15,20 +15,27 @@ class LensSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final params = ref.watch(currentParamsNotifierProvider);
-    final lens = params.lensCorrection;
-    final persp = params.perspective;
+    final lens = ref.watch(
+      currentParamsNotifierProvider.select((p) => p.lensCorrection),
+    );
+    final persp = ref.watch(
+      currentParamsNotifierProvider.select((p) => p.perspective),
+    );
 
     void setLens(LensCorrectionParams v) {
       ref
           .read(currentParamsNotifierProvider.notifier)
-          .update(params.copyWith(lensCorrection: v));
+          .update(
+            ref.read(currentParamsNotifierProvider).copyWith(lensCorrection: v),
+          );
     }
 
     void setPersp(PerspectiveParams v) {
       ref
           .read(currentParamsNotifierProvider.notifier)
-          .update(params.copyWith(perspective: v));
+          .update(
+            ref.read(currentParamsNotifierProvider).copyWith(perspective: v),
+          );
     }
 
     Future<void> autoDetect() async {
@@ -60,21 +67,23 @@ class LensSection extends ConsumerWidget {
       ref
           .read(currentParamsNotifierProvider.notifier)
           .update(
-            params.copyWith(
-              lensCorrection: LensCorrectionParams(
-                enabled: true,
-                caRed: cal.tcaVr,
-                caBlue: cal.tcaVb,
-                distortionEnabled: true,
-                distortionK1: cal.distortionA,
-                distortionK2: cal.distortionB,
-                distortionK3: cal.distortionC,
-                vignettingEnabled: true,
-                vignettingK1: cal.vignettingK1,
-                vignettingK2: cal.vignettingK2,
-                vignettingK3: cal.vignettingK3,
-              ),
-            ),
+            ref
+                .read(currentParamsNotifierProvider)
+                .copyWith(
+                  lensCorrection: LensCorrectionParams(
+                    enabled: true,
+                    caRed: cal.tcaVr,
+                    caBlue: cal.tcaVb,
+                    distortionEnabled: true,
+                    distortionK1: cal.distortionA,
+                    distortionK2: cal.distortionB,
+                    distortionK3: cal.distortionC,
+                    vignettingEnabled: true,
+                    vignettingK1: cal.vignettingK1,
+                    vignettingK2: cal.vignettingK2,
+                    vignettingK3: cal.vignettingK3,
+                  ),
+                ),
           );
     }
 
@@ -111,10 +120,12 @@ class LensSection extends ConsumerWidget {
                     ref
                         .read(currentParamsNotifierProvider.notifier)
                         .update(
-                          params.copyWith(
-                            lensCorrection: LensCorrectionParams.neutral,
-                            perspective: PerspectiveParams.identity,
-                          ),
+                          ref
+                              .read(currentParamsNotifierProvider)
+                              .copyWith(
+                                lensCorrection: LensCorrectionParams.neutral,
+                                perspective: PerspectiveParams.identity,
+                              ),
                         );
                   },
                   child: Padding(

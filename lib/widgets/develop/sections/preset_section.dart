@@ -93,7 +93,7 @@ class _PresetBarState extends ConsumerState<PresetBar> {
               onPressed: () => showSavePresetDialog(context, notifier),
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
             ),
             IconButton(
               icon: const Icon(Icons.input, size: 18),
@@ -101,7 +101,7 @@ class _PresetBarState extends ConsumerState<PresetBar> {
               onPressed: () => importXmpPreset(context, ref),
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
             ),
             IconButton(
               icon: const Icon(Icons.file_download_outlined, size: 18),
@@ -109,7 +109,7 @@ class _PresetBarState extends ConsumerState<PresetBar> {
               onPressed: () => exportXmpPreset(context, ref),
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
             ),
           ],
         ),

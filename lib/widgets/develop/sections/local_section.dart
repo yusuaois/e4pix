@@ -19,10 +19,12 @@ class LocalPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final params = ref.watch(currentParamsNotifierProvider);
+    final locals = ref.watch(
+      currentParamsNotifierProvider.select((p) => p.locals),
+    );
     final selectedId = ref.watch(selectedLocalIdProvider);
     final selected = ref.watch(selectedLocalProvider);
-    final atLimit = params.locals.length >= LocalAdjustmentActions.maxLocals;
+    final atLimit = locals.length >= LocalAdjustmentActions.maxLocals;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -92,7 +94,7 @@ class LocalPanel extends ConsumerWidget {
             ],
           ),
         ),
-        if (params.locals.isEmpty)
+        if (locals.isEmpty)
           Padding(
             padding: EdgeInsets.fromLTRB(20, 4, 16, 8),
             child: Text(
@@ -103,7 +105,7 @@ class LocalPanel extends ConsumerWidget {
             ),
           )
         else
-          for (final local in params.locals)
+          for (final local in locals)
             _MaskListItem(local: local, isSelected: local.id == selectedId),
         if (selected != null) ...[
           const SizedBox(height: 6),
@@ -174,7 +176,7 @@ class _MaskListItem extends ConsumerWidget {
                 ).updateLocal(local.id, (l) => l.copyWith(enabled: !l.enabled)),
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               ),
               IconButton(
                 icon: Icon(Icons.close, size: 14, color: AppColors.faintText),
@@ -184,7 +186,7 @@ class _MaskListItem extends ConsumerWidget {
                 },
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               ),
             ],
           ),
