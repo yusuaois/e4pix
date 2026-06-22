@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -28,16 +29,22 @@ class ImageLoader {
 
   /// 全分辨率解码为 8-bit sRGB ui.Image
   /// 返回 (image, metadata)JPG 读 EXIF，PNG / 失败 emptyMetadata
+  /// EXIF 解析在 Isolate 中执行，避免主线程阻塞
   static Future<(ui.Image, RawMetadata)> decodeFull(String path) async {
     final bytes = await File(path).readAsBytes();
+    // EXIF 解析（含完整 JPEG 解码）在独立 Isolate 中运行
+    final metaFuture = Isolate.run(() => _tryReadExif(bytes));
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
-    final meta = _tryReadExif(bytes) ?? emptyMetadata;
+    final meta = await metaFuture ?? emptyMetadata;
     return (frame.image, meta);
   }
 
   /// 缩略图解码
-  static Future<ui.Image> decodeThumbnail(String path, {int maxEdge = 320}) async {
+  static Future<ui.Image> decodeThumbnail(
+    String path, {
+    int maxEdge = 320,
+  }) async {
     final bytes = await File(path).readAsBytes();
     final codec = await ui.instantiateImageCodec(bytes, targetWidth: maxEdge);
     final frame = await codec.getNextFrame();
@@ -77,8 +84,13 @@ class ImageLoader {
       if (dtVal != null) ts = _parseExifDate(dtVal);
 
       // 全部字段为空/0 → 视为无有效 EXIF
-      if (make.isEmpty && model.isEmpty && iso == 0 &&
-          shutter == 0 && aperture == 0 && focal == 0 && ts == null) {
+      if (make.isEmpty &&
+          model.isEmpty &&
+          iso == 0 &&
+          shutter == 0 &&
+          aperture == 0 &&
+          focal == 0 &&
+          ts == null) {
         return null;
       }
 
@@ -108,8 +120,12 @@ class ImageLoader {
       final t = parts[1].split(':');
       if (d.length != 3 || t.length != 3) return null;
       return DateTime(
-        int.parse(d[0]), int.parse(d[1]), int.parse(d[2]),
-        int.parse(t[0]), int.parse(t[1]), int.parse(t[2]),
+        int.parse(d[0]),
+        int.parse(d[1]),
+        int.parse(d[2]),
+        int.parse(t[0]),
+        int.parse(t[1]),
+        int.parse(t[2]),
       );
     } catch (_) {
       return null;

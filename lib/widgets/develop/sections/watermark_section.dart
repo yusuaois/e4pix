@@ -321,7 +321,7 @@ class WatermarkSection extends ConsumerWidget {
                         cfg.enabledExifFields.isEmpty ||
                         cfg.enabledExifFields.contains(field);
                     return _ExifFieldChip(
-                      label: field.displayLabel,
+                      label: field.displayLabelKey.tr(),
                       selected: selected,
                       onTap: () {
                         final s = Set<ExifField>.from(cfg.enabledExifFields);

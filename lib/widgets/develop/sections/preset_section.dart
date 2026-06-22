@@ -37,7 +37,7 @@ class _PresetBarState extends ConsumerState<PresetBar> {
 
     return asyncList.when(
       loading: () => const SizedBox(height: 40),
-      error: (e, _) => Text('Preset load failed: $e'),
+      error: (e, _) => Text(tr('presetLoadFailed', namedArgs: {'error': '$e'})),
       data: (presets) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
@@ -416,7 +416,12 @@ Future<void> showPresetOptions(
         context: ctx,
         builder: (_) => AlertDialog(
           title: Text(tr("rename")),
-          content: TextField(controller: controller, autofocus: true),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),

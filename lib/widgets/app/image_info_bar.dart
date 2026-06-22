@@ -86,7 +86,7 @@ class ImageInfoBar extends ConsumerWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'HD…',
+                    tr('loadingHD'),
                     style: AppTypography.labelSmall.copyWith(
                       color: AppColors.semanticWarning.withValues(alpha: 0.7),
                       fontFamily: 'monospace',

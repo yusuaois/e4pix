@@ -70,16 +70,18 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
             return Center(
               child: SizedBox.fromSize(
                 size: fit.destination,
-                child: CustomPaint(
-                  painter: _DevelopPainter(
-                    shader: shader,
-                    image: widget.image,
-                    params: params,
-                    lut: widget.lutTexture,
-                    lutSize: widget.lutSize,
-                    lutB: widget.lutTextureB,
-                    lutSizeB: widget.lutSizeB,
-                    curve: widget.curveTexture,
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _DevelopPainter(
+                      shader: shader,
+                      image: widget.image,
+                      params: params,
+                      lut: widget.lutTexture,
+                      lutSize: widget.lutSize,
+                      lutB: widget.lutTextureB,
+                      lutSizeB: widget.lutSizeB,
+                      curve: widget.curveTexture,
+                    ),
                   ),
                 ),
               ),

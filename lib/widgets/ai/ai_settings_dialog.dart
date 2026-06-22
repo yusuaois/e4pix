@@ -189,6 +189,8 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                 const SizedBox(height: 6),
                 TextField(
                   controller: _endpointController,
+                  keyboardType: TextInputType.url,
+                  textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     hintText: tr("aiCustomEndpointHint"),
                     isDense: true,
@@ -248,6 +250,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                 const SizedBox(height: 6),
                 TextField(
                   controller: _customModelController,
+                  textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     hintText: tr("aiCustomModelHint"),
                     isDense: true,
@@ -343,6 +346,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
                 TextField(
                   controller: _keyController,
                   obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
                   decoration: InputDecoration(
                     hintText: preset.apiKeyHint ?? 'sk-...',
                     isDense: true,

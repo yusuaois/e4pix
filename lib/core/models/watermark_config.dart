@@ -54,7 +54,7 @@ extension InfoPlacementExt on InfoPlacement {
     _ => false,
   };
 
-  /// UI 显示标签
+  /// UI 显示标签（UI 层已使用 tr() 翻译，此 getter 仅用于非 UI 场景）
   String get displayLabel => switch (this) {
     InfoPlacement.above => 'Above Image',
     InfoPlacement.below => 'Below Image',
@@ -97,13 +97,13 @@ enum ExifField {
 
 /// [ExifField] 显示标签
 extension ExifFieldExt on ExifField {
-  String get displayLabel => switch (this) {
-    ExifField.cameraModel => 'Camera',
-    ExifField.lensModel => 'Lens',
+  String get displayLabelKey => switch (this) {
+    ExifField.cameraModel => 'watermarkExifCamera',
+    ExifField.lensModel => 'watermarkExifLens',
     ExifField.iso => 'ISO',
-    ExifField.aperture => 'Aperture',
-    ExifField.shutter => 'Shutter',
-    ExifField.focalLength => 'Focal Length',
+    ExifField.aperture => 'watermarkExifAperture',
+    ExifField.shutter => 'watermarkExifShutter',
+    ExifField.focalLength => 'watermarkExifFocalLength',
   };
 }
 

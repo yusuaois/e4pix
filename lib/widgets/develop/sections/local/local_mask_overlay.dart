@@ -330,23 +330,38 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           ref.read(selectedLocalIdProvider.notifier).state = hit.$1;
         }
       },
-      child: CustomPaint(
-        size: widget.imageDisplaySize,
-        painter: MaskPainter(
-          locals: locals,
-          selectedId: selectedId,
-          displaySize: widget.imageDisplaySize,
-          primaryColor: Theme.of(context).colorScheme.primary,
-          inProgressPoints: _paintingPoints == null
-              ? null
-              : List.of(_paintingPoints!),
-          cursorScreen: (isBrush || isWand) ? _cursorScreen : null,
-          brushRadiusNorm: brushRadius,
-          brushErase: brushErase,
-          wandMode: isWand || isSubject,
-          baseViz: isBrush ? _baseViz : null,
-          subjectNegative: isSubject && brush.samNegative,
-        ),
+      child: Stack(
+        children: [
+          CustomPaint(
+            size: widget.imageDisplaySize,
+            painter: MaskPainter(
+              locals: locals,
+              selectedId: selectedId,
+              displaySize: widget.imageDisplaySize,
+              primaryColor: Theme.of(context).colorScheme.primary,
+              inProgressPoints: _paintingPoints == null
+                  ? null
+                  : List.of(_paintingPoints!),
+              brushRadiusNorm: brushRadius,
+              brushErase: brushErase,
+              baseViz: isBrush ? _baseViz : null,
+            ),
+          ),
+          if (isBrush || isWand)
+            RepaintBoundary(
+              child: CustomPaint(
+                size: widget.imageDisplaySize,
+                painter: MaskCursorPainter(
+                  cursorScreen: _cursorScreen,
+                  brushRadiusNorm: brushRadius,
+                  wandMode: isWand || isSubject,
+                  subjectNegative: isSubject && brush.samNegative,
+                  displaySize: widget.imageDisplaySize,
+                  primaryColor: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+        ],
       ),
     );
 

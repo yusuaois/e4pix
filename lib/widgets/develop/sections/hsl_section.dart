@@ -67,7 +67,7 @@ class _HslSectionState extends State<HslSection> {
               ? GestureDetector(
                   onTap: () => widget.onChanged(HslBands.neutral),
                   child: Text(
-                    'reset',
+                    tr('reset'),
                     style: AppTypography.labelSmall.copyWith(
                       color: AppColors.faintText,
                     ),

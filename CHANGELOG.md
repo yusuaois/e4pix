@@ -1,14 +1,24 @@
 ## ✨ 新改变  (New Changes)
 * **UI调整**：调整部分UI
+* **触摸区域优化**：预设栏、裁剪面板、局部调整面板的按钮触摸区域增大
+* **镜头自动检测加载态**：点击「Auto」按钮时显示旋转加载图标，完成后恢复
+* **输入框键盘优化**：AI 设置和预设重命名对话框的输入框支持 Tab 跳转和 Enter 确认
 
 ## 🚀 新功能 (New Features)
 
 ## 🐛 问题修复 (Bug Fixes)
+* **国际化补全**：修复镜头错误提示、HD 加载标签、预设加载失败提示、水印 EXIF 字段标签等硬编码英文
 
 ## ⚡ 性能优化 (Performance)
 * **参数监听**：优化参数监听逻辑
+* **预览隔离**：拖动分割线时不再触发密集的预览重绘
+* **遮罩光标**：将局部调整的光标从 MaskPainter 拆分为独立的 MaskCursorPainter + RepaintBoundary，鼠标移动不再触发遮罩全量重绘
+* **EXIF 解析 Isolate 迁移**：将 JPEG 的 EXIF 解析（含完整解码）移至 Isolate.run() 与图片解码并行执行，避免主线程阻塞
 
 ## 🛠️ 底层改进 (Under the Hood)
+* **异步安全**：为 develop_screen.dart 中 3 处 await 后缺失的 `mounted` 检查添加防护，消除页面切换时的潜在崩溃
+* **LensSection 重构**：从 ConsumerWidget 重构为 ConsumerStatefulWidget，支持加载状态管理
+* **MaskPainter 拆分**：将光标渲染逻辑拆分为独立的 MaskCursorPainter 类，职责分离
 
 ---
 

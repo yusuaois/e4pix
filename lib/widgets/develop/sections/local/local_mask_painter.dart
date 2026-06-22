@@ -12,12 +12,9 @@ class MaskPainter extends CustomPainter {
   final String? selectedId;
   final Size displaySize;
   final List<Offset>? inProgressPoints;
-  final Offset? cursorScreen;
   final double brushRadiusNorm;
   final bool brushErase;
-  final bool wandMode;
   final ui.Image? baseViz;
-  final bool subjectNegative;
   final Color primaryColor;
 
   MaskPainter({
@@ -26,12 +23,9 @@ class MaskPainter extends CustomPainter {
     required this.displaySize,
     required this.primaryColor,
     this.inProgressPoints,
-    this.cursorScreen,
     this.brushRadiusNorm = 0.08,
     this.brushErase = false,
-    this.wandMode = false,
     this.baseViz,
-    this.subjectNegative = false,
   });
 
   @override
@@ -56,7 +50,6 @@ class MaskPainter extends CustomPainter {
         _paintBrush(canvas, shape, selected, ip);
       }
     }
-    _paintCursor(canvas, subjectNegative);
   }
 
   void _paintLinear(
@@ -209,7 +202,43 @@ class MaskPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-  void _paintCursor(Canvas canvas, bool negative) {
+  @override
+  bool shouldRepaint(MaskPainter old) =>
+      !identical(old.locals, locals) ||
+      old.selectedId != selectedId ||
+      old.displaySize != displaySize ||
+      old.brushRadiusNorm != brushRadiusNorm ||
+      old.brushErase != brushErase ||
+      old.baseViz != baseViz ||
+      !_listEq(old.inProgressPoints, inProgressPoints);
+
+  static bool _listEq(List<Offset>? a, List<Offset>? b) {
+    if (identical(a, b)) return true;
+    if (a == null || b == null) return false;
+    return a.length == b.length;
+  }
+}
+
+/// 独立的光标绘制器，仅在光标位置变化时重绘（不影响遮罩层）
+class MaskCursorPainter extends CustomPainter {
+  final Offset? cursorScreen;
+  final double brushRadiusNorm;
+  final bool wandMode;
+  final bool subjectNegative;
+  final Size displaySize;
+  final Color primaryColor;
+
+  MaskCursorPainter({
+    required this.cursorScreen,
+    required this.brushRadiusNorm,
+    required this.wandMode,
+    required this.subjectNegative,
+    required this.displaySize,
+    required this.primaryColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
     final c = cursorScreen;
     if (c == null) return;
     if (wandMode) {
@@ -227,7 +256,8 @@ class MaskPainter extends CustomPainter {
       canvas.drawCircle(
         c,
         3,
-        Paint()..color = negative ? AppColors.semanticError : primaryColor,
+        Paint()
+          ..color = subjectNegative ? AppColors.semanticError : primaryColor,
       );
       return;
     }
@@ -251,20 +281,9 @@ class MaskPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(MaskPainter old) =>
-      !identical(old.locals, locals) ||
-      old.selectedId != selectedId ||
-      old.displaySize != displaySize ||
+  bool shouldRepaint(MaskCursorPainter old) =>
       old.cursorScreen != cursorScreen ||
       old.brushRadiusNorm != brushRadiusNorm ||
-      old.brushErase != brushErase ||
       old.wandMode != wandMode ||
-      old.baseViz != baseViz ||
-      !_listEq(old.inProgressPoints, inProgressPoints);
-
-  static bool _listEq(List<Offset>? a, List<Offset>? b) {
-    if (identical(a, b)) return true;
-    if (a == null || b == null) return false;
-    return a.length == b.length;
-  }
+      old.subjectNegative != subjectNegative;
 }

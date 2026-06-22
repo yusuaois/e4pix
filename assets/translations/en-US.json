@@ -457,5 +457,21 @@
   "perspectiveHorizontal": "Horizontal",
   "perspectiveVertical": "Vertical",
   "syncPerspective": "Perspective Correction",
-  "hide": "Hide"
+  "hide": "Hide",
+  "lensNoMetadata": "No image metadata",
+  "lensNoProfile": "No lens profile: {camera} / {lens}",
+  "loadingHD": "HD…",
+  "presetLoadFailed": "Preset load failed: {error}",
+  "watermarkPlacementAbove": "Above Image",
+  "watermarkPlacementBelow": "Below Image",
+  "watermarkPlacementOverlayTL": "↖ Top Left",
+  "watermarkPlacementOverlayTR": "↗ Top Right",
+  "watermarkPlacementOverlayBL": "↙ Bottom Left",
+  "watermarkPlacementOverlayBR": "↘ Bottom Right",
+  "ISO": "ISO",
+  "watermarkExifCamera": "Camera",
+  "watermarkExifLens": "Lens",
+  "watermarkExifAperture": "Aperture",
+  "watermarkExifShutter": "Shutter",
+  "watermarkExifFocalLength": "Focal Length"
 }

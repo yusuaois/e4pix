@@ -457,5 +457,21 @@
   "perspectiveHorizontal": "水平",
   "perspectiveVertical": "垂直",
   "syncPerspective": "透视矫正",
-  "hide": "隐藏"
+  "hide": "隐藏",
+  "lensNoMetadata": "无图像元数据",
+  "lensNoProfile": "无镜头配置文件：{camera} / {lens}",
+  "loadingHD": "高清加载中…",
+  "presetLoadFailed": "预设加载失败：{error}",
+  "watermarkPlacementAbove": "图片上方",
+  "watermarkPlacementBelow": "图片下方",
+  "watermarkPlacementOverlayTL": "↖ 左上",
+  "watermarkPlacementOverlayTR": "↗ 右上",
+  "watermarkPlacementOverlayBL": "↙ 左下",
+  "watermarkPlacementOverlayBR": "↘ 右下",
+  "ISO": "ISO",
+  "watermarkExifCamera": "相机",
+  "watermarkExifLens": "镜头",
+  "watermarkExifAperture": "光圈",
+  "watermarkExifShutter": "快门",
+  "watermarkExifFocalLength": "焦距"
 }

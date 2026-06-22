@@ -10,40 +10,40 @@ import '../../../services/lens/lensfun_database.dart';
 import '../../../state/providers.dart';
 import 'shared.dart';
 
-class LensSection extends ConsumerWidget {
+class LensSection extends ConsumerStatefulWidget {
   const LensSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final lens = ref.watch(
-      currentParamsNotifierProvider.select((p) => p.lensCorrection),
-    );
-    final persp = ref.watch(
-      currentParamsNotifierProvider.select((p) => p.perspective),
-    );
+  ConsumerState<LensSection> createState() => _LensSectionState();
+}
 
-    void setLens(LensCorrectionParams v) {
-      ref
-          .read(currentParamsNotifierProvider.notifier)
-          .update(
-            ref.read(currentParamsNotifierProvider).copyWith(lensCorrection: v),
-          );
+class _LensSectionState extends ConsumerState<LensSection> {
+  bool _detecting = false;
+
+  void _setLens(LensCorrectionParams v) {
+    ref
+        .read(currentParamsNotifierProvider.notifier)
+        .update(
+          ref.read(currentParamsNotifierProvider).copyWith(lensCorrection: v),
+        );
+  }
+
+  void _setPersp(PerspectiveParams v) {
+    ref
+        .read(currentParamsNotifierProvider.notifier)
+        .update(
+          ref.read(currentParamsNotifierProvider).copyWith(perspective: v),
+        );
+  }
+
+  Future<void> _autoDetect() async {
+    final metadata = ref.read(imageNotifierProvider).value?.metadata;
+    if (metadata == null) {
+      _snack(context, tr('lensNoMetadata'));
+      return;
     }
-
-    void setPersp(PerspectiveParams v) {
-      ref
-          .read(currentParamsNotifierProvider.notifier)
-          .update(
-            ref.read(currentParamsNotifierProvider).copyWith(perspective: v),
-          );
-    }
-
-    Future<void> autoDetect() async {
-      final metadata = ref.read(imageNotifierProvider).value?.metadata;
-      if (metadata == null) {
-        _snack(context, 'No image metadata');
-        return;
-      }
+    setState(() => _detecting = true);
+    try {
       final db = LensfunDatabase.instance;
       await db.ensureLoaded();
       final cal = db.lookup(
@@ -53,11 +53,17 @@ class LensSection extends ConsumerWidget {
         focalLength: metadata.focalLength,
         aperture: metadata.aperture,
       );
-      if (!context.mounted) return;
+      if (!mounted) return;
       if (cal == null) {
         _snack(
           context,
-          'No lens profile: ${metadata.cameraModel} / ${metadata.lensModel}',
+          tr(
+            'lensNoProfile',
+            namedArgs: {
+              'camera': metadata.cameraModel,
+              'lens': metadata.lensModel,
+            },
+          ),
         );
         return;
       }
@@ -85,7 +91,19 @@ class LensSection extends ConsumerWidget {
                   ),
                 ),
           );
+    } finally {
+      if (mounted) setState(() => _detecting = false);
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lens = ref.watch(
+      currentParamsNotifierProvider.select((p) => p.lensCorrection),
+    );
+    final persp = ref.watch(
+      currentParamsNotifierProvider.select((p) => p.perspective),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -97,19 +115,25 @@ class LensSection extends ConsumerWidget {
             children: [
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: autoDetect,
+                onTap: _detecting ? null : _autoDetect,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 4,
                   ),
-                  child: Text(
-                    'Auto',
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  child: _detecting
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 1.5),
+                        )
+                      : Text(
+                          tr('auto'),
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
               if (!lens.isNeutral || !persp.isIdentity) ...[
@@ -134,7 +158,7 @@ class LensSection extends ConsumerWidget {
                       vertical: 4,
                     ),
                     child: Text(
-                      'reset',
+                      tr('reset'),
                       style: AppTypography.labelSmall.copyWith(
                         color: AppColors.faintText,
                       ),
@@ -150,7 +174,7 @@ class LensSection extends ConsumerWidget {
         _SwitchHeader(
           label: tr('lensCAEnabled'),
           value: lens.enabled,
-          onChanged: (v) => setLens(lens.copyWith(enabled: v)),
+          onChanged: (v) => _setLens(lens.copyWith(enabled: v)),
         ),
         _AnimatedSection(
           expanded: lens.enabled,
@@ -162,7 +186,7 @@ class LensSection extends ConsumerWidget {
               max: 1.2,
               fractionDigits: 4,
               resetValue: 1.0,
-              onChanged: (v) => setLens(lens.copyWith(caRed: v)),
+              onChanged: (v) => _setLens(lens.copyWith(caRed: v)),
             ),
             DevelopSliderTile(
               label: tr('lensCABlue'),
@@ -171,7 +195,7 @@ class LensSection extends ConsumerWidget {
               max: 1.2,
               fractionDigits: 4,
               resetValue: 1.0,
-              onChanged: (v) => setLens(lens.copyWith(caBlue: v)),
+              onChanged: (v) => _setLens(lens.copyWith(caBlue: v)),
             ),
           ],
         ),
@@ -180,7 +204,7 @@ class LensSection extends ConsumerWidget {
         _SwitchHeader(
           label: tr('lensDistortionEnabled'),
           value: lens.distortionEnabled,
-          onChanged: (v) => setLens(lens.copyWith(distortionEnabled: v)),
+          onChanged: (v) => _setLens(lens.copyWith(distortionEnabled: v)),
         ),
         _AnimatedSection(
           expanded: lens.distortionEnabled,
@@ -192,7 +216,7 @@ class LensSection extends ConsumerWidget {
               max: 0.5,
               fractionDigits: 4,
               resetValue: 0.0,
-              onChanged: (v) => setLens(lens.copyWith(distortionK1: v)),
+              onChanged: (v) => _setLens(lens.copyWith(distortionK1: v)),
             ),
             DevelopSliderTile(
               label: tr('lensDistortionK2'),
@@ -201,7 +225,7 @@ class LensSection extends ConsumerWidget {
               max: 0.5,
               fractionDigits: 4,
               resetValue: 0.0,
-              onChanged: (v) => setLens(lens.copyWith(distortionK2: v)),
+              onChanged: (v) => _setLens(lens.copyWith(distortionK2: v)),
             ),
             DevelopSliderTile(
               label: tr('lensDistortionK3'),
@@ -210,7 +234,7 @@ class LensSection extends ConsumerWidget {
               max: 0.5,
               fractionDigits: 4,
               resetValue: 0.0,
-              onChanged: (v) => setLens(lens.copyWith(distortionK3: v)),
+              onChanged: (v) => _setLens(lens.copyWith(distortionK3: v)),
             ),
           ],
         ),
@@ -219,7 +243,7 @@ class LensSection extends ConsumerWidget {
         _SwitchHeader(
           label: tr('lensVignettingEnabled'),
           value: lens.vignettingEnabled,
-          onChanged: (v) => setLens(lens.copyWith(vignettingEnabled: v)),
+          onChanged: (v) => _setLens(lens.copyWith(vignettingEnabled: v)),
         ),
         _AnimatedSection(
           expanded: lens.vignettingEnabled,
@@ -231,7 +255,7 @@ class LensSection extends ConsumerWidget {
               max: 1.0,
               fractionDigits: 4,
               resetValue: 0.0,
-              onChanged: (v) => setLens(lens.copyWith(vignettingK1: v)),
+              onChanged: (v) => _setLens(lens.copyWith(vignettingK1: v)),
             ),
             DevelopSliderTile(
               label: tr('lensVignettingK2'),
@@ -240,7 +264,7 @@ class LensSection extends ConsumerWidget {
               max: 1.0,
               fractionDigits: 4,
               resetValue: 0.0,
-              onChanged: (v) => setLens(lens.copyWith(vignettingK2: v)),
+              onChanged: (v) => _setLens(lens.copyWith(vignettingK2: v)),
             ),
             DevelopSliderTile(
               label: tr('lensVignettingK3'),
@@ -249,7 +273,7 @@ class LensSection extends ConsumerWidget {
               max: 1.0,
               fractionDigits: 4,
               resetValue: 0.0,
-              onChanged: (v) => setLens(lens.copyWith(vignettingK3: v)),
+              onChanged: (v) => _setLens(lens.copyWith(vignettingK3: v)),
             ),
           ],
         ),
@@ -266,7 +290,7 @@ class LensSection extends ConsumerWidget {
           max: 60,
           fractionDigits: 1,
           resetValue: 0,
-          onChanged: (v) => setPersp(persp.withHorizontalKeystone(v)),
+          onChanged: (v) => _setPersp(persp.withHorizontalKeystone(v)),
         ),
         DevelopSliderTile(
           label: tr('perspectiveVertical'),
@@ -275,7 +299,7 @@ class LensSection extends ConsumerWidget {
           max: 60,
           fractionDigits: 1,
           resetValue: 0,
-          onChanged: (v) => setPersp(persp.withVerticalKeystone(v)),
+          onChanged: (v) => _setPersp(persp.withVerticalKeystone(v)),
         ),
         const SizedBox(height: 12),
       ],

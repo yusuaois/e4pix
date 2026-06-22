@@ -87,20 +87,22 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
                     children: [
                       // 底层：完整渲染的已编辑图像（不裁剪）
                       Positioned.fill(
-                        child: MultiPassPreview(
-                          developProgram: widget.developProgram,
-                          maskProgram: widget.maskProgram,
-                          sourceImage: widget.image,
-                          params: widget.params,
-                          lutTexture: widget.lutA,
-                          lutSize: widget.lutSizeA,
-                          lutTextureB: widget.lutB,
-                          lutSizeB: widget.lutSizeB,
-                          curveTexture: widget.curve,
-                          sharpenProgram: widget.sharpenProgram,
-                          denoiseProgram: widget.denoiseProgram,
-                          perspectiveProgram: widget.perspectiveProgram,
-                          lensCorrectProgram: widget.lensCorrectProgram,
+                        child: RepaintBoundary(
+                          child: MultiPassPreview(
+                            developProgram: widget.developProgram,
+                            maskProgram: widget.maskProgram,
+                            sourceImage: widget.image,
+                            params: widget.params,
+                            lutTexture: widget.lutA,
+                            lutSize: widget.lutSizeA,
+                            lutTextureB: widget.lutB,
+                            lutSizeB: widget.lutSizeB,
+                            curveTexture: widget.curve,
+                            sharpenProgram: widget.sharpenProgram,
+                            denoiseProgram: widget.denoiseProgram,
+                            perspectiveProgram: widget.perspectiveProgram,
+                            lensCorrectProgram: widget.lensCorrectProgram,
+                          ),
                         ),
                       ),
 
@@ -110,18 +112,20 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
                         builder: (context, divider, _) {
                           return ClipRect(
                             clipper: _LeftClipper(divider),
-                            child: MultiPassPreview(
-                              developProgram: widget.developProgram,
-                              maskProgram: widget.maskProgram,
-                              sourceImage: widget.image,
-                              params: AdjustmentParams.neutral,
-                              lutTexture: null,
-                              lutSize: 0,
-                              lutTextureB: null,
-                              lutSizeB: 0,
-                              curveTexture: null,
-                              sharpenProgram: null,
-                              denoiseProgram: null,
+                            child: RepaintBoundary(
+                              child: MultiPassPreview(
+                                developProgram: widget.developProgram,
+                                maskProgram: widget.maskProgram,
+                                sourceImage: widget.image,
+                                params: AdjustmentParams.neutral,
+                                lutTexture: null,
+                                lutSize: 0,
+                                lutTextureB: null,
+                                lutSizeB: 0,
+                                curveTexture: null,
+                                sharpenProgram: null,
+                                denoiseProgram: null,
+                              ),
                             ),
                           );
                         },
