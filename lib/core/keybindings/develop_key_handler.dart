@@ -111,9 +111,33 @@ KeyEventResult _handleAction(
       if (inCrop) return KeyEventResult.ignored;
       return _toggleFlag(ref, ShotFlag.reject);
 
+    case AppAction.nextImage:
+      if (inCrop) return KeyEventResult.ignored;
+      return _switchImage(ref, 1);
+
+    case AppAction.prevImage:
+      if (inCrop) return KeyEventResult.ignored;
+      return _switchImage(ref, -1);
+
     case AppAction.compareHold:
       return KeyEventResult.ignored;
   }
+}
+
+KeyEventResult _switchImage(WidgetRef ref, int delta) {
+  final shots = ref.read(shotsNotifierProvider);
+  if (shots.isEmpty) return KeyEventResult.ignored;
+  final activePath = ref.read(activeShotPathProvider);
+  if (activePath == null) {
+    // 无选中图时选第一张
+    ref.read(selectShotProvider)(shots.first);
+    return KeyEventResult.handled;
+  }
+  final idx = shots.indexWhere((s) => s.path == activePath);
+  if (idx < 0) return KeyEventResult.ignored;
+  final nextIdx = (idx + delta) % shots.length;
+  ref.read(selectShotProvider)(shots[nextIdx]);
+  return KeyEventResult.handled;
 }
 
 KeyEventResult _toggleFlag(WidgetRef ref, ShotFlag flag) {

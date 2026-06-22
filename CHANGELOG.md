@@ -5,6 +5,7 @@
 * **输入框键盘优化**：AI 设置和预设重命名对话框的输入框支持 Tab 跳转和 Enter 确认
 
 ## 🚀 新功能 (New Features)
+* **键盘切换图片**：按 ↓ 切换下一张图，按 ↑ 切换上一张图（可在快捷键设置中自定义）
 
 ## 🐛 问题修复 (Bug Fixes)
 * **图片切换崩溃**：修复快速切换图片时 `Image has been disposed` 和 `ref used after unmount` 两个未处理异常

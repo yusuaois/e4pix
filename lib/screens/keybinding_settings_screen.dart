@@ -25,6 +25,7 @@ class KeybindingSettingsScreen extends ConsumerWidget {
       AppAction.rate5,
     ],
     'keyGroupFlag': [AppAction.flagPick, AppAction.flagReject],
+    'keyGroupNav': [AppAction.prevImage, AppAction.nextImage],
   };
 
   @override

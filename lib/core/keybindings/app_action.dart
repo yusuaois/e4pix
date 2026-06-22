@@ -28,6 +28,8 @@ enum AppAction {
   rate5,
   flagPick,
   flagReject,
+  nextImage,
+  prevImage,
 }
 
 extension AppActionMeta on AppAction {
@@ -47,6 +49,8 @@ extension AppActionMeta on AppAction {
     AppAction.rate5 => 'keyActRate5',
     AppAction.flagPick => 'keyActFlagPick',
     AppAction.flagReject => 'keyActFlagReject',
+    AppAction.nextImage => 'keyActNextImage',
+    AppAction.prevImage => 'keyActPrevImage',
   };
 }
 
@@ -63,4 +67,6 @@ const Map<AppAction, LogicalKeyboardKey> kDefaultBindings = {
   AppAction.rate5: LogicalKeyboardKey.digit5,
   AppAction.flagPick: LogicalKeyboardKey.keyP,
   AppAction.flagReject: LogicalKeyboardKey.keyX,
+  AppAction.nextImage: LogicalKeyboardKey.arrowDown,
+  AppAction.prevImage: LogicalKeyboardKey.arrowUp,
 };
