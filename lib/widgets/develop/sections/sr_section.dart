@@ -18,11 +18,7 @@ class SrSection extends ConsumerStatefulWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
 
-  const SrSection({
-    super.key,
-    required this.params,
-    required this.onChanged,
-  });
+  const SrSection({super.key, required this.params, required this.onChanged});
 
   @override
   ConsumerState<SrSection> createState() => _SrSectionState();
@@ -43,12 +39,17 @@ class _SrSectionState extends ConsumerState<SrSection> {
   Future<void> _loadModel() async {
     if (_modelLoading || _modelLoaded) return;
     setState(() => _modelLoading = true);
-    final ok = await SrService.instance.ensureLoaded();
-    if (mounted) {
-      setState(() {
-        _modelLoading = false;
-        _modelLoaded = ok;
-      });
+    try {
+      final ok = await SrService.instance.ensureLoaded();
+      if (mounted) {
+        setState(() {
+          _modelLoading = false;
+          _modelLoaded = ok;
+        });
+      }
+    } catch (e) {
+      debugPrint('[SrSection] Model load failed: $e');
+      if (mounted) setState(() => _modelLoading = false);
     }
   }
 
@@ -56,6 +57,13 @@ class _SrSectionState extends ConsumerState<SrSection> {
   Widget build(BuildContext context) {
     final p = widget.params;
     final previewEnabled = ref.watch(srPreviewEnabledProvider);
+
+    // 参数重置时同步关闭预览开关
+    if (!p.srEnabled && previewEnabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(srPreviewEnabledProvider.notifier).state = false;
+      });
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,22 +139,22 @@ class _SrSectionState extends ConsumerState<SrSection> {
                   _modelLoaded
                       ? Icons.check_circle_outline
                       : (_modelLoading
-                          ? Icons.hourglass_top
-                          : Icons.cloud_download_outlined),
+                            ? Icons.hourglass_top
+                            : Icons.cloud_download_outlined),
                   size: 16,
                   color: _modelLoaded
                       ? AppColors.semanticSuccess
                       : (_modelLoading
-                          ? AppColors.semanticWarning
-                          : AppColors.disabledText),
+                            ? AppColors.semanticWarning
+                            : AppColors.disabledText),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   _modelLoaded
                       ? tr('superResModelLoaded')
                       : (_modelLoading
-                          ? tr('superResModelLoading')
-                          : tr('superResModelNotLoaded')),
+                            ? tr('superResModelLoading')
+                            : tr('superResModelNotLoaded')),
                   style: AppTypography.labelMedium.copyWith(
                     color: _modelLoaded
                         ? AppColors.semanticSuccess

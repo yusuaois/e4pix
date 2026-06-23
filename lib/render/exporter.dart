@@ -150,8 +150,8 @@ class Exporter {
       if (params.srEnabled) {
         _checkCancel(isCancelled);
         onProgress?.call(0.83, tr('exportSuperRes'));
-        ui.Image? srResult;
-        bool srDone = false;
+
+        final srCompleter = Completer<ui.Image?>();
         SrService.instance
             .upscaleFull(
               source: output,
@@ -159,15 +159,13 @@ class Exporter {
                 onProgress?.call(0.83 + p * 0.07, tr('exportSuperRes'));
               },
             )
-            .then((r) {
-              srResult = r;
-              srDone = true;
-            })
-            .catchError((e) {
+            .then(srCompleter.complete)
+            .catchError((Object e) {
               dev.log('Super resolution failed: $e');
-              srDone = true;
+              srCompleter.complete(null);
             });
-        while (!srDone) {
+
+        while (!srCompleter.isCompleted) {
           await Future.delayed(const Duration(milliseconds: 500));
           if (isCancelled?.call() ?? false) {
             dev.log('SR cancelled, killing isolate');
@@ -175,9 +173,11 @@ class Exporter {
             throw const ExportCancelledException();
           }
         }
+
+        final srResult = await srCompleter.future;
         if (srResult != null) {
           output.dispose();
-          finalOutput = srResult!;
+          finalOutput = srResult;
         }
       }
 

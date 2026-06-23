@@ -22,6 +22,8 @@ class SrService {
   String? _inputName;
   bool _initTried = false;
   Uint8List? _modelBytes;
+  Isolate? _activeIsolate;
+  bool _busy = false; // 防止重复推理
 
   bool get available => _session != null;
 
@@ -131,8 +133,6 @@ class SrService {
     }
   }
 
-  Isolate? _activeIsolate;
-
   /// 全图超分
   ///
   /// 返回 null 表示失败或被取消。
@@ -141,7 +141,15 @@ class SrService {
     required ui.Image source,
     void Function(double progress)? onProgress,
   }) async {
-    if (!await ensureLoaded()) return null;
+    if (_busy) {
+      debugPrint('[SrService] upscaleFull already running, skipping');
+      return null;
+    }
+    _busy = true;
+    if (!await ensureLoaded()) {
+      _busy = false;
+      return null;
+    }
 
     final sw = Stopwatch()..start();
 
@@ -190,6 +198,8 @@ class SrService {
     } catch (e) {
       debugPrint('[SrService] upscaleFull failed: $e');
       return null;
+    } finally {
+      _busy = false;
     }
   }
 
@@ -368,7 +378,7 @@ void _isolateUpscale(_IsolateParams p) {
         if (outputs.isNotEmpty) {
           final outTensor = outputs.first as OrtValueTensor?;
           if (outTensor != null) {
-            final flat = _flattenIso(outTensor.value);
+            final flat = SrService._flatten(outTensor.value);
             // 输出尺寸基于实际 tile 大小（不含 padding）
             final oTw = tw * 2;
             final oTh = th * 2;
@@ -428,27 +438,6 @@ void _isolateUpscale(_IsolateParams p) {
   } catch (e) {
     debugPrint('[SrService:isolate] Failed: $e');
     p.sendPort.send(null);
-  }
-}
-
-Float64List _flattenIso(dynamic data) {
-  if (data is Float32List) {
-    return Float64List.fromList(data.map((e) => e.toDouble()).toList());
-  }
-  if (data is Float64List) return data;
-  if (data is List<double>) return Float64List.fromList(data);
-  final out = <double>[];
-  _flattenRecIso(data, out);
-  return Float64List.fromList(out);
-}
-
-void _flattenRecIso(dynamic data, List<double> out) {
-  if (data is List) {
-    for (final item in data) {
-      _flattenRecIso(item, out);
-    }
-  } else {
-    out.add((data as num).toDouble());
   }
 }
 

@@ -118,7 +118,10 @@ class _SrPreviewOverlayState extends ConsumerState<SrPreviewOverlay> {
       final byteData = await image.toByteData(
         format: ui.ImageByteFormat.rawRgba,
       );
-      if (byteData == null) return;
+      if (byteData == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
 
       final srcW = image.width;
       final srcH = image.height;

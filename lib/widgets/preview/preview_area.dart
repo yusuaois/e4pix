@@ -612,8 +612,9 @@ class _PreviewContent extends ConsumerWidget {
       lut,
       lutEnabled,
     );
-    if (picker != null)
+    if (picker != null) {
       return _withSrOverlay(ref, picker, params, displaySize, state.uiImage);
+    }
     return _withSrOverlay(
       ref,
       Container(
