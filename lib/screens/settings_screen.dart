@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_typography.dart';
-
 import '../widgets/settings/tether_tiles.dart';
 import '../widgets/settings/import_tiles.dart';
 import '../widgets/settings/ai_tiles.dart';
 import '../widgets/settings/theme_tiles.dart';
 import '../widgets/settings/quality_tiles.dart';
 import '../widgets/settings/editing_tiles.dart';
+import '../widgets/settings/debug_tiles.dart';
 import '../widgets/settings/about_tiles.dart';
 
 export '../widgets/settings/about_tiles.dart' show UpdateDialog;
@@ -47,6 +47,10 @@ class SettingsScreen extends ConsumerWidget {
 
           _SectionHeader(tr("settingsEditing")),
           const EditingTiles(),
+          const SizedBox(height: 16),
+
+          _SectionHeader(tr('debug')),
+          const DebugModeTile(),
           const SizedBox(height: 16),
 
           _SectionHeader(tr("settingsAbout")),

@@ -1,3 +1,4 @@
+import 'package:e4pix/services/debug/debug_log_service.dart';
 import 'package:e4pix/services/notifications/notification_manager.dart';
 import 'package:e4pix/widgets/app/app_exit_guard.dart';
 import 'package:flutter/cupertino.dart';
@@ -12,6 +13,14 @@ import 'package:dynamic_color/dynamic_color.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 拦截 debugPrint，捕获日志到 DebugLogService
+  final originalDebugPrint = debugPrint;
+  debugPrint = (String? message, {int? wrapWidth}) {
+    DebugLogService.instance.add(message ?? '');
+    originalDebugPrint(message, wrapWidth: wrapWidth);
+  };
+
   await EasyLocalization.ensureInitialized();
   await NotificationManager.instance.init();
 
