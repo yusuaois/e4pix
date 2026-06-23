@@ -106,7 +106,12 @@ class _ParseResult {
   final Map<String, List<String>> camByMount;
   final Map<String, List<_LensEntry>> byCameraLens;
   final Map<String, List<_LensEntry>> byLensModel;
-  _ParseResult(this.cameras, this.camByMount, this.byCameraLens, this.byLensModel);
+  _ParseResult(
+    this.cameras,
+    this.camByMount,
+    this.byCameraLens,
+    this.byLensModel,
+  );
 }
 
 String _text(XmlElement parent, String tag) {
@@ -114,7 +119,12 @@ String _text(XmlElement parent, String tag) {
   return e?.innerText.trim() ?? '';
 }
 
-double _attrDouble(XmlElement parent, String tag, String attr, double fallback) {
+double _attrDouble(
+  XmlElement parent,
+  String tag,
+  String attr,
+  double fallback,
+) {
   final e = parent.findAllElements(tag).firstOrNull;
   if (e == null) return fallback;
   return double.tryParse(e.getAttribute(attr) ?? '') ?? fallback;
@@ -190,36 +200,55 @@ _ParseResult _parseAllXml(List<String> xmlStrings) {
         for (final cal in node.findAllElements('calibration')) {
           for (final d in cal.findAllElements('distortion')) {
             if (d.getAttribute('model') != 'ptlens') continue;
-            dists.add(_DistortionEntry(
-              _attr(d, 'focal', focalRaw),
-              _attr(d, 'a', 0), _attr(d, 'b', 0), _attr(d, 'c', 0),
-            ));
+            dists.add(
+              _DistortionEntry(
+                _attr(d, 'focal', focalRaw),
+                _attr(d, 'a', 0),
+                _attr(d, 'b', 0),
+                _attr(d, 'c', 0),
+              ),
+            );
           }
           for (final t in cal.findAllElements('tca')) {
             if (t.getAttribute('model') != 'poly3') continue;
-            tcas.add(_TcaEntry(
-              _attr(t, 'focal', focalRaw),
-              _attr(t, 'br', 0), _attr(t, 'vr', 1),
-              _attr(t, 'bb', 0), _attr(t, 'vb', 1),
-            ));
+            tcas.add(
+              _TcaEntry(
+                _attr(t, 'focal', focalRaw),
+                _attr(t, 'br', 0),
+                _attr(t, 'vr', 1),
+                _attr(t, 'bb', 0),
+                _attr(t, 'vb', 1),
+              ),
+            );
           }
           for (final v in cal.findAllElements('vignetting')) {
-            vigns.add(_VignettingEntry(
-              _attr(v, 'focal', focalRaw), _attr(v, 'aperture', apMin),
-              _attr(v, 'k1', 0), _attr(v, 'k2', 0), _attr(v, 'k3', 0),
-            ));
+            vigns.add(
+              _VignettingEntry(
+                _attr(v, 'focal', focalRaw),
+                _attr(v, 'aperture', apMin),
+                _attr(v, 'k1', 0),
+                _attr(v, 'k2', 0),
+                _attr(v, 'k3', 0),
+              ),
+            );
           }
         }
 
         if (dists.isEmpty && tcas.isEmpty && vigns.isEmpty) continue;
 
         final entry = _LensEntry(
-          cameraMaker: cam.maker, cameraModel: cam.model,
-          lensMaker: lMaker, lensModel: lModel,
-          focal: focalRaw, focalMin: focalMin, focalMax: focalMax,
+          cameraMaker: cam.maker,
+          cameraModel: cam.model,
+          lensMaker: lMaker,
+          lensModel: lModel,
+          focal: focalRaw,
+          focalMin: focalMin,
+          focalMax: focalMax,
           minAperture: apMin > 0 ? apMin : apMax,
           cropfactor: crop > 0 ? crop : cam.cropfactor,
-          distortions: dists, tcas: tcas, vignettings: vigns,
+          distortions: dists,
+          tcas: tcas,
+          vignettings: vigns,
         );
 
         final clKey = '${cam.maker}|${cam.model}\x00$lModel'.toLowerCase();
@@ -255,7 +284,9 @@ class LensfunDatabase {
     final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
     final keys = manifest
         .listAssets()
-        .where((k) => k.startsWith('assets/lensfun/data/db/') && k.endsWith('.xml'))
+        .where(
+          (k) => k.startsWith('assets/lensfun/data/db/') && k.endsWith('.xml'),
+        )
         .toList();
 
     final xmlStrings = <String>[];
@@ -263,7 +294,7 @@ class LensfunDatabase {
       try {
         xmlStrings.add(await rootBundle.loadString(key));
       } catch (e) {
-        debugPrint('LensfunDatabase: failed to load $key: $e');
+        debugPrint('[LensfunDB] Failed to load $key: $e');
       }
     }
 
@@ -300,9 +331,11 @@ class LensfunDatabase {
     for (final e in _byCameraLens.entries) {
       final dbNorm = _normalize(e.key.split('\x00').last);
       if (_tokenOverlap(normLens, dbNorm) >= 2) {
-        candidates.addAll(e.value.where(
-          (en) => en.cameraModel.toLowerCase() == cameraModel.toLowerCase(),
-        ));
+        candidates.addAll(
+          e.value.where(
+            (en) => en.cameraModel.toLowerCase() == cameraModel.toLowerCase(),
+          ),
+        );
       }
     }
     if (candidates.isNotEmpty) {
@@ -344,14 +377,20 @@ class LensfunDatabase {
     double bestDd = double.infinity;
     for (final d in best.distortions) {
       final dd = (d.focal - focal).abs();
-      if (dd < bestDd) { bestDd = dd; bestD = d; }
+      if (dd < bestDd) {
+        bestDd = dd;
+        bestD = d;
+      }
     }
 
     _TcaEntry? bestT;
     double bestTd = double.infinity;
     for (final t in best.tcas) {
       final td = (t.focal - focal).abs();
-      if (td < bestTd) { bestTd = td; bestT = t; }
+      if (td < bestTd) {
+        bestTd = td;
+        bestT = t;
+      }
     }
 
     _VignettingEntry? bestV;
@@ -359,7 +398,10 @@ class LensfunDatabase {
     for (final v in best.vignettings) {
       if (v.aperture <= 0) continue;
       final vd = (v.aperture - aperture).abs();
-      if (vd < bestVd) { bestVd = vd; bestV = v; }
+      if (vd < bestVd) {
+        bestVd = vd;
+        bestV = v;
+      }
     }
 
     return LensfunCalibration(

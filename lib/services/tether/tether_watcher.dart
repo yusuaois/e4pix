@@ -86,7 +86,7 @@ class TetherWatcher {
           stableCount = 0;
         }
         lastSize = size;
-      } catch (_) {}
+      } catch (_) {} // 文件可能尚未完全写入，静默重试
       await Future.delayed(const Duration(milliseconds: 200));
     }
     return false;

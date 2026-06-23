@@ -217,7 +217,9 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
           decoded: fullDecoded,
         ),
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ImageNotifier] Phase2 decode failed: $e');
+    }
   }
 
   Future<DecodedImageState?> _buildStandard(String path, int gen) async {

@@ -153,7 +153,7 @@ class FullPipelineRenderer {
         developInput = denoised;
         developInputOwned = true;
       } catch (e) {
-        debugPrint('Denoise pass failed: $e');
+        debugPrint('[Pipeline] Denoise pass failed: $e');
         developInput = sourceImage;
         developInputOwned = false;
       }
@@ -184,7 +184,7 @@ class FullPipelineRenderer {
         developPassInput = corrected;
         developPassInputOwned = true;
       } catch (e) {
-        debugPrint('Lens correct pass failed: $e');
+        debugPrint('[Pipeline] Lens correct pass failed: $e');
       }
     }
 
@@ -243,7 +243,7 @@ class FullPipelineRenderer {
         current = warped;
         currentOwned = true;
       } catch (e) {
-        debugPrint('Perspective pass failed: $e');
+        debugPrint('[Pipeline] Perspective pass failed: $e');
       }
     }
 
@@ -255,7 +255,7 @@ class FullPipelineRenderer {
         current = cropped;
         currentOwned = true;
       } catch (e) {
-        debugPrint('Crop transform failed: $e');
+        debugPrint('[Pipeline] Crop transform failed: $e');
       }
     }
 
@@ -291,7 +291,7 @@ class FullPipelineRenderer {
           if (longestSide > kMaxGuideEdge) readSrc.dispose();
         }
       } catch (e) {
-        debugPrint('Guide readback failed: $e');
+        debugPrint('[Pipeline] Guide readback failed: $e');
         guideBytes = null;
       }
     }
@@ -344,7 +344,7 @@ class FullPipelineRenderer {
         currentOwned = true;
         if (maskTexOwned) maskTex.dispose();
       } catch (e) {
-        debugPrint('Mask pass failed for ${local.id}: $e');
+        debugPrint('[Pipeline] Mask pass failed for ${local.id}: $e');
       }
     }
 
@@ -361,7 +361,7 @@ class FullPipelineRenderer {
         current = sharpened;
         currentOwned = true;
       } catch (e) {
-        debugPrint('Sharpen pass failed: $e');
+        debugPrint('[Pipeline] Sharpen pass failed: $e');
       }
     }
 

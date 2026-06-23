@@ -8,27 +8,29 @@ class LutLibraryNotifier extends AsyncNotifier<List<LutEntry>> {
   @override
   Future<List<LutEntry>> build() => LutLibrary.listAll();
 
-  /// 弹文件选择对话框，把选中的 .cube 复制到 app 私有目录
-  /// 成功返回新条目，失败返回 null
-  Future<LutEntry?> importFromFile() async {
+  /// 弹文件选择对话框，支持多选 .cube 文件导入
+  /// 返回成功导入的条目列表
+  Future<List<LutEntry>> importFromFiles() async {
     final result = await FilePicker.pickFiles(type: FileType.any);
-    final src = result?.files.firstOrNull?.path;
-    if (src == null) return null;
+    if (result == null || result.files.isEmpty) return const [];
 
-    if (!LutFormats.isLut(src)) {
-      return null;
+    final imported = <LutEntry>[];
+    for (final file in result.files) {
+      final src = file.path;
+      if (src == null || !LutFormats.isLut(src)) continue;
+      try {
+        final entry = await LutLibrary.importFrom(src);
+        imported.add(entry);
+      } catch (_) {}
     }
 
-    try {
-      final entry = await LutLibrary.importFrom(src);
-      final current = await future;
-      final next = [...current, entry]
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-      state = AsyncData(next);
-      return entry;
-    } catch (e) {
-      return null;
-    }
+    if (imported.isEmpty) return const [];
+
+    final current = await future;
+    final next = [...current, ...imported]
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    state = AsyncData(next);
+    return imported;
   }
 
   Future<void> delete(LutEntry entry) async {

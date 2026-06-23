@@ -37,7 +37,8 @@ class DevelopTopBar extends ConsumerWidget {
     final cameraState = ref.watch(cameraNotifierProvider);
     final selection = ref.watch(exportSelectionNotifierProvider);
     final shots = ref.watch(shotsNotifierProvider);
-    final hist = ref.watch(historyNotifierProvider);
+    final canUndo = ref.watch(historyNotifierProvider.select((h) => h.canUndo));
+    final canRedo = ref.watch(historyNotifierProvider.select((h) => h.canRedo));
     final notifier = ref.read(historyNotifierProvider.notifier);
     final filterActive = ref.watch(shotFilterProvider).isActive;
     final compareMode = ref.watch(compareViewModeProvider);
@@ -152,13 +153,13 @@ class DevelopTopBar extends ConsumerWidget {
             _iconBtn(
               Icons.undo,
               tr('undo'),
-              hist.canUndo ? notifier.undo : null,
+              canUndo ? notifier.undo : null,
               isVertical,
             ),
             _iconBtn(
               Icons.redo,
               tr('redo'),
-              hist.canRedo ? notifier.redo : null,
+              canRedo ? notifier.redo : null,
               isVertical,
             ),
 

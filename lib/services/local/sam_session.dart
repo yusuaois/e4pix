@@ -48,18 +48,18 @@ class SamSession {
       _decoder = OrtSession.fromBuffer(decBytes, options);
 
       debugPrint(
-        'SAM encoder inputs=${_encoder!.inputNames} '
+        '[SAM] Encoder inputs=${_encoder!.inputNames} '
         'outputs=${_encoder!.outputNames}',
       );
       debugPrint(
-        'SAM decoder inputs=${_decoder!.inputNames} '
+        '[SAM] Decoder inputs=${_decoder!.inputNames} '
         'outputs=${_decoder!.outputNames}',
       );
 
       options.release();
       return true;
     } catch (e) {
-      debugPrint('SAM load failed: $e');
+      debugPrint('[SAM] Load failed: $e');
       _encoder = null;
       _decoder = null;
       return false;
@@ -139,7 +139,7 @@ class SamSession {
     _gh = gh;
     _newW = newW;
     _newH = newH;
-    debugPrint('SAM embedding cached');
+    debugPrint('[SAM] Embedding cached');
   }
 
   /// 追加一个提示点（正/负），用累积的所有点解码，返回 gw×gh 软 mask

@@ -137,12 +137,18 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
 
     Future<void> onImport() async {
       _menuController.close();
-      final entry = await ref
+      final entries = await ref
           .read(lutLibraryNotifierProvider.notifier)
-          .importFromFile();
-      if (entry != null) {
-        await LutTextureCache.instance.load(entry.name);
-        writeLutName(entry.name);
+          .importFromFiles();
+      if (entries.isNotEmpty) {
+        // 加载第一个 LUT 的纹理并应用
+        final first = entries.first;
+        await LutTextureCache.instance.load(first.name);
+        writeLutName(first.name);
+        // 预加载其余 LUT 的纹理
+        for (int i = 1; i < entries.length; i++) {
+          LutTextureCache.instance.load(entries[i].name);
+        }
       }
     }
 

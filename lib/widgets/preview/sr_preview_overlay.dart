@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -115,35 +114,49 @@ class _SrPreviewOverlayState extends ConsumerState<SrPreviewOverlay> {
 
     try {
       final image = widget.sourceImage;
-      final byteData = await image.toByteData(
+      final srcW = image.width;
+      final srcH = image.height;
+
+      // 图片小于 cropSize 时用整张图
+      final cropW = srcW < _cropSize ? srcW : _cropSize;
+      final cropH = srcH < _cropSize ? srcH : _cropSize;
+
+      final cx = (_focusNorm.dx * srcW).round().clamp(0, srcW - 1);
+      final cy = (_focusNorm.dy * srcH).round().clamp(0, srcH - 1);
+      final x0 = (cx - cropW ~/ 2).clamp(0, srcW - cropW);
+      final y0 = (cy - cropH ~/ 2).clamp(0, srcH - cropH);
+
+      // GPU 侧裁切
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
+      canvas.drawImageRect(
+        image,
+        ui.Rect.fromLTWH(
+          x0.toDouble(),
+          y0.toDouble(),
+          cropW.toDouble(),
+          cropH.toDouble(),
+        ),
+        ui.Rect.fromLTWH(0, 0, cropW.toDouble(), cropH.toDouble()),
+        ui.Paint(),
+      );
+      final picture = recorder.endRecording();
+      final cropped = await picture.toImage(cropW, cropH);
+      picture.dispose();
+
+      final byteData = await cropped.toByteData(
         format: ui.ImageByteFormat.rawRgba,
       );
+      cropped.dispose();
       if (byteData == null) {
         if (mounted) setState(() => _loading = false);
         return;
       }
 
-      final srcW = image.width;
-      final srcH = image.height;
-
-      final cx = (_focusNorm.dx * srcW).round().clamp(0, srcW - 1);
-      final cy = (_focusNorm.dy * srcH).round().clamp(0, srcH - 1);
-      final half = _cropSize ~/ 2;
-      final x0 = (cx - half).clamp(0, srcW - _cropSize);
-      final y0 = (cy - half).clamp(0, srcH - _cropSize);
-
-      final srcBytes = byteData.buffer.asUint8List();
-      final cropBytes = Uint8List(_cropSize * _cropSize * 4);
-      for (int y = 0; y < _cropSize; y++) {
-        final srcOff = ((y0 + y) * srcW + x0) * 4;
-        final dstOff = y * _cropSize * 4;
-        cropBytes.setRange(dstOff, dstOff + _cropSize * 4, srcBytes, srcOff);
-      }
-
       final result = await SrService.instance.upscaleRegion(
-        rgbaBytes: cropBytes,
-        width: _cropSize,
-        height: _cropSize,
+        rgbaBytes: byteData.buffer.asUint8List(),
+        width: cropW,
+        height: cropH,
       );
 
       if (mounted) {

@@ -161,7 +161,7 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
         pendingShotPath: shotPath,
       );
     } catch (e) {
-      debugPrint('Auto-AI failed: $e');
+      debugPrint('[AI] Auto-AI failed: $e');
     } finally {
       if (ref.mounted) {
         state = state.copyWith(inProgress: false);

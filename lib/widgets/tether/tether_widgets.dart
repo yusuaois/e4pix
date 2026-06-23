@@ -215,20 +215,22 @@ class _PulsingDotState extends State<_PulsingDot>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (_, _) => Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(
-          color: widget.color.withValues(alpha: 0.4 + 0.6 * _c.value),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: widget.color.withValues(alpha: 0.4 * _c.value),
-              blurRadius: 6,
-            ),
-          ],
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (_, _) => Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: widget.color.withValues(alpha: 0.4 + 0.6 * _c.value),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withValues(alpha: 0.4 * _c.value),
+                blurRadius: 6,
+              ),
+            ],
+          ),
         ),
       ),
     );

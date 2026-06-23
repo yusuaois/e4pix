@@ -78,9 +78,13 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
           final xmp = await rootBundle.loadString(key);
           await File(dest).writeAsString(xmp);
           await _markReleased(name);
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[PresetNotifier] XMP save failed: $e');
+        }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[PresetNotifier] Save failed: $e');
+    }
   }
 
   /// 从用户目录加载 .xmp
