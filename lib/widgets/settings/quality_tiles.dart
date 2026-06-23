@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../services/app/app_settings.dart';
 import '../../state/providers.dart';
 
 class QualityTiles extends ConsumerWidget {
@@ -116,6 +117,70 @@ class QualityTiles extends ConsumerWidget {
             divisions: 20,
             onChanged: (v) =>
                 ref.read(imageCacheCapacityProvider.notifier).set(v.round()),
+          ),
+        ),
+        const _ExportConcurrencyTile(),
+      ],
+    );
+  }
+}
+
+class _ExportConcurrencyTile extends StatefulWidget {
+  const _ExportConcurrencyTile();
+
+  @override
+  State<_ExportConcurrencyTile> createState() => _ExportConcurrencyTileState();
+}
+
+class _ExportConcurrencyTileState extends State<_ExportConcurrencyTile> {
+  int _concurrency = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    AppSettings.getExportConcurrency().then((v) {
+      if (mounted) setState(() => _concurrency = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.queue_outlined, size: 20),
+          title: Text(
+            tr('settingsExportConcurrency'),
+            style: AppTypography.titleMedium,
+          ),
+          subtitle: Text(
+            tr('settingsExportConcurrencyHint'),
+            style: AppTypography.bodySmall.copyWith(color: AppColors.faintText),
+          ),
+          trailing: SizedBox(
+            width: 44,
+            child: Text(
+              '$_concurrency',
+              style: AppTypography.bodyLarge.copyWith(
+                fontFamily: 'monospace',
+                color: AppColors.mediumText,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Slider(
+            value: _concurrency.toDouble(),
+            min: 1,
+            max: 4,
+            divisions: 3,
+            onChanged: (v) {
+              final val = v.round();
+              setState(() => _concurrency = val);
+              AppSettings.setExportConcurrency(val);
+            },
           ),
         ),
       ],

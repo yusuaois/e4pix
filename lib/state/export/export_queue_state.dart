@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/export_job.dart';
 import '../../render/exporter.dart';
 import '../../render/lut_texture_cache.dart';
+import '../../services/app/app_settings.dart';
 import '../../services/notifications/export_notification_service.dart';
 import '../providers.dart';
 
@@ -98,9 +99,13 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
     ];
   }
 
-  ExportJob? _nextQueued() {
+  /// 取出下一个排队任务并立即标记为 running（防止并发 worker 抢到同一个 job）
+  ExportJob? _claimNext() {
     for (final j in state) {
-      if (j.status == ExportJobStatus.queued) return j;
+      if (j.status == ExportJobStatus.queued) {
+        _patch(j.id, status: ExportJobStatus.running, progress: 0, stage: null);
+        return j;
+      }
     }
     return null;
   }
@@ -109,25 +114,46 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
     if (_running) return;
     _running = true;
     try {
-      while (true) {
-        final next = _nextQueued();
-        if (next == null) break;
-
-        // 入队后、执行前被取消
-        if (_cancelled.contains(next.id)) {
-          _patch(next.id, status: ExportJobStatus.cancelled);
-          continue;
+      final concurrency = await AppSettings.getExportConcurrency();
+      if (concurrency <= 1) {
+        // 单线程模式：串行执行
+        while (true) {
+          final next = _claimNext();
+          if (next == null) break;
+          if (_cancelled.contains(next.id)) {
+            _patch(next.id, status: ExportJobStatus.cancelled);
+            continue;
+          }
+          await _runJob(next);
         }
-
-        await _runJob(next);
+      } else {
+        // 并发模式：同时启动 N 个 worker
+        final futures = <Future<void>>[];
+        for (int i = 0; i < concurrency; i++) {
+          futures.add(_worker());
+        }
+        await Future.wait(futures);
       }
     } finally {
       _running = false;
     }
   }
 
+  /// 单个 worker：从队列取任务执行，直到队列为空
+  Future<void> _worker() async {
+    while (true) {
+      final next = _claimNext();
+      if (next == null) break;
+      if (_cancelled.contains(next.id)) {
+        _patch(next.id, status: ExportJobStatus.cancelled);
+        continue;
+      }
+      await _runJob(next);
+    }
+  }
+
   Future<void> _runJob(ExportJob job) async {
-    _patch(job.id, status: ExportJobStatus.running, progress: 0, stage: null);
+    // job 已被 _claimNext 标记为 running
 
     final program = ref.read(shaderProgramProvider).value;
     final maskProgram = ref.read(maskShaderProgramProvider).value;
