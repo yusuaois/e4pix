@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/export_job.dart';
@@ -182,7 +183,9 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
       if (job.params.lutNameB.isNotEmpty) {
         lutB = await cache.load(job.params.lutNameB);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ExportQueue] LUT preload failed: $e');
+    }
 
     try {
       final file = await Exporter.exportFullRes(

@@ -31,23 +31,23 @@ class SettingsScreen extends ConsumerWidget {
           _SectionHeader(tr("settingsTether")),
           const TetherFolderTile(),
           const ImportModeTiles(),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
 
           _SectionHeader(tr("aiColor")),
           const AISettingsLink(),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
 
           _SectionHeader(tr("settingsTheme")),
           const ThemeTiles(),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
 
           _SectionHeader(tr("settingsRender")),
           const QualityTiles(),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
 
           _SectionHeader(tr("settingsEditing")),
           const EditingTiles(),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
 
           _SectionHeader(tr("settingsAbout")),
           const AboutTiles(),

@@ -19,12 +19,16 @@
 * **预览隔离**：拖动分割线时不再触发密集的预览重绘
 * **遮罩光标**：将局部调整的光标从 MaskPainter 拆分为独立的 MaskCursorPainter + RepaintBoundary，鼠标移动不再触发遮罩全量重绘
 * **EXIF 解析 Isolate 迁移**：将 JPEG 的 EXIF 解析（含完整解码）移至 Isolate.run() 与图片解码并行执行，避免主线程阻塞
+* **列表滚动**：Tether 缩略图列表添加 itemExtent 优化滚动性能
 
 ## 🛠️ 底层改进 (Under the Hood)
 * **异步安全**：为 develop_screen.dart 中 3 处 await 后缺失的 `mounted` 检查添加防护，消除页面切换时的潜在崩溃
 * **LensSection 重构**：从 ConsumerWidget 重构为 ConsumerStatefulWidget，支持加载状态管理
 * **MaskPainter 拆分**：将光标渲染逻辑拆分为独立的 MaskCursorPainter 类，职责分离
 * **SAM 迁移**：EdgeSAM 分割服务迁移至 onnxruntime_v2，统一 ONNX 运行时
+* **错误日志**：为导出队列、镜头数据库、图片状态等静默 catch 块添加 debugPrint 日志
+* **流订阅管理**：gPhoto2 控制器的 stdout/stderr 订阅正确存储并在停止时取消
+* **防重复操作**：XMP 导出添加防重复点击
 
 ---
 

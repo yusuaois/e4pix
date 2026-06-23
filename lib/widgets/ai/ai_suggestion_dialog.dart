@@ -108,6 +108,7 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
               TextField(
                 controller: _intentController,
                 enabled: !_loading,
+                textInputAction: TextInputAction.done,
                 decoration: InputDecoration(
                   hintText: tr("aiColorSuggestionPrompt"),
                   hintStyle: AppTypography.bodyMedium,

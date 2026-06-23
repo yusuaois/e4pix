@@ -31,9 +31,6 @@ class PreviewArea extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final uiImage = ref.watch(
-      imageNotifierProvider.select((async) => async.asData?.value?.uiImage),
-    );
     final imageAsync = ref.watch(imageNotifierProvider);
 
     return imageAsync.when(
@@ -52,7 +49,7 @@ class PreviewArea extends ConsumerWidget {
       ),
       data: (state) {
         if (state == null) return _buildEmpty(context, ref);
-        return _PreviewContent(key: ObjectKey(uiImage), state: state);
+        return _PreviewContent(key: ObjectKey(state.uiImage), state: state);
       },
     );
   }

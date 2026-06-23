@@ -445,23 +445,30 @@ Future<void> showPresetOptions(
   }
 }
 
+bool _exportingXmp = false;
 Future<void> exportXmpPreset(BuildContext ctx, WidgetRef ref) async {
-  final params = ref.read(currentParamsNotifierProvider);
-  final xmp = XmpExport.serialize(params);
-  final dir = await FilePicker.getDirectoryPath(
-    dialogTitle: tr("exportPreset"),
-  );
-  if (dir == null) return;
-  final file = File('$dir/e4pix_preset.xmp');
-  await file.writeAsString(xmp);
-  if (ctx.mounted) {
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(
-        content: Text(tr('xmpExported', args: [file.path])),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
+  if (_exportingXmp) return;
+  _exportingXmp = true;
+  try {
+    final params = ref.read(currentParamsNotifierProvider);
+    final xmp = XmpExport.serialize(params);
+    final dir = await FilePicker.getDirectoryPath(
+      dialogTitle: tr("exportPreset"),
     );
+    if (dir == null) return;
+    final file = File('$dir/e4pix_preset.xmp');
+    await file.writeAsString(xmp);
+    if (ctx.mounted) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text(tr('xmpExported', args: [file.path])),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  } finally {
+    _exportingXmp = false;
   }
 }
 

@@ -157,7 +157,9 @@ _ParseResult _parseAllXml(List<String> xmlStrings) {
           camByMount.putIfAbsent(mount.toLowerCase(), () => []).add(key);
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[LensfunDB] Load failed: $e');
+    }
   }
 
   // Phase 2: re-use DOMs to extract lenses

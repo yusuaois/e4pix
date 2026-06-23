@@ -299,6 +299,9 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
             scrollDirection: widget.axis,
             reverse: !vertical,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            // itemExtent = 缩略图尺寸 + padding(4×2)
+            // vertical: 54 + 8 = 62, horizontal: 110 + 8 = 118
+            itemExtent: vertical ? 62 : 118,
             itemCount: widget.shots.length,
             itemBuilder: (ctx, i) {
               final idx = vertical ? i : widget.shots.length - 1 - i;

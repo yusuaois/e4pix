@@ -43,7 +43,9 @@ class ActiveFilePathNotifier extends Notifier<String?> {
     try {
       if (params.lutNameA.isNotEmpty) await cache.load(params.lutNameA);
       if (params.lutNameB.isNotEmpty) await cache.load(params.lutNameB);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ImageNotifier] LUT preload failed: $e');
+    }
   }
 }
 

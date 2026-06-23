@@ -8,6 +8,8 @@ import 'camera_controller.dart';
 class Gphoto2CameraController implements CameraController {
   Process? _process;
   StreamController<CameraEvent>? _events;
+  StreamSubscription<String>? _stdoutSub;
+  StreamSubscription<String>? _stderrSub;
   bool _active = false;
 
   @override
@@ -99,12 +101,12 @@ class Gphoto2CameraController implements CameraController {
 
       _events?.add(CameraConnected(camera.model));
 
-      _process!.stdout
+      _stdoutSub = _process!.stdout
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen(_onStdoutLine);
 
-      _process!.stderr
+      _stderrSub = _process!.stderr
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen((line) {
@@ -146,6 +148,10 @@ class Gphoto2CameraController implements CameraController {
   @override
   Future<void> stopTether() async {
     if (!_active) return;
+    await _stdoutSub?.cancel();
+    await _stderrSub?.cancel();
+    _stdoutSub = null;
+    _stderrSub = null;
     final p = _process;
     if (p != null) {
       if (Platform.isWindows) {
