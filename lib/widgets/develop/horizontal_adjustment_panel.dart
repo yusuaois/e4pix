@@ -51,6 +51,8 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
         return const WatermarkSection();
       case DevelopTool.lens:
         return const LensSection();
+      case DevelopTool.sr:
+        return SrSection(params: params, onChanged: onChanged);
       case DevelopTool.info:
         return info ?? const SizedBox.shrink();
     }
@@ -202,6 +204,12 @@ class _ToolRail extends StatelessWidget {
               tooltip: tr('lens'),
               selected: selected == DevelopTool.lens,
               onTap: () => onSelect(DevelopTool.lens),
+            ),
+            _RailItem(
+              icon: Icons.auto_awesome,
+              tooltip: tr('superResolution'),
+              selected: selected == DevelopTool.sr,
+              onTap: () => onSelect(DevelopTool.sr),
             ),
             const SizedBox(height: 8),
           ],

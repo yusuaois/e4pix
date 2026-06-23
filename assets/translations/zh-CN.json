@@ -476,5 +476,16 @@
   "watermarkExifLens": "镜头",
   "watermarkExifAperture": "光圈",
   "watermarkExifShutter": "快门",
-  "watermarkExifFocalLength": "焦距"
+  "watermarkExifFocalLength": "焦距",
+  "superResolution": "超分辨率",
+  "superResScale": "放大倍数",
+  "superResModelLoaded": "模型已加载",
+  "superResModelNotLoaded": "模型未加载",
+  "superResModelLoading": "模型加载中...",
+  "superResModelLoad": "加载",
+  "superResModelRequired": "请先加载模型",
+  "superResEnable": "启用超分辨率",
+  "superResExperimentalHint": "目前仅支持 CPU 导出，速度较慢，仍在试验阶段",
+  "superResPreview": "预览效果",
+  "exportSuperRes": "超分辨率处理中..."
 }

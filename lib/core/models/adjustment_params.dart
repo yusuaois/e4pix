@@ -38,6 +38,12 @@ class AdjustmentParams {
   final LensCorrectionParams lensCorrection;
   final PerspectiveParams perspective;
 
+  /// 超分辨率开关
+  final bool srEnabled;
+
+  /// 超分辨率放大倍数（目前固定 2，后续可扩展）
+  final int srScale;
+
   const AdjustmentParams({
     this.exposure = 0.0,
     this.temperature = 5500,
@@ -65,6 +71,8 @@ class AdjustmentParams {
     this.locals = const [],
     this.lensCorrection = LensCorrectionParams.neutral,
     this.perspective = PerspectiveParams.identity,
+    this.srEnabled = false,
+    this.srScale = 2,
   });
 
   static const neutral = AdjustmentParams();
@@ -96,6 +104,8 @@ class AdjustmentParams {
     List<LocalAdjustment>? locals,
     LensCorrectionParams? lensCorrection,
     PerspectiveParams? perspective,
+    bool? srEnabled,
+    int? srScale,
   }) => AdjustmentParams(
     exposure: exposure ?? this.exposure,
     temperature: temperature ?? this.temperature,
@@ -123,6 +133,8 @@ class AdjustmentParams {
     locals: locals ?? this.locals,
     lensCorrection: lensCorrection ?? this.lensCorrection,
     perspective: perspective ?? this.perspective,
+    srEnabled: srEnabled ?? this.srEnabled,
+    srScale: srScale ?? this.srScale,
   );
 
   @override
@@ -154,6 +166,8 @@ class AdjustmentParams {
           crop == other.crop &&
           lensCorrection == other.lensCorrection &&
           perspective == other.perspective &&
+          srEnabled == other.srEnabled &&
+          srScale == other.srScale &&
           listEquals(locals, other.locals);
 
   @override
@@ -183,6 +197,8 @@ class AdjustmentParams {
     crop,
     lensCorrection,
     perspective,
+    srEnabled,
+    srScale,
     locals,
   ]);
 
@@ -212,6 +228,8 @@ class AdjustmentParams {
     'crop': crop.toJson(),
     'lensCorrection': lensCorrection.toJson(),
     'perspective': perspective.toJson(),
+    'srEnabled': srEnabled,
+    'srScale': srScale,
     'locals': locals.map((e) => e.toJson()).toList(),
   };
 
@@ -266,5 +284,7 @@ class AdjustmentParams {
     perspective: j['perspective'] != null
         ? PerspectiveParams.fromJson(j['perspective'] as Map<String, dynamic>)
         : PerspectiveParams.identity,
+    srEnabled: j['srEnabled'] as bool? ?? false,
+    srScale: (j['srScale'] as num?)?.toInt() ?? 2,
   );
 }

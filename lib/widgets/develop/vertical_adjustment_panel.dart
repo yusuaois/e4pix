@@ -19,7 +19,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
     final params = ref.watch(currentParamsNotifierProvider);
 
     return DefaultTabController(
-      length: 10,
+      length: 11,
       child: Container(
         color: AppColors.panelBg,
         child: Column(
@@ -53,6 +53,7 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                           Tab(text: tr("local"), height: 36),
                           Tab(text: tr("watermark"), height: 36),
                           Tab(text: tr("lens"), height: 36),
+                          Tab(text: tr('superResolution'), height: 36),
                         ],
                       ),
                     ),
@@ -109,6 +110,14 @@ class VerticalAdjustmentPanel extends ConsumerWidget {
                   _LazyBuild(
                     builder: (_) =>
                         const SingleChildScrollView(child: LensSection()),
+                  ),
+                  _LazyBuild(
+                    builder: (_) => SingleChildScrollView(
+                      child: SrSection(
+                        params: params,
+                        onChanged: onChanged,
+                      ),
+                    ),
                   ),
                 ],
               ),

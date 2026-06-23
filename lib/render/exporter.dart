@@ -9,6 +9,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:image/image.dart' as img_pkg;
 import 'package:path/path.dart' as p;
 
+import '../services/sr/sr_service.dart';
+
 import '../core/constants/raw_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/watermark_config.dart';
@@ -143,17 +145,52 @@ class Exporter {
 
       _checkCancel(isCancelled); // 渲染后检查点
 
-      // 水印边框合成
+      // 超分辨率后处理
       ui.Image finalOutput = output;
+      if (params.srEnabled) {
+        _checkCancel(isCancelled);
+        onProgress?.call(0.83, tr('exportSuperRes'));
+        ui.Image? srResult;
+        bool srDone = false;
+        SrService.instance
+            .upscaleFull(
+              source: output,
+              onProgress: (p) {
+                onProgress?.call(0.83 + p * 0.07, tr('exportSuperRes'));
+              },
+            )
+            .then((r) {
+              srResult = r;
+              srDone = true;
+            })
+            .catchError((e) {
+              dev.log('Super resolution failed: $e');
+              srDone = true;
+            });
+        while (!srDone) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (isCancelled?.call() ?? false) {
+            dev.log('SR cancelled, killing isolate');
+            SrService.instance.cancelExport();
+            throw const ExportCancelledException();
+          }
+        }
+        if (srResult != null) {
+          output.dispose();
+          finalOutput = srResult!;
+        }
+      }
+
+      // 水印边框合成
       if (watermarkConfig != null && watermarkConfig.enabled) {
         onProgress?.call(0.85, tr("exportWatermarkBorder"));
         try {
           final composited = await WatermarkExporter.composite(
-            fullResImage: output,
+            fullResImage: finalOutput,
             config: watermarkConfig,
             metadata: metadata,
           );
-          output.dispose();
+          if (finalOutput != output) finalOutput.dispose();
           finalOutput = composited;
         } catch (e) {
           dev.log(

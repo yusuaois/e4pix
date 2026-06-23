@@ -6,10 +6,12 @@
 
 ## 🚀 新功能 (New Features)
 * **键盘切换图片**：按 ↓ 切换下一张图，按 ↑ 切换上一张图（可在快捷键设置中自定义）
+* **超分辨率 Section**：新增超分辨率功能，支持2x，目前仅cpu
 
 ## 🐛 问题修复 (Bug Fixes)
 * **图片切换崩溃**：修复快速切换图片时 `Image has been disposed` 和 `ref used after unmount` 两个未处理异常
 * **国际化补全**：修复镜头错误提示、HD 加载标签、预设加载失败提示、水印 EXIF 字段标签等硬编码英文
+* **导出队列**：修复导出队列UI问题
 
 ## ⚡ 性能优化 (Performance)
 * **参数监听**：优化参数监听逻辑
@@ -21,6 +23,7 @@
 * **异步安全**：为 develop_screen.dart 中 3 处 await 后缺失的 `mounted` 检查添加防护，消除页面切换时的潜在崩溃
 * **LensSection 重构**：从 ConsumerWidget 重构为 ConsumerStatefulWidget，支持加载状态管理
 * **MaskPainter 拆分**：将光标渲染逻辑拆分为独立的 MaskCursorPainter 类，职责分离
+* **SAM 迁移**：EdgeSAM 分割服务迁移至 onnxruntime_v2，统一 ONNX 运行时
 
 ---
 

@@ -22,6 +22,7 @@ import 'crop_panel.dart';
 import '../develop/sections/local/local_mask_overlay.dart';
 import 'multi_pass_preview.dart';
 import 'split_compare_view.dart';
+import 'sr_preview_overlay.dart';
 import 'watermark_preview.dart';
 
 // Preview area
@@ -574,26 +575,32 @@ class _PreviewContent extends ConsumerWidget {
   ) {
     final selectedLocalId = ref.watch(selectedLocalIdProvider);
     if (selectedLocalId != null) {
-      return Container(
-        color: Colors.black,
-        child: Center(
-          child: GestureDetector(
-            onTap: () =>
-                ref.read(fullscreenPreviewProvider.notifier).state = true,
-            child: SizedBox.fromSize(
-              size: displaySize,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  content,
-                  Positioned.fill(
-                    child: LocalMaskOverlay(imageDisplaySize: displaySize),
-                  ),
-                ],
+      return _withSrOverlay(
+        ref,
+        Container(
+          color: Colors.black,
+          child: Center(
+            child: GestureDetector(
+              onTap: () =>
+                  ref.read(fullscreenPreviewProvider.notifier).state = true,
+              child: SizedBox.fromSize(
+                size: displaySize,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    content,
+                    Positioned.fill(
+                      child: LocalMaskOverlay(imageDisplaySize: displaySize),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
+        params,
+        displaySize,
+        state.uiImage,
       );
     }
     final picker = _wrapColorPicker(
@@ -605,16 +612,49 @@ class _PreviewContent extends ConsumerWidget {
       lut,
       lutEnabled,
     );
-    if (picker != null) return picker;
-    return Container(
-      color: Colors.black,
-      child: Center(
-        child: _ZoomableView(
-          onTapNoZoom: () =>
-              ref.read(fullscreenPreviewProvider.notifier).state = true,
-          child: content,
+    if (picker != null)
+      return _withSrOverlay(ref, picker, params, displaySize, state.uiImage);
+    return _withSrOverlay(
+      ref,
+      Container(
+        color: Colors.black,
+        child: Center(
+          child: _ZoomableView(
+            onTapNoZoom: () =>
+                ref.read(fullscreenPreviewProvider.notifier).state = true,
+            child: content,
+          ),
         ),
       ),
+      params,
+      displaySize,
+      state.uiImage,
+    );
+  }
+
+  /// 超分辨率预览小窗
+  Widget _withSrOverlay(
+    WidgetRef ref,
+    Widget child,
+    AdjustmentParams params,
+    Size displaySize,
+    ui.Image sourceImage,
+  ) {
+    if (!params.srEnabled || !ref.watch(srPreviewEnabledProvider)) {
+      return child;
+    }
+    return Stack(
+      children: [
+        child,
+        Positioned(
+          right: 8,
+          bottom: 8,
+          child: SrPreviewOverlay(
+            displaySize: displaySize,
+            sourceImage: sourceImage,
+          ),
+        ),
+      ],
     );
   }
 }

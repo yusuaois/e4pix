@@ -476,5 +476,16 @@
   "watermarkExifLens": "Lens",
   "watermarkExifAperture": "Aperture",
   "watermarkExifShutter": "Shutter",
-  "watermarkExifFocalLength": "Focal Length"
+  "watermarkExifFocalLength": "Focal Length",
+  "superResolution": "Super Resolution",
+  "superResScale": "Scale",
+  "superResModelLoaded": "Model loaded",
+  "superResModelNotLoaded": "Model not loaded",
+  "superResModelLoading": "Loading model...",
+  "superResModelLoad": "Load",
+  "superResModelRequired": "Please load the model first",
+  "superResEnable": "Enable Super Resolution",
+  "superResExperimentalHint": "CPU only for now — export is slow. Experimental feature.",
+  "superResPreview": "Preview",
+  "exportSuperRes": "Super Resolution..."
 }

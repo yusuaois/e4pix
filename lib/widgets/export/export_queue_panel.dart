@@ -19,93 +19,94 @@ class ExportQueuePanel extends ConsumerWidget {
     final hasFinished = jobs.any((j) => j.isFinished);
 
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 标题行
-            Row(
-              children: [
-                const Icon(Icons.ios_share_rounded, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  tr('exportQueueTitle'),
-                  style: AppTypography.headlineSmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                if (pending > 0)
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 标题行
+              Row(
+                children: [
+                  const Icon(Icons.ios_share_rounded, size: 18),
+                  const SizedBox(width: 8),
                   Text(
-                    tr('exportQueueRemaining', args: ['$pending']),
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.mediumText,
+                    tr('exportQueueTitle'),
+                    style: AppTypography.headlineSmall.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            if (jobs.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Center(
-                  child: Text(
-                    tr('exportQueueEmpty'),
-                    style: AppTypography.bodyLarge.copyWith(
-                      color: AppColors.disabledText,
+                  const Spacer(),
+                  if (pending > 0)
+                    Text(
+                      tr('exportQueueRemaining', args: ['$pending']),
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.mediumText,
+                      ),
                     ),
-                  ),
-                ),
-              )
-            else
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.5,
-                ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: jobs.length,
-                  separatorBuilder: (_, _) =>
-                      Divider(height: 1, color: AppColors.subtleBorder),
-                  itemBuilder: (_, i) => _JobRow(
-                    job: jobs[i],
-                    onCancel: () => notifier.cancel(jobs[i].id),
-                  ),
-                ),
+                ],
               ),
+              const SizedBox(height: 8),
 
-            const SizedBox(height: 8),
-            // 底部操作
-            Row(
-              children: [
-                if (hasFinished)
-                  TextButton.icon(
-                    onPressed: notifier.clearFinished,
-                    icon: const Icon(Icons.clear_all, size: 16),
-                    label: Text(
-                      tr('exportQueueClearFinished'),
-                      style: AppTypography.bodyLarge,
+              // 列表
+              if (jobs.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      tr('exportQueueEmpty'),
+                      style: AppTypography.bodyLarge.copyWith(
+                        color: AppColors.disabledText,
+                      ),
                     ),
                   ),
-                const Spacer(),
-                if (pending > 0)
-                  TextButton.icon(
-                    onPressed: notifier.cancelAll,
-                    icon: const Icon(Icons.cancel_outlined, size: 16),
-                    label: Text(
-                      tr('exportQueueCancelAll'),
-                      style: AppTypography.bodyLarge,
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.semanticError,
+                )
+              else
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: jobs.length,
+                    separatorBuilder: (_, _) =>
+                        Divider(height: 1, color: AppColors.subtleBorder),
+                    itemBuilder: (_, i) => _JobRow(
+                      job: jobs[i],
+                      onCancel: () => notifier.cancel(jobs[i].id),
                     ),
                   ),
-              ],
-            ),
-          ],
+                ),
+
+              const SizedBox(height: 8),
+              // 底部操作
+              Row(
+                children: [
+                  if (hasFinished)
+                    TextButton.icon(
+                      onPressed: notifier.clearFinished,
+                      icon: const Icon(Icons.clear_all, size: 16),
+                      label: Text(
+                        tr('exportQueueClearFinished'),
+                        style: AppTypography.bodyLarge,
+                      ),
+                    ),
+                  const Spacer(),
+                  if (pending > 0)
+                    TextButton.icon(
+                      onPressed: notifier.cancelAll,
+                      icon: const Icon(Icons.cancel_outlined, size: 16),
+                      label: Text(
+                        tr('exportQueueCancelAll'),
+                        style: AppTypography.bodyLarge,
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.semanticError,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

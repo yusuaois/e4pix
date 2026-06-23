@@ -31,6 +31,7 @@ export 'tools/crop_state.dart';
 export 'tools/local_state.dart';
 export 'tools/develop_tool_state.dart';
 export 'tools/compare_state.dart';
+export 'tools/sr_state.dart';
 
 // watermark
 export 'watermark/watermark_state.dart';
