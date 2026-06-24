@@ -485,7 +485,7 @@
   "superResModelLoad": "加载",
   "superResModelRequired": "请先加载模型",
   "superResEnable": "启用超分辨率",
-  "superResExperimentalHint": "目前仅支持 CPU 导出，速度较慢，仍在试验阶段",
+  "superResExperimentalHint": "目前仅支持 CPU 导出，速度较慢，部分安卓设备可能闪退，仍在试验阶段",
   "settingsExportConcurrency": "并发导出数",
   "settingsExportConcurrencyHint": "同时导出的图片数量，增加可加快带超分辨率的批量导出",
   "debug": "调试",

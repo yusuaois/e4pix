@@ -89,20 +89,36 @@ class DevelopTopBar extends ConsumerWidget {
               ? tr('multiSelectExit')
               : tr('multiSelect'),
           menuKey: 'multiselect',
-          color: selection.multiSelectMode ? primary : null,
           onPressed: shots.isEmpty
               ? null
               : () => ref
                     .read(exportSelectionNotifierProvider.notifier)
                     .toggleMode(),
+          alwaysVisible: selection.multiSelectMode,
           priority: 90,
+        ),
+      // 多选模式下的 HDR 和同步按钮
+      if (selection.multiSelectMode && selection.selectedPaths.length >= 2)
+        _BarAction(
+          icon: Icons.hdr_on,
+          tooltip: tr('hdrMerge'),
+          menuKey: 'hdr_merge',
+          onPressed: onHdrMerge,
+          priority: 85,
+        ),
+      if (selection.multiSelectMode && selection.selectedPaths.isNotEmpty)
+        _BarAction(
+          icon: Icons.sync,
+          tooltip: tr('syncAdjustments'),
+          menuKey: 'sync',
+          onPressed: onSync,
+          priority: 80,
         ),
       if (hasImage)
         _BarAction(
           icon: Icons.auto_awesome,
           tooltip: tr('aiColorSuggestionHint'),
           menuKey: 'ai',
-          color: primary,
           onPressed: onAI,
           onLongPress: onAILongPress,
           priority: 60,
@@ -206,11 +222,18 @@ class DevelopTopBar extends ConsumerWidget {
                 actions,
                 constraints.maxWidth,
                 isVertical,
+                trailing: selection.multiSelectMode
+                    ? _buildMultiSelectTrailing(
+                        context,
+                        ref,
+                        selection,
+                        shots,
+                        isVertical,
+                      )
+                    : null,
               ),
             ),
           ),
-          if (selection.multiSelectMode)
-            ..._buildMultiSelectBar(context, ref, selection, shots, isVertical),
         ],
       ),
     );
@@ -350,16 +373,19 @@ class DevelopTopBar extends ConsumerWidget {
   Widget _buildAdaptiveActions(
     List<_BarAction> actions,
     double maxWidth,
-    bool isVertical,
-  ) {
+    bool isVertical, {
+    Widget? trailing,
+  }) {
     final btnW = isVertical ? 34.0 : 48.0;
     const menuW = 44.0;
+    // trailing 预留宽度
+    final trailingW = trailing != null ? 120.0 : 0.0;
 
     final always = actions.where((a) => a.alwaysVisible).toList();
     final rest = actions.where((a) => !a.alwaysVisible).toList()
       ..sort((a, b) => b.priority.compareTo(a.priority));
 
-    final budget = maxWidth - always.length * btnW - menuW;
+    final budget = maxWidth - always.length * btnW - menuW - trailingW;
     final canShow = rest.isEmpty
         ? 0
         : (budget / btnW).floor().clamp(0, rest.length);
@@ -383,6 +409,8 @@ class DevelopTopBar extends ConsumerWidget {
             color: a.color,
             badgeCount: a.badgeCount,
           ),
+        // 多选栏（已选N张 + 全选）
+        ?trailing,
         if (overflow.isNotEmpty)
           SizedBox(
             width: _barBtnSize(isVertical),
@@ -418,73 +446,63 @@ class DevelopTopBar extends ConsumerWidget {
   double _barBtnSize(bool isVertical) => isVertical ? 30 : 40;
   double _barIconSize(bool isVertical) => isVertical ? 17 : 20;
 
-  List<Widget> _buildMultiSelectBar(
+  Widget _buildMultiSelectTrailing(
     BuildContext context,
     WidgetRef ref,
     ExportSelection selection,
     List<TetheredShot> shots,
     bool isVertical,
   ) {
-    return [
-      if (selection.selectedPaths.isNotEmpty) ...[
-        if (selection.selectedPaths.length >= 2 && onHdrMerge != null)
-          _iconBtn(
-            Icons.hdr_on,
-            tr('hdrMerge'),
-            onHdrMerge!,
-            isVertical,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        _iconBtn(
-          Icons.sync,
-          tr('syncAdjustments'),
-          onSync,
-          isVertical,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        Flexible(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              tr('selectedShots', args: ['${selection.selectedPaths.length}']),
-              style: AppTypography.labelSmall.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.primary,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (selection.selectedPaths.isNotEmpty)
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              child: Text(
+                tr(
+                  'selectedShots',
+                  args: ['${selection.selectedPaths.length}'],
+                ),
+                style: AppTypography.labelSmall.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
+          ),
+        TextButton(
+          onPressed: () {
+            final n = ref.read(exportSelectionNotifierProvider.notifier);
+            if (selection.selectedPaths.length == shots.length) {
+              n.clearSelection();
+            } else {
+              n.selectAll(shots.map((s) => s.path));
+            }
+          },
+          style: TextButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            minimumSize: Size.zero,
+          ),
+          child: Text(
+            selection.selectedPaths.length == shots.length
+                ? tr('selectNone')
+                : tr('selectAll'),
+            style: AppTypography.labelSmall,
           ),
         ),
       ],
-      TextButton(
-        onPressed: () {
-          final n = ref.read(exportSelectionNotifierProvider.notifier);
-          if (selection.selectedPaths.length == shots.length) {
-            n.clearSelection();
-          } else {
-            n.selectAll(shots.map((s) => s.path));
-          }
-        },
-        style: TextButton.styleFrom(
-          visualDensity: VisualDensity.compact,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          minimumSize: Size.zero,
-        ),
-        child: Text(
-          selection.selectedPaths.length == shots.length
-              ? tr('selectNone')
-              : tr('selectAll'),
-          style: AppTypography.labelSmall,
-        ),
-      ),
-    ];
+    );
   }
 }
 

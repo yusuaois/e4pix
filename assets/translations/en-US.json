@@ -485,7 +485,7 @@
   "superResModelLoad": "Load",
   "superResModelRequired": "Please load the model first",
   "superResEnable": "Enable Super Resolution",
-  "superResExperimentalHint": "CPU only for now — export is slow. Experimental feature.",
+  "superResExperimentalHint": "CPU only for now — export is slow. May crash on some Android devices. Experimental feature.",
   "settingsExportConcurrency": "Export Concurrency",
   "settingsExportConcurrencyHint": "Number of images to export simultaneously. Increase to speed up batch export with SR",
   "debug": "Debug",
