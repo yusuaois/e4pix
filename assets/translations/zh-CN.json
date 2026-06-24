@@ -499,6 +499,15 @@
   "debugExport": "导出日志",
   "debugExported": "日志已导出至 {}",
   "debugExportFailed": "导出失败：{}",
+  "hdrMerge": "HDR 融合",
+  "hdrMergeProgress": "正在融合曝光...",
+  "hdrMergeSizeMismatch": "所有图片尺寸必须一致",
+  "hdrMergeDecodeFailed": "解码图片失败",
+  "hdrMergeFailed": "HDR 融合失败",
+  "hdrMergeComplete": "HDR 融合完成",
+  "hdrMergeDecoding": "正在解码 {}/{}...",
+  "hdrMergeFusing": "正在融合曝光...",
+  "hdrMergeSaving": "正在保存结果...",
   "superResPreview": "预览效果",
   "exportSuperRes": "超分辨率处理中..."
 }

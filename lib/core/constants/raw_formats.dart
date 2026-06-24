@@ -27,7 +27,22 @@ class RawFormats {
     '.png',
     '.webp',
     '.bmp',
+    '.tiff',
+    '.tif',
   };
+
+  /// 无损格式扩展名（RAW + PNG + TIFF + BMP）
+  static const Set<String> losslessExtensions = {
+    ...extensions, // 所有 RAW
+    '.png',
+    '.tiff',
+    '.tif',
+    '.bmp',
+  };
+
+  /// 是否为无损格式（RAW/PNG/TIFF/BMP），用于 HDR 等需要保留质量的场景
+  static bool isLossless(String path) =>
+      losslessExtensions.contains(_ext(path));
 
   static String _ext(String path) {
     final dot = path.lastIndexOf('.');

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:ui' as ui;
 
 import 'package:easy_localization/easy_localization.dart';
@@ -7,8 +8,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image/image.dart' as img_pkg;
 import 'package:path/path.dart' as p;
 
+import '../core/constants/raw_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/export_config.dart';
 import '../core/models/export_job.dart';
@@ -16,6 +19,10 @@ import '../core/models/sync_options.dart';
 import '../core/models/tethered_shot.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_typography.dart';
+import '../native/raw_bridge.dart';
+import '../render/raw_to_ui_image.dart';
+import '../services/hdr/hdr_isolate.dart';
+import '../services/image/image_loader.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
@@ -57,6 +64,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   static const _bottomPanelMinHeight = 250.0;
   static const _bottomPanelMaxHeight = 520.0;
   static const _handleBarHeight = 14.0; // 拖拽手柄高度
+
+  // HDR 进度对话框的 StateSetter
+  StateSetter? _hdrDialogSetState;
 
   // 底部面板折叠状态（仅隐藏图片滑块，不改变面板高度）
   bool _bottomPanelCollapsed = false;
@@ -505,6 +515,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             child: DevelopTopBar(
               onExport: _showExportDialog,
               onSync: _syncToSelected,
+              onHdrMerge: _hdrMergeSelected,
               onTetherFolder: _startFolderTether,
               onTetherCamera: _startCameraTether,
               onStopTether: _stopAllTether,
@@ -673,6 +684,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             child: DevelopTopBar(
               onExport: _showExportDialog,
               onSync: _syncToSelected,
+              onHdrMerge: _hdrMergeSelected,
               onTetherFolder: _startFolderTether,
               onTetherCamera: _startCameraTether,
               onStopTether: _stopAllTether,
@@ -869,6 +881,202 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       tr('syncDone', args: ['${selection.selectedPaths.length}']),
       floating: true,
     );
+  }
+
+  Future<void> _hdrMergeSelected() async {
+    final selection = ref.read(exportSelectionNotifierProvider);
+    final paths = selection.selectedPaths.toList();
+    if (paths.length < 2) return;
+
+    // 进度状态
+    double progress = 0;
+    String phaseText = tr('hdrMergeProgress');
+
+    // 进度框
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          // 保存 setDialogState 以便外部更新
+          _hdrDialogSetState = setDialogState;
+          return AlertDialog(
+            backgroundColor: AppColors.elevatedBg,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 4,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                const SizedBox(height: 16),
+                Text(phaseText, style: AppTypography.bodyLarge),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    // 进度更新辅助函数
+    void updateProgress(double p, String phase) {
+      progress = p;
+      phaseText = phase;
+      _hdrDialogSetState?.call(() {});
+    }
+
+    try {
+      // 阶段 1：解码图片（0%~40%）
+      debugPrint('[HDR] Merging ${paths.length} images');
+      final images = <Uint8List>[];
+      int? w, h;
+      for (int i = 0; i < paths.length; i++) {
+        updateProgress(
+          0.4 * i / paths.length,
+          tr('hdrMergeDecoding', args: ['${i + 1}', '${paths.length}']),
+        );
+        debugPrint('[HDR] Decoding ${i + 1}/${paths.length}: ${paths[i]}');
+        final ui.Image img;
+        if (RawFormats.isStandard(paths[i])) {
+          img = (await ImageLoader.decodeFull(paths[i])).$1;
+        } else {
+          final raw = await RawBridge.decodeFull(paths[i]);
+          img = await rawToUiImage(raw, maxEdge: -1);
+        }
+        final imgW = img.width;
+        final imgH = img.height;
+        debugPrint('[HDR] Decoded ${imgW}x$imgH');
+        final byteData = await img.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        );
+        // 先复制像素数据，再释放图像
+        final pixels = byteData?.buffer.asUint8List();
+        img.dispose();
+        if (pixels == null) {
+          if (mounted) Navigator.of(context).pop();
+          _snack(tr('hdrMergeDecodeFailed'));
+          return;
+        }
+        if (w == null) {
+          w = imgW;
+          h = imgH;
+        } else if (imgW != w || imgH != h) {
+          if (mounted) Navigator.of(context).pop();
+          _snack(tr('hdrMergeSizeMismatch'));
+          return;
+        }
+        images.add(Uint8List.fromList(pixels));
+        debugPrint('[HDR] Image ${i + 1} ready, ${pixels.length} bytes');
+      }
+      updateProgress(0.4, tr('hdrMergeFusing'));
+
+      // 阶段 2：Isolate 融合（40%~90%）
+      debugPrint('[HDR] Launching Isolate for ${w}x$h fusion...');
+      final receivePort = ReceivePort();
+      final progressPort = ReceivePort();
+      await Isolate.spawn(
+        hdrFuseIsolate,
+        HdrIsolateParams(
+          sendPort: receivePort.sendPort,
+          images: images,
+          width: w!,
+          height: h!,
+          progressPort: progressPort.sendPort,
+        ),
+      );
+      debugPrint('[HDR] Isolate spawned, waiting for result...');
+
+      // 监听融合进度
+      progressPort.listen((dynamic msg) {
+        if (msg is double) {
+          updateProgress(0.4 + msg * 0.5, tr('hdrMergeFusing'));
+        }
+      });
+
+      final dynamic rawResult = await receivePort.first;
+      progressPort.close();
+
+      if (rawResult is String) {
+        debugPrint('[HDR] Isolate error: $rawResult');
+        if (mounted) Navigator.of(context).pop();
+        _snack(tr('hdrMergeFailed'));
+        return;
+      }
+
+      final result = rawResult as Uint8List?;
+      debugPrint(
+        '[HDR] Isolate returned: '
+        '${result != null ? "${result.length} bytes" : "null"}',
+      );
+
+      if (result == null) {
+        if (mounted) Navigator.of(context).pop();
+        _snack(tr('hdrMergeFailed'));
+        return;
+      }
+
+      // 阶段 3：保存（90%~100%）
+      updateProgress(0.9, tr('hdrMergeSaving'));
+      // 无损源（RAW/PNG/TIFF/BMP）→ PNG；有损源（JPEG/WebP）→ JPEG
+      final srcDir = p.dirname(paths.first);
+      final srcName = p.basenameWithoutExtension(paths.first);
+      final usePng = RawFormats.isLossless(paths.first);
+      final outPath = p.join(
+        srcDir,
+        '${srcName}_HDR${usePng ? '.png' : '.jpg'}',
+      );
+
+      final completer = Completer<ui.Image>();
+      ui.decodeImageFromPixels(
+        result,
+        w,
+        h,
+        ui.PixelFormat.rgba8888,
+        completer.complete,
+      );
+      final mergedImage = await completer.future;
+
+      if (usePng) {
+        final pngData = await mergedImage.toByteData(
+          format: ui.ImageByteFormat.png,
+        );
+        if (pngData != null) {
+          await File(outPath).writeAsBytes(pngData.buffer.asUint8List());
+        }
+      } else {
+        final rawBytes = await mergedImage.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        );
+        if (rawBytes != null) {
+          final img = img_pkg.Image.fromBytes(
+            width: w,
+            height: h,
+            bytes: rawBytes.buffer,
+            format: img_pkg.Format.uint8,
+            numChannels: 4,
+          );
+          final jpgBytes = img_pkg.encodeJpg(img, quality: 95);
+          await File(outPath).writeAsBytes(jpgBytes);
+        }
+      }
+      mergedImage.dispose();
+      debugPrint('[HDR] Saved: $outPath');
+
+      updateProgress(1.0, tr('hdrMergeComplete'));
+      if (mounted) Navigator.of(context).pop();
+
+      // 添加到 shot list
+      ref.read(shotsNotifierProvider.notifier).addFiles([outPath]);
+      _snack(tr('hdrMergeComplete'), floating: true);
+    } catch (e, st) {
+      debugPrint('[HDR] Failed: $e');
+      debugPrint('[HDR] Stack: $st');
+      if (mounted) Navigator.of(context).pop();
+      _snack(tr('hdrMergeFailed'));
+    } finally {
+      _hdrDialogSetState = null;
+    }
   }
 
   Future<void> _importImages() async {

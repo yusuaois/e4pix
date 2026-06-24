@@ -12,6 +12,7 @@ import '../export/export_queue_panel.dart';
 class DevelopTopBar extends ConsumerWidget {
   final VoidCallback onExport;
   final VoidCallback onSync;
+  final VoidCallback? onHdrMerge;
   final VoidCallback onTetherFolder;
   final VoidCallback onTetherCamera;
   final VoidCallback onStopTether;
@@ -22,6 +23,7 @@ class DevelopTopBar extends ConsumerWidget {
     super.key,
     required this.onExport,
     required this.onSync,
+    this.onHdrMerge,
     required this.onTetherFolder,
     required this.onTetherCamera,
     required this.onStopTether,
@@ -425,6 +427,14 @@ class DevelopTopBar extends ConsumerWidget {
   ) {
     return [
       if (selection.selectedPaths.isNotEmpty) ...[
+        if (selection.selectedPaths.length >= 2 && onHdrMerge != null)
+          _iconBtn(
+            Icons.hdr_on,
+            tr('hdrMerge'),
+            onHdrMerge!,
+            isVertical,
+            color: Theme.of(context).colorScheme.primary,
+          ),
         _iconBtn(
           Icons.sync,
           tr('syncAdjustments'),

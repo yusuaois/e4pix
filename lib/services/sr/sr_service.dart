@@ -47,37 +47,9 @@ class SrService {
 
       final options = OrtSessionOptions();
 
-      // ② 逐个尝试 GPU provider，记录成功/失败
-      bool gpuOk = false;
-
-      try {
-        options.appendCudaProvider(CUDAFlags.useArena);
-        debugPrint('[SrService] ✅ CUDA provider added');
-        gpuOk = true;
-      } catch (e) {
-        debugPrint('[SrService] ❌ CUDA not available: $e');
-      }
-
-      if (!gpuOk) {
-        try {
-          options.appendDirectMLProvider();
-          debugPrint('[SrService] ✅ DirectML provider added');
-          gpuOk = true;
-        } catch (e) {
-          debugPrint('[SrService] ❌ DirectML not available: $e');
-        }
-      }
-
-      // ③ CPU 回退
-      options.appendCPUProvider(CPUFlags.useArena);
-      if (!gpuOk) {
-        debugPrint('[SrService] ⚠️ Using CPU only');
-      }
-
-      // ④ 检查是否使用了 GPU 版本的 ONNX Runtime 库
-      debugPrint(
-        '[SrService] ONNX Runtime DLL: ${gpuOk ? "GPU-enabled" : "CPU-only"}',
-      );
+      // ② 自动选择最佳 provider
+      await options.appendDefaultProviders();
+      debugPrint('[SrService] Providers configured via appendDefaultProviders');
 
       options.setIntraOpNumThreads(4);
 
@@ -86,13 +58,9 @@ class SrService {
 
       debugPrint('[SrService] Session ready. inputs=${_session!.inputNames}');
 
-      // 验证推理
-      final testTensor = OrtValueTensor.createTensorWithDataList(
-        Float32List(3 * _tileSize * _tileSize),
-        [1, 3, _tileSize, _tileSize],
-      );
-      final out = _session!.run(OrtRunOptions(), {_inputName!: testTensor});
-      debugPrint('[SrService] Test OK. outputs=${out.length}');
+      // 注意：此处跳过 test inference，因为部分 Android 设备上
+      // onnxruntime CPU 内核使用了不支持的 ARM 指令集（SIGILL）
+      // 实际推理在 upscaleRegion/upscaleFull 中执行，出错会被 try-catch 捕获
 
       options.release();
       return true;
@@ -297,17 +265,11 @@ class _IsolateParams {
 }
 
 /// Isolate 入口：接收参数，处理完后通过 SendPort 发回结果
-void _isolateUpscale(_IsolateParams p) {
+Future<void> _isolateUpscale(_IsolateParams p) async {
   try {
     OrtEnv.instance.init();
     final options = OrtSessionOptions();
-    try {
-      options.appendCudaProvider(CUDAFlags.useArena);
-    } catch (_) {}
-    try {
-      options.appendDirectMLProvider();
-    } catch (_) {}
-    options.appendCPUProvider(CPUFlags.useArena);
+    await options.appendDefaultProviders();
     options.setIntraOpNumThreads(4);
     final session = OrtSession.fromBuffer(p.modelBytes, options);
     final inputName = session.inputNames.first;

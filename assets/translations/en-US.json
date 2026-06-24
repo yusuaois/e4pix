@@ -499,6 +499,15 @@
   "debugExport": "Export Log",
   "debugExported": "Log exported to {}",
   "debugExportFailed": "Export failed: {}",
+  "hdrMerge": "HDR Merge",
+  "hdrMergeProgress": "Merging exposures...",
+  "hdrMergeSizeMismatch": "All images must have the same dimensions",
+  "hdrMergeDecodeFailed": "Failed to decode one or more images",
+  "hdrMergeFailed": "HDR merge failed",
+  "hdrMergeComplete": "HDR merge complete",
+  "hdrMergeDecoding": "Decoding {}/{}...",
+  "hdrMergeFusing": "Fusing exposures...",
+  "hdrMergeSaving": "Saving result...",
   "superResPreview": "Preview",
   "exportSuperRes": "Super Resolution..."
 }
