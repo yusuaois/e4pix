@@ -128,7 +128,7 @@ class QualityTiles extends ConsumerWidget {
 
 class _ExportConcurrencyTile extends StatefulWidget {
   final BorderRadius? tileBorderRadius;
-  const _ExportConcurrencyTile({super.key, this.tileBorderRadius});
+  const _ExportConcurrencyTile({this.tileBorderRadius});
 
   @override
   State<_ExportConcurrencyTile> createState() => _ExportConcurrencyTileState();

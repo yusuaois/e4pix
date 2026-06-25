@@ -34,7 +34,7 @@ class _ParsedLogEntry {
 ///
 /// Expected format: `[TagName] message` or plain `message` (no tag).
 _ParsedLogEntry _parseLogMessage(String raw) {
-  final match = RegExp(r'^\[([^\]]+)\]\s*(.*)$').firstMatch(raw);
+  final match = RegExp(r'^\[([^\]]+)\]\s*(.*)$', dotAll: true).firstMatch(raw);
 
   if (match != null) {
     final tag = match.group(1)!;
