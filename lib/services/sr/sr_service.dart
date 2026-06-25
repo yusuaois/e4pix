@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:onnxruntime_v2/onnxruntime_v2.dart';
 
+import '../debug/debug_log_service.dart';
+
 /// 超分辨率推理服务
 ///
 /// 使用 Real-ESRGAN ONNX 模型进行 2x 超分辨率。
@@ -145,6 +147,7 @@ class SrService {
           srcH: srcH,
           tileSize: _tileSize,
           overlap: _overlap,
+          logFilePath: DebugLogService.instance.logFilePath,
         ),
       );
       _activeIsolate = isolate;
@@ -253,6 +256,7 @@ class _IsolateParams {
   final int srcH;
   final int tileSize;
   final int overlap;
+  final String? logFilePath;
   const _IsolateParams({
     required this.sendPort,
     required this.modelBytes,
@@ -261,11 +265,13 @@ class _IsolateParams {
     required this.srcH,
     required this.tileSize,
     required this.overlap,
+    this.logFilePath,
   });
 }
 
 /// Isolate 入口：接收参数，处理完后通过 SendPort 发回结果
 void _isolateUpscale(_IsolateParams p) {
+  DebugLogService.setupIsolateLogging(logFilePath: p.logFilePath);
   try {
     OrtEnv.instance.init();
     final options = OrtSessionOptions();

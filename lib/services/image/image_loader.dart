@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img_pkg;
 
 import '../../native/raw_bridge.dart';
+import '../debug/debug_log_service.dart';
 
 /// 图片加载：RAW LibRaw，标准图片 Flutter 原生解码
 /// 产物为 8-bit sRGB ui.Image
@@ -32,8 +33,12 @@ class ImageLoader {
   /// EXIF 解析在 Isolate 中执行，避免主线程阻塞
   static Future<(ui.Image, RawMetadata)> decodeFull(String path) async {
     final bytes = await File(path).readAsBytes();
+    final logPath = DebugLogService.instance.logFilePath;
     // EXIF 解析（含完整 JPEG 解码）在独立 Isolate 中运行
-    final metaFuture = Isolate.run(() => _tryReadExif(bytes));
+    final metaFuture = Isolate.run(() {
+      DebugLogService.setupIsolateLogging(logFilePath: logPath);
+      return _tryReadExif(bytes);
+    });
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
     final meta = await metaFuture ?? emptyMetadata;

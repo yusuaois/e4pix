@@ -60,4 +60,18 @@ class AppColors {
   static const hslBand5 = Color(0xFF1E88E5);
   static const hslBand6 = Color(0xFF8E24AA);
   static const hslBand7 = Color(0xFFD81B60);
+
+  // ── Debug Log 专用 ──
+  // Tag 分类色（降饱和，匹配深色背景）
+  static const debugInfra = Color(0xFF7986CB); // indigo-300: Core/Infra
+  static const debugAi = Color(0xFFCE93D8); // purple-200: AI/ML
+  static const debugImageIO = Color(0xFF80CBC4); // teal-200: Image I/O
+  static const debugProcessing = Color(0xFF90CAF9); // blue-200: Processing
+  static const debugExportIO = Color(0xFFFFCC80); // orange-200: Export/IO
+  static const debugSystem = Color(0xFFB0BEC5); // blue-gray-200: System
+  // 时间戳 + 行样式
+  static const debugTimestamp = Color(0xFF666666);
+  static const debugRowAlt = Color(0x05FFFFFF); // white 2%
+  static const debugErrorBg = Color(0x10EF5350); // error 6%
+  static const debugErrorBorder = Color(0x60EF5350); // error 38%
 }

@@ -23,6 +23,7 @@ import '../native/raw_bridge.dart';
 import '../render/raw_to_ui_image.dart';
 import '../services/hdr/hdr_isolate.dart';
 import '../services/image/image_loader.dart';
+import '../services/debug/debug_log_service.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
@@ -1001,6 +1002,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           width: w!,
           height: h!,
           progressPort: progressPort.sendPort,
+          logFilePath: DebugLogService.instance.logFilePath,
         ),
       );
       debugPrint('[HDR] Isolate spawned, waiting for result...');

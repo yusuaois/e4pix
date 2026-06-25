@@ -6,6 +6,7 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/models/watermark_config.dart';
+import '../services/debug/debug_log_service.dart';
 import 'raw_bridge_bindings.dart';
 
 /// 解码后图像
@@ -199,28 +200,35 @@ class RawBridge {
 
   /// 提取内嵌缩略图
   static Future<RawDecodedImage> extractThumbnail(String path) {
-    return Isolate.run(() => _extractThumbSync(path));
+    final logPath = DebugLogService.instance.logFilePath;
+    return Isolate.run(() => _extractThumbSync(path, logPath));
   }
 
   /// 快速预览
   static Future<RawDecodedImage> decodePreviewFast(String path) {
-    return Isolate.run(() => _decodeSync(path, _DecodeMode.previewFast));
+    final logPath = DebugLogService.instance.logFilePath;
+    return Isolate.run(
+      () => _decodeSync(path, _DecodeMode.previewFast, logPath),
+    );
   }
 
   /// 解码预览
   static Future<RawDecodedImage> decodePreview(String path) {
-    return Isolate.run(() => _decodeSync(path, _DecodeMode.preview));
+    final logPath = DebugLogService.instance.logFilePath;
+    return Isolate.run(() => _decodeSync(path, _DecodeMode.preview, logPath));
   }
 
   /// 解码全分辨率
   static Future<RawDecodedImage> decodeFull(String path) {
-    return Isolate.run(() => _decodeSync(path, _DecodeMode.full));
+    final logPath = DebugLogService.instance.logFilePath;
+    return Isolate.run(() => _decodeSync(path, _DecodeMode.full, logPath));
   }
 
   /// 仅元数据
   static Future<RawMetadata> readMetadata(String path) async {
+    final logPath = DebugLogService.instance.logFilePath;
     final image = await Isolate.run(
-      () => _decodeSync(path, _DecodeMode.metadata),
+      () => _decodeSync(path, _DecodeMode.metadata, logPath),
     );
     return image.metadata;
   }
@@ -241,7 +249,9 @@ class RawBridge {
 
   /// 读取镜头元数据（不解码像素）
   static Future<RawMetadata> readLensMetadata(String path) async {
+    final logPath = DebugLogService.instance.logFilePath;
     final result = await Isolate.run(() {
+      DebugLogService.setupIsolateLogging(logFilePath: logPath);
       final b = _ensureLoaded();
       final pathPtr = path.toNativeUtf8();
       Pointer<E4pixDecodeResult>? resultPtr;
@@ -256,7 +266,8 @@ class RawBridge {
     return result.metadata;
   }
 
-  static RawDecodedImage _extractThumbSync(String path) {
+  static RawDecodedImage _extractThumbSync(String path, String? logFilePath) {
+    DebugLogService.setupIsolateLogging(logFilePath: logFilePath);
     final b = _ensureLoaded();
     final pathPtr = path.toNativeUtf8();
     Pointer<E4pixDecodeResult>? resultPtr;
@@ -269,7 +280,12 @@ class RawBridge {
     }
   }
 
-  static RawDecodedImage _decodeSync(String path, _DecodeMode mode) {
+  static RawDecodedImage _decodeSync(
+    String path,
+    _DecodeMode mode,
+    String? logFilePath,
+  ) {
+    DebugLogService.setupIsolateLogging(logFilePath: logFilePath);
     final b = _ensureLoaded();
     final sw = Stopwatch()..start();
     final pathPtr = path.toNativeUtf8();

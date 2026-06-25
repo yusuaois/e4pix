@@ -2,6 +2,7 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 
+import '../debug/debug_log_service.dart';
 import 'hdr_fusion_service.dart';
 
 class HdrIsolateParams {
@@ -11,6 +12,7 @@ class HdrIsolateParams {
   final int height;
   final int levels;
   final SendPort? progressPort;
+  final String? logFilePath;
   const HdrIsolateParams({
     required this.sendPort,
     required this.images,
@@ -18,6 +20,7 @@ class HdrIsolateParams {
     required this.height,
     this.levels = 5,
     this.progressPort,
+    this.logFilePath,
   });
 }
 
@@ -25,6 +28,7 @@ class HdrIsolateParams {
 /// 成功发送 Uint8List，失败发送 String（错误信息）
 /// 通过 progressPort 发送 0.0~1.0 进度
 void hdrFuseIsolate(HdrIsolateParams p) {
+  DebugLogService.setupIsolateLogging(logFilePath: p.logFilePath);
   try {
     debugPrint(
       '[HDR:isolate] Starting fusion: '
