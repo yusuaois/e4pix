@@ -89,7 +89,7 @@ jobs:
 
       - name: 🗜️ Compress Portable Build (Zip)
         run: |
-          Get-ChildItem build\windows\x64\runner\Release\ -File |
+          Get-ChildItem build\windows\x64\runner\Release\ |
             Where-Object { $_.Extension -ne '.msix' } |
             Compress-Archive -DestinationPath e4pix_${{ github.ref_name }}_Windows_Portable.zip
 
