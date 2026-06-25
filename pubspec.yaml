@@ -54,7 +54,7 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   local_notifier: ^0.1.6
   visibility_detector: ^0.4.0+2
-  onnxruntime_v2: ^1.23.2+2
+  onnxruntime_v2: 1.23.0
 dev_dependencies:
   msix: ^3.17.0
   flutter_test:

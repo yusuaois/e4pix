@@ -38,7 +38,7 @@ class SamSession {
       OrtEnv.instance.init();
 
       final options = OrtSessionOptions();
-      await options.appendDefaultProviders();
+      options.appendDefaultProviders();
       options.setIntraOpNumThreads(4);
 
       final encBytes = await _loadAsset(_encoderAsset);

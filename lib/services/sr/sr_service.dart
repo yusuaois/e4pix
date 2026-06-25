@@ -48,7 +48,7 @@ class SrService {
       final options = OrtSessionOptions();
 
       // ② 自动选择最佳 provider
-      await options.appendDefaultProviders();
+      options.appendDefaultProviders();
       debugPrint('[SrService] Providers configured via appendDefaultProviders');
 
       options.setIntraOpNumThreads(4);
@@ -265,11 +265,11 @@ class _IsolateParams {
 }
 
 /// Isolate 入口：接收参数，处理完后通过 SendPort 发回结果
-Future<void> _isolateUpscale(_IsolateParams p) async {
+void _isolateUpscale(_IsolateParams p) {
   try {
     OrtEnv.instance.init();
     final options = OrtSessionOptions();
-    await options.appendDefaultProviders();
+    options.appendDefaultProviders();
     options.setIntraOpNumThreads(4);
     final session = OrtSession.fromBuffer(p.modelBytes, options);
     final inputName = session.inputNames.first;

@@ -553,10 +553,10 @@ packages:
     dependency: "direct main"
     description:
       name: onnxruntime_v2
-      sha256: a3a1f7baf40c6a77b4d359489643232414a4ee2e934d865dd7d30b758abaeef7
+      sha256: f9a6e8bf40b891a8953be1f188840e7751658eeed30fe85c2808391e8acc7807
       url: "https://pub.dev"
     source: hosted
-    version: "1.23.2+2"
+    version: "1.23.0"
   package_config:
     dependency: transitive
     description:

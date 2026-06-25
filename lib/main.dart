@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:e4pix/services/debug/debug_log_service.dart';
 import 'package:e4pix/services/notifications/notification_manager.dart';
 import 'package:e4pix/widgets/app/app_exit_guard.dart';
@@ -18,24 +15,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 拦截 debugPrint，捕获日志到 DebugLogService
-  final originalDebugPrint = debugPrint;
   debugPrint = (String? message, {int? wrapWidth}) {
     DebugLogService.instance.add(message ?? '');
-    originalDebugPrint(message, wrapWidth: wrapWidth);
-  };
-
-  // 捕获 Flutter 框架错误（渲染异常、构建异常等）
-  FlutterError.onError = (details) {
-    DebugLogService.instance.add('[FlutterError] ${details.exception}');
-    DebugLogService.instance.add('[FlutterError] ${details.stack}');
-    FlutterError.presentError(details);
   };
 
   await EasyLocalization.ensureInitialized();
   await DebugLogService.instance.ensureLoaded();
-
-  // 打印运行环境信息
-  _logPlatformInfo();
   await NotificationManager.instance.init();
 
   runApp(
@@ -50,55 +35,6 @@ void main() async {
       ),
     ),
   );
-}
-
-Future<void> _logPlatformInfo() async {
-  final log = DebugLogService.instance;
-  log.add('═══ e4pix startup ═══');
-  log.add(
-    '[Platform] OS: ${Platform.operatingSystem} '
-    '${Platform.operatingSystemVersion}',
-  );
-  log.add('[Platform] Locale: ${Platform.localeName}');
-  log.add('[Platform] CPUs: ${Platform.numberOfProcessors}');
-  log.add('[Platform] Dart: ${Platform.version}');
-
-  final device = DeviceInfoPlugin();
-  try {
-    if (Platform.isAndroid) {
-      final info = await device.androidInfo;
-      log.add(
-        '[Device] Android ${info.version.sdkInt} '
-        '(${info.version.release})',
-      );
-      log.add('[Device] ${info.manufacturer} ${info.model}');
-      log.add('[Device] ABI: ${info.supportedAbis.join(", ")}');
-    } else if (Platform.isWindows) {
-      final info = await device.windowsInfo;
-      log.add(
-        '[Device] Windows ${info.majorVersion}.${info.minorVersion} '
-        'build ${info.buildNumber}',
-      );
-      log.add('[Device] ${info.computerName}');
-      log.add('[Device] CPUs: ${info.numberOfCores}');
-    } else if (Platform.isMacOS) {
-      final info = await device.macOsInfo;
-      log.add('[Device] macOS ${info.osRelease}');
-    } else if (Platform.isLinux) {
-      final info = await device.linuxInfo;
-      log.add('[Device] Linux ${info.prettyName}');
-      log.add('[Device] ${info.machineId ?? "unknown"}');
-    } else if (Platform.isIOS) {
-      final info = await device.iosInfo;
-      log.add(
-        '[Device] iOS ${info.systemVersion} '
-        '(${info.utsname.machine})',
-      );
-    }
-  } catch (e) {
-    log.add('[Device] Failed to get device info: $e');
-  }
-  log.add('═══════════════════════');
 }
 
 /// 从灰度 seed 构建纯中性 ColorScheme

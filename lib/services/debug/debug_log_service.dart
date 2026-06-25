@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -117,7 +118,64 @@ class DebugLogService {
         '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}'
         '_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
     final file = File(p.join(dir.path, 'e4pix_log_$ts.txt'));
-    final content = _entries.map((e) => e.toLine()).join('\n');
-    return file.writeAsString(content);
+
+    final buf = StringBuffer();
+    // 运行环境信息
+    buf.writeln(await _collectPlatformInfo());
+    buf.writeln();
+    // 日志内容
+    for (final e in _entries) {
+      buf.writeln(e.toLine());
+    }
+    return file.writeAsString(buf.toString());
+  }
+
+  Future<String> _collectPlatformInfo() async {
+    final buf = StringBuffer();
+    buf.writeln('═══ e4pix log export ═══');
+    buf.writeln(
+      '[Platform] OS: ${Platform.operatingSystem} '
+      '${Platform.operatingSystemVersion}',
+    );
+    buf.writeln('[Platform] Locale: ${Platform.localeName}');
+    buf.writeln('[Platform] CPUs: ${Platform.numberOfProcessors}');
+    buf.writeln('[Platform] Dart: ${Platform.version}');
+
+    final device = DeviceInfoPlugin();
+    try {
+      if (Platform.isAndroid) {
+        final info = await device.androidInfo;
+        buf.writeln(
+          '[Device] Android ${info.version.sdkInt} '
+          '(${info.version.release})',
+        );
+        buf.writeln('[Device] ${info.manufacturer} ${info.model}');
+        buf.writeln('[Device] ABI: ${info.supportedAbis.join(", ")}');
+      } else if (Platform.isWindows) {
+        final info = await device.windowsInfo;
+        buf.writeln(
+          '[Device] Windows ${info.majorVersion}.${info.minorVersion} '
+          'build ${info.buildNumber}',
+        );
+        buf.writeln('[Device] ${info.computerName}');
+        buf.writeln('[Device] CPUs: ${info.numberOfCores}');
+      } else if (Platform.isMacOS) {
+        final info = await device.macOsInfo;
+        buf.writeln('[Device] macOS ${info.osRelease}');
+      } else if (Platform.isLinux) {
+        final info = await device.linuxInfo;
+        buf.writeln('[Device] Linux ${info.prettyName}');
+      } else if (Platform.isIOS) {
+        final info = await device.iosInfo;
+        buf.writeln(
+          '[Device] iOS ${info.systemVersion} '
+          '(${info.utsname.machine})',
+        );
+      }
+    } catch (e) {
+      buf.writeln('[Device] Failed to get device info: $e');
+    }
+    buf.writeln('═══════════════════════');
+    return buf.toString();
   }
 }
