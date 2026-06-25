@@ -6,8 +6,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/models/crop_params.dart';
 import '../../../../core/models/local_adjustment.dart';
 import '../../../../core/models/mask_shape.dart';
+import '../../../../render/brush_rasterizer.dart';
 import '../../../../services/local/smart_region_service.dart';
 import '../../../../services/local/segmentation_service.dart';
 import '../../../../state/providers.dart';
@@ -223,6 +225,10 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final locals = ref.watch(
       currentParamsNotifierProvider.select((p) => p.locals),
     );
+    final crop = ref.watch(currentParamsNotifierProvider.select((p) => p.crop));
+    final image = ref.watch(imageNotifierProvider).value;
+    final srcW = image?.uiImage.width ?? 0;
+    final srcH = image?.uiImage.height ?? 0;
     final selectedId = ref.watch(selectedLocalIdProvider);
     final selected = ref.watch(selectedLocalProvider);
     final brush = ref.watch(brushSettingsProvider);
@@ -237,7 +243,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final selBrush = (selected?.mask is BrushMask)
         ? selected!.mask as BrushMask
         : null;
-    _ensureBaseViz(selBrush);
+    _ensureBaseViz(selBrush, crop, srcW, srcH);
 
     if (locals.isEmpty) return const SizedBox.shrink();
 
@@ -495,9 +501,10 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     }
   }
 
-  void _ensureBaseViz(BrushMask? m) {
+  void _ensureBaseViz(BrushMask? m, CropParams crop, int srcW, int srcH) {
     final base = m?.baseRaster;
-    final key = base == null ? null : identityHashCode(base);
+    final baseKey = base == null ? null : identityHashCode(base);
+    final key = baseKey == null ? null : Object.hash(baseKey, crop, srcW, srcH);
     if (key == _baseVizKey) return;
     _baseVizKey = key;
     if (base == null || m == null || m.baseW <= 0 || m.baseH <= 0) {
@@ -505,31 +512,52 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
       _baseViz = null;
       return;
     }
-    _decodeBaseViz(base, m.baseW, m.baseH);
+    _rasterizeBaseViz(m, crop, srcW, srcH);
   }
 
-  Future<void> _decodeBaseViz(Uint8List base, int bw, int bh) async {
-    final rgba = Uint8List(bw * bh * 4);
-    for (int i = 0; i < bw * bh; i++) {
-      final o = i * 4;
-      // 计算目标透明度 (0 ~ 114)
-      final a = (base[i] * 0.45).round();
+  Future<void> _rasterizeBaseViz(
+    BrushMask m,
+    CropParams crop,
+    int srcW,
+    int srcH,
+  ) async {
+    final dw = widget.imageDisplaySize.width.round();
+    final dh = widget.imageDisplaySize.height.round();
+    if (dw <= 0 || dh <= 0) return;
 
-      rgba[o] = (0x6B * a) ~/ 255; // R
-      rgba[o + 1] = (0x5B * a) ~/ 255; // G
-      rgba[o + 2] = a; // B
-      rgba[o + 3] = a; // A
+    final raw = await rasterizeBrushMask(
+      m,
+      dw,
+      dh,
+      crop: crop.isIdentity ? null : crop,
+      srcW: srcW,
+      srcH: srcH,
+    );
+
+    // 转为着色后的可视化图
+    final bd = await raw.toByteData(format: ui.ImageByteFormat.rawRgba);
+    raw.dispose();
+    if (bd == null) return;
+
+    final pixels = bd.buffer.asUint8List();
+    final rgba = Uint8List(dw * dh * 4);
+    for (int i = 0; i < dw * dh; i++) {
+      final o = i * 4;
+      final a = (pixels[o] * 0.45).round(); // mask 值 → 透明度
+      rgba[o] = (0x6B * a) ~/ 255;
+      rgba[o + 1] = (0x5B * a) ~/ 255;
+      rgba[o + 2] = a;
+      rgba[o + 3] = a;
     }
 
     final c = Completer<ui.Image>();
-    ui.decodeImageFromPixels(rgba, bw, bh, ui.PixelFormat.rgba8888, c.complete);
+    ui.decodeImageFromPixels(rgba, dw, dh, ui.PixelFormat.rgba8888, c.complete);
     final img = await c.future;
 
     if (!mounted) {
       img.dispose();
       return;
     }
-
     setState(() {
       _baseViz?.dispose();
       _baseViz = img;

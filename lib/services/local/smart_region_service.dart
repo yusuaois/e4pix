@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../render/crop_transform.dart';
+import '../../core/models/crop_params.dart';
 import '../../render/brush_rasterizer.dart';
 import '../../render/render_engine.dart';
 import '../../state/providers.dart';
@@ -35,10 +35,11 @@ class SmartRegionService {
       final tw = (src.width * scale).round();
       final th = (src.height * scale).round();
 
+      // 渲染全图 guide（不裁剪），蒙版存储在全图坐标
       ui.Image guideImg = await RenderEngine.renderToImage(
         program: program,
         sourceImage: src,
-        params: params,
+        params: params.copyWith(crop: CropParams.identity),
         lutTexture: lutEnabled ? lut.textureA : null,
         lutSize: lutEnabled ? lut.sizeA : 0,
         lutTextureB: lutEnabled ? lut.textureB : null,
@@ -48,13 +49,6 @@ class SmartRegionService {
         targetHeight: th,
       );
 
-      // 2) crop
-      if (!params.crop.isIdentity) {
-        final cropped = await applyCropTransform(guideImg, params.crop);
-        guideImg.dispose();
-        guideImg = cropped;
-      }
-
       final gw = guideImg.width;
       final gh = guideImg.height;
       final bd = await guideImg.toByteData(format: ui.ImageByteFormat.rawRgba);
@@ -62,8 +56,13 @@ class SmartRegionService {
       if (bd == null) return;
       final guide = bd.buffer.asUint8List();
 
-      // 3) flood fill
-      final mask = _floodFill(guide, gw, gh, seed, tol);
+      // 3) flood fill（种子点变换到全图坐标）
+      final srcSeed = params.crop.outputToSourceOffset(
+        seed,
+        src.width,
+        src.height,
+      );
+      final mask = _floodFill(guide, gw, gh, srcSeed, tol);
 
       // 4) 导向滤波收边
       final r = (gw * 0.006).round().clamp(2, 32);

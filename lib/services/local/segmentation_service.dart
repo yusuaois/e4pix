@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
-import '../../render/crop_transform.dart';
 import '../../render/render_engine.dart';
 import '../../state/providers.dart';
 import 'sam_session.dart';
@@ -35,10 +34,11 @@ class SegmentationService {
       final tw = (src.width * scale).round();
       final th = (src.height * scale).round();
 
+      // 渲染全图 guide（不裁剪），蒙版存储在全图坐标
       ui.Image guideImg = await RenderEngine.renderToImage(
         program: program,
         sourceImage: src,
-        params: params,
+        params: params.copyWith(crop: CropParams.identity),
         lutTexture: lutEnabled ? lut.textureA : null,
         lutSize: lutEnabled ? lut.sizeA : 0,
         lutTextureB: lutEnabled ? lut.textureB : null,
@@ -47,11 +47,6 @@ class SegmentationService {
         targetWidth: tw,
         targetHeight: th,
       );
-      if (!params.crop.isIdentity) {
-        final cropped = await applyCropTransform(guideImg, params.crop);
-        guideImg.dispose();
-        guideImg = cropped;
-      }
       final gw = guideImg.width, gh = guideImg.height;
       final bd = await guideImg.toByteData(format: ui.ImageByteFormat.rawRgba);
       guideImg.dispose();
@@ -61,7 +56,6 @@ class SegmentationService {
       final sig = Object.hash(
         identityHashCode(src),
         params.copyWith(locals: const [], crop: CropParams.identity).hashCode,
-        params.crop.hashCode,
         gw,
         gh,
       );
@@ -71,7 +65,16 @@ class SegmentationService {
         gh: gh,
         signature: sig,
       );
-      final mask = await SamSession.instance.decode(seed, negative: negative);
+      // 种子点从输出空间变换到全图空间
+      final srcSeed = params.crop.outputToSourceOffset(
+        seed,
+        src.width,
+        src.height,
+      );
+      final mask = await SamSession.instance.decode(
+        srcSeed,
+        negative: negative,
+      );
       if (mask == null) return false;
 
       _featherBox(mask, gw, gh, (gw * 0.0015).round().clamp(1, 3));

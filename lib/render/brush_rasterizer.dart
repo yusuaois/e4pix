@@ -3,9 +3,13 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import '../core/models/crop_params.dart';
 import '../core/models/mask_shape.dart';
 
 /// 蒙版光栅化调度：无 auto/base 走 GPU 几何路径，否则走 CPU 路径
+///
+/// [crop] 裁剪参数（baseRaster 存全图坐标时需要反变换）
+/// [srcW]/[srcH] 全图尺寸（baseRaster 的参考尺寸）
 Future<ui.Image> rasterizeBrushMask(
   BrushMask mask,
   int w,
@@ -13,6 +17,9 @@ Future<ui.Image> rasterizeBrushMask(
   Uint8List? guideBytes,
   int guideWidth = 0,
   int guideHeight = 0,
+  CropParams? crop,
+  int srcW = 0,
+  int srcH = 0,
 }) async {
   final hasAuto = mask.strokes.any((s) => s.autoMask);
   final hasBase = mask.baseRaster != null && mask.baseW > 0 && mask.baseH > 0;
@@ -27,6 +34,9 @@ Future<ui.Image> rasterizeBrushMask(
     guideOk ? guideBytes : null,
     guideOk ? guideWidth : w,
     guideOk ? guideHeight : h,
+    crop: crop,
+    srcW: srcW,
+    srcH: srcH,
   );
 }
 
@@ -103,39 +113,51 @@ Future<ui.Image> _rasterizeCpu(
   int h,
   Uint8List? guide,
   int guideWidth,
-  int guideHeight,
-) async {
+  int guideHeight, {
+  CropParams? crop,
+  int srcW = 0,
+  int srcH = 0,
+}) async {
   final acc = Float32List(w * h);
 
-  // 基底（智能区域结果）双线性放大到 (w,h)
+  // 基底（智能区域/SAM 结果）
+  // baseRaster 存全图坐标 (baseW×baseH)，有裁剪时需反变换
   final base = mask.baseRaster;
   if (base != null && mask.baseW > 0 && mask.baseH > 0) {
     final bw = mask.baseW, bh = mask.baseH;
-    for (int y = 0; y < h; y++) {
-      double fy = (y + 0.5) / h * bh - 0.5;
-      int y0 = fy.floor();
-      final wy = fy - y0;
-      int y1 = y0 + 1;
-      if (y0 < 0) y0 = 0;
-      if (y1 < 0) y1 = 0;
-      if (y0 > bh - 1) y0 = bh - 1;
-      if (y1 > bh - 1) y1 = bh - 1;
-      for (int x = 0; x < w; x++) {
-        double fx = (x + 0.5) / w * bw - 0.5;
-        int x0 = fx.floor();
-        final wx = fx - x0;
-        int x1 = x0 + 1;
-        if (x0 < 0) x0 = 0;
-        if (x1 < 0) x1 = 0;
-        if (x0 > bw - 1) x0 = bw - 1;
-        if (x1 > bw - 1) x1 = bw - 1;
-        final v00 = base[y0 * bw + x0].toDouble();
-        final v01 = base[y0 * bw + x1].toDouble();
-        final v10 = base[y1 * bw + x0].toDouble();
-        final v11 = base[y1 * bw + x1].toDouble();
-        final top = v00 + (v01 - v00) * wx;
-        final bot = v10 + (v11 - v10) * wx;
-        acc[y * w + x] = (top + (bot - top) * wy) / 255.0;
+    final needCrop = crop != null && !crop.isIdentity && srcW > 0 && srcH > 0;
+
+    if (needCrop) {
+      for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+          final (ix, iy) = crop.inverseMap(
+            x.toDouble(),
+            y.toDouble(),
+            w,
+            h,
+            srcW,
+            srcH,
+          );
+          if (ix < 0 || ix >= srcW || iy < 0 || iy >= srcH) {
+            acc[y * w + x] = 0.0;
+            continue;
+          }
+          acc[y * w + x] = _bilinearSample(
+            base,
+            bw,
+            bh,
+            ix / srcW * bw,
+            iy / srcH * bh,
+          );
+        }
+      }
+    } else {
+      for (int y = 0; y < h; y++) {
+        final sy = (y + 0.5) / h * bh - 0.5;
+        for (int x = 0; x < w; x++) {
+          final sx = (x + 0.5) / w * bw - 0.5;
+          acc[y * w + x] = _bilinearSample(base, bw, bh, sx, sy);
+        }
       }
     }
   }
@@ -381,6 +403,24 @@ void _fastGuidedRefineBuf(
 }
 
 // ── 数学工具 ──
+
+/// 双线性采样 base[bw×bh]，返回 [0..1] 归一化值
+double _bilinearSample(Uint8List base, int bw, int bh, double sx, double sy) {
+  int x0 = sx.floor(), y0 = sy.floor();
+  final wx = sx - x0, wy = sy - y0;
+  int x1 = x0 + 1, y1 = y0 + 1;
+  x0 = x0.clamp(0, bw - 1);
+  y0 = y0.clamp(0, bh - 1);
+  x1 = x1.clamp(0, bw - 1);
+  y1 = y1.clamp(0, bh - 1);
+  final v00 = base[y0 * bw + x0].toDouble();
+  final v01 = base[y0 * bw + x1].toDouble();
+  final v10 = base[y1 * bw + x0].toDouble();
+  final v11 = base[y1 * bw + x1].toDouble();
+  final top = v00 + (v01 - v00) * wx;
+  final bot = v10 + (v11 - v10) * wx;
+  return (top + (bot - top) * wy) / 255.0;
+}
 
 double _bilerp(
   Float32List m,

@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 
 @immutable
@@ -44,6 +47,113 @@ class CropParams {
   /// "源图像被 orientation 转过之后" 的纵横比相对于原始的关系
   /// 0/2 = 横竖比不变；1/3 = 倒置
   bool get orientationSwapsAxes => orientation % 2 == 1;
+
+  /// 逆裁剪：输出像素坐标 → 全图坐标（浮点，双线性插值用）
+  ///
+  /// [ox]/[oy] 输出像素坐标，[outW]/[outH] 输出尺寸
+  /// [srcW]/[srcH] 原始全图尺寸
+  /// 返回值是全图坐标系中的浮点坐标
+  (double, double) inverseMap(
+    double ox,
+    double oy,
+    int outW,
+    int outH,
+    int srcW,
+    int srcH,
+  ) {
+    final nx = (ox + 0.5) / outW;
+    final ny = (oy + 0.5) / outH;
+
+    final swap = orientationSwapsAxes;
+    final orientedW = swap ? srcH : srcW;
+    final orientedH = swap ? srcW : srcH;
+
+    var ix = (x + nx * width) * orientedW;
+    var iy = (y + ny * height) * orientedH;
+
+    final cx = orientedW / 2.0;
+    final cy = orientedH / 2.0;
+    ix -= cx;
+    iy -= cy;
+
+    if (straighten != 0) {
+      final angle = -straighten * math.pi / 180;
+      final cos = math.cos(angle);
+      final sin = math.sin(angle);
+      final rx = ix * cos - iy * sin;
+      final ry = ix * sin + iy * cos;
+      ix = rx;
+      iy = ry;
+    }
+
+    for (int i = 0; i < (4 - orientation) % 4; i++) {
+      final rx = -iy;
+      iy = ix;
+      ix = rx;
+    }
+
+    if (flipH) ix = -ix;
+    if (flipV) iy = -iy;
+
+    ix += srcW / 2.0;
+    iy += srcH / 2.0;
+    return (ix, iy);
+  }
+
+  /// 输出归一化坐标 [0..1] → 全图归一化坐标 [0..1]
+  ///
+  /// 与 [inverseMap] 相同的逆变换，但输入输出都是归一化连续坐标
+  /// 不含像素中心偏移。用于将屏幕点击坐标（裁剪后空间）变换到
+  /// 全图空间，供 SAM / SmartRegion 在全图 guide 上定位种子点
+  (double, double) outputToSourceNorm(
+    double nx,
+    double ny,
+    int srcW,
+    int srcH,
+  ) {
+    if (isIdentity) return (nx, ny);
+
+    final swap = orientationSwapsAxes;
+    final ow = swap ? srcH : srcW;
+    final oh = swap ? srcW : srcH;
+
+    // 归一化 → oriented 像素坐标
+    var ix = (x + nx * width) * ow;
+    var iy = (y + ny * height) * oh;
+
+    // 反变换（与 inverseMap 一致，中心 = oriented 图像中心）
+    ix -= ow / 2.0;
+    iy -= oh / 2.0;
+
+    if (straighten != 0) {
+      final angle = -straighten * math.pi / 180;
+      final cos = math.cos(angle);
+      final sin = math.sin(angle);
+      final rx = ix * cos - iy * sin;
+      final ry = ix * sin + iy * cos;
+      ix = rx;
+      iy = ry;
+    }
+
+    for (int i = 0; i < (4 - orientation) % 4; i++) {
+      final rx = -iy;
+      iy = ix;
+      ix = rx;
+    }
+
+    if (flipH) ix = -ix;
+    if (flipV) iy = -iy;
+
+    ix += srcW / 2.0;
+    iy += srcH / 2.0;
+    return (ix / srcW, iy / srcH);
+  }
+
+  /// [outputToSourceNorm] 的 Offset 便捷版本
+  ui.Offset outputToSourceOffset(ui.Offset seed, int srcW, int srcH) {
+    final (sx, sy) = outputToSourceNorm(seed.dx, seed.dy, srcW, srcH);
+    return ui.Offset(sx, sy);
+  }
 
   /// 在裁剪下，输出画面的布局纵横比
   double outAspectFor(double srcW, double srcH) {

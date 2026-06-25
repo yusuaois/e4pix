@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import '../core/models/crop_params.dart';
 import '../core/models/mask_shape.dart';
 import 'brush_rasterizer.dart';
 
@@ -79,6 +80,9 @@ class BrushMaskCache {
     int guideHeight = 0,
     int guideEpoch = 0,
     bool allowStaleGuide = false,
+    CropParams? crop,
+    int srcW = 0,
+    int srcH = 0,
   }) async {
     final hasAuto = mask.strokes.any((s) => s.autoMask);
     final e = _cache[maskId];
@@ -103,6 +107,9 @@ class BrushMaskCache {
       guideBytes: guideBytes,
       guideWidth: guideWidth,
       guideHeight: guideHeight,
+      crop: crop,
+      srcW: srcW,
+      srcH: srcH,
     );
     e?.texture.dispose();
     _cache[maskId] = _BrushEntry(mask, tex, guideEpoch);

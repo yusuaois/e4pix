@@ -315,6 +315,9 @@ class FullPipelineRenderer {
               guideHeight: guideH,
               guideEpoch: guideEpoch,
               allowStaleGuide: allowStaleAutoMask,
+              crop: params.crop,
+              srcW: sourceImage.width,
+              srcH: sourceImage.height,
             );
             maskTexOwned = false;
           } else {
@@ -325,6 +328,9 @@ class FullPipelineRenderer {
               guideBytes: guideBytes,
               guideWidth: guideW,
               guideHeight: guideH,
+              crop: params.crop,
+              srcW: sourceImage.width,
+              srcH: sourceImage.height,
             );
             maskTexOwned = true;
           }
