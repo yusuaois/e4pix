@@ -30,6 +30,7 @@ import '../services/lens/lensfun_database.dart';
 import '../services/app/app_settings.dart';
 import '../services/app/update_service.dart';
 import '../state/providers.dart';
+import '../widgets/app/app_exit_guard.dart';
 import '../widgets/develop/horizontal_adjustment_panel.dart';
 import '../widgets/ai/ai_settings_dialog.dart';
 import '../widgets/ai/ai_suggestion_dialog.dart';
@@ -412,6 +413,15 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
 
     return PopScope(
       canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (!context.mounted) return;
+        final confirmed = await AppExitGuard.showExitConfirmDialog(
+          context,
+          ref,
+        );
+        if (context.mounted && confirmed) Navigator.of(context).pop();
+      },
       child: Focus(
         autofocus: true,
         onKeyEvent: (node, event) => handleDevelopKeyEvent(ref, event, keys),
@@ -428,33 +438,41 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   }
 
   Widget _buildFullscreen() {
-    return Focus(
-      autofocus: true,
-      onKeyEvent: (node, event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.escape) {
-          ref.read(fullscreenPreviewProvider.notifier).state = false;
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        ref.read(fullscreenPreviewProvider.notifier).state = false;
       },
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onDoubleTap: () =>
-                    ref.read(fullscreenPreviewProvider.notifier).state = false,
-                child: const PreviewArea(),
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            ref.read(fullscreenPreviewProvider.notifier).state = false;
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  onDoubleTap: () =>
+                      ref.read(fullscreenPreviewProvider.notifier).state =
+                          false,
+                  child: const PreviewArea(),
+                ),
               ),
-            ),
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              right: 8,
-              child: FullscreenExitButton(),
-            ),
-          ],
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                right: 8,
+                child: FullscreenExitButton(),
+              ),
+            ],
+          ),
         ),
       ),
     );
