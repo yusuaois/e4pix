@@ -21,7 +21,8 @@
 * **退出确认**：Android 返回手势/按键现在弹出与桌面端相同的退出确认对话框，复用 `AppExitGuard.showExitConfirmDialog()` 逻辑
 * **日志持久化**：Debug 日志改为同步写入磁盘（`debug_log.txt`），崩溃后不丢失；启动时自动加载历史日志
 * **诊断日志补全**：在 20 个关键模块中补充 40+ 处 debugPrint（FFI 解码、网络请求、联机会话、LUT/水印/预设、GPU 计算等），覆盖所有静默 catch 块和关键状态变更
-* **降级Onnxruntime V2库**：将库降级至1.23.0，解决Android部分库冲突问题
+* **降级Onnxruntime V2库**：将Onnxruntime V2库降级至1.23.0，解决Android部分库冲突问题
+* **升级flutter_local_notifications库**：flutter_local_notifications库升级至22.0.1，解决Mac编译问题，将local_notifer整体迁移至flutter_local_notifications
 
 ---
 
