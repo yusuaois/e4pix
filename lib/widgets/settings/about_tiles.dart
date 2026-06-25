@@ -191,14 +191,14 @@ class UpdateDialog extends StatelessWidget {
                     code: AppTypography.bodySmall.copyWith(
                       fontFamily: 'monospace',
                       color: AppColors.semanticWarning,
-                      backgroundColor: AppColors.subtleBorder,
+                      backgroundColor: AppColors.faintBorder,
                       letterSpacing: 1.0,
                     ),
                     blockquote: AppTypography.bodyMedium.copyWith(
                       color: AppColors.faintText,
                     ),
                     blockquoteDecoration: BoxDecoration(
-                      color: AppColors.subtleBorder,
+                      color: AppColors.faintBorder,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -286,9 +286,15 @@ class ChangelogDialog extends StatelessWidget {
               );
             }
             final raw = snap.data!.trim();
+            // Strip empty section headers (## heading with no content before next ## or ---)
+            final stripped = raw.replaceAll(
+              RegExp(r'^##[^\n]*\s+(?=##|\Z)', multiLine: true, dotAll: true),
+              '',
+            );
             // Strip download notes / SHA section after ---
-            final cutIdx = raw.indexOf('\n---');
-            final body = (cutIdx >= 0 ? raw.substring(0, cutIdx) : raw).trim();
+            final cutIdx = stripped.indexOf('\n---');
+            final body =
+                (cutIdx >= 0 ? stripped.substring(0, cutIdx) : stripped).trim();
             if (body.isEmpty) {
               return Text(
                 tr('changelogUnavailable'),
