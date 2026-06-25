@@ -7,19 +7,28 @@ import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 
 class ImportModeTiles extends ConsumerWidget {
-  const ImportModeTiles({super.key});
+  final BorderRadius? tileBorderRadius;
+  const ImportModeTiles({super.key, this.tileBorderRadius});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(importModeProvider);
     final notifier = ref.read(importModeProvider.notifier);
 
-    Widget tile(ImportMode value, String title, String desc) {
+    Widget tile(
+      ImportMode value,
+      String title,
+      String desc, {
+      BorderRadius? shape,
+    }) {
       return RadioListTile<ImportMode>(
         value: value,
         dense: true,
         controlAffinity: ListTileControlAffinity.leading,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: shape != null
+            ? RoundedRectangleBorder(borderRadius: shape)
+            : null,
         title: Text(title, style: AppTypography.bodyLarge),
         subtitle: Text(
           desc,
@@ -58,7 +67,12 @@ class ImportModeTiles extends ConsumerWidget {
             tr('importModeRawOnly'),
             tr('importModeRawOnlyDesc'),
           ),
-          tile(ImportMode.all, tr('importModeAll'), tr('importModeAllDesc')),
+          tile(
+            ImportMode.all,
+            tr('importModeAll'),
+            tr('importModeAllDesc'),
+            shape: tileBorderRadius,
+          ),
         ],
       ),
     );

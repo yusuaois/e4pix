@@ -17,6 +17,11 @@ export '../widgets/settings/about_tiles.dart' show UpdateDialog;
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
+  static const _bottomRadius = BorderRadius.only(
+    bottomLeft: Radius.circular(10),
+    bottomRight: Radius.circular(10),
+  );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
@@ -26,56 +31,90 @@ class SettingsScreen extends ConsumerWidget {
         backgroundColor: AppColors.scaffoldBg,
         elevation: 0,
       ),
-      body: ListView(
-        children: [
-          _SectionHeader(tr("settingsTether")),
-          const TetherFolderTile(),
-          const ImportModeTiles(),
-          const SizedBox(height: 16),
-
-          _SectionHeader(tr("aiColor")),
-          const AISettingsLink(),
-          const SizedBox(height: 16),
-
-          _SectionHeader(tr("settingsTheme")),
-          const ThemeTiles(),
-          const SizedBox(height: 16),
-
-          _SectionHeader(tr("settingsRender")),
-          const QualityTiles(),
-          const SizedBox(height: 16),
-
-          _SectionHeader(tr("settingsEditing")),
-          const EditingTiles(),
-          const SizedBox(height: 16),
-
-          _SectionHeader(tr('debug')),
-          const DebugModeTile(),
-          const SizedBox(height: 16),
-
-          _SectionHeader(tr("settingsAbout")),
-          const AboutTiles(),
-        ],
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: ListView(
+          children: [
+            _SectionCard(
+              title: tr("settingsTether"),
+              children: [
+                const TetherFolderTile(),
+                ImportModeTiles(tileBorderRadius: _bottomRadius),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              title: tr("aiColor"),
+              children: [AISettingsLink(tileBorderRadius: _bottomRadius)],
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              title: tr("settingsTheme"),
+              children: [ThemeTiles(tileBorderRadius: _bottomRadius)],
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              title: tr("settingsRender"),
+              children: [QualityTiles(tileBorderRadius: _bottomRadius)],
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              title: tr("settingsEditing"),
+              children: [EditingTiles(tileBorderRadius: _bottomRadius)],
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              title: tr('debug'),
+              children: [DebugModeTile(tileBorderRadius: _bottomRadius)],
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
+              title: tr("settingsAbout"),
+              children: [AboutTiles(tileBorderRadius: _bottomRadius)],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
+class _SectionCard extends StatelessWidget {
   final String title;
-  const _SectionHeader(this.title);
+  final List<Widget> children;
+
+  const _SectionCard({required this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
-      child: Text(
-        title.toUpperCase(),
-        style: AppTypography.labelSmall.copyWith(
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
-          color: AppColors.faintText,
-        ),
+    return Material(
+      color: AppColors.panelBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+            child: Text(
+              title.toUpperCase(),
+              style: AppTypography.labelSmall.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppColors.disabledText,
+              ),
+            ),
+          ),
+          for (int i = 0; i < children.length; i++) ...[
+            children[i],
+            if (i < children.length - 1)
+              Divider(
+                height: 1,
+                thickness: 0.5,
+                color: AppColors.dividerLine,
+                indent: 16,
+              ),
+          ],
+        ],
       ),
     );
   }

@@ -8,7 +8,8 @@ import '../../screens/keybinding_settings_screen.dart';
 import '../../state/providers.dart';
 
 class EditingTiles extends ConsumerWidget {
-  const EditingTiles({super.key});
+  final BorderRadius? tileBorderRadius;
+  const EditingTiles({super.key, this.tileBorderRadius});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -56,6 +57,9 @@ class EditingTiles extends ConsumerWidget {
         ),
 
         ListTile(
+          shape: tileBorderRadius != null
+              ? RoundedRectangleBorder(borderRadius: tileBorderRadius!)
+              : null,
           leading: const Icon(Icons.memory, size: 20),
           title: Text(
             tr('denoiseParallelism'),

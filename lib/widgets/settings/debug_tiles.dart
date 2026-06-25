@@ -7,7 +7,8 @@ import '../../screens/debug_log_screen.dart';
 import '../../services/debug/debug_log_service.dart';
 
 class DebugModeTile extends StatefulWidget {
-  const DebugModeTile({super.key});
+  final BorderRadius? tileBorderRadius;
+  const DebugModeTile({super.key, this.tileBorderRadius});
 
   @override
   State<DebugModeTile> createState() => _DebugModeTileState();
@@ -21,6 +22,9 @@ class _DebugModeTileState extends State<DebugModeTile> {
     return Column(
       children: [
         SwitchListTile(
+          shape: !_service.enabled && widget.tileBorderRadius != null
+              ? RoundedRectangleBorder(borderRadius: widget.tileBorderRadius!)
+              : null,
           secondary: const Icon(Icons.bug_report_outlined, size: 20),
           title: Text(tr('debugMode'), style: AppTypography.titleMedium),
           subtitle: Text(
@@ -32,6 +36,9 @@ class _DebugModeTileState extends State<DebugModeTile> {
         ),
         if (_service.enabled)
           ListTile(
+            shape: widget.tileBorderRadius != null
+                ? RoundedRectangleBorder(borderRadius: widget.tileBorderRadius!)
+                : null,
             leading: const Icon(Icons.article_outlined, size: 20),
             title: Text(tr('debugViewLogs'), style: AppTypography.titleMedium),
             subtitle: Text(
@@ -40,7 +47,7 @@ class _DebugModeTileState extends State<DebugModeTile> {
                 color: AppColors.faintText,
               ),
             ),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 14),
             onTap: () async {
               await Navigator.push(
                 context,

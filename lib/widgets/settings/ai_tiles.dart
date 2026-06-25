@@ -6,11 +6,15 @@ import '../../core/theme/app_typography.dart';
 import '../ai/ai_settings_dialog.dart';
 
 class AISettingsLink extends StatelessWidget {
-  const AISettingsLink({super.key});
+  final BorderRadius? tileBorderRadius;
+  const AISettingsLink({super.key, this.tileBorderRadius});
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      shape: tileBorderRadius != null
+          ? RoundedRectangleBorder(borderRadius: tileBorderRadius!)
+          : null,
       leading: const Icon(Icons.auto_awesome, size: 20),
       title: Text(
         tr("settingsAIConfiguration"),

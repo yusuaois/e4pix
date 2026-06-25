@@ -8,7 +8,8 @@ import '../../state/providers.dart';
 import '../app/theme_color_picker.dart';
 
 class ThemeTiles extends ConsumerWidget {
-  const ThemeTiles({super.key});
+  final BorderRadius? tileBorderRadius;
+  const ThemeTiles({super.key, this.tileBorderRadius});
 
   static const List<Color> _presets = [
     Color(0xFFC0C0C0), // 亮灰
@@ -26,6 +27,9 @@ class ThemeTiles extends ConsumerWidget {
     return Column(
       children: [
         SwitchListTile(
+          shape: tileBorderRadius != null
+              ? RoundedRectangleBorder(borderRadius: tileBorderRadius!)
+              : null,
           secondary: const Icon(Icons.palette_outlined, size: 20),
           title: Text(
             tr("settingsDynamicColor"),

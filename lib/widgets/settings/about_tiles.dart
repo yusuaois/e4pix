@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
@@ -10,7 +11,8 @@ import '../../core/theme/app_typography.dart';
 import '../../services/app/update_service.dart';
 
 class AboutTiles extends StatelessWidget {
-  const AboutTiles({super.key});
+  final BorderRadius? tileBorderRadius;
+  const AboutTiles({super.key, this.tileBorderRadius});
 
   @override
   Widget build(BuildContext context) {
@@ -25,16 +27,33 @@ class AboutTiles extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.info_outline, size: 20),
               title: Text(tr("version"), style: AppTypography.titleMedium),
-              trailing: Text(
-                ver,
-                style: AppTypography.bodySmall.copyWith(
-                  fontFamily: 'monospace',
-                  color: AppColors.mediumText,
-                ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    ver,
+                    style: AppTypography.bodySmall.copyWith(
+                      fontFamily: 'monospace',
+                      color: AppColors.mediumText,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_ios, size: 14),
+                ],
               ),
+              onTap: () {
+                final version = snap.hasData ? snap.data!.version : '';
+                showDialog(
+                  context: context,
+                  builder: (_) => ChangelogDialog(version: version),
+                );
+              },
             ),
             const CheckUpdateTile(),
             ListTile(
+              shape: tileBorderRadius != null
+                  ? RoundedRectangleBorder(borderRadius: tileBorderRadius!)
+                  : null,
               leading: const Icon(Icons.code, size: 20),
               title: Text(tr("projectUrl"), style: AppTypography.titleMedium),
               subtitle: Text(
@@ -169,6 +188,12 @@ class UpdateDialog extends StatelessWidget {
                       height: 1.8,
                     ),
                     listBullet: AppTypography.titleSmall,
+                    code: AppTypography.bodySmall.copyWith(
+                      fontFamily: 'monospace',
+                      color: AppColors.semanticWarning,
+                      backgroundColor: AppColors.subtleBorder,
+                      letterSpacing: 1.0,
+                    ),
                     blockquote: AppTypography.bodyMedium.copyWith(
                       color: AppColors.faintText,
                     ),
@@ -205,6 +230,83 @@ class UpdateDialog extends StatelessWidget {
         FilledButton(
           onPressed: () => _download(context),
           child: Text(tr("updateDownload")),
+        ),
+      ],
+    );
+  }
+}
+
+class ChangelogDialog extends StatelessWidget {
+  final String version;
+  const ChangelogDialog({super.key, required this.version});
+
+  static final _mdStyleSheet = MarkdownStyleSheet(
+    p: AppTypography.titleSmall.copyWith(height: 1.5),
+    h2: AppTypography.headlineSmall.copyWith(
+      fontWeight: FontWeight.bold,
+      height: 1.8,
+    ),
+    listBullet: AppTypography.titleSmall,
+    code: AppTypography.bodySmall.copyWith(
+      fontFamily: 'monospace',
+      color: AppColors.semanticWarning,
+      backgroundColor: AppColors.faintBorder,
+      letterSpacing: 1.0,
+    ),
+    blockquote: AppTypography.bodyMedium.copyWith(color: AppColors.faintText),
+    blockquoteDecoration: BoxDecoration(
+      color: AppColors.faintBorder,
+      borderRadius: BorderRadius.circular(4),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.elevatedBg,
+      title: Text(
+        tr('changelogTitle', args: [version]),
+        style: AppTypography.headlineMedium,
+      ),
+      content: SizedBox(
+        width: 360,
+        child: FutureBuilder<String>(
+          future: rootBundle.loadString('assets/changelog/CHANGELOG.md'),
+          builder: (ctx, snap) {
+            if (!snap.hasData) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              );
+            }
+            final raw = snap.data!.trim();
+            // Strip download notes / SHA section after ---
+            final cutIdx = raw.indexOf('\n---');
+            final body = (cutIdx >= 0 ? raw.substring(0, cutIdx) : raw).trim();
+            if (body.isEmpty) {
+              return Text(
+                tr('changelogUnavailable'),
+                style: AppTypography.titleSmall.copyWith(
+                  color: AppColors.faintText,
+                ),
+              );
+            }
+            return SingleChildScrollView(
+              child: MarkdownBody(data: body, styleSheet: _mdStyleSheet),
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(tr('close')),
         ),
       ],
     );

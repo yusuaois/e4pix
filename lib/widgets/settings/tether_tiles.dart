@@ -8,7 +8,8 @@ import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 
 class TetherFolderTile extends ConsumerWidget {
-  const TetherFolderTile({super.key});
+  final BorderRadius? tileBorderRadius;
+  const TetherFolderTile({super.key, this.tileBorderRadius});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,6 +25,9 @@ class TetherFolderTile extends ConsumerWidget {
     }
 
     return ListTile(
+      shape: tileBorderRadius != null
+          ? RoundedRectangleBorder(borderRadius: tileBorderRadius!)
+          : null,
       leading: const Icon(Icons.folder_outlined, size: 20),
       title: Text(tr("settingsTetherFolder"), style: AppTypography.titleMedium),
       subtitle: Text(

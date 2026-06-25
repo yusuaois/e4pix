@@ -370,7 +370,7 @@ jobs:
       - name: 📝 Clean Changelog & Inject SHA
         run: |
           SHA_VALUE="${{ github.sha }}"
-          sed "s|__SHA__|${SHA_VALUE}|g" ./CHANGELOG.md > temp_changelog.md
+          sed "s|__SHA__|${SHA_VALUE}|g" assets/changelog/CHANGELOG.md > temp_changelog.md
           perl -0777 -pe 's/^##[^\n]*\s+(?=^##|^---)//gms' temp_changelog.md > release_body.md
 
       - name: ✅ Publish Release

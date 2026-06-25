@@ -547,7 +547,7 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
             counts[_Filter.errors] ?? 0,
           ),
           const SizedBox(width: 8),
-          _buildChip(_Filter.ai, 'AI', counts[_Filter.ai] ?? 0),
+          _buildChip(_Filter.ai, tr('debugFilterAI'), counts[_Filter.ai] ?? 0),
           const SizedBox(width: 8),
           _buildChip(
             _Filter.pipeline,

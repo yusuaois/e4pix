@@ -8,7 +8,8 @@ import '../../services/app/app_settings.dart';
 import '../../state/providers.dart';
 
 class QualityTiles extends ConsumerWidget {
-  const QualityTiles({super.key});
+  final BorderRadius? tileBorderRadius;
+  const QualityTiles({super.key, this.tileBorderRadius});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -119,14 +120,15 @@ class QualityTiles extends ConsumerWidget {
                 ref.read(imageCacheCapacityProvider.notifier).set(v.round()),
           ),
         ),
-        const _ExportConcurrencyTile(),
+        _ExportConcurrencyTile(tileBorderRadius: tileBorderRadius),
       ],
     );
   }
 }
 
 class _ExportConcurrencyTile extends StatefulWidget {
-  const _ExportConcurrencyTile();
+  final BorderRadius? tileBorderRadius;
+  const _ExportConcurrencyTile({super.key, this.tileBorderRadius});
 
   @override
   State<_ExportConcurrencyTile> createState() => _ExportConcurrencyTileState();
@@ -148,6 +150,9 @@ class _ExportConcurrencyTileState extends State<_ExportConcurrencyTile> {
     return Column(
       children: [
         ListTile(
+          shape: widget.tileBorderRadius != null
+              ? RoundedRectangleBorder(borderRadius: widget.tileBorderRadius!)
+              : null,
           leading: const Icon(Icons.queue_outlined, size: 20),
           title: Text(
             tr('settingsExportConcurrency'),
