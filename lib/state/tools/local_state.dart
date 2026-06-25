@@ -26,7 +26,7 @@ class LocalAdjustmentActions {
   final WidgetRef ref;
   LocalAdjustmentActions(this.ref);
 
-  static const int maxLocals = 4;
+  static const int maxLocals = 8;
 
   String _newId() => 'm_${DateTime.now().millisecondsSinceEpoch}';
 

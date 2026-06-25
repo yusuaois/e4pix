@@ -8,6 +8,15 @@ import '../../state/providers.dart';
 import 'develop_sections.dart';
 import 'sections/preset_section.dart';
 
+/// 退出画笔/智能/主体工具
+void _exitLocalTool(WidgetRef ref) {
+  ref.read(selectedLocalIdProvider.notifier).state = null;
+  final mode = ref.read(brushSettingsProvider).mode;
+  if (mode != BrushMode.paint) {
+    ref.read(brushSettingsProvider.notifier).setMode(BrushMode.paint);
+  }
+}
+
 class HorizontalAdjustmentPanel extends ConsumerWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
@@ -61,6 +70,13 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tool = ref.watch(developToolProvider);
+
+    // 切离 local 时退出画笔/智能/主体工具
+    ref.listen(developToolProvider, (prev, next) {
+      if (prev == DevelopTool.local && next != DevelopTool.local) {
+        _exitLocalTool(ref);
+      }
+    });
 
     return SizedBox(
       width: 340,

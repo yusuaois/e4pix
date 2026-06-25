@@ -166,6 +166,13 @@ class _MaskListItem extends ConsumerWidget {
                 ),
               ),
               IconButton(
+                icon: Icon(Icons.edit, size: 14, color: AppColors.faintText),
+                onPressed: () => _showRenameDialog(context, ref, local),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+              ),
+              IconButton(
                 icon: Icon(
                   local.enabled ? Icons.visibility : Icons.visibility_off,
                   size: 14,
@@ -193,6 +200,42 @@ class _MaskListItem extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+Future<void> _showRenameDialog(
+  BuildContext context,
+  WidgetRef ref,
+  LocalAdjustment local,
+) async {
+  final controller = TextEditingController(text: local.name);
+  final newName = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(tr("rename")),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(tr("cancel")),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+          child: Text(tr("confirm")),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  if (newName != null && newName.isNotEmpty && newName != local.name) {
+    LocalAdjustmentActions(
+      ref,
+    ).updateLocal(local.id, (l) => l.copyWith(name: newName));
   }
 }
 

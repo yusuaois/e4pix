@@ -1,5 +1,7 @@
 ## 🚀 新功能 (New Features)
 * **HDR 曝光融合**：支持多选 2+ 张不同曝光图片进行 Mertens 曝光融合，带三阶段进度条（解码→融合→保存），自动检测无损/有损源格式输出 PNG 或 JPEG
+* **局部调整重命名**：每个局部调整（画笔/渐变）支持点击编辑图标重命名
+* **局部调整自动退出**：切换到其他工具 section 时自动退出智能区域/主体选择模式，清除蒙版 overlay
 
 ## ⚡ 性能优化 (Performance)
 
@@ -9,8 +11,10 @@
 * **退出手势**：修复全屏预览时退出手势导致应用直接退出的问题
 * **画笔主体**：修复画笔主体不可用的问题
 * **画笔错位**：修复画笔在裁切旋转时错位的问题
+* **局部调整上限**：局部调整最大数量从 4 提升至 8
 
 ## 🛠️ 底层改进 (Under the Hood)
+* **渲染规范文档**：新增 `docs/RENDERING_RULES.md`，记录三种坐标系、管线顺序、蒙版跨文件依赖、缓存失效规则、常见 BUG 模式等，供开发参考
 * **HDR 保存逻辑统一**：新增 `RawFormats.isLossless()` 方法，RAW/PNG/TIFF/BMP 统一输出 PNG，JPEG/WebP 输出 JPEG，移除冗余的 RAW 专用保存路径
 * **SR Provider 优化**：超分辨率服务改用 `appendDefaultProviders()` 自动选择最佳硬件加速（Android: NNAPI，Windows: DirectML，macOS: CoreML）
 * **SR 风险提示**：超分辨率实验性提示增加手机端可能闪退的警告
