@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/tethered_shot.dart';
 
@@ -25,8 +27,9 @@ class SidecarService {
       final rating = (j['rating'] as num?)?.toInt() ?? 0;
       final flag = _flagFromString(j['flag'] as String?);
       return SidecarData(params: params, rating: rating, flag: flag);
-    } catch (_) {
-      return null; // 读失败 → 当作没有
+    } catch (e) {
+      debugPrint('[Sidecar] Failed to read $rawPath: $e');
+      return null;
     }
   }
 
@@ -45,7 +48,11 @@ class SidecarService {
         // 若已有 sidecar 但现在重置回默认，删掉
         final f = File(sidecarPath(rawPath));
         if (await f.exists()) {
-          try { await f.delete(); } catch (_) {}
+          try {
+            await f.delete();
+          } catch (e) {
+            debugPrint('[Sidecar] Failed to delete $rawPath: $e');
+          }
         }
         return true;
       }
@@ -59,26 +66,31 @@ class SidecarService {
       final f = File(sidecarPath(rawPath));
       await f.writeAsString(jsonEncode(j), flush: true);
       return true;
-    } catch (_) {
-      return false; // 静默失败（只读目录等）
+    } catch (e) {
+      debugPrint('[Sidecar] Failed to write $rawPath: $e');
+      return false;
     }
   }
 
   static String _flagToString(ShotFlag f) => switch (f) {
-        ShotFlag.pick => 'pick',
-        ShotFlag.reject => 'reject',
-        ShotFlag.none => 'none',
-      };
+    ShotFlag.pick => 'pick',
+    ShotFlag.reject => 'reject',
+    ShotFlag.none => 'none',
+  };
   static ShotFlag _flagFromString(String? s) => switch (s) {
-        'pick' => ShotFlag.pick,
-        'reject' => ShotFlag.reject,
-        _ => ShotFlag.none,
-      };
+    'pick' => ShotFlag.pick,
+    'reject' => ShotFlag.reject,
+    _ => ShotFlag.none,
+  };
 }
 
 class SidecarData {
   final AdjustmentParams params;
   final int rating;
   final ShotFlag flag;
-  const SidecarData({required this.params, required this.rating, required this.flag});
+  const SidecarData({
+    required this.params,
+    required this.rating,
+    required this.flag,
+  });
 }

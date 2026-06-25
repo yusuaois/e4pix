@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../core/models/local_params.dart';
 import '../../core/models/mask_shape.dart';
@@ -186,6 +186,12 @@ class AIColorService {
       );
     }
 
+    debugPrint(
+      '[AI] Requesting suggestion: '
+      'provider=${preset.displayName}, model=$model, '
+      'image=${(imageBytes.length / 1024).round()}KB',
+    );
+
     final base64Image = base64Encode(imageBytes);
     final prompt = _buildPrompt(currentParams, userIntent, languageCode);
 
@@ -325,7 +331,10 @@ class AIColorService {
     try {
       final j = jsonDecode(utf8.decode(res.bodyBytes));
       msg = (j['error']?['message'])?.toString() ?? msg;
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[AI] Failed to parse error response: $e');
+    }
+    debugPrint('[AI] Request failed: $msg');
     throw AIException(tr("aiColorSuggestionApiKeyError", args: [msg]));
   }
 
@@ -341,7 +350,8 @@ class AIColorService {
     Map<String, dynamic>? obj;
     try {
       obj = jsonDecode(cleaned) as Map<String, dynamic>;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[AI] JSON parse failed, trying fallback: $e');
       final start = cleaned.indexOf('{');
       if (start != -1) {
         final extracted = _extractFirstJsonObject(cleaned.substring(start));

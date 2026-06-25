@@ -1,7 +1,7 @@
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
@@ -23,70 +23,76 @@ class SegmentationService {
     if (program == null || image == null) return false;
     if (!await SamSession.instance.ensureLoaded()) return false;
 
-    final params = ref.read(currentParamsNotifierProvider);
-    final lut = ref.read(lutNotifierProvider);
-    final lutEnabled = ref.read(effectiveLutEnabledProvider);
+    try {
+      final params = ref.read(currentParamsNotifierProvider);
+      final lut = ref.read(lutNotifierProvider);
+      final lutEnabled = ref.read(effectiveLutEnabledProvider);
 
-    const maxEdge = 1024;
-    final src = image.uiImage;
-    final longest = math.max(src.width, src.height);
-    final scale = longest > maxEdge ? maxEdge / longest : 1.0;
-    final tw = (src.width * scale).round();
-    final th = (src.height * scale).round();
+      const maxEdge = 1024;
+      final src = image.uiImage;
+      final longest = math.max(src.width, src.height);
+      final scale = longest > maxEdge ? maxEdge / longest : 1.0;
+      final tw = (src.width * scale).round();
+      final th = (src.height * scale).round();
 
-    ui.Image guideImg = await RenderEngine.renderToImage(
-      program: program,
-      sourceImage: src,
-      params: params,
-      lutTexture: lutEnabled ? lut.textureA : null,
-      lutSize: lutEnabled ? lut.sizeA : 0,
-      lutTextureB: lutEnabled ? lut.textureB : null,
-      lutSizeB: lutEnabled ? lut.sizeB : 0,
-      curveTexture: ref.read(curveTextureProvider),
-      targetWidth: tw,
-      targetHeight: th,
-    );
-    if (!params.crop.isIdentity) {
-      final cropped = await applyCropTransform(guideImg, params.crop);
-      guideImg.dispose();
-      guideImg = cropped;
-    }
-    final gw = guideImg.width, gh = guideImg.height;
-    final bd = await guideImg.toByteData(format: ui.ImageByteFormat.rawRgba);
-    guideImg.dispose();
-    if (bd == null) return false;
-    final guide = bd.buffer.asUint8List();
-
-    final sig = Object.hash(
-      identityHashCode(src),
-      params.copyWith(locals: const [], crop: CropParams.identity).hashCode,
-      params.crop.hashCode,
-      gw,
-      gh,
-    );
-    await SamSession.instance.ensureEmbedding(
-      guide: guide,
-      gw: gw,
-      gh: gh,
-      signature: sig,
-    );
-    final mask = await SamSession.instance.decode(seed, negative: negative);
-    if (mask == null) return false;
-
-    _featherBox(mask, gw, gh, (gw * 0.0015).round().clamp(1, 3));
-    if (invert) {
-      for (int i = 0; i < mask.length; i++) {
-        mask[i] = 1.0 - mask[i];
+      ui.Image guideImg = await RenderEngine.renderToImage(
+        program: program,
+        sourceImage: src,
+        params: params,
+        lutTexture: lutEnabled ? lut.textureA : null,
+        lutSize: lutEnabled ? lut.sizeA : 0,
+        lutTextureB: lutEnabled ? lut.textureB : null,
+        lutSizeB: lutEnabled ? lut.sizeB : 0,
+        curveTexture: ref.read(curveTextureProvider),
+        targetWidth: tw,
+        targetHeight: th,
+      );
+      if (!params.crop.isIdentity) {
+        final cropped = await applyCropTransform(guideImg, params.crop);
+        guideImg.dispose();
+        guideImg = cropped;
       }
-    }
+      final gw = guideImg.width, gh = guideImg.height;
+      final bd = await guideImg.toByteData(format: ui.ImageByteFormat.rawRgba);
+      guideImg.dispose();
+      if (bd == null) return false;
+      final guide = bd.buffer.asUint8List();
 
-    final raster = Uint8List(gw * gh);
-    for (int i = 0; i < gw * gh; i++) {
-      int v = (mask[i] * 255.0).round();
-      raster[i] = v < 0 ? 0 : (v > 255 ? 255 : v);
+      final sig = Object.hash(
+        identityHashCode(src),
+        params.copyWith(locals: const [], crop: CropParams.identity).hashCode,
+        params.crop.hashCode,
+        gw,
+        gh,
+      );
+      await SamSession.instance.ensureEmbedding(
+        guide: guide,
+        gw: gw,
+        gh: gh,
+        signature: sig,
+      );
+      final mask = await SamSession.instance.decode(seed, negative: negative);
+      if (mask == null) return false;
+
+      _featherBox(mask, gw, gh, (gw * 0.0015).round().clamp(1, 3));
+      if (invert) {
+        for (int i = 0; i < mask.length; i++) {
+          mask[i] = 1.0 - mask[i];
+        }
+      }
+
+      final raster = Uint8List(gw * gh);
+      for (int i = 0; i < gw * gh; i++) {
+        int v = (mask[i] * 255.0).round();
+        raster[i] = v < 0 ? 0 : (v > 255 ? 255 : v);
+      }
+      LocalAdjustmentActions(ref).setBaseRaster(maskId, raster, gw, gh);
+      return true;
+    } catch (e, st) {
+      debugPrint('[Segmentation] compute failed: $e');
+      debugPrint('[Segmentation] $st');
+      return false;
     }
-    LocalAdjustmentActions(ref).setBaseRaster(maskId, raster, gw, gh);
-    return true;
   }
 
   static void _featherBox(Float32List m, int w, int h, int r) {

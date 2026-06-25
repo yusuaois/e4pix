@@ -1,7 +1,7 @@
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../render/crop_transform.dart';
 import '../../render/brush_rasterizer.dart';
@@ -26,64 +26,69 @@ class SmartRegionService {
     final tol = brush.wandTolerance.clamp(0.01, 1.0);
     final invert = brush.wandInvert;
 
-    // 1) 渲染 develop（~1280）
-    const maxEdge = 1280;
-    final src = image.uiImage;
-    final longest = math.max(src.width, src.height);
-    final scale = longest > maxEdge ? maxEdge / longest : 1.0;
-    final tw = (src.width * scale).round();
-    final th = (src.height * scale).round();
+    try {
+      // 1) 渲染 develop（~1280）
+      const maxEdge = 1280;
+      final src = image.uiImage;
+      final longest = math.max(src.width, src.height);
+      final scale = longest > maxEdge ? maxEdge / longest : 1.0;
+      final tw = (src.width * scale).round();
+      final th = (src.height * scale).round();
 
-    ui.Image guideImg = await RenderEngine.renderToImage(
-      program: program,
-      sourceImage: src,
-      params: params,
-      lutTexture: lutEnabled ? lut.textureA : null,
-      lutSize: lutEnabled ? lut.sizeA : 0,
-      lutTextureB: lutEnabled ? lut.textureB : null,
-      lutSizeB: lutEnabled ? lut.sizeB : 0,
-      curveTexture: ref.read(curveTextureProvider),
-      targetWidth: tw,
-      targetHeight: th,
-    );
+      ui.Image guideImg = await RenderEngine.renderToImage(
+        program: program,
+        sourceImage: src,
+        params: params,
+        lutTexture: lutEnabled ? lut.textureA : null,
+        lutSize: lutEnabled ? lut.sizeA : 0,
+        lutTextureB: lutEnabled ? lut.textureB : null,
+        lutSizeB: lutEnabled ? lut.sizeB : 0,
+        curveTexture: ref.read(curveTextureProvider),
+        targetWidth: tw,
+        targetHeight: th,
+      );
 
-    // 2) crop
-    if (!params.crop.isIdentity) {
-      final cropped = await applyCropTransform(guideImg, params.crop);
-      guideImg.dispose();
-      guideImg = cropped;
-    }
-
-    final gw = guideImg.width;
-    final gh = guideImg.height;
-    final bd = await guideImg.toByteData(format: ui.ImageByteFormat.rawRgba);
-    guideImg.dispose();
-    if (bd == null) return;
-    final guide = bd.buffer.asUint8List();
-
-    // 3) flood fill
-    final mask = _floodFill(guide, gw, gh, seed, tol);
-
-    // 4) 导向滤波收边
-    final r = (gw * 0.006).round().clamp(2, 32);
-    refineMaskEdges(mask, guide, gw, gh, r, 0.0025);
-
-    // 5) 反选
-    if (invert) {
-      for (int i = 0; i < mask.length; i++) {
-        mask[i] = 1.0 - mask[i];
+      // 2) crop
+      if (!params.crop.isIdentity) {
+        final cropped = await applyCropTransform(guideImg, params.crop);
+        guideImg.dispose();
+        guideImg = cropped;
       }
-    }
 
-    // 6) 转单通道并写回
-    final raster = Uint8List(gw * gh);
-    for (int i = 0; i < gw * gh; i++) {
-      int v = (mask[i] * 255.0).round();
-      if (v < 0) v = 0;
-      if (v > 255) v = 255;
-      raster[i] = v;
+      final gw = guideImg.width;
+      final gh = guideImg.height;
+      final bd = await guideImg.toByteData(format: ui.ImageByteFormat.rawRgba);
+      guideImg.dispose();
+      if (bd == null) return;
+      final guide = bd.buffer.asUint8List();
+
+      // 3) flood fill
+      final mask = _floodFill(guide, gw, gh, seed, tol);
+
+      // 4) 导向滤波收边
+      final r = (gw * 0.006).round().clamp(2, 32);
+      refineMaskEdges(mask, guide, gw, gh, r, 0.0025);
+
+      // 5) 反选
+      if (invert) {
+        for (int i = 0; i < mask.length; i++) {
+          mask[i] = 1.0 - mask[i];
+        }
+      }
+
+      // 6) 转单通道并写回
+      final raster = Uint8List(gw * gh);
+      for (int i = 0; i < gw * gh; i++) {
+        int v = (mask[i] * 255.0).round();
+        if (v < 0) v = 0;
+        if (v > 255) v = 255;
+        raster[i] = v;
+      }
+      LocalAdjustmentActions(ref).setBaseRaster(maskId, raster, gw, gh);
+    } catch (e, st) {
+      debugPrint('[SmartRegion] compute failed: $e');
+      debugPrint('[SmartRegion] $st');
     }
-    LocalAdjustmentActions(ref).setBaseRaster(maskId, raster, gw, gh);
   }
 
   static Float32List _floodFill(

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/models/watermark_config.dart';
 import 'raw_bridge_bindings.dart';
@@ -161,20 +162,29 @@ class RawBridge {
 
   static RawBridgeBindings _ensureLoaded() {
     if (_bindings != null) return _bindings!;
+    debugPrint('[RawBridge] Loading native library...');
     _bindings = RawBridgeBindings(_openLibrary());
+    debugPrint(
+      '[RawBridge] Native library loaded. '
+      'LibRaw ${_bindings!.version().toDartString()}',
+    );
     return _bindings!;
   }
 
   static DynamicLibrary _openLibrary() {
     if (Platform.isWindows) {
+      debugPrint('[RawBridge] Opening e4pix_raw.dll');
       return DynamicLibrary.open('e4pix_raw.dll');
     } else if (Platform.isMacOS) {
+      debugPrint('[RawBridge] Opening e4pix_raw.framework');
       return DynamicLibrary.open(
         '@executable_path/../Frameworks/e4pix_raw.framework/e4pix_raw',
       );
     } else if (Platform.isLinux) {
+      debugPrint('[RawBridge] Opening libe4pix_raw.so');
       return DynamicLibrary.open('libe4pix_raw.so');
     } else if (Platform.isAndroid) {
+      debugPrint('[RawBridge] Opening libe4pix_raw.so (Android)');
       return DynamicLibrary.open('libe4pix_raw.so');
     }
     throw UnsupportedError(
@@ -222,6 +232,10 @@ class RawBridge {
     double caRed = 1.0,
     double caBlue = 1.0,
   }) {
+    debugPrint(
+      '[RawBridge] setCaCorrection: '
+      'enabled=$enabled, caRed=$caRed, caBlue=$caBlue',
+    );
     _ensureLoaded().setCaCorrection(enabled ? 1 : 0, caRed, caBlue);
   }
 
@@ -257,6 +271,7 @@ class RawBridge {
 
   static RawDecodedImage _decodeSync(String path, _DecodeMode mode) {
     final b = _ensureLoaded();
+    final sw = Stopwatch()..start();
     final pathPtr = path.toNativeUtf8();
     Pointer<E4pixDecodeResult>? resultPtr;
     try {
@@ -266,6 +281,11 @@ class RawBridge {
         _DecodeMode.full => b.decodeFull(pathPtr),
         _DecodeMode.metadata => b.readMetadata(pathPtr),
       };
+      sw.stop();
+      debugPrint(
+        '[RawBridge] ${mode.name}: ${sw.elapsedMilliseconds}ms '
+        '(${path.split('/').last})',
+      );
       return _convertResult(
         resultPtr.ref,
         isMetadataOnly: mode == _DecodeMode.metadata,

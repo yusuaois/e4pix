@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../services/watermark/watermark_asset_manager.dart';
@@ -12,7 +13,8 @@ Future<ui.Image?> decodeImageFromBytes(Uint8List bytes) async {
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
     return frame.image;
-  } catch (_) {
+  } catch (e) {
+    debugPrint('[ImageUtil] decodeImageFromBytes failed: $e');
     return null;
   }
 }
@@ -22,7 +24,8 @@ Future<ui.Image?> loadAssetImage(String assetPath) async {
   try {
     final data = await rootBundle.load(assetPath);
     return decodeImageFromBytes(data.buffer.asUint8List());
-  } catch (_) {
+  } catch (e) {
+    debugPrint('[ImageUtil] loadAssetImage "$assetPath" failed: $e');
     return null;
   }
 }
@@ -33,7 +36,8 @@ Future<ui.Image?> loadWatermarkFileImage(String filePath) async {
     final bytes = await WatermarkAssetManager.readImageBytes(filePath);
     if (bytes == null) return null;
     return decodeImageFromBytes(bytes);
-  } catch (_) {
+  } catch (e) {
+    debugPrint('[ImageUtil] loadWatermarkFileImage "$filePath" failed: $e');
     return null;
   }
 }

@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/lut_formats.dart';
@@ -21,7 +22,9 @@ class LutLibraryNotifier extends AsyncNotifier<List<LutEntry>> {
       try {
         final entry = await LutLibrary.importFrom(src);
         imported.add(entry);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[LutLibrary] Import failed for ${file.name}: $e');
+      }
     }
 
     if (imported.isEmpty) return const [];

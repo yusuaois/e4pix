@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,8 +23,8 @@ class WatermarkNotifier extends Notifier<WatermarkConfig> {
         final json = jsonDecode(raw) as Map<String, dynamic>;
         state = WatermarkConfig.fromJson(json);
       }
-    } catch (_) {
-      // 解析失败则保持默认
+    } catch (e) {
+      debugPrint('[Watermark] Config parse failed, using defaults: $e');
     }
   }
 
@@ -31,8 +32,8 @@ class WatermarkNotifier extends Notifier<WatermarkConfig> {
     try {
       final p = await SharedPreferences.getInstance();
       await p.setString(_kPrefsKey, jsonEncode(config.toJson()));
-    } catch (_) {
-      // 持久化失败静默
+    } catch (e) {
+      debugPrint('[Watermark] Config persist failed: $e');
     }
   }
 

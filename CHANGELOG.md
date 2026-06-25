@@ -12,6 +12,9 @@
 * **HDR 保存逻辑统一**：新增 `RawFormats.isLossless()` 方法，RAW/PNG/TIFF/BMP 统一输出 PNG，JPEG/WebP 输出 JPEG，移除冗余的 RAW 专用保存路径
 * **SR Provider 优化**：超分辨率服务改用 `appendDefaultProviders()` 自动选择最佳硬件加速（Android: NNAPI，Windows: DirectML，macOS: CoreML）
 * **SR 风险提示**：超分辨率实验性提示增加手机端可能闪退的警告
+* **退出确认**：Android 返回手势/按键现在弹出与桌面端相同的退出确认对话框，复用 `AppExitGuard.showExitConfirmDialog()` 逻辑
+* **日志持久化**：Debug 日志改为同步写入磁盘（`debug_log.txt`），崩溃后不丢失；启动时自动加载历史日志
+* **诊断日志补全**：在 20 个关键模块中补充 40+ 处 debugPrint（FFI 解码、网络请求、联机会话、LUT/水印/预设、GPU 计算等），覆盖所有静默 catch 块和关键状态变更
 
 ---
 

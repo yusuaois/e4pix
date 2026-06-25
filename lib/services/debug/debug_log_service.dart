@@ -24,22 +24,86 @@ class DebugLogService {
   static const maxEntries = 2000;
   final List<LogEntry> _entries = [];
   bool enabled = false;
+  bool _loaded = false;
+  File? _logFile;
 
   /// 新日志通知
   final ValueNotifier<int> logCount = ValueNotifier(0);
 
+  /// 从磁盘加载历史日志（首次调用时执行）
+  Future<void> ensureLoaded() async {
+    if (_loaded) return;
+    _loaded = true;
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      _logFile = File(p.join(dir.path, 'debug_log.txt'));
+      if (await _logFile!.exists()) {
+        final lines = await _logFile!.readAsLines();
+        for (final line in lines) {
+          // 格式: [HH:MM:SS] message
+          final match = RegExp(
+            r'^\[(\d{2}):(\d{2}):(\d{2})\] (.*)$',
+          ).firstMatch(line);
+          if (match != null) {
+            final now = DateTime.now();
+            final time = DateTime(
+              now.year,
+              now.month,
+              now.day,
+              int.parse(match.group(1)!),
+              int.parse(match.group(2)!),
+              int.parse(match.group(3)!),
+            );
+            _entries.add(LogEntry(time, match.group(4)!));
+          }
+        }
+        // 超过上限时截断旧日志
+        while (_entries.length > maxEntries) {
+          _entries.removeAt(0);
+        }
+        logCount.value = _entries.length;
+      }
+    } catch (e) {
+      debugPrint('[DebugLog] Failed to load log file: $e');
+    }
+  }
+
   void add(String message) {
     if (!enabled) return;
-    _entries.add(LogEntry(DateTime.now(), message));
+
+    final entry = LogEntry(DateTime.now(), message);
+    _entries.add(entry);
     if (_entries.length > maxEntries) {
       _entries.removeAt(0);
     }
     logCount.value = _entries.length;
+
+    // 同步写入磁盘，确保崩溃时不丢日志
+    _writeLine(entry.toLine());
   }
 
-  void clear() {
+  /// 同步追加一行到日志文件
+  void _writeLine(String line) {
+    try {
+      if (_logFile != null) {
+        _logFile!.writeAsStringSync(
+          '$line\n',
+          mode: FileMode.append,
+          flush: true,
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> clear() async {
     _entries.clear();
     logCount.value = 0;
+    // 清空文件
+    try {
+      if (_logFile != null && await _logFile!.exists()) {
+        await _logFile!.writeAsString('');
+      }
+    } catch (_) {}
   }
 
   List<LogEntry> get entries => List.unmodifiable(_entries);

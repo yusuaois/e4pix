@@ -420,7 +420,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           context,
           ref,
         );
-        if (context.mounted && confirmed) Navigator.of(context).pop();
+        if (context.mounted && confirmed) SystemNavigator.pop();
       },
       child: Focus(
         autofocus: true,

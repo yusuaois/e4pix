@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'export_notification_service.dart';
 import 'tether_notification_service.dart';
 
@@ -12,9 +14,14 @@ class NotificationManager {
   Future<void> init() async {
     if (_initialized) return;
 
-    await ExportNotificationService.instance.init();
-    await TetherNotificationService.instance.init();
-
+    debugPrint('[Notification] Initializing...');
+    try {
+      await ExportNotificationService.instance.init();
+      await TetherNotificationService.instance.init();
+      debugPrint('[Notification] Initialized');
+    } catch (e) {
+      debugPrint('[Notification] Init failed: $e');
+    }
     _initialized = true;
   }
 }

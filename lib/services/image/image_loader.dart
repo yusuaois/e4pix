@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img_pkg;
 
 import '../../native/raw_bridge.dart';
@@ -106,7 +106,8 @@ class ImageLoader {
         timestamp: ts,
         cameraWhiteBalance: const [1, 1, 1, 1], // 标准图无 RAW 白平衡系数
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ImageLoader] EXIF parse failed: $e');
       return null;
     }
   }

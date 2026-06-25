@@ -55,6 +55,7 @@ class TetherSessionNotifier extends Notifier<TetherSession?> {
     bool suppressNotification = false,
   }) async {
     if (state != null) return;
+    debugPrint('[Tether] Starting session: $watchPath');
     final watcher = TetherWatcher(watchPath);
     await watcher.start();
 
@@ -81,6 +82,7 @@ class TetherSessionNotifier extends Notifier<TetherSession?> {
 
   Future<void> stop() async {
     final session = state;
+    debugPrint('[Tether] Stopping session: ${session?.watchPath}');
     await _sub?.cancel();
     _sub = null;
     state = null;

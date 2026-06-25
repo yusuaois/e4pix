@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -66,7 +67,9 @@ class UpdateInfo {
     try {
       final info = await DeviceInfoPlugin().androidInfo;
       abis = info.supportedAbis;
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[UpdateService] Failed to get Android device info: $e');
+    }
 
     // 1) 按设备 ABI 优先级找对应 apk（arm64 设备优先 arm64 包）
     for (final abi in abis) {
@@ -113,11 +116,15 @@ class UpdateService {
   }
 
   static Future<UpdateInfo?> check() async {
+    debugPrint('[UpdateService] Checking for updates...');
     final resp = await http.get(
       Uri.parse(AppInfo.latestReleaseApi),
       headers: {'Accept': 'application/vnd.github+json'},
     );
-    if (resp.statusCode != 200) return null;
+    if (resp.statusCode != 200) {
+      debugPrint('[UpdateService] API returned ${resp.statusCode}');
+      return null;
+    }
 
     final json =
         jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;

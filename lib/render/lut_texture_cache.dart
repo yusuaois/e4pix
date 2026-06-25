@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import '../core/lut/cube_lut.dart';
 import '../services/lut/lut_library.dart';
 
@@ -53,7 +54,8 @@ class LutTextureCache {
       final entry2 = LutTexture(tex, lut.size);
       _put(name, entry2);
       return entry2;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[LutTextureCache] Failed to load LUT "$name": $e');
       return null;
     }
   }

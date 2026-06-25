@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -41,7 +42,9 @@ class KeybindingNotifier extends Notifier<KeybindingState> {
         }
       }
       state = KeybindingState(loaded);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Keybinding] Load failed, using defaults: $e');
+    }
   }
 
   Future<void> _persist(Map<AppAction, LogicalKeyboardKey?> b) async {
@@ -49,7 +52,9 @@ class KeybindingNotifier extends Notifier<KeybindingState> {
       final p = await SharedPreferences.getInstance();
       final map = {for (final e in b.entries) e.key.name: e.value?.keyId};
       await p.setString(_prefsKey, jsonEncode(map));
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Keybinding] Persist failed: $e');
+    }
   }
 
   // 转发

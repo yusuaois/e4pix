@@ -240,7 +240,9 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
       }
     } on ExportCancelledException {
       _patch(job.id, status: ExportJobStatus.cancelled);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[ExportQueue] Job failed: ${job.inputPath}: $e');
+      debugPrint('[ExportQueue] $st');
       _patch(job.id, status: ExportJobStatus.failed, error: e.toString());
 
       ExportNotificationService.instance.notifyFailed(

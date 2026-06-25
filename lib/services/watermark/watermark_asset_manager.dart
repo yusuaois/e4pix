@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -52,7 +52,8 @@ class WatermarkAssetManager {
 
       await srcFile.copy(destPath);
       return destName; // 仅返回文件名，目录由 dir 管理
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[WatermarkAsset] pickAndSave failed: $e');
       return null;
     }
   }
@@ -70,7 +71,8 @@ class WatermarkAssetManager {
         final ext = p.extension(name).toLowerCase().replaceFirst('.', '');
         return _allowedExtensions.contains(ext);
       }).toList();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[WatermarkAsset] listCustomImages failed: $e');
       return [];
     }
   }
@@ -85,7 +87,8 @@ class WatermarkAssetManager {
         return true;
       }
       return false;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[WatermarkAsset] deleteCustomImage failed: $e');
       return false;
     }
   }
@@ -98,7 +101,8 @@ class WatermarkAssetManager {
       final file = File(filePath);
       if (await file.exists()) return filePath;
       return null;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[WatermarkAsset] resolveFilePath failed: $e');
       return null;
     }
   }
@@ -109,7 +113,8 @@ class WatermarkAssetManager {
       final filePath = await resolveFilePath(filename);
       if (filePath == null) return null;
       return await File(filePath).readAsBytes();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[WatermarkAsset] readImageBytes "$filename" failed: $e');
       return null;
     }
   }

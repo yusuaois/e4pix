@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -68,6 +69,7 @@ class LutLibrary {
 
     // 复制文件
     await File(sourcePath).copy(dest);
+    debugPrint('[LutLibrary] Imported: $filename -> ${p.basename(dest)}');
 
     final e = p.extension(dest);
     return LutEntry(
@@ -79,6 +81,9 @@ class LutLibrary {
 
   static Future<void> delete(LutEntry entry) async {
     final file = File(entry.filePath);
-    if (await file.exists()) await file.delete();
+    if (await file.exists()) {
+      await file.delete();
+      debugPrint('[LutLibrary] Deleted: ${entry.name}');
+    }
   }
 }
