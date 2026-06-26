@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../../core/constants/hdr_constants.dart';
+
 /// Mertens 曝光融合算法
 ///
 /// 不需要相机响应曲线，直接融合各曝光的亮部/暗部。
@@ -8,6 +10,13 @@ import 'dart:typed_data';
 /// 融合方式：拉普拉斯金字塔混合（按 RGB 通道独立处理，保留色彩）
 class HdrFusionService {
   HdrFusionService._();
+
+  /// 权重下限，避免零权重导致除零
+  static const double _weightEpsilon = 1e-6;
+
+  /// 曝光良好度高斯 sigma
+  static const double _exposureSigma = 0.2;
+  static const double _exposureSigmaSq2 = _exposureSigma * _exposureSigma * 2;
 
   /// 曝光融合
   ///
@@ -96,14 +105,13 @@ class HdrFusionService {
     // 金字塔融合
     final blended = <Float32List>[];
     for (int l = 0; l < levels; l++) {
-      final size = l == 0
-          ? w * h
-          : ((w / math.pow(2, l)).round() * (h / math.pow(2, l)).round());
+      // 直接使用金字塔实际尺寸，避免与下采样链的舍入不一致
+      final size = lapPyramids[0][l].length;
       final result = Float32List(size);
       for (int img = 0; img < n; img++) {
         final lap = lapPyramids[img][l];
         final gauss = gaussPyramids[img][l];
-        for (int i = 0; i < size && i < lap.length && i < gauss.length; i++) {
+        for (int i = 0; i < size; i++) {
           result[i] += lap[i] * gauss[i];
         }
       }
@@ -134,31 +142,35 @@ class HdrFusionService {
         final idx = y * w + x;
         final i4 = idx * 4;
         final lum =
-            0.299 * rgba[i4] + 0.587 * rgba[i4 + 1] + 0.114 * rgba[i4 + 2];
+            kLumaR * rgba[i4] + kLumaG * rgba[i4 + 1] + kLumaB * rgba[i4 + 2];
         double lap = 0;
         int count = 0;
         if (x > 0) {
           final li = (y * w + x - 1) * 4;
-          lap -= 0.299 * rgba[li] + 0.587 * rgba[li + 1] + 0.114 * rgba[li + 2];
+          lap -=
+              kLumaR * rgba[li] + kLumaG * rgba[li + 1] + kLumaB * rgba[li + 2];
           count++;
         }
         if (x < w - 1) {
           final ri = (y * w + x + 1) * 4;
-          lap -= 0.299 * rgba[ri] + 0.587 * rgba[ri + 1] + 0.114 * rgba[ri + 2];
+          lap -=
+              kLumaR * rgba[ri] + kLumaG * rgba[ri + 1] + kLumaB * rgba[ri + 2];
           count++;
         }
         if (y > 0) {
           final ti = ((y - 1) * w + x) * 4;
-          lap -= 0.299 * rgba[ti] + 0.587 * rgba[ti + 1] + 0.114 * rgba[ti + 2];
+          lap -=
+              kLumaR * rgba[ti] + kLumaG * rgba[ti + 1] + kLumaB * rgba[ti + 2];
           count++;
         }
         if (y < h - 1) {
           final bi = ((y + 1) * w + x) * 4;
-          lap -= 0.299 * rgba[bi] + 0.587 * rgba[bi + 1] + 0.114 * rgba[bi + 2];
+          lap -=
+              kLumaR * rgba[bi] + kLumaG * rgba[bi + 1] + kLumaB * rgba[bi + 2];
           count++;
         }
         lap += count * lum;
-        result[idx] = (lap.abs() + 1e-6);
+        result[idx] = (lap.abs() + _weightEpsilon);
       }
     }
     return result;
@@ -177,7 +189,7 @@ class HdrFusionService {
           (r - mean) * (r - mean) +
           (g - mean) * (g - mean) +
           (b - mean) * (b - mean);
-      result[i] = (math.sqrt(variance / 3.0) + 1e-6);
+      result[i] = (math.sqrt(variance / 3.0) + _weightEpsilon);
     }
     return result;
   }
@@ -185,17 +197,15 @@ class HdrFusionService {
   /// 曝光良好度
   static Float32List _computeWellExposedness(Uint8List rgba, int w, int h) {
     final result = Float32List(w * h);
-    const sigma = 0.2;
-    const sigmaSq2 = sigma * sigma * 2; // 预计算 2σ²
     for (int i = 0; i < w * h; i++) {
       final i4 = i * 4;
       final r = rgba[i4] / 255.0;
       final g = rgba[i4 + 1] / 255.0;
       final b = rgba[i4 + 2] / 255.0;
-      final er = math.exp(-((r - 0.5) * (r - 0.5)) / sigmaSq2);
-      final eg = math.exp(-((g - 0.5) * (g - 0.5)) / sigmaSq2);
-      final eb = math.exp(-((b - 0.5) * (b - 0.5)) / sigmaSq2);
-      result[i] = (er * eg * eb + 1e-6);
+      final er = math.exp(-((r - 0.5) * (r - 0.5)) / _exposureSigmaSq2);
+      final eg = math.exp(-((g - 0.5) * (g - 0.5)) / _exposureSigmaSq2);
+      final eb = math.exp(-((b - 0.5) * (b - 0.5)) / _exposureSigmaSq2);
+      result[i] = (er * eg * eb + _weightEpsilon);
     }
     return result;
   }
@@ -263,6 +273,7 @@ class HdrFusionService {
 
   /// 下采样（5-tap 高斯核 [1,4,6,4,1]/16）
   ///
+  /// 使用 5×5 可分离高斯核（先列后行合并为 2D 查找），
   /// 比简单 2×2 平均更平滑，减少金字塔重建时的混叠伪影。
   static Float32List _downsample(Float32List src, int w, int h) {
     final nw = (w + 1) ~/ 2;
@@ -344,10 +355,21 @@ class HdrFusionService {
     int h,
     int levels,
   ) {
+    // 预推算每层的精确尺寸（与 _downsample 的 (c+1)~/2 链一致）
+    final levelW = List<int>.filled(levels, 0);
+    final levelH = List<int>.filled(levels, 0);
+    int cw = w, ch = h;
+    for (int l = 0; l < levels; l++) {
+      levelW[l] = cw;
+      levelH[l] = ch;
+      cw = (cw + 1) ~/ 2;
+      ch = (ch + 1) ~/ 2;
+    }
+
     Float32List current = pyramid[levels - 1];
     for (int l = levels - 2; l >= 0; l--) {
-      final targetW = l == 0 ? w : (w / math.pow(2, l)).round();
-      final targetH = l == 0 ? h : (h / math.pow(2, l)).round();
+      final targetW = levelW[l];
+      final targetH = levelH[l];
       final up = _upsample(current, targetW, targetH);
       final lap = pyramid[l];
       current = Float32List(targetW * targetH);

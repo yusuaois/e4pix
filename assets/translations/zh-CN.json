@@ -518,6 +518,7 @@
   "hdrMergeDecoding": "正在解码 {}/{}...",
   "hdrMergeFusing": "正在融合曝光...",
   "hdrMergeSaving": "正在保存结果...",
+  "hdrAlignConverting": "正在对齐图像...",
   "superResPreview": "预览效果",
   "exportSuperRes": "超分辨率处理中..."
 }

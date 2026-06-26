@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img_pkg;
 import 'package:path/path.dart' as p;
 
+import '../core/constants/hdr_constants.dart';
 import '../core/constants/raw_formats.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/export_config.dart';
@@ -911,48 +912,63 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     double progress = 0;
     String phaseText = tr('hdrMergeProgress');
 
-    // 进度框
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          // 保存 setDialogState 以便外部更新
-          _hdrDialogSetState = setDialogState;
-          return AlertDialog(
-            backgroundColor: AppColors.elevatedBg,
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 4,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-                const SizedBox(height: 16),
-                Text(phaseText, style: AppTypography.bodyLarge),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-
-    // 进度更新辅助函数
     void updateProgress(double p, String phase) {
       progress = p;
       phaseText = phase;
       _hdrDialogSetState?.call(() {});
     }
 
+    bool isStarted = false;
     try {
-      // 阶段 1：解码图片（0%~40%）
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            _hdrDialogSetState = setDialogState;
+
+            if (!isStarted) {
+              isStarted = true;
+              Future.microtask(() => _hdrMergeExecute(paths, updateProgress));
+            }
+            return AlertDialog(
+              backgroundColor: AppColors.elevatedBg,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 4,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(phaseText, style: AppTypography.bodyLarge),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+    } catch (e, st) {
+      debugPrint('[HDR] Unexpected: $e');
+      debugPrint('[HDR] Stack: $st');
+    } finally {
+      _hdrDialogSetState = null;
+    }
+  }
+
+  Future<void> _hdrMergeExecute(
+    List<String> paths,
+    void Function(double, String) updateProgress,
+  ) async {
+    try {
+      // 阶段 1：解码图片（0%~kProgressDecodeEnd）
       debugPrint('[HDR] Merging ${paths.length} images');
       final images = <Uint8List>[];
-      int? w, h;
+      late int w, h;
       for (int i = 0; i < paths.length; i++) {
         updateProgress(
-          0.4 * i / paths.length,
+          kProgressDecodeEnd * i / paths.length,
           tr('hdrMergeDecoding', args: ['${i + 1}', '${paths.length}']),
         );
         debugPrint('[HDR] Decoding ${i + 1}/${paths.length}: ${paths[i]}');
@@ -969,76 +985,83 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         final byteData = await img.toByteData(
           format: ui.ImageByteFormat.rawRgba,
         );
-        // 先复制像素数据，再释放图像
+        // 复制像素数据后释放图像（byteData 底层缓冲区随 dispose 失效）
         final pixels = byteData?.buffer.asUint8List();
         img.dispose();
-        if (pixels == null) {
-          if (mounted) Navigator.of(context).pop();
-          _snack(tr('hdrMergeDecodeFailed'));
-          return;
-        }
-        if (w == null) {
+        if (pixels == null) throw Exception('Decode failed for ${paths[i]}');
+        if (i == 0) {
           w = imgW;
           h = imgH;
         } else if (imgW != w || imgH != h) {
-          if (mounted) Navigator.of(context).pop();
-          _snack(tr('hdrMergeSizeMismatch'));
-          return;
+          throw Exception('Size mismatch: ${imgW}x$imgH vs ${w}x$h');
         }
         images.add(Uint8List.fromList(pixels));
         debugPrint('[HDR] Image ${i + 1} ready, ${pixels.length} bytes');
       }
-      updateProgress(0.4, tr('hdrMergeFusing'));
+      updateProgress(kProgressDecodeEnd, tr('hdrMergeFusing'));
 
-      // 阶段 2：Isolate 融合（40%~90%）
-      debugPrint('[HDR] Launching Isolate for ${w}x$h fusion...');
+      // 阶段 2：Isolate 对齐 + 融合（kProgressDecodeEnd~kProgressFusionEnd）
+      debugPrint('[HDR] Launching Isolate for ${w}x$h alignment + fusion...');
       final receivePort = ReceivePort();
       final progressPort = ReceivePort();
-      await Isolate.spawn(
-        hdrFuseIsolate,
-        HdrIsolateParams(
-          sendPort: receivePort.sendPort,
-          images: images,
-          width: w!,
-          height: h!,
-          progressPort: progressPort.sendPort,
-          logFilePath: DebugLogService.instance.logFilePath,
-        ),
-      );
+      try {
+        await Isolate.spawn(
+          hdrFuseIsolate,
+          HdrIsolateParams(
+            sendPort: receivePort.sendPort,
+            images: images,
+            width: w,
+            height: h,
+            align: true,
+            progressPort: progressPort.sendPort,
+            logFilePath: DebugLogService.instance.logFilePath,
+          ),
+        );
+      } catch (spawnError) {
+        debugPrint('[HDR] Isolate spawn failed: $spawnError');
+        receivePort.close();
+        progressPort.close();
+        throw Exception('Isolate spawn failed: $spawnError');
+      }
       debugPrint('[HDR] Isolate spawned, waiting for result...');
 
-      // 监听融合进度
-      progressPort.listen((dynamic msg) {
+      // 监听对齐/融合进度
+      bool alignSkipped = false;
+      progressPort.listen((Object? msg) {
         if (msg is double) {
-          updateProgress(0.4 + msg * 0.5, tr('hdrMergeFusing'));
+          if (msg < 0) {
+            alignSkipped = true;
+            return;
+          }
+          final phase = (!alignSkipped && msg < kProgressAlignEnd)
+              ? tr('hdrAlignConverting')
+              : tr('hdrMergeFusing');
+          updateProgress(msg, phase);
         }
       });
 
-      final dynamic rawResult = await receivePort.first;
+      final Object? rawResult = await receivePort.first.timeout(
+        const Duration(minutes: 10),
+        onTimeout: () {
+          debugPrint('[HDR] Isolate timed out');
+          receivePort.close();
+          progressPort.close();
+          return 'HDR fusion timed out';
+        },
+      );
+      receivePort.close();
       progressPort.close();
 
       if (rawResult is String) {
         debugPrint('[HDR] Isolate error: $rawResult');
-        if (mounted) Navigator.of(context).pop();
-        _snack(tr('hdrMergeFailed'));
-        return;
+        throw Exception(rawResult);
       }
 
-      final result = rawResult as Uint8List?;
-      debugPrint(
-        '[HDR] Isolate returned: '
-        '${result != null ? "${result.length} bytes" : "null"}',
-      );
+      final result = rawResult as Uint8List;
+      debugPrint('[HDR] Isolate returned: ${result.length} bytes');
 
-      if (result == null) {
-        if (mounted) Navigator.of(context).pop();
-        _snack(tr('hdrMergeFailed'));
-        return;
-      }
-
-      // 阶段 3：保存（90%~100%）
-      updateProgress(0.9, tr('hdrMergeSaving'));
-      // 无损源（RAW/PNG/TIFF/BMP）→ PNG；有损源（JPEG/WebP）→ JPEG
+      // 阶段 3：保存（kProgressSaveStart~100%）
+      updateProgress(kProgressSaveStart, tr('hdrMergeSaving'));
       final srcDir = p.dirname(paths.first);
       final srcName = p.basenameWithoutExtension(paths.first);
       final usePng = RawFormats.isLossless(paths.first);
@@ -1084,18 +1107,18 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       debugPrint('[HDR] Saved: $outPath');
 
       updateProgress(1.0, tr('hdrMergeComplete'));
+
+      // 关闭 dialog
       if (mounted) Navigator.of(context).pop();
 
       // 添加到 shot list
       ref.read(shotsNotifierProvider.notifier).addFiles([outPath]);
       _snack(tr('hdrMergeComplete'), floating: true);
     } catch (e, st) {
-      debugPrint('[HDR] Failed: $e');
+      debugPrint('[HDR] Execute failed: $e');
       debugPrint('[HDR] Stack: $st');
       if (mounted) Navigator.of(context).pop();
       _snack(tr('hdrMergeFailed'));
-    } finally {
-      _hdrDialogSetState = null;
     }
   }
 

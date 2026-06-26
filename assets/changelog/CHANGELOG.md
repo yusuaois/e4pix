@@ -1,25 +1,21 @@
 ## 🚀 新功能 (New Features)
+* **HDR 图像对齐**：手持 HDR 拍摄时自动校正相机抖动，融合前执行 Harris 角点检测 + NCC 块匹配 + RANSAC 仿射估计，消除重影
 * **Settings 页面 UI 改版**：所有设置区块包裹 floating card（`panelBg` + 圆角 10），与 Develop Screen 风格统一
 * **版本号点击查看更新日志**：点击 About 区块的版本号弹出 `ChangelogDialog`，从打包的 `assets/changelog/CHANGELOG.md` 读取并渲染 Markdown
-* **更新日志内置为 Asset**：`CHANGELOG.md` 迁移至 `assets/changelog/`，CI 直接从此路径读取生成 GitHub Release
 
 ## ⚡ 性能优化 (Performance)
 
 ## 🐛 问题修复 (Bug Fixes)
+* **HDR 连续调用崩溃**：修复首次 HDR 完成后再次调用报 `setState() called after dispose()` 的问题，改为 `await showDialog` + microtask 模式
+* **HDR Isolate 资源泄漏**：修复 `Isolate.spawn` 失败时 `ReceivePort` 未关闭导致后续调用卡死的问题，增加 spawn 错误捕获 + 10 分钟超时保护
 * **子 Isolate 日志不进 Debug Log Manager**：修复 Dart Isolate 不共享静态变量导致 `setupIsolateLogging()` 空操作的根本问题，改为显式传递 `logFilePath`；新增 `syncNewEntriesFromDisk()` 使 UI 实时同步子 Isolate 日志
-* **Settings tile hover 溢出圆角**：`Container` + `Clip.antiAlias` 无法裁剪 `Material` 祖先上的 ink 效果，改为 `Material` widget 作为卡片容器；各 tile 通过 `tileBorderRadius` 参数匹配底部圆角
-* **Debug tile 双重圆角**：Debug 模式开启时 `SwitchListTile` 和 `ListTile` 同时应用底部圆角，改为仅最后一个 tile 应用
 * **Markdown 行内代码无背景**：`UpdateDialog` 和 `ChangelogDialog` 的 `MarkdownStyleSheet` 缺少 `code:` 样式，`` `backtick` `` 文本现在有 `subtleBorder` 背景
-* **缺失翻译键**：补全 `updateNoAsset`、`debugFilterAI` 等遗漏的 i18n key；移除未使用的 `versionCheck`
 
 ## 🛠️ 底层改进 (Under the Hood)
+* **HDR 对齐代码审查修复**：RANSAC 坐标系统一（降采样空间运行 + 仅放大平移）、Homography 改为 8×8 稳定求解、金字塔尺寸链与 `_downsample` 一致、降采样抗锯齿（scale > 2 时 3×3 box blur）
+* **HDR 代码质量**：提取共享亮度系数/进度常量到 `hdr_constants.dart`、命名化所有魔法数字、修复 `w`/`h` 可空类型、消除双重 snackbar 错误处理
 * **Debug Log UI 优化**：新增文本搜索、Filter chip 计数、展开追踪 O(n)→O(1)、3 秒轮询磁盘同步
-* **Debug Log 颜色统一**：`_LogColors` / `DebugLogColors` 合并进 `AppColors`（`debugInfra` / `debugAi` / ...），`log_style.dart` + `log_entry_row.dart` 内嵌进 `debug_log_screen.dart`
-* **Debug Log Screen floating card 重构**：搜索栏、过滤栏、日志列表分别包裹 floating card，12px 统一间距，过滤芯片样式对齐 PresetChip，空状态加图标，AppBar TextButton→IconButton
-* **Settings tile `tileBorderRadius` 机制**：8 个 tile 文件统一新增可选参数，传递给 `ListTile.shape` / `SwitchListTile.shape` / `RadioListTile.shape`，解决 hover ink 裁剪
 * **CI workflow 更新**：`build_release.yml` 改为从 `assets/changelog/CHANGELOG.md` 读取 changelog
-* **Debug trailing icon 统一**：`debug_tiles.dart` 的 `Icons.chevron_right` → `Icons.arrow_forward_ios`（size 14）
-
 ---
 
 > 📦 **下载提示**：

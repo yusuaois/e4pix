@@ -518,6 +518,7 @@
   "hdrMergeDecoding": "Decoding {}/{}...",
   "hdrMergeFusing": "Fusing exposures...",
   "hdrMergeSaving": "Saving result...",
+  "hdrAlignConverting": "Aligning images...",
   "superResPreview": "Preview",
   "exportSuperRes": "Super Resolution..."
 }
