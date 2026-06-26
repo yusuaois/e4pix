@@ -2,6 +2,7 @@
 * **HDR 图像对齐**：手持 HDR 拍摄时自动校正相机抖动，融合前执行 Harris 角点检测 + NCC 块匹配 + RANSAC 仿射估计，消除重影
 * **Settings 页面 UI 改版**：所有设置区块包裹 floating card（`panelBg` + 圆角 10），与 Develop Screen 风格统一
 * **版本号点击查看更新日志**：点击 About 区块的版本号弹出 `ChangelogDialog`，从打包的 `assets/changelog/CHANGELOG.md` 读取并渲染 Markdown
+* **Top Bar 多选模式布局优化**：进入多选后左侧区替换为 [✕] + "N selected" + 全选按钮，右侧保留 HDR/同步/导出等操作
 
 ## ⚡ 性能优化 (Performance)
 

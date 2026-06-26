@@ -80,21 +80,17 @@ class DevelopTopBar extends ConsumerWidget {
           priority: 100,
           badgeCount: ref.watch(exportQueuePendingCountProvider),
         ),
-      if (hasImage)
+      // 多选入口按钮
+      if (hasImage && !selection.multiSelectMode)
         _BarAction(
-          icon: selection.multiSelectMode
-              ? Icons.checklist_rtl_rounded
-              : Icons.checklist_rounded,
-          tooltip: selection.multiSelectMode
-              ? tr('multiSelectExit')
-              : tr('multiSelect'),
+          icon: Icons.checklist_rounded,
+          tooltip: tr('multiSelect'),
           menuKey: 'multiselect',
           onPressed: shots.isEmpty
               ? null
               : () => ref
                     .read(exportSelectionNotifierProvider.notifier)
                     .toggleMode(),
-          alwaysVisible: selection.multiSelectMode,
           priority: 90,
         ),
       // 多选模式下的 HDR 和同步按钮
@@ -168,38 +164,57 @@ class DevelopTopBar extends ConsumerWidget {
       child: Row(
         children: [
           if (hasImage) ...[
-            _iconBtn(
-              Icons.undo,
-              tr('undo'),
-              canUndo ? notifier.undo : null,
-              isVertical,
-            ),
-            _iconBtn(
-              Icons.redo,
-              tr('redo'),
-              canRedo ? notifier.redo : null,
-              isVertical,
-            ),
-
-            _iconBtn(
-              compareMode == CompareViewMode.split
-                  ? Icons.vertical_split
-                  : Icons.compare,
-              compareMode == CompareViewMode.split
-                  ? tr('splitCompareExit')
-                  : tr('compareHint'),
-              () => ref.read(compareViewModeProvider.notifier).toggleSplit(),
-              isVertical,
-              onLongPressStart: (_) =>
-                  ref.read(compareViewModeProvider.notifier).startHold(),
-              onLongPressEnd: (_) =>
-                  ref.read(compareViewModeProvider.notifier).endHold(),
-              color: compareMode != CompareViewMode.off
-                  ? AppColors.textPrimary
-                  : AppColors.mediumText,
-            ),
-            if (shots.isNotEmpty)
-              _buildFilterButton(ref, isVertical, primary, filterActive),
+            if (selection.multiSelectMode) ...[
+              // 多选模式
+              _iconBtn(
+                Icons.close,
+                tr('multiSelectExit'),
+                () => ref
+                    .read(exportSelectionNotifierProvider.notifier)
+                    .toggleMode(),
+                isVertical,
+                color: AppColors.textPrimary,
+              ),
+              SizedBox(width: isVertical ? 4 : 6),
+              if (selection.selectedPaths.isNotEmpty) ...[
+                _buildSelectionChip(context, selection, isVertical),
+                SizedBox(width: isVertical ? 2 : 4),
+              ],
+              _buildSelectAllButton(ref, selection, shots, isVertical),
+            ] else ...[
+              // 普通模式
+              _iconBtn(
+                Icons.undo,
+                tr('undo'),
+                canUndo ? notifier.undo : null,
+                isVertical,
+              ),
+              _iconBtn(
+                Icons.redo,
+                tr('redo'),
+                canRedo ? notifier.redo : null,
+                isVertical,
+              ),
+              _iconBtn(
+                compareMode == CompareViewMode.split
+                    ? Icons.vertical_split
+                    : Icons.compare,
+                compareMode == CompareViewMode.split
+                    ? tr('splitCompareExit')
+                    : tr('compareHint'),
+                () => ref.read(compareViewModeProvider.notifier).toggleSplit(),
+                isVertical,
+                onLongPressStart: (_) =>
+                    ref.read(compareViewModeProvider.notifier).startHold(),
+                onLongPressEnd: (_) =>
+                    ref.read(compareViewModeProvider.notifier).endHold(),
+                color: compareMode != CompareViewMode.off
+                    ? AppColors.textPrimary
+                    : AppColors.mediumText,
+              ),
+              if (shots.isNotEmpty)
+                _buildFilterButton(ref, isVertical, primary, filterActive),
+            ],
             if (!isVertical)
               const VerticalDivider(width: 1, indent: 8, endIndent: 8),
           ],
@@ -222,15 +237,6 @@ class DevelopTopBar extends ConsumerWidget {
                 actions,
                 constraints.maxWidth,
                 isVertical,
-                trailing: selection.multiSelectMode
-                    ? _buildMultiSelectTrailing(
-                        context,
-                        ref,
-                        selection,
-                        shots,
-                        isVertical,
-                      )
-                    : null,
               ),
             ),
           ),
@@ -373,19 +379,16 @@ class DevelopTopBar extends ConsumerWidget {
   Widget _buildAdaptiveActions(
     List<_BarAction> actions,
     double maxWidth,
-    bool isVertical, {
-    Widget? trailing,
-  }) {
+    bool isVertical,
+  ) {
     final btnW = isVertical ? 34.0 : 48.0;
     const menuW = 44.0;
-    // trailing 预留宽度
-    final trailingW = trailing != null ? 120.0 : 0.0;
 
     final always = actions.where((a) => a.alwaysVisible).toList();
     final rest = actions.where((a) => !a.alwaysVisible).toList()
       ..sort((a, b) => b.priority.compareTo(a.priority));
 
-    final budget = maxWidth - always.length * btnW - menuW - trailingW;
+    final budget = maxWidth - always.length * btnW - menuW;
     final canShow = rest.isEmpty
         ? 0
         : (budget / btnW).floor().clamp(0, rest.length);
@@ -409,8 +412,6 @@ class DevelopTopBar extends ConsumerWidget {
             color: a.color,
             badgeCount: a.badgeCount,
           ),
-        // 多选栏（已选N张 + 全选）
-        ?trailing,
         if (overflow.isNotEmpty)
           SizedBox(
             width: _barBtnSize(isVertical),
@@ -446,62 +447,69 @@ class DevelopTopBar extends ConsumerWidget {
   double _barBtnSize(bool isVertical) => isVertical ? 30 : 40;
   double _barIconSize(bool isVertical) => isVertical ? 17 : 20;
 
-  Widget _buildMultiSelectTrailing(
+  /// 多选模式左侧区
+  Widget _buildSelectionChip(
     BuildContext context,
+    ExportSelection selection,
+    bool isVertical,
+  ) {
+    final h = _barBtnSize(isVertical);
+    return SizedBox(
+      height: h,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: isVertical ? 10 : 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(h / 2),
+        ),
+        child: Text(
+          tr('selectedShots', args: ['${selection.selectedPaths.length}']),
+          style: AppTypography.labelSmall.copyWith(
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+
+  /// "全选 / 全不选"
+  Widget _buildSelectAllButton(
     WidgetRef ref,
     ExportSelection selection,
     List<TetheredShot> shots,
     bool isVertical,
   ) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (selection.selectedPaths.isNotEmpty)
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                tr(
-                  'selectedShots',
-                  args: ['${selection.selectedPaths.length}'],
-                ),
-                style: AppTypography.labelSmall.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-        TextButton(
+    final h = _barBtnSize(isVertical);
+    final isAll = selection.selectedPaths.length == shots.length;
+    final label = isAll ? tr('selectNone') : tr('selectAll');
+
+    return SizedBox(
+      width: h,
+      height: h,
+      child: Tooltip(
+        message: label,
+        child: TextButton(
           onPressed: () {
             final n = ref.read(exportSelectionNotifierProvider.notifier);
-            if (selection.selectedPaths.length == shots.length) {
-              n.clearSelection();
-            } else {
-              n.selectAll(shots.map((s) => s.path));
-            }
+            isAll ? n.clearSelection() : n.selectAll(shots.map((s) => s.path));
           },
           style: TextButton.styleFrom(
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.symmetric(horizontal: 6),
+            shape: const CircleBorder(), // ← 与 IconButton 一样圆形
+            padding: EdgeInsets.zero,
             minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
           child: Text(
-            selection.selectedPaths.length == shots.length
-                ? tr('selectNone')
-                : tr('selectAll'),
+            label,
             style: AppTypography.labelSmall,
+            textAlign: TextAlign.center,
           ),
         ),
-      ],
+      ),
     );
   }
 }
