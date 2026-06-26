@@ -103,7 +103,8 @@ Color? _semanticColor(String message) {
   }
   if (lower.contains('skip') ||
       lower.contains('skipping') ||
-      lower.contains('give up')) {
+      lower.contains('give up') ||
+      lower.contains('warn')) {
     return AppColors.semanticWarning;
   }
   if (lower.contains('done') ||
@@ -135,6 +136,81 @@ const _mono = TextStyle(
   letterSpacing: 0.3,
 );
 
+/// 分组项
+sealed class _GroupItem {
+  const _GroupItem();
+}
+
+class _GroupHeaderItem extends _GroupItem {
+  final String tag;
+  final Color color;
+  final int count;
+  final bool collapsed;
+
+  const _GroupHeaderItem({
+    required this.tag,
+    required this.color,
+    required this.count,
+    required this.collapsed,
+  });
+}
+
+class _GroupEntryItem extends _GroupItem {
+  final LogEntry entry;
+  final bool isAlt;
+
+  const _GroupEntryItem(this.entry, {required this.isAlt});
+}
+
+/// 分组折叠头部
+class _GroupHeader extends StatelessWidget {
+  final String tag;
+  final Color color;
+  final int count;
+  final bool collapsed;
+  final VoidCallback onTap;
+
+  const _GroupHeader({
+    required this.tag,
+    required this.color,
+    required this.count,
+    required this.collapsed,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            children: [
+              Icon(
+                collapsed ? Icons.expand_more : Icons.expand_less,
+                size: 16,
+                color: AppColors.disabledText,
+              ),
+              const SizedBox(width: 6),
+              _TagChip(label: tag, color: color),
+              const SizedBox(width: 8),
+              Text(
+                '$count',
+                style: _mono.copyWith(
+                  color: AppColors.disabledText.withValues(alpha: 0.6),
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LogEntryRow extends StatelessWidget {
   final LogEntry entry;
   final _ParsedLogEntry? parsed; // pre-parsed, avoid re-parsing
@@ -155,10 +231,18 @@ class _LogEntryRow extends StatelessWidget {
     final parsed = this.parsed ?? _parseLogMessage(entry.message);
 
     final t = entry.time;
-    final ts =
-        '${t.hour.toString().padLeft(2, '0')}:'
-        '${t.minute.toString().padLeft(2, '0')}:'
-        '${t.second.toString().padLeft(2, '0')}';
+    final now = DateTime.now();
+    final isToday =
+        t.year == now.year && t.month == now.month && t.day == now.day;
+    final ts = isToday
+        ? '${t.hour.toString().padLeft(2, '0')}:'
+              '${t.minute.toString().padLeft(2, '0')}:'
+              '${t.second.toString().padLeft(2, '0')}'
+        : '${t.month.toString().padLeft(2, '0')}-'
+              '${t.day.toString().padLeft(2, '0')} '
+              '${t.hour.toString().padLeft(2, '0')}:'
+              '${t.minute.toString().padLeft(2, '0')}:'
+              '${t.second.toString().padLeft(2, '0')}';
 
     Color? rowBg;
     Border? rowBorder;
@@ -236,6 +320,8 @@ class _TagChip extends StatelessWidget {
 
 enum _Filter { all, errors, ai, pipeline, export }
 
+enum _TimeRange { all, oneMin, fiveMin }
+
 class DebugLogScreen extends StatefulWidget {
   const DebugLogScreen({super.key});
 
@@ -249,6 +335,10 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
   _Filter _filter = _Filter.all;
+  _TimeRange _timeRange = _TimeRange.all;
+  DateTime? _timeFilterCutoff; // null = show all
+  bool _groupByTag = false;
+  final _collapsedTags = <String>{};
   Timer? _syncTimer;
 
   @override
@@ -279,8 +369,15 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
   // ── Filter logic ──
 
   bool _matchesFilter(LogEntry entry, _ParsedLogEntry parsed) {
+    // 时间范围筛
+    if (_timeFilterCutoff != null) {
+      if (entry.time.isBefore(_timeFilterCutoff!)) return false;
+    }
+    // 搜索
     if (_searchQuery.isNotEmpty) {
-      if (!entry.message.toLowerCase().contains(_searchQuery)) return false;
+      final inMsg = entry.message.toLowerCase().contains(_searchQuery);
+      final inTag = parsed.tag?.toLowerCase().contains(_searchQuery) ?? false;
+      if (!inMsg && !inTag) return false;
     }
     return _matchesFilterCategory(parsed, _filter);
   }
@@ -315,12 +412,17 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
     }
   }
 
-  static Map<_Filter, int> _computeFilterCounts(
+  Map<_Filter, int> _computeFilterCounts(
     List<LogEntry> entries,
     Map<LogEntry, _ParsedLogEntry> parsedMap,
   ) {
     final counts = <_Filter, int>{for (final f in _Filter.values) f: 0};
     for (final entry in entries) {
+      // 时间范围预筛
+      if (_timeFilterCutoff != null &&
+          entry.time.isBefore(_timeFilterCutoff!)) {
+        continue;
+      }
       final parsed = parsedMap[entry]!;
       for (final f in _Filter.values) {
         if (f != _Filter.all && _matchesFilterCategory(parsed, f)) {
@@ -328,7 +430,11 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
         }
       }
     }
-    counts[_Filter.all] = entries.length;
+    // All 计数 = 时间范围内条目总数
+    final timeFiltered = _timeFilterCutoff == null
+        ? entries.length
+        : entries.where((e) => !e.time.isBefore(_timeFilterCutoff!)).length;
+    counts[_Filter.all] = timeFiltered;
     return counts;
   }
 
@@ -356,7 +462,10 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
       for (final e in entries) e: _parseLogMessage(e.message),
     };
 
-    final filtered = (_filter == _Filter.all && _searchQuery.isEmpty)
+    final filtered =
+        (_filter == _Filter.all &&
+            _searchQuery.isEmpty &&
+            _timeFilterCutoff == null)
         ? entries
         : entries.where((e) => _matchesFilter(e, parsedMap[e]!)).toList();
     final filterCounts = _computeFilterCounts(entries, parsedMap);
@@ -370,6 +479,29 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
         actions: [
           if (entries.isNotEmpty)
             IconButton(
+              icon: Icon(
+                _expandedKeys.length >= filtered.length
+                    ? Icons.unfold_less
+                    : Icons.unfold_more,
+                size: 20,
+              ),
+              tooltip: _expandedKeys.length >= filtered.length
+                  ? tr('debugCollapseAll')
+                  : tr('debugExpandAll'),
+              onPressed: () {
+                setState(() {
+                  if (_expandedKeys.length >= filtered.length) {
+                    _expandedKeys.clear();
+                  } else {
+                    for (final e in filtered) {
+                      _expandedKeys.add(_entryKey(e));
+                    }
+                  }
+                });
+              },
+            ),
+          if (entries.isNotEmpty)
+            IconButton(
               icon: const Icon(Icons.delete_outline, size: 20),
               tooltip: tr('debugClear'),
               onPressed: () {
@@ -379,11 +511,22 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
                 });
               },
             ),
-          IconButton(
-            icon: const Icon(Icons.file_download_outlined, size: 20),
-            tooltip: tr('debugExport'),
-            onPressed: entries.isEmpty ? null : _export,
-          ),
+          if (entries.isNotEmpty)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.file_download_outlined, size: 20),
+              tooltip: tr('debugExport'),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'text',
+                  child: Text(tr('debugExportText')),
+                ),
+                PopupMenuItem(
+                  value: 'json',
+                  child: Text(tr('debugExportJson')),
+                ),
+              ],
+              onSelected: (format) => _export(format),
+            ),
         ],
       ),
       body: Padding(
@@ -400,30 +543,9 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
               child: filtered.isEmpty
                   ? _buildEmptyState()
                   : _buildFloatingCard(
-                      child: ListView.builder(
-                        reverse: true,
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        itemCount: filtered.length,
-                        itemBuilder: (_, i) {
-                          final entry = filtered[filtered.length - 1 - i];
-                          final key = _entryKey(entry);
-                          final isExpanded = _expandedKeys.contains(key);
-
-                          return _LogEntryRow(
-                            entry: entry,
-                            parsed: parsedMap[entry],
-                            isAlt: i.isOdd,
-                            isExpanded: isExpanded,
-                            onTap: () {
-                              setState(() {
-                                isExpanded
-                                    ? _expandedKeys.remove(key)
-                                    : _expandedKeys.add(key);
-                              });
-                            },
-                          );
-                        },
-                      ),
+                      child: _groupByTag
+                          ? _buildGroupedList(filtered, parsedMap)
+                          : _buildFlatList(filtered, parsedMap),
                     ),
             ),
           ],
@@ -447,6 +569,112 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // ── List builders ──
+
+  Widget _buildEntryRow(LogEntry entry, _ParsedLogEntry? parsed, bool isAlt) {
+    final key = _entryKey(entry);
+    final isExpanded = _expandedKeys.contains(key);
+    return _LogEntryRow(
+      entry: entry,
+      parsed: parsed,
+      isAlt: isAlt,
+      isExpanded: isExpanded,
+      onTap: () {
+        setState(() {
+          isExpanded ? _expandedKeys.remove(key) : _expandedKeys.add(key);
+        });
+      },
+    );
+  }
+
+  Widget _buildFlatList(
+    List<LogEntry> filtered,
+    Map<LogEntry, _ParsedLogEntry> parsedMap,
+  ) {
+    return ListView.builder(
+      reverse: true,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      itemCount: filtered.length,
+      itemBuilder: (_, i) {
+        final entry = filtered[filtered.length - 1 - i];
+        return _buildEntryRow(entry, parsedMap[entry], i.isOdd);
+      },
+    );
+  }
+
+  Widget _buildGroupedList(
+    List<LogEntry> filtered,
+    Map<LogEntry, _ParsedLogEntry> parsedMap,
+  ) {
+    // tag 分组
+    final groups = <String, List<LogEntry>>{};
+    for (final entry in filtered) {
+      final parsed = parsedMap[entry]!;
+      final tag = parsed.tag ?? tr('debugOtherGroup');
+      groups.putIfAbsent(tag, () => []).add(entry);
+    }
+
+    // 按最新条目时间降序排列组
+    final sortedTags = groups.keys.toList()
+      ..sort((a, b) {
+        final aLast = groups[a]!.last.time;
+        final bLast = groups[b]!.last.time;
+        return bLast.compareTo(aLast);
+      });
+
+    final items = <_GroupItem>[];
+    for (final tag in sortedTags) {
+      final tagEntries = groups[tag]!;
+      final parsed = parsedMap[tagEntries.first]!;
+      final collapsed = _collapsedTags.contains(tag);
+      items.add(
+        _GroupHeaderItem(
+          tag: tag,
+          color: parsed.tagColor,
+          count: tagEntries.length,
+          collapsed: collapsed,
+        ),
+      );
+      if (!collapsed) {
+        for (var i = 0; i < tagEntries.length; i++) {
+          items.add(_GroupEntryItem(tagEntries[i], isAlt: i.isOdd));
+        }
+      }
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      itemCount: items.length,
+      itemBuilder: (_, i) {
+        final item = items[i];
+        switch (item) {
+          case _GroupHeaderItem():
+            return _GroupHeader(
+              tag: item.tag,
+              color: item.color,
+              count: item.count,
+              collapsed: item.collapsed,
+              onTap: () {
+                setState(() {
+                  if (_collapsedTags.contains(item.tag)) {
+                    _collapsedTags.remove(item.tag);
+                  } else {
+                    _collapsedTags.add(item.tag);
+                  }
+                });
+              },
+            );
+          case _GroupEntryItem():
+            return _buildEntryRow(
+              item.entry,
+              parsedMap[item.entry],
+              item.isAlt,
+            );
+        }
+      },
     );
   }
 
@@ -525,6 +753,34 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
     );
   }
 
+  // ── Chip helpers ──
+
+  Widget _buildChipBase({
+    required bool selected,
+    required Widget child,
+    VoidCallback? onTap,
+    double hPad = 12,
+  }) {
+    return Align(
+      alignment: Alignment.center,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 5),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.activeBg : AppColors.subtleBorder,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? AppColors.lightBorder : AppColors.dividerLine,
+              width: 0.6,
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   // ── Filter bar ──
 
   Widget _buildFilterBar(Map<_Filter, int> counts) {
@@ -535,91 +791,168 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          _buildChip(
+          _buildFilterChip(
             _Filter.all,
             tr('debugFilterAll'),
             counts[_Filter.all] ?? 0,
           ),
           const SizedBox(width: 8),
-          _buildChip(
+          _buildFilterChip(
             _Filter.errors,
             tr('debugFilterErrors'),
             counts[_Filter.errors] ?? 0,
           ),
           const SizedBox(width: 8),
-          _buildChip(_Filter.ai, tr('debugFilterAI'), counts[_Filter.ai] ?? 0),
+          _buildFilterChip(
+            _Filter.ai,
+            tr('debugFilterAI'),
+            counts[_Filter.ai] ?? 0,
+          ),
           const SizedBox(width: 8),
-          _buildChip(
+          _buildFilterChip(
             _Filter.pipeline,
             tr('debugFilterPipeline'),
             counts[_Filter.pipeline] ?? 0,
           ),
           const SizedBox(width: 8),
-          _buildChip(
+          _buildFilterChip(
             _Filter.export,
             tr('debugFilterExport'),
             counts[_Filter.export] ?? 0,
+          ),
+          // 分隔线 + 时间范围 + 分组
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: VerticalDivider(
+              width: 1,
+              color: AppColors.dividerLine,
+              indent: 6,
+              endIndent: 6,
+            ),
+          ),
+          _buildTimeChip(_TimeRange.all, tr('debugTimeAll')),
+          const SizedBox(width: 6),
+          _buildTimeChip(_TimeRange.oneMin, tr('debugTime1m')),
+          const SizedBox(width: 6),
+          _buildTimeChip(_TimeRange.fiveMin, tr('debugTime5m')),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: VerticalDivider(
+              width: 1,
+              color: AppColors.dividerLine,
+              indent: 6,
+              endIndent: 6,
+            ),
+          ),
+          _buildGroupToggle(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(_Filter value, String label, int count) {
+    final selected = _filter == value;
+    return _buildChipBase(
+      selected: selected,
+      onTap: () => setState(() {
+        _filter = value;
+        _expandedKeys.clear();
+      }),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: AppTypography.bodyLarge.copyWith(
+              color: selected ? AppColors.textPrimary : AppColors.disabledText,
+            ),
+          ),
+          if (count > 0) ...[
+            const SizedBox(width: 5),
+            Text(
+              '$count',
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 10,
+                color: selected
+                    ? AppColors.faintText
+                    : AppColors.disabledText.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeChip(_TimeRange value, String label) {
+    final selected = _timeRange == value;
+    return _buildChipBase(
+      selected: selected,
+      hPad: 10,
+      onTap: () => setState(() {
+        _timeRange = value;
+        // 冻结截止时间：点击时设定，点击其他时间范围时重置
+        switch (value) {
+          case _TimeRange.all:
+            _timeFilterCutoff = null;
+          case _TimeRange.oneMin:
+            _timeFilterCutoff = DateTime.now().subtract(
+              const Duration(minutes: 1),
+            );
+          case _TimeRange.fiveMin:
+            _timeFilterCutoff = DateTime.now().subtract(
+              const Duration(minutes: 5),
+            );
+        }
+        _expandedKeys.clear();
+      }),
+      child: Text(
+        label,
+        style: AppTypography.bodyLarge.copyWith(
+          color: selected ? AppColors.textPrimary : AppColors.disabledText,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupToggle() {
+    return _buildChipBase(
+      selected: _groupByTag,
+      hPad: 10,
+      onTap: () => setState(() {
+        _groupByTag = !_groupByTag;
+        _collapsedTags.clear();
+      }),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.account_tree_outlined,
+            size: 14,
+            color: _groupByTag ? AppColors.textPrimary : AppColors.disabledText,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            tr('debugGroupByTag'),
+            style: AppTypography.bodyLarge.copyWith(
+              color: _groupByTag
+                  ? AppColors.textPrimary
+                  : AppColors.disabledText,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildChip(_Filter value, String label, int count) {
-    final selected = _filter == value;
-    return Align(
-      alignment: Alignment.center,
-      child: GestureDetector(
-        onTap: () => setState(() {
-          _filter = value;
-          _expandedKeys.clear();
-        }),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.activeBg : AppColors.subtleBorder,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: selected ? AppColors.lightBorder : AppColors.dividerLine,
-              width: 0.6,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: AppTypography.bodyLarge.copyWith(
-                  color: selected
-                      ? AppColors.textPrimary
-                      : AppColors.disabledText,
-                ),
-              ),
-              if (count > 0) ...[
-                const SizedBox(width: 5),
-                Text(
-                  '$count',
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 10,
-                    color: selected
-                        ? AppColors.faintText
-                        : AppColors.disabledText.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // ── Export ──
 
-  Future<void> _export() async {
+  Future<void> _export(String format) async {
     try {
-      final tempFile = await _service.exportToFile();
+      final tempFile = format == 'json'
+          ? await _service.exportToJson()
+          : await _service.exportToFile();
       final dir = await FilePicker.getDirectoryPath(
         dialogTitle: tr('debugExport'),
       );

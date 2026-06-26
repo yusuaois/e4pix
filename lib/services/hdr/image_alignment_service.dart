@@ -26,7 +26,7 @@ class AlignmentResult {
 /// 图像对齐服务
 ///
 /// 将多张不同曝光的图像对齐到同一坐标系，
-/// 消除手持拍摄时相机抖动导致的重影。
+/// 消除手持拍摄时相机抖动导致的重影
 class ImageAlignmentService {
   ImageAlignmentService._();
 
@@ -55,8 +55,8 @@ class ImageAlignmentService {
   /// [targetLongEdge]：特征检测用降采样长边（默认 600）
   /// [onProgress]：进度回调 0.0~1.0
   ///
-  /// 返回对齐后的 [AlignmentResult]。
-  /// 若对齐失败，返回原图（无变换）。
+  /// 返回对齐后的 [AlignmentResult]
+  /// 若对齐失败，返回原图（无变换）
   static AlignmentResult align({
     required List<Uint8List> images,
     required int width,

@@ -164,57 +164,84 @@ class DevelopTopBar extends ConsumerWidget {
       child: Row(
         children: [
           if (hasImage) ...[
-            if (selection.multiSelectMode) ...[
-              // 多选模式
-              _iconBtn(
-                Icons.close,
-                tr('multiSelectExit'),
-                () => ref
-                    .read(exportSelectionNotifierProvider.notifier)
-                    .toggleMode(),
-                isVertical,
-                color: AppColors.textPrimary,
-              ),
-              SizedBox(width: isVertical ? 4 : 6),
-              if (selection.selectedPaths.isNotEmpty) ...[
-                _buildSelectionChip(context, selection, isVertical),
-                SizedBox(width: isVertical ? 2 : 4),
-              ],
-              _buildSelectAllButton(ref, selection, shots, isVertical),
-            ] else ...[
-              // 普通模式
-              _iconBtn(
-                Icons.undo,
-                tr('undo'),
-                canUndo ? notifier.undo : null,
-                isVertical,
-              ),
-              _iconBtn(
-                Icons.redo,
-                tr('redo'),
-                canRedo ? notifier.redo : null,
-                isVertical,
-              ),
-              _iconBtn(
-                compareMode == CompareViewMode.split
-                    ? Icons.vertical_split
-                    : Icons.compare,
-                compareMode == CompareViewMode.split
-                    ? tr('splitCompareExit')
-                    : tr('compareHint'),
-                () => ref.read(compareViewModeProvider.notifier).toggleSplit(),
-                isVertical,
-                onLongPressStart: (_) =>
-                    ref.read(compareViewModeProvider.notifier).startHold(),
-                onLongPressEnd: (_) =>
-                    ref.read(compareViewModeProvider.notifier).endHold(),
-                color: compareMode != CompareViewMode.off
-                    ? AppColors.textPrimary
-                    : AppColors.mediumText,
-              ),
-              if (shots.isNotEmpty)
-                _buildFilterButton(ref, isVertical, primary, filterActive),
-            ],
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeInOut,
+              switchOutCurve: Curves.easeInOut,
+              child: selection.multiSelectMode
+                  ? Row(
+                      key: const ValueKey('multi'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _iconBtn(
+                          Icons.close,
+                          tr('multiSelectExit'),
+                          () => ref
+                              .read(exportSelectionNotifierProvider.notifier)
+                              .toggleMode(),
+                          isVertical,
+                          color: AppColors.textPrimary,
+                        ),
+                        SizedBox(width: isVertical ? 4 : 6),
+                        if (selection.selectedPaths.isNotEmpty) ...[
+                          _buildSelectionChip(context, selection, isVertical),
+                          SizedBox(width: isVertical ? 2 : 4),
+                        ],
+                        _buildSelectAllButton(
+                          ref,
+                          selection,
+                          shots,
+                          isVertical,
+                        ),
+                      ],
+                    )
+                  : Row(
+                      key: const ValueKey('normal'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _iconBtn(
+                          Icons.undo,
+                          tr('undo'),
+                          canUndo ? notifier.undo : null,
+                          isVertical,
+                        ),
+                        _iconBtn(
+                          Icons.redo,
+                          tr('redo'),
+                          canRedo ? notifier.redo : null,
+                          isVertical,
+                        ),
+                        _iconBtn(
+                          compareMode == CompareViewMode.split
+                              ? Icons.vertical_split
+                              : Icons.compare,
+                          compareMode == CompareViewMode.split
+                              ? tr('splitCompareExit')
+                              : tr('compareHint'),
+                          () => ref
+                              .read(compareViewModeProvider.notifier)
+                              .toggleSplit(),
+                          isVertical,
+                          onLongPressStart: (_) => ref
+                              .read(compareViewModeProvider.notifier)
+                              .startHold(),
+                          onLongPressEnd: (_) => ref
+                              .read(compareViewModeProvider.notifier)
+                              .endHold(),
+                          color: compareMode != CompareViewMode.off
+                              ? AppColors.textPrimary
+                              : AppColors.mediumText,
+                        ),
+                        if (shots.isNotEmpty)
+                          _buildFilterButton(
+                            ref,
+                            isVertical,
+                            primary,
+                            filterActive,
+                          ),
+                      ],
+                    ),
+            ),
             if (!isVertical)
               const VerticalDivider(width: 1, indent: 8, endIndent: 8),
           ],
@@ -454,23 +481,37 @@ class DevelopTopBar extends ConsumerWidget {
     bool isVertical,
   ) {
     final h = _barBtnSize(isVertical);
-    return SizedBox(
-      height: h,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: isVertical ? 10 : 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(h / 2),
-        ),
-        child: Text(
-          tr('selectedShots', args: ['${selection.selectedPaths.length}']),
-          style: AppTypography.labelSmall.copyWith(
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.primary,
+    return Flexible(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: isVertical ? 100 : 140),
+        child: Container(
+          height: h,
+          padding: EdgeInsets.symmetric(horizontal: isVertical ? 10 : 12),
+          decoration: BoxDecoration(
+            color: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(h / 2),
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  tr(
+                    'selectedShots',
+                    args: ['${selection.selectedPaths.length}'],
+                  ),
+                  style: AppTypography.labelSmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -483,34 +524,13 @@ class DevelopTopBar extends ConsumerWidget {
     List<TetheredShot> shots,
     bool isVertical,
   ) {
-    final h = _barBtnSize(isVertical);
     final isAll = selection.selectedPaths.length == shots.length;
     final label = isAll ? tr('selectNone') : tr('selectAll');
 
-    return SizedBox(
-      width: h,
-      height: h,
-      child: Tooltip(
-        message: label,
-        child: TextButton(
-          onPressed: () {
-            final n = ref.read(exportSelectionNotifierProvider.notifier);
-            isAll ? n.clearSelection() : n.selectAll(shots.map((s) => s.path));
-          },
-          style: TextButton.styleFrom(
-            shape: const CircleBorder(), // ← 与 IconButton 一样圆形
-            padding: EdgeInsets.zero,
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          child: Text(
-            label,
-            style: AppTypography.labelSmall,
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-    );
+    return _iconBtn(isAll ? Icons.deselect : Icons.select_all, label, () {
+      final n = ref.read(exportSelectionNotifierProvider.notifier);
+      isAll ? n.clearSelection() : n.selectAll(shots.map((s) => s.path));
+    }, isVertical);
   }
 }
 

@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 
-/// 色相-饱和度选色盘对话框。
+/// 色相-饱和度选色盘对话框
 ///
 /// [isGrayscale] 控制色系：
-/// - `false`（默认）：全色域彩虹色相环，选中的是实际 HSV 颜色。水印边框等场景使用。
-/// - `true`：灰阶色相环，色相角度映射为灰度亮度。主题种子色等场景使用。
+/// - `false`（默认）：全色域彩虹色相环，选中的是实际 HSV 颜色 水印边框等场景使用
+/// - `true`：灰阶色相环，色相角度映射为灰度亮度 主题种子色等场景使用
 class ThemeColorWheelDialog extends StatefulWidget {
   final Color initial;
   final bool isGrayscale;

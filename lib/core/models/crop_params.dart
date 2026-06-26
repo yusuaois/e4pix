@@ -103,7 +103,7 @@ class CropParams {
   /// 输出归一化坐标 [0..1] → 全图归一化坐标 [0..1]
   ///
   /// 与 [inverseMap] 相同的逆变换，但输入输出都是归一化连续坐标
-  /// 不含像素中心偏移。用于将屏幕点击坐标（裁剪后空间）变换到
+  /// 不含像素中心偏移 用于将屏幕点击坐标（裁剪后空间）变换到
   /// 全图空间，供 SAM / SmartRegion 在全图 guide 上定位种子点
   (double, double) outputToSourceNorm(
     double nx,

@@ -4,8 +4,8 @@ import '../core/models/perspective_params.dart';
 
 /// 逆向映射：从目标正方形反查到源四边形（用于 shader 像素逆映射）
 ///
-/// 固定 h₂₂ = 1，4 对点构建 8×8 线性系统，一次高斯消元求解。
-/// 返回 Float32List(9)，GLSL mat3 列主序。
+/// 固定 h₂₂ = 1，4 对点构建 8×8 线性系统，一次高斯消元求解
+/// 返回 Float32List(9)，GLSL mat3 列主序
 Float32List computeInverseHomography8x8({required PerspectiveParams params}) {
   return _solve8x8(PerspectiveParams.destQuad, params.sourceQuad);
 }
@@ -109,7 +109,7 @@ List<double> _gauss8(List<Float64List> a, Float64List b) {
 
 /// 逆单应性矩阵缓存
 ///
-/// 矩阵仅随 perspectiveParams 变化，帧间重复计算纯属浪费。
+/// 矩阵仅随 perspectiveParams 变化，帧间重复计算纯属浪费
 class PerspectiveMatrixCache {
   int _lastHash = 0;
   Float32List? _cached;

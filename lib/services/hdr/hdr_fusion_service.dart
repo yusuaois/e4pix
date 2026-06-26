@@ -5,7 +5,7 @@ import '../../core/constants/hdr_constants.dart';
 
 /// Mertens 曝光融合算法
 ///
-/// 不需要相机响应曲线，直接融合各曝光的亮部/暗部。
+/// 不需要相机响应曲线，直接融合各曝光的亮部/暗部
 /// 权重 = 对比度 × 饱和度 × 曝光良好度
 /// 融合方式：拉普拉斯金字塔混合（按 RGB 通道独立处理，保留色彩）
 class HdrFusionService {
@@ -274,7 +274,7 @@ class HdrFusionService {
   /// 下采样（5-tap 高斯核 [1,4,6,4,1]/16）
   ///
   /// 使用 5×5 可分离高斯核（先列后行合并为 2D 查找），
-  /// 比简单 2×2 平均更平滑，减少金字塔重建时的混叠伪影。
+  /// 比简单 2×2 平均更平滑，减少金字塔重建时的混叠伪影
   static Float32List _downsample(Float32List src, int w, int h) {
     final nw = (w + 1) ~/ 2;
     final nh = (h + 1) ~/ 2;

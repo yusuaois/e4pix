@@ -51,8 +51,8 @@ class FeatureDetector {
 
   /// Harris 角点检测
   ///
-  /// 返回按响应强度降序排列的角点列表。
-  /// [maxFeatures] 上限（默认 500）。
+  /// 返回按响应强度降序排列的角点列表
+  /// [maxFeatures] 上限（默认 500）
   static List<DetectedFeature> detectCorners(
     Float32List gray,
     int w,

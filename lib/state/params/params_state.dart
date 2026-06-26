@@ -61,12 +61,12 @@ final effectiveLutEnabledProvider = Provider<bool>((ref) {
 
 // ── 节流参数（渲染组件专用）──
 
-/// 对 [currentParamsNotifierProvider] 做拖拽感知节流。
+/// 对 [currentParamsNotifierProvider] 做拖拽感知节流
 ///
 /// - 滑块拖拽中：最多 33ms 更新一次，避免 GPU 过载
 /// - 松手瞬间：立刻 flush 最终值，保证精度
 ///
-/// 渲染组件直接 watch 此 provider，无需各自做节流。
+/// 渲染组件直接 watch 此 provider，无需各自做节流
 class _ThrottledParamsNotifier extends Notifier<AdjustmentParams> {
   Timer? _timer;
   DateTime _lastEmit = DateTime(2000);

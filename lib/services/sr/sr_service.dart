@@ -10,8 +10,8 @@ import '../debug/debug_log_service.dart';
 
 /// 超分辨率推理服务
 ///
-/// 使用 Real-ESRGAN ONNX 模型进行 2x 超分辨率。
-/// 通过 onnxruntime_v2 的 appendDefaultProviders() 自动选择最佳硬件。
+/// 使用 Real-ESRGAN ONNX 模型进行 2x 超分辨率
+/// 通过 onnxruntime_v2 的 appendDefaultProviders() 自动选择最佳硬件
 class SrService {
   static final instance = SrService._();
   SrService._();
@@ -105,8 +105,8 @@ class SrService {
 
   /// 全图超分
   ///
-  /// 返回 null 表示失败或被取消。
-  /// 调用方应通过 [cancelExport] 取消进行中的任务。
+  /// 返回 null 表示失败或被取消
+  /// 调用方应通过 [cancelExport] 取消进行中的任务
   Future<ui.Image?> upscaleFull({
     required ui.Image source,
     void Function(double progress)? onProgress,
