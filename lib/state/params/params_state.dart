@@ -46,9 +46,6 @@ final currentParamsNotifierProvider =
 
 final compareBypassProvider = StateProvider<bool>((ref) => false);
 
-/// 污点修复取样模式（hold 键按下时为 true）
-final samplingHoldProvider = StateProvider<bool>((ref) => false);
-
 final effectiveParamsProvider = Provider<AdjustmentParams>((ref) {
   if (ref.watch(compareBypassProvider) ||
       ref.watch(compareViewModeProvider) == CompareViewMode.hold) {

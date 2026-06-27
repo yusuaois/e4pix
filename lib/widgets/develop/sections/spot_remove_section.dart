@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/adjustment_params.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../state/params/params_state.dart';
 import '../../../state/tools/spot_remove_state.dart';
 import 'shared.dart';
 
@@ -32,8 +31,7 @@ class SpotRemoveSection extends ConsumerWidget {
     final notifier = ref.read(spotRemoveStateProvider.notifier);
     final spotCount = params.spots.length;
     final isActive = state.mode == SpotRemoveMode.active;
-    final holdSampling = ref.watch(samplingHoldProvider);
-    final isSampling = holdSampling || state.samplingButtonOn;
+    final isSampling = state.samplingButtonOn;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -111,6 +109,15 @@ class SpotRemoveSection extends ConsumerWidget {
             fractionDigits: 0,
             suffix: '‰',
             onChanged: (v) => notifier.setBrushRadius(v / 1000),
+          ),
+          DevelopSliderTile(
+            label: tr('spotRemoveHardness'),
+            value: state.brushHardness * 100,
+            min: 0,
+            max: 100,
+            fractionDigits: 0,
+            suffix: '%',
+            onChanged: (v) => notifier.setBrushHardness(v / 100),
           ),
         ],
 

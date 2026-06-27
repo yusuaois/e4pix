@@ -233,18 +233,27 @@ class FullPipelineRenderer {
     bool currentOwned = developOwned;
 
     // spot removal (after develop, before perspective/crop)
+    // 每 32 个 spot 一个 pass，链式调用
     if (params.spots.isNotEmpty && spotRemoveProgram != null) {
-      try {
-        final spotRemoved = await _runSpotRemovePass(
-          program: spotRemoveProgram,
-          input: current,
-          spots: params.spots,
+      final allSpots = params.spots;
+      for (int i = 0; i < allSpots.length; i += _kMaxSpots) {
+        final batch = allSpots.sublist(
+          i,
+          (i + _kMaxSpots).clamp(0, allSpots.length),
         );
-        if (currentOwned) current.dispose();
-        current = spotRemoved;
-        currentOwned = true;
-      } catch (e) {
-        debugPrint('[Pipeline] Spot removal pass failed: $e');
+        try {
+          final spotRemoved = await _runSpotRemovePass(
+            program: spotRemoveProgram,
+            input: current,
+            spots: batch,
+          );
+          if (currentOwned) current.dispose();
+          current = spotRemoved;
+          currentOwned = true;
+        } catch (e) {
+          debugPrint('[Pipeline] Spot removal pass failed: $e');
+          break;
+        }
       }
     }
 
@@ -435,7 +444,7 @@ class FullPipelineRenderer {
   }
 
   static const _kMaxSpots = 32;
-  static const _kSpotUniformsPerSpot = 5;
+  static const _kSpotUniformsPerSpot = 6; // srcX, srcY, tgtX, tgtY, radius, hardness
 
   static Future<ui.Image> _runSpotRemovePass({
     required ui.FragmentProgram program,
@@ -457,7 +466,6 @@ class FullPipelineRenderer {
         s.setFloat(i++, h.toDouble());
         // uSpotCount
         s.setFloat(i++, count.toDouble());
-        // spot uniforms: 每 spot 5 floats (srcX, srcY, tgtX, tgtY, radius)
         for (int n = 0; n < _kMaxSpots; n++) {
           if (n < count) {
             final spot = spots[n];
@@ -466,8 +474,8 @@ class FullPipelineRenderer {
             s.setFloat(i++, spot.target.dx);
             s.setFloat(i++, spot.target.dy);
             s.setFloat(i++, spot.radius);
+            s.setFloat(i++, spot.hardness);
           } else {
-            // 填零（不会被使用，因为 uSpotCount < n+0.5）
             for (int j = 0; j < _kSpotUniformsPerSpot; j++) {
               s.setFloat(i++, 0.0);
             }

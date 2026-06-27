@@ -26,6 +26,9 @@ class SpotRemoveState {
   /// 涂抹半径（归一化，相对源图宽度）
   final double brushRadius;
 
+  /// 边缘硬度 0..1，1=硬边，0=柔边
+  final double brushHardness;
+
   /// 手机取样按钮开关（替代 hold 键）
   final bool samplingButtonOn;
 
@@ -33,6 +36,7 @@ class SpotRemoveState {
     this.mode = SpotRemoveMode.inactive,
     this.cloneSource,
     this.brushRadius = 0.02,
+    this.brushHardness = 1.0,
     this.samplingButtonOn = false,
   });
 
@@ -41,11 +45,13 @@ class SpotRemoveState {
     ui.Offset? cloneSource,
     bool clearCloneSource = false,
     double? brushRadius,
+    double? brushHardness,
     bool? samplingButtonOn,
   }) => SpotRemoveState(
     mode: mode ?? this.mode,
     cloneSource: clearCloneSource ? null : (cloneSource ?? this.cloneSource),
     brushRadius: brushRadius ?? this.brushRadius,
+    brushHardness: brushHardness ?? this.brushHardness,
     samplingButtonOn: samplingButtonOn ?? this.samplingButtonOn,
   );
 }
@@ -54,9 +60,6 @@ class SpotRemoveNotifier extends StateNotifier<SpotRemoveState> {
   final Ref _ref;
 
   SpotRemoveNotifier(this._ref) : super(const SpotRemoveState());
-
-  /// Shader 单次最大 spot 数
-  static const int maxSpots = 32;
 
   /// 切换模式
   void setMode(SpotRemoveMode mode) {
@@ -89,12 +92,25 @@ class SpotRemoveNotifier extends StateNotifier<SpotRemoveState> {
     state = state.copyWith(brushRadius: radius);
   }
 
+  /// 设置边缘硬度
+  void setBrushHardness(double hardness) {
+    state = state.copyWith(brushHardness: hardness);
+  }
+
   /// 添加一个新的 spot mark（从 cloneSource 复制到 target）
   void addSpot(ui.Offset target) {
     final source = state.cloneSource;
     if (source == null) return;
+    _addSpotRaw(source, target);
+  }
+
+  /// 添加 spot，指定自定义 source（拖拽涂抹时源点跟随目标同步移动）
+  void addSpotWithSource(ui.Offset source, ui.Offset target) {
+    _addSpotRaw(source, target);
+  }
+
+  void _addSpotRaw(ui.Offset source, ui.Offset target) {
     final params = _ref.read(currentParamsNotifierProvider);
-    if (params.spots.length >= maxSpots) return;
     _ref
         .read(currentParamsNotifierProvider.notifier)
         .update(
@@ -105,6 +121,7 @@ class SpotRemoveNotifier extends StateNotifier<SpotRemoveState> {
                 source: source,
                 target: target,
                 radius: state.brushRadius,
+                hardness: state.brushHardness,
               ),
             ],
           ),

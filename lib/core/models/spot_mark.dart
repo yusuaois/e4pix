@@ -18,26 +18,33 @@ class SpotMark {
   /// 修复半径（归一化，相对源图宽度），默认 0.02 = 源图宽度的 2%
   final double radius;
 
+  /// 边缘硬度 0..1，1=硬边，0=柔边
+  final double hardness;
+
   const SpotMark({
     required this.source,
     required this.target,
     this.radius = 0.02,
+    this.hardness = 1.0,
   });
 
   SpotMark copyWith({
     Offset? source,
     Offset? target,
     double? radius,
+    double? hardness,
   }) => SpotMark(
     source: source ?? this.source,
     target: target ?? this.target,
     radius: radius ?? this.radius,
+    hardness: hardness ?? this.hardness,
   );
 
   Map<String, dynamic> toJson() => {
     'source': [source.dx, source.dy],
     'target': [target.dx, target.dy],
     'radius': radius,
+    'hardness': hardness,
   };
 
   factory SpotMark.fromJson(Map<String, dynamic> j) {
@@ -57,6 +64,7 @@ class SpotMark {
             )
           : Offset.zero,
       radius: (j['radius'] as num?)?.toDouble() ?? 0.02,
+      hardness: (j['hardness'] as num?)?.toDouble() ?? 1.0,
     );
   }
 
@@ -66,12 +74,13 @@ class SpotMark {
       (other is SpotMark &&
           source == other.source &&
           target == other.target &&
-          radius == other.radius);
+          radius == other.radius &&
+          hardness == other.hardness);
 
   @override
-  int get hashCode => Object.hash(source, target, radius);
+  int get hashCode => Object.hash(source, target, radius, hardness);
 
   @override
   String toString() =>
-      'SpotMark(source: $source, target: $target, radius: $radius)';
+      'SpotMark(source: $source, target: $target, radius: $radius, hardness: $hardness)';
 }

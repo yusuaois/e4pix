@@ -14,7 +14,6 @@ class KeybindingSettingsScreen extends ConsumerWidget {
     'keyGroupOps': [
       AppAction.toggleFullscreen,
       AppAction.compareHold,
-      AppAction.samplingHold,
       AppAction.enterCrop,
     ],
     'keyGroupRating': [

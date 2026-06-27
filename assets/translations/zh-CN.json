@@ -292,7 +292,6 @@
   "keyGroupNav": "导航",
   "keyActFullscreen": "全屏预览",
   "keyActCompare": "按住对比原片",
-  "keyActSampling": "按住取样（污点修复）",
   "keyActCrop": "进入裁剪",
   "keyActRate0": "清除星级",
   "keyActRate1": "1 星",
@@ -532,9 +531,10 @@
   "superResPreview": "预览效果",
   "exportSuperRes": "超分辨率处理中...",
   "spotRemoveTitle": "污点修复",
-  "spotRemoveAltHint": "Alt+点击或使用取样按钮设置源点",
+  "spotRemoveAltHint": "点击取样按钮，然后点击画面设置源点",
   "spotRemoveSample": "取样",
   "spotRemoveSourceSet": "源点已设 — 点击或拖拽涂抹",
   "spotRemoveRadius": "半径",
+  "spotRemoveHardness": "硬度",
   "spotRemoveClearAll": "清除全部"
 }

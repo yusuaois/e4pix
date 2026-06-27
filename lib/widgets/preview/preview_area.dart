@@ -588,6 +588,7 @@ class _PreviewContent extends ConsumerWidget {
                 crop: params.crop,
                 sourceWidth: state.uiImage.width,
                 sourceHeight: state.uiImage.height,
+                sourceImage: state.uiImage,
               ),
             ),
           ],

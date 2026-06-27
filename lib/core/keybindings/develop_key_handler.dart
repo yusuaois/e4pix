@@ -46,7 +46,7 @@ KeyEventResult handleDevelopKeyEvent(
   final action = keys.actionFor(event.logicalKey);
   if (action == null) return KeyEventResult.ignored;
 
-  // hold 型动作允许修饰键（如 Alt 用于 samplingHold）
+  // hold 型动作允许修饰键
   // 其他动作在有修饰键时不响应
   if (!action.isHold &&
       (ctrl ||
@@ -71,18 +71,6 @@ KeyEventResult _handleAction(
       return KeyEventResult.handled;
     } else if (event is KeyUpEvent) {
       ref.read(compareBypassProvider.notifier).state = false;
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
-  }
-
-  // sampling hold：down 设 true、up 设 false
-  if (action == AppAction.samplingHold) {
-    if (event is KeyDownEvent) {
-      ref.read(samplingHoldProvider.notifier).state = true;
-      return KeyEventResult.handled;
-    } else if (event is KeyUpEvent) {
-      ref.read(samplingHoldProvider.notifier).state = false;
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -134,7 +122,6 @@ KeyEventResult _handleAction(
       return _switchImage(ref, -1);
 
     case AppAction.compareHold:
-    case AppAction.samplingHold:
       return KeyEventResult.ignored;
   }
 }
