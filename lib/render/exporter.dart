@@ -77,6 +77,7 @@ class Exporter {
     int lutSizeB = 0,
     ui.FragmentProgram? sharpenProgram,
     ui.FragmentProgram? denoiseProgram,
+    ui.FragmentProgram? spotRemoveProgram,
     DenoiseEngine denoiseEngine = DenoiseEngine.cpu,
     int denoiseParallelism = 4,
     int jpegQuality = 95,
@@ -134,6 +135,7 @@ class Exporter {
         curveTexture: curveTexture,
         sharpenProgram: sharpenProgram,
         denoiseProgram: passDenoiseProgram,
+        spotRemoveProgram: spotRemoveProgram,
         targetWidth: sourceImage.width,
         targetHeight: sourceImage.height,
       );

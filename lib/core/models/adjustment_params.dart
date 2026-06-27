@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 
 import 'local_adjustment.dart';
 import 'rgb_curves.dart';
+import 'spot_mark.dart';
 import 'tone_curve.dart';
 
 @immutable
@@ -44,6 +45,9 @@ class AdjustmentParams {
   /// 超分辨率放大倍数（目前固定 2，后续可扩展）
   final int srScale;
 
+  /// 污点修复标记列表
+  final List<SpotMark> spots;
+
   const AdjustmentParams({
     this.exposure = 0.0,
     this.temperature = 5500,
@@ -73,6 +77,7 @@ class AdjustmentParams {
     this.perspective = PerspectiveParams.identity,
     this.srEnabled = false,
     this.srScale = 2,
+    this.spots = const [],
   });
 
   static const neutral = AdjustmentParams();
@@ -106,6 +111,7 @@ class AdjustmentParams {
     PerspectiveParams? perspective,
     bool? srEnabled,
     int? srScale,
+    List<SpotMark>? spots,
   }) => AdjustmentParams(
     exposure: exposure ?? this.exposure,
     temperature: temperature ?? this.temperature,
@@ -135,6 +141,7 @@ class AdjustmentParams {
     perspective: perspective ?? this.perspective,
     srEnabled: srEnabled ?? this.srEnabled,
     srScale: srScale ?? this.srScale,
+    spots: spots ?? this.spots,
   );
 
   @override
@@ -168,7 +175,8 @@ class AdjustmentParams {
           perspective == other.perspective &&
           srEnabled == other.srEnabled &&
           srScale == other.srScale &&
-          listEquals(locals, other.locals);
+          listEquals(locals, other.locals) &&
+          listEquals(spots, other.spots);
 
   @override
   int get hashCode => Object.hashAll([
@@ -200,6 +208,7 @@ class AdjustmentParams {
     srEnabled,
     srScale,
     locals,
+    spots,
   ]);
 
   Map<String, dynamic> toJson() => {
@@ -231,6 +240,7 @@ class AdjustmentParams {
     'srEnabled': srEnabled,
     'srScale': srScale,
     'locals': locals.map((e) => e.toJson()).toList(),
+    'spots': spots.map((e) => e.toJson()).toList(),
   };
 
   factory AdjustmentParams.fromJson(Map<String, dynamic> j) => AdjustmentParams(
@@ -286,5 +296,10 @@ class AdjustmentParams {
         : PerspectiveParams.identity,
     srEnabled: j['srEnabled'] as bool? ?? false,
     srScale: (j['srScale'] as num?)?.toInt() ?? 2,
+    spots:
+        (j['spots'] as List?)
+            ?.map((e) => SpotMark.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
   );
 }

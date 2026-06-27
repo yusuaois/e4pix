@@ -292,6 +292,7 @@
   "keyGroupNav": "Navigation",
   "keyActFullscreen": "Full Screen Preview",
   "keyActCompare": "Hold to Compare Original",
+  "keyActSampling": "Hold to Sample (Spot Removal)",
   "keyActCrop": "Enter Crop Mode",
   "keyActRate0": "Clear Rating",
   "keyActRate1": "1 Star",
@@ -529,5 +530,11 @@
   "hdrMergeSaving": "Saving result...",
   "hdrAlignConverting": "Aligning images...",
   "superResPreview": "Preview",
-  "exportSuperRes": "Super Resolution..."
+  "exportSuperRes": "Super Resolution...",
+  "spotRemoveTitle": "Spot Removal",
+  "spotRemoveAltHint": "Alt+Click or use Sample button to set source",
+  "spotRemoveSample": "Sample",
+  "spotRemoveSourceSet": "Source set — click or drag to paint",
+  "spotRemoveRadius": "Radius",
+  "spotRemoveClearAll": "Clear All"
 }

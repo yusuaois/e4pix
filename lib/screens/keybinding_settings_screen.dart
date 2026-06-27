@@ -14,6 +14,7 @@ class KeybindingSettingsScreen extends ConsumerWidget {
     'keyGroupOps': [
       AppAction.toggleFullscreen,
       AppAction.compareHold,
+      AppAction.samplingHold,
       AppAction.enterCrop,
     ],
     'keyGroupRating': [
@@ -177,8 +178,8 @@ class _KeyRecordDialog extends StatefulWidget {
 class _KeyRecordDialogState extends State<_KeyRecordDialog> {
   String? _error;
 
-  // 禁止绑定的键
-  static final _forbidden = {
+  /// 非 hold 型动作禁止绑定的键
+  static final _forbiddenNonHold = {
     LogicalKeyboardKey.escape,
     LogicalKeyboardKey.enter,
     LogicalKeyboardKey.numpadEnter,
@@ -192,6 +193,15 @@ class _KeyRecordDialogState extends State<_KeyRecordDialog> {
     LogicalKeyboardKey.metaRight,
   };
 
+  /// hold 型动作只禁止 Esc / Enter
+  static final _forbiddenHold = {
+    LogicalKeyboardKey.escape,
+    LogicalKeyboardKey.enter,
+    LogicalKeyboardKey.numpadEnter,
+  };
+
+  bool get _isHold => widget.action.isHold;
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -203,12 +213,19 @@ class _KeyRecordDialogState extends State<_KeyRecordDialog> {
           if (event is! KeyDownEvent) return KeyEventResult.handled;
           final key = event.logicalKey;
 
-          // 修饰键单按 / Esc / Enter 禁止
-          if (_forbidden.contains(key) ||
-              HardwareKeyboard.instance.isControlPressed ||
-              HardwareKeyboard.instance.isAltPressed ||
-              HardwareKeyboard.instance.isMetaPressed ||
-              HardwareKeyboard.instance.isShiftPressed) {
+          // hold 型动作：允许修饰键，只禁止 Esc/Enter
+          // 非 hold 型：禁止修饰键 + Esc/Enter
+          final forbidden = _isHold ? _forbiddenHold : _forbiddenNonHold;
+          if (forbidden.contains(key)) {
+            setState(() => _error = tr('keyForbidden'));
+            return KeyEventResult.handled;
+          }
+          // 非 hold 型：有修饰键组合时也禁止
+          if (!_isHold &&
+              (HardwareKeyboard.instance.isControlPressed ||
+                  HardwareKeyboard.instance.isAltPressed ||
+                  HardwareKeyboard.instance.isMetaPressed ||
+                  HardwareKeyboard.instance.isShiftPressed)) {
             setState(() => _error = tr('keyForbidden'));
             return KeyEventResult.handled;
           }

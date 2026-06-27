@@ -155,6 +155,58 @@ class CropParams {
     return ui.Offset(sx, sy);
   }
 
+  /// 正向变换：归一化源图坐标 [0..1] → 归一化输出坐标 [0..1]
+  ///
+  /// 与 [outputToSourceNorm] 互为逆运算。
+  /// 用于将污点标记（源图坐标）映射到屏幕显示位置。
+  (double, double) forwardToOutputNorm(
+    double sx,
+    double sy,
+    int srcW,
+    int srcH,
+  ) {
+    if (isIdentity) return (sx, sy);
+
+    final swap = orientationSwapsAxes;
+    final ow = swap ? srcH : srcW;
+    final oh = swap ? srcW : srcH;
+
+    // 源图归一化 → 源图像素（以中心为原点）
+    var px = sx * srcW - srcW / 2.0;
+    var py = sy * srcH - srcH / 2.0;
+
+    // flip（逆变换中先 flip，正向也先 flip）
+    if (flipH) px = -px;
+    if (flipV) py = -py;
+
+    // orientation 正向旋转 CW
+    for (int i = 0; i < orientation % 4; i++) {
+      final ry = -px;
+      px = py;
+      py = ry;
+    }
+
+    // straighten 正向旋转
+    if (straighten != 0) {
+      final angle = straighten * math.pi / 180;
+      final cos = math.cos(angle);
+      final sin = math.sin(angle);
+      final rx = px * cos - py * sin;
+      final ry = px * sin + py * cos;
+      px = rx;
+      py = ry;
+    }
+
+    // 加回 oriented 中心
+    px += ow / 2.0;
+    py += oh / 2.0;
+
+    // oriented 像素 → 输出归一化
+    final onx = (px / ow - x) / width;
+    final ony = (py / oh - y) / height;
+    return (onx, ony);
+  }
+
   /// 在裁剪下，输出画面的布局纵横比
   double outAspectFor(double srcW, double srcH) {
     final w = orientationSwapsAxes ? srcH : srcW;

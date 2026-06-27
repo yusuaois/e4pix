@@ -10,6 +10,7 @@ enum DevelopTool {
   detail,
   preset,
   local,
+  spotRemove,
   watermark,
   lens,
   sr,

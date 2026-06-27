@@ -27,6 +27,7 @@ class MultiPassPreview extends ConsumerStatefulWidget {
   final ui.FragmentProgram? denoiseProgram;
   final ui.FragmentProgram? perspectiveProgram;
   final ui.FragmentProgram? lensCorrectProgram;
+  final ui.FragmentProgram? spotRemoveProgram;
   final int idleMaxEdge;
   final int draggingMaxEdge;
 
@@ -45,6 +46,7 @@ class MultiPassPreview extends ConsumerStatefulWidget {
     this.denoiseProgram,
     this.perspectiveProgram,
     this.lensCorrectProgram,
+    this.spotRemoveProgram,
     this.idleMaxEdge = 2400,
     this.draggingMaxEdge = 800,
   });
@@ -86,6 +88,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         old.denoiseProgram != widget.denoiseProgram ||
         old.perspectiveProgram != widget.perspectiveProgram ||
         old.lensCorrectProgram != widget.lensCorrectProgram ||
+        old.spotRemoveProgram != widget.spotRemoveProgram ||
         old.idleMaxEdge != widget.idleMaxEdge ||
         old.draggingMaxEdge != widget.draggingMaxEdge ||
         old.params != widget.params) {
@@ -135,6 +138,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         denoiseProgram: widget.denoiseProgram,
         perspectiveProgram: widget.perspectiveProgram,
         lensCorrectProgram: widget.lensCorrectProgram,
+        spotRemoveProgram: widget.spotRemoveProgram,
         perspectiveCache: _perspectiveCache,
         targetWidth: tw,
         targetHeight: th,

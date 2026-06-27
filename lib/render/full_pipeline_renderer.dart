@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
+import '../core/models/spot_mark.dart';
 import 'brush_rasterizer.dart';
 import 'crop_transform.dart';
 import 'homography.dart';
@@ -102,6 +103,7 @@ class FullPipelineRenderer {
     ui.FragmentProgram? denoiseProgram,
     ui.FragmentProgram? perspectiveProgram,
     ui.FragmentProgram? lensCorrectProgram,
+    ui.FragmentProgram? spotRemoveProgram,
     PerspectiveMatrixCache? perspectiveCache,
     required ui.Image sourceImage,
     required AdjustmentParams params,
@@ -229,6 +231,22 @@ class FullPipelineRenderer {
 
     ui.Image current = develop;
     bool currentOwned = developOwned;
+
+    // spot removal (after develop, before perspective/crop)
+    if (params.spots.isNotEmpty && spotRemoveProgram != null) {
+      try {
+        final spotRemoved = await _runSpotRemovePass(
+          program: spotRemoveProgram,
+          input: current,
+          spots: params.spots,
+        );
+        if (currentOwned) current.dispose();
+        current = spotRemoved;
+        currentOwned = true;
+      } catch (e) {
+        debugPrint('[Pipeline] Spot removal pass failed: $e');
+      }
+    }
 
     // perspective (after develop, before crop)
     if (!params.perspective.isIdentity && perspectiveProgram != null) {
@@ -412,6 +430,50 @@ class FullPipelineRenderer {
         s.setFloat(i++, targetHeight.toDouble());
         s.setFloat(i++, luma);
         s.setFloat(i++, color);
+      },
+    );
+  }
+
+  static const _kMaxSpots = 32;
+  static const _kSpotUniformsPerSpot = 5;
+
+  static Future<ui.Image> _runSpotRemovePass({
+    required ui.FragmentProgram program,
+    required ui.Image input,
+    required List<SpotMark> spots,
+  }) async {
+    final w = input.width;
+    final h = input.height;
+    final count = spots.length.clamp(0, _kMaxSpots);
+    return runSingleShaderPass(
+      shader: program.fragmentShader(),
+      outputWidth: w,
+      outputHeight: h,
+      samplers: [input],
+      setUniforms: (s) {
+        int i = 0;
+        // uSize
+        s.setFloat(i++, w.toDouble());
+        s.setFloat(i++, h.toDouble());
+        // uSpotCount
+        s.setFloat(i++, count.toDouble());
+        // spot uniforms: 每 spot 5 floats (srcX, srcY, tgtX, tgtY, radius)
+        for (int n = 0; n < _kMaxSpots; n++) {
+          if (n < count) {
+            final spot = spots[n];
+            s.setFloat(i++, spot.source.dx);
+            s.setFloat(i++, spot.source.dy);
+            s.setFloat(i++, spot.target.dx);
+            s.setFloat(i++, spot.target.dy);
+            s.setFloat(i++, spot.radius);
+          } else {
+            // 填零（不会被使用，因为 uSpotCount < n+0.5）
+            for (int j = 0; j < _kSpotUniformsPerSpot; j++) {
+              s.setFloat(i++, 0.0);
+            }
+          }
+        }
+        assert(i == 2 + 1 + _kMaxSpots * _kSpotUniformsPerSpot);
       },
     );
   }

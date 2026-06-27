@@ -18,6 +18,7 @@ class _ShaderBundle {
   final ui.FragmentProgram denoise;
   final ui.FragmentProgram perspective;
   final ui.FragmentProgram lensCorrect;
+  final ui.FragmentProgram spotRemove;
   const _ShaderBundle({
     required this.develop,
     required this.mask,
@@ -25,10 +26,11 @@ class _ShaderBundle {
     required this.denoise,
     required this.perspective,
     required this.lensCorrect,
+    required this.spotRemove,
   });
 }
 
-// 并行加载全部 4 个 shader，首个访问触发批量加载
+// 并行加载全部 7 个 shader，首个访问触发批量加载
 final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
   final results = await Future.wait([
     ui.FragmentProgram.fromAsset('assets/shaders/develop.shader'),
@@ -37,6 +39,7 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     ui.FragmentProgram.fromAsset('assets/shaders/denoise.shader'),
     ui.FragmentProgram.fromAsset('assets/shaders/perspective.shader'),
     ui.FragmentProgram.fromAsset('assets/shaders/lens_correct.shader'),
+    ui.FragmentProgram.fromAsset('assets/shaders/spot_remove.shader'),
   ]);
   for (final p in results) {
     p.fragmentShader(); // 预热编译
@@ -48,6 +51,7 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     denoise: results[3],
     perspective: results[4],
     lensCorrect: results[5],
+    spotRemove: results[6],
   );
 });
 
@@ -84,6 +88,12 @@ final lensCorrectShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   ref,
 ) async {
   return (await ref.watch(_allShadersProvider.future)).lensCorrect;
+});
+
+final spotRemoveShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
+  ref,
+) async {
+  return (await ref.watch(_allShadersProvider.future)).spotRemove;
 });
 
 // 1Hz ticker

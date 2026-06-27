@@ -35,7 +35,8 @@ Future<ui.Image> runSingleShaderPass({
   );
   final picture = recorder.endRecording();
   try {
-    return await picture.toImage(outputWidth, outputHeight);
+    final result = await picture.toImage(outputWidth, outputHeight);
+    return result;
   } finally {
     picture.dispose();
   }

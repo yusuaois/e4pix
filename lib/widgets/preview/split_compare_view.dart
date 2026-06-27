@@ -22,6 +22,7 @@ class SplitCompareView extends ConsumerStatefulWidget {
   final ui.FragmentProgram? denoiseProgram;
   final ui.FragmentProgram? perspectiveProgram;
   final ui.FragmentProgram? lensCorrectProgram;
+  final ui.FragmentProgram? spotRemoveProgram;
 
   const SplitCompareView({
     super.key,
@@ -38,6 +39,7 @@ class SplitCompareView extends ConsumerStatefulWidget {
     this.denoiseProgram,
     this.perspectiveProgram,
     this.lensCorrectProgram,
+    this.spotRemoveProgram,
   });
 
   @override
@@ -102,6 +104,7 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
                             denoiseProgram: widget.denoiseProgram,
                             perspectiveProgram: widget.perspectiveProgram,
                             lensCorrectProgram: widget.lensCorrectProgram,
+                            spotRemoveProgram: widget.spotRemoveProgram,
                           ),
                         ),
                       ),

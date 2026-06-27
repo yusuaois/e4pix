@@ -19,6 +19,7 @@ String keyDisplayName(LogicalKeyboardKey? k) {
 enum AppAction {
   toggleFullscreen,
   compareHold, // hold 型：按下生效、松开恢复
+  samplingHold, // hold 型：污点修复取样模式
   enterCrop,
   rate0,
   rate1,
@@ -34,12 +35,14 @@ enum AppAction {
 
 extension AppActionMeta on AppAction {
   /// 是否 hold 型
-  bool get isHold => this == AppAction.compareHold;
+  bool get isHold =>
+      this == AppAction.compareHold || this == AppAction.samplingHold;
 
   /// 可读标签 key
   String get labelKey => switch (this) {
     AppAction.toggleFullscreen => 'keyActFullscreen',
     AppAction.compareHold => 'keyActCompare',
+    AppAction.samplingHold => 'keyActSampling',
     AppAction.enterCrop => 'keyActCrop',
     AppAction.rate0 => 'keyActRate0',
     AppAction.rate1 => 'keyActRate1',
@@ -58,6 +61,7 @@ extension AppActionMeta on AppAction {
 const Map<AppAction, LogicalKeyboardKey> kDefaultBindings = {
   AppAction.toggleFullscreen: LogicalKeyboardKey.f11,
   AppAction.compareHold: LogicalKeyboardKey.backslash,
+  AppAction.samplingHold: LogicalKeyboardKey.altLeft,
   AppAction.enterCrop: LogicalKeyboardKey.keyR,
   AppAction.rate0: LogicalKeyboardKey.digit0,
   AppAction.rate1: LogicalKeyboardKey.digit1,

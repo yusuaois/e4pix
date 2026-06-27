@@ -20,6 +20,7 @@ import 'color_picker_overlay.dart';
 import 'crop_overlay.dart';
 import 'crop_panel.dart';
 import '../develop/sections/local/local_mask_overlay.dart';
+import '../develop/sections/spot_remove_overlay.dart';
 import 'multi_pass_preview.dart';
 import 'split_compare_view.dart';
 import 'sr_preview_overlay.dart';
@@ -284,12 +285,14 @@ class _PreviewContent extends ConsumerWidget {
         params.denoiseLuma > 0.001 || params.denoiseColor > 0.001;
     final hasLensCorrection = !params.lensCorrection.isNeutral;
     final hasPerspective = !params.perspective.isIdentity;
+    final hasSpots = params.spots.isNotEmpty;
     final needFullPipeline =
         hasLocals ||
         hasSharpen ||
         hasDenoise ||
         hasLensCorrection ||
-        hasPerspective;
+        hasPerspective ||
+        hasSpots;
 
     if (needFullPipeline) {
       final maskProgram = ref.watch(maskShaderProgramProvider).value;
@@ -328,6 +331,7 @@ class _PreviewContent extends ConsumerWidget {
             lensCorrectProgram: ref
                 .watch(lensCorrectShaderProgramProvider)
                 .value,
+            spotRemoveProgram: ref.watch(spotRemoveShaderProgramProvider).value,
             idleMaxEdge: idle,
             draggingMaxEdge: dragging,
           );
@@ -570,6 +574,27 @@ class _PreviewContent extends ConsumerWidget {
     LutState lut,
     bool lutEnabled,
   ) {
+    // 污点修复 overlay
+    final spotState = ref.watch(spotRemoveStateProvider);
+    if (spotState.mode == SpotRemoveMode.active) {
+      content = SizedBox.fromSize(
+        size: displaySize,
+        child: Stack(
+          children: [
+            content,
+            Positioned.fill(
+              child: SpotRemoveOverlay(
+                imageDisplaySize: displaySize,
+                crop: params.crop,
+                sourceWidth: state.uiImage.width,
+                sourceHeight: state.uiImage.height,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final selectedLocalId = ref.watch(selectedLocalIdProvider);
     if (selectedLocalId != null) {
       return _withSrOverlay(
