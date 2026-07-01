@@ -111,21 +111,28 @@ class SpotRemoveNotifier extends StateNotifier<SpotRemoveState> {
 
   void _addSpotRaw(ui.Offset source, ui.Offset target) {
     final params = _ref.read(currentParamsNotifierProvider);
+    final updated = List<SpotMark>.from(params.spots)
+      ..add(
+        SpotMark(
+          source: source,
+          target: target,
+          radius: state.brushRadius,
+          hardness: state.brushHardness,
+        ),
+      );
     _ref
         .read(currentParamsNotifierProvider.notifier)
-        .update(
-          params.copyWith(
-            spots: [
-              ...params.spots,
-              SpotMark(
-                source: source,
-                target: target,
-                radius: state.brushRadius,
-                hardness: state.brushHardness,
-              ),
-            ],
-          ),
-        );
+        .update(params.copyWith(spots: updated));
+  }
+
+  /// 批量添加 spots（笔画结束时一次性提交，只触发一次管线重渲染）
+  void addSpotsBatch(List<SpotMark> spots) {
+    if (spots.isEmpty) return;
+    final params = _ref.read(currentParamsNotifierProvider);
+    final updated = List<SpotMark>.from(params.spots)..addAll(spots);
+    _ref
+        .read(currentParamsNotifierProvider.notifier)
+        .update(params.copyWith(spots: updated));
   }
 
   /// 删除指定 index 的 spot

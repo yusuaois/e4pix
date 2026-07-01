@@ -5,8 +5,68 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/crop_params.dart';
+import '../../../core/models/spot_mark.dart';
 import '../../../state/tools/spot_remove_state.dart';
 import '../../../utils/path_brush_tracker.dart';
+
+// ═══════════════════════════════════════════════════════════
+// 坐标变换工具函数（公有，overlay 和 painter 共用）
+// ═══════════════════════════════════════════════════════════
+
+/// 屏幕坐标（相对 imageDisplaySize）→ 归一化源图坐标 [0..1]
+Offset screenToSourceNorm({
+  required Offset screen,
+  required Size imageDisplaySize,
+  required CropParams crop,
+  required int sourceWidth,
+  required int sourceHeight,
+}) {
+  final nx = (screen.dx / imageDisplaySize.width).clamp(0.0, 1.0);
+  final ny = (screen.dy / imageDisplaySize.height).clamp(0.0, 1.0);
+  final (sx, sy) = crop.outputToSourceNorm(nx, ny, sourceWidth, sourceHeight);
+  return Offset(sx, sy);
+}
+
+/// 归一化源图坐标 [0..1] → 屏幕坐标（相对 imageDisplaySize）
+Offset sourceToScreenNorm({
+  required Offset src,
+  required Size imageDisplaySize,
+  required CropParams crop,
+  required int sourceWidth,
+  required int sourceHeight,
+}) {
+  final (ox, oy) = crop.forwardToOutputNorm(
+    src.dx,
+    src.dy,
+    sourceWidth,
+    sourceHeight,
+  );
+  return Offset(ox * imageDisplaySize.width, oy * imageDisplaySize.height);
+}
+
+/// 将源图半径 r（归一化）转换为屏幕像素半径
+double sourceRadiusToScreen({
+  required double r,
+  required Offset srcCenter,
+  required Size imageDisplaySize,
+  required CropParams crop,
+  required int sourceWidth,
+  required int sourceHeight,
+}) {
+  final (ox0, _) = crop.forwardToOutputNorm(
+    srcCenter.dx,
+    srcCenter.dy,
+    sourceWidth,
+    sourceHeight,
+  );
+  final (ox1, _) = crop.forwardToOutputNorm(
+    srcCenter.dx + r,
+    srcCenter.dy,
+    sourceWidth,
+    sourceHeight,
+  );
+  return (ox1 - ox0).abs() * imageDisplaySize.width;
+}
 
 /// 污点修复交互覆盖层
 ///
@@ -14,6 +74,10 @@ import '../../../utils/path_brush_tracker.dart';
 /// - 按住取样键（默认 Alt）：白色取样圈 + 十字，点击设置源点
 /// - 松开采样键：红色目标圈，点击/拖拽涂抹
 /// - 手机用户可通过 Section 中的 "取样" 按钮切换取样模式
+///
+/// **笔画中即时反馈**：拖拽时，克隆像素直接在 overlay 的 Canvas 上绘制
+/// （[_SpotPainter] 遍历 [_strokeSpots] 逐点绘制），无需等待管线重渲染。
+/// 松手后一次性提交给管线做最终融合（含硬度渐变），同时清空本地预览。
 class SpotRemoveOverlay extends ConsumerStatefulWidget {
   final Size imageDisplaySize;
   final CropParams crop;
@@ -40,6 +104,9 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
   Timer? _exitDebounce;
   PathBrushTracker? _tracker;
   Offset? _paintOffset; // 拖拽时源点相对目标点的固定偏移（PS 仿制图章行为）
+
+  // ── 笔画内本地积攒（不触发管线）──
+  final List<SpotMark> _strokeSpots = [];
 
   @override
   void dispose() {
@@ -75,6 +142,7 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
         onPanStart: (d) => _onPanStart(d.localPosition, state, isSampling),
         onPanUpdate: (d) => _onPanUpdate(d.localPosition, state),
         onPanEnd: (_) => _onPanEnd(),
+        onPanCancel: _onPanCancel,
         behavior: HitTestBehavior.translucent,
         child: CustomPaint(
           size: widget.imageDisplaySize,
@@ -87,29 +155,27 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
             sourceWidth: widget.sourceWidth,
             sourceHeight: widget.sourceHeight,
             cursorPos: _isHovering ? _cursorPos : null,
+            cursorSrc: (_isHovering && _cursorPos != null)
+                ? _screenToSource(_cursorPos!)
+                : null,
             isSampling: isSampling,
             paintOffset: _paintOffset,
             isPainting: _tracker != null,
             sourceImage: widget.sourceImage,
+            strokeSpots: _strokeSpots,
           ),
         ),
       ),
     );
   }
 
-  Offset _screenToSource(Offset screen) {
-    final w = widget.imageDisplaySize.width;
-    final h = widget.imageDisplaySize.height;
-    final nx = (screen.dx / w).clamp(0.0, 1.0);
-    final ny = (screen.dy / h).clamp(0.0, 1.0);
-    final (sx, sy) = widget.crop.outputToSourceNorm(
-      nx,
-      ny,
-      widget.sourceWidth,
-      widget.sourceHeight,
-    );
-    return Offset(sx, sy);
-  }
+  Offset _screenToSource(Offset screen) => screenToSourceNorm(
+    screen: screen,
+    imageDisplaySize: widget.imageDisplaySize,
+    crop: widget.crop,
+    sourceWidth: widget.sourceWidth,
+    sourceHeight: widget.sourceHeight,
+  );
 
   void _onTapDown(Offset pos, SpotRemoveState state, bool isSampling) {
     if (isSampling) {
@@ -134,8 +200,20 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
     final tracker = PathBrushTracker(spacing: state.brushRadius * 0.5);
     tracker.start(target);
     _tracker = tracker;
-    // 起始点直接放置一个 spot
-    ref.read(spotRemoveStateProvider.notifier).addSpot(target);
+    _cursorPos = pos; // 下笔时立刻更新光标位置
+
+    // 开始新笔画：清空本地积攒
+    _strokeSpots.clear();
+
+    // 起始点加入本地列表
+    _strokeSpots.add(
+      SpotMark(
+        source: source,
+        target: target,
+        radius: state.brushRadius,
+        hardness: state.brushHardness,
+      ),
+    );
     setState(() {});
   }
 
@@ -143,26 +221,63 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
     final tracker = _tracker;
     final offset = _paintOffset;
     if (tracker == null || offset == null) return;
-    _cursorPos = pos; // 更新光标位置，让 painter 的源点跟随移动
-    final notifier = ref.read(spotRemoveStateProvider.notifier);
+    _cursorPos = pos;
     for (final t in tracker.move(_screenToSource(pos))) {
       final s = Offset(t.dx + offset.dx, t.dy + offset.dy);
-      notifier.addSpotWithSource(s, t);
+      _strokeSpots.add(
+        SpotMark(
+          source: s,
+          target: t,
+          radius: state.brushRadius,
+          hardness: state.brushHardness,
+        ),
+      );
     }
+    // 触发重绘：_strokeSpots 已新增元素，通知 painter 重绘
+    setState(() {});
   }
 
   void _onPanEnd() {
     final tracker = _tracker;
     final offset = _paintOffset;
     if (tracker != null && offset != null) {
-      final notifier = ref.read(spotRemoveStateProvider.notifier);
+      final s = ref.read(spotRemoveStateProvider);
       for (final t in tracker.end()) {
-        final s = Offset(t.dx + offset.dx, t.dy + offset.dy);
-        notifier.addSpotWithSource(s, t);
+        _strokeSpots.add(
+          SpotMark(
+            source: Offset(t.dx + offset.dx, t.dy + offset.dy),
+            target: t,
+            radius: s.brushRadius,
+            hardness: s.brushHardness,
+          ),
+        );
       }
+    }
+    // 更新 cloneSource 为当前光标位置 + 偏移（PS 行为：松手后源点更新）
+    if (offset != null && _cursorPos != null) {
+      final cursorSrc = _screenToSource(_cursorPos!);
+      ref
+          .read(spotRemoveStateProvider.notifier)
+          .setCloneSource(
+            Offset(cursorSrc.dx + offset.dx, cursorSrc.dy + offset.dy),
+          );
+    }
+    // 笔画结束：一次性提交所有 spots 给管线，然后清空本地预览
+    if (_strokeSpots.isNotEmpty) {
+      ref
+          .read(spotRemoveStateProvider.notifier)
+          .addSpotsBatch(List<SpotMark>.from(_strokeSpots));
+      _strokeSpots.clear();
     }
     _tracker = null;
     // 保留 _paintOffset，松手后源点继续跟随光标移动
+    setState(() {});
+  }
+
+  /// 手势取消（如系统返回手势抢占）：丢弃本地积攒，不提交
+  void _onPanCancel() {
+    _strokeSpots.clear();
+    _tracker = null;
     setState(() {});
   }
 }
@@ -180,10 +295,16 @@ class _SpotPainter extends CustomPainter {
   final int sourceWidth;
   final int sourceHeight;
   final Offset? cursorPos;
+  final Offset? cursorSrc; // 预计算，避免 painter 内重复转换
   final bool isSampling;
   final Offset? paintOffset;
   final bool isPainting;
   final ui.Image? sourceImage;
+
+  /// 笔画中本地积攒的 spots（GPU 管线尚未处理）。
+  /// Painter 逐个绘制硬边克隆圆，提供即时视觉反馈；
+  /// 松手后由管线提交并做硬度融合。
+  final List<SpotMark> strokeSpots;
 
   _SpotPainter({
     required this.cloneSource,
@@ -194,65 +315,44 @@ class _SpotPainter extends CustomPainter {
     required this.sourceWidth,
     required this.sourceHeight,
     required this.cursorPos,
+    required this.cursorSrc,
     required this.isSampling,
     this.paintOffset,
     this.isPainting = false,
     this.sourceImage,
+    this.strokeSpots = const [],
   });
-
-  double _radiusToScreen(double r, Offset center) {
-    final (ox0, _) = crop.forwardToOutputNorm(
-      center.dx,
-      center.dy,
-      sourceWidth,
-      sourceHeight,
-    );
-    final (ox1, _) = crop.forwardToOutputNorm(
-      center.dx + r,
-      center.dy,
-      sourceWidth,
-      sourceHeight,
-    );
-    return (ox1 - ox0).abs() * imageDisplaySize.width;
-  }
-
-  Offset _screenToSrc(Offset screen) {
-    final w = imageDisplaySize.width;
-    final h = imageDisplaySize.height;
-    final nx = (screen.dx / w).clamp(0.0, 1.0);
-    final ny = (screen.dy / h).clamp(0.0, 1.0);
-    final (sx, sy) = crop.outputToSourceNorm(nx, ny, sourceWidth, sourceHeight);
-    return Offset(sx, sy);
-  }
-
-  /// 归一化源图坐标 → 屏幕坐标
-  Offset _srcToScreen(Offset src) {
-    final (ox, oy) = crop.forwardToOutputNorm(
-      src.dx,
-      src.dy,
-      sourceWidth,
-      sourceHeight,
-    );
-    return Offset(ox * imageDisplaySize.width, oy * imageDisplaySize.height);
-  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (cursorPos == null) return;
+    // ── 先绘制笔画中已累积的克隆像素（硬边即时预览）──
+    final img = sourceImage;
+    if (strokeSpots.isNotEmpty && img != null) {
+      for (final spot in strokeSpots) {
+        _drawStrokeSpot(canvas, img, spot);
+      }
+    }
 
-    final cursorSrc = _screenToSrc(cursorPos!);
-    final r = _radiusToScreen(brushRadius, cursorSrc);
+    if (cursorPos == null || cursorSrc == null) return;
+
+    final r = sourceRadiusToScreen(
+      r: brushRadius,
+      srcCenter: cursorSrc!,
+      imageDisplaySize: imageDisplaySize,
+      crop: crop,
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+    );
 
     if (isSampling) {
       // 取样模式：白圈 + 十字
       _drawSamplingCursor(canvas, cursorPos!, r);
     } else if (!isPainting && cloneSource != null && sourceImage != null) {
       // 悬停（未按下）：白圈内显示源点区域预览
-      // 有 paintOffset 时源点跟随光标（PS 仿制图章行为），否则用固定 cloneSource
       final previewSrc = paintOffset != null
           ? Offset(
-              cursorSrc.dx + paintOffset!.dx,
-              cursorSrc.dy + paintOffset!.dy,
+              cursorSrc!.dx + paintOffset!.dx,
+              cursorSrc!.dy + paintOffset!.dy,
             )
           : cloneSource!;
       _drawPreviewCursor(canvas, cursorPos!, r, previewSrc);
@@ -265,19 +365,62 @@ class _SpotPainter extends CustomPainter {
     if (!isSampling && cloneSource != null) {
       final Offset srcScreen;
       if (paintOffset != null) {
-        // 有偏移时源跟随光标
-        srcScreen = _srcToScreen(
-          Offset(
-            cursorSrc.dx + paintOffset!.dx,
-            cursorSrc.dy + paintOffset!.dy,
+        srcScreen = sourceToScreenNorm(
+          src: Offset(
+            cursorSrc!.dx + paintOffset!.dx,
+            cursorSrc!.dy + paintOffset!.dy,
           ),
+          imageDisplaySize: imageDisplaySize,
+          crop: crop,
+          sourceWidth: sourceWidth,
+          sourceHeight: sourceHeight,
         );
       } else {
-        // 无偏移时源在固定位置
-        srcScreen = _srcToScreen(cloneSource!);
+        srcScreen = sourceToScreenNorm(
+          src: cloneSource!,
+          imageDisplaySize: imageDisplaySize,
+          crop: crop,
+          sourceWidth: sourceWidth,
+          sourceHeight: sourceHeight,
+        );
       }
       _drawSourceCrosshair(canvas, srcScreen);
     }
+  }
+
+  /// 绘制单笔克隆圆（硬边，性能优先；硬度融合由管线处理）
+  void _drawStrokeSpot(Canvas canvas, ui.Image img, SpotMark spot) {
+    final screenCenter = sourceToScreenNorm(
+      src: spot.target,
+      imageDisplaySize: imageDisplaySize,
+      crop: crop,
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+    );
+    final screenR = sourceRadiusToScreen(
+      r: spot.radius,
+      srcCenter: spot.target,
+      imageDisplaySize: imageDisplaySize,
+      crop: crop,
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+    );
+    final dstRect = Rect.fromCircle(center: screenCenter, radius: screenR);
+
+    final sx = (spot.source.dx * img.width).clamp(0.0, img.width.toDouble());
+    final sy = (spot.source.dy * img.height).clamp(0.0, img.height.toDouble());
+    final pr = (spot.radius * img.width).clamp(1.0, img.width / 2.0);
+    final srcRect = Rect.fromLTRB(
+      (sx - pr).clamp(0.0, img.width.toDouble()),
+      (sy - pr).clamp(0.0, img.height.toDouble()),
+      (sx + pr).clamp(0.0, img.width.toDouble()),
+      (sy + pr).clamp(0.0, img.height.toDouble()),
+    );
+
+    canvas.save();
+    canvas.clipPath(Path()..addOval(dstRect));
+    canvas.drawImageRect(img, srcRect, dstRect, Paint());
+    canvas.restore();
   }
 
   /// 取样光标：白圈 + 十字（PS 风格）
@@ -367,7 +510,6 @@ class _SpotPainter extends CustomPainter {
     final img = sourceImage;
     if (img == null) return;
 
-    // 源点在源图像中的像素坐标（clamp 到图像范围）
     final sx = (srcNorm.dx * img.width).clamp(0.0, img.width.toDouble());
     final sy = (srcNorm.dy * img.height).clamp(0.0, img.height.toDouble());
     final pr = (brushRadius * img.width).clamp(1.0, img.width / 2.0);
@@ -381,45 +523,51 @@ class _SpotPainter extends CustomPainter {
     final dstRect = Rect.fromCircle(center: screenPos, radius: radius);
 
     if (brushHardness >= 0.99) {
-      // 硬边：简单裁剪
       canvas.save();
       canvas.clipPath(Path()..addOval(dstRect));
       canvas.drawImageRect(img, srcRect, dstRect, Paint());
       canvas.restore();
     } else {
-      // 柔边：渐变 alpha mask，圆圈大小不变，仅边缘透明度渐变
-      // 与 shader smoothstep(r * hardness, r, d) 一致
-      final innerRadius = radius * brushHardness;
+      final t0 = brushHardness.clamp(0.0, 1.0);
+      final span = 1.0 - t0;
+      double ss(double t) => (3 * t * t - 2 * t * t * t).clamp(0.0, 1.0);
       final gradient = ui.Gradient.radial(
         screenPos,
         radius,
         [
           Colors.white,
-          if (innerRadius < radius * 0.99) Colors.white,
+          if (span > 0.01) ...{
+            // 在 t0 处保持全不透明，与 shader smoothstep(inner, r, d) 对齐
+            Colors.white,
+            Colors.white.withValues(alpha: 1.0 - ss(0.25)),
+            Colors.white.withValues(alpha: 1.0 - ss(0.5)),
+            Colors.white.withValues(alpha: 1.0 - ss(0.75)),
+          },
           Colors.transparent,
         ],
         [
           0.0,
-          if (innerRadius < radius * 0.99)
-            (innerRadius / radius).clamp(0.0, 1.0),
+          if (span > 0.01) ...{
+            t0,
+            t0 + span * 0.25,
+            t0 + span * 0.5,
+            t0 + span * 0.75,
+          },
           1.0,
         ],
       );
 
       canvas.saveLayer(dstRect, Paint());
-      // 底层：源图
       canvas.drawImageRect(img, srcRect, dstRect, Paint());
-      // 上层：渐变 mask（dstIn 用上层 alpha 裁切底层）
       canvas.drawRect(
         dstRect,
         Paint()
           ..shader = gradient
           ..blendMode = ui.BlendMode.dstIn,
       );
-      canvas.restore(); // saveLayer
+      canvas.restore();
     }
 
-    // 白色边框始终在圆圈边缘
     canvas.drawCircle(
       screenPos,
       radius,
@@ -436,8 +584,14 @@ class _SpotPainter extends CustomPainter {
       old.brushRadius != brushRadius ||
       old.brushHardness != brushHardness ||
       old.cursorPos != cursorPos ||
+      old.cursorSrc != cursorSrc ||
       old.isSampling != isSampling ||
       old.isPainting != isPainting ||
       old.paintOffset != paintOffset ||
-      old.sourceImage != sourceImage;
+      old.sourceImage != sourceImage ||
+      old.strokeSpots.length != strokeSpots.length ||
+      old.imageDisplaySize != imageDisplaySize ||
+      old.crop != crop ||
+      old.sourceWidth != sourceWidth ||
+      old.sourceHeight != sourceHeight;
 }
