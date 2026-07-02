@@ -224,12 +224,6 @@ class _ToolRail extends StatelessWidget {
               onTap: () => onSelect(DevelopTool.spotRemove),
             ),
             _RailItem(
-              icon: Icons.border_style,
-              tooltip: tr('watermark'),
-              selected: selected == DevelopTool.watermark,
-              onTap: () => onSelect(DevelopTool.watermark),
-            ),
-            _RailItem(
               icon: Icons.camera_outlined,
               tooltip: tr('lens'),
               selected: selected == DevelopTool.lens,
@@ -240,6 +234,12 @@ class _ToolRail extends StatelessWidget {
               tooltip: tr('superResolution'),
               selected: selected == DevelopTool.sr,
               onTap: () => onSelect(DevelopTool.sr),
+            ),
+            _RailItem(
+              icon: Icons.border_style,
+              tooltip: tr('watermark'),
+              selected: selected == DevelopTool.watermark,
+              onTap: () => onSelect(DevelopTool.watermark),
             ),
             const SizedBox(height: 8),
           ],

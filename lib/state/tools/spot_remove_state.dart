@@ -71,8 +71,8 @@ class SpotRemoveNotifier extends StateNotifier<SpotRemoveState> {
 
   /// 设置取样源点（Alt+点击 / 取样按钮点击）
   ///
-  /// 设完源点后自动关闭取样按钮，与 Alt 松手行为一致。
-  /// 否则用取样按钮时第二次点击仍走 setCloneSource 而非 addSpot。
+  /// 设完源点后自动关闭取样按钮，与 Alt 松手行为一致
+  /// 否则用取样按钮时第二次点击仍走 setCloneSource 而非 addSpot
   void setCloneSource(ui.Offset source) {
     state = state.copyWith(cloneSource: source, samplingButtonOn: false);
   }

@@ -96,9 +96,9 @@ class _VerticalAdjustmentPanelState
                         Tab(text: tr("preset"), height: 36),
                         Tab(text: tr("local"), height: 36),
                         Tab(text: tr("spotRemoveTitle"), height: 36),
-                        Tab(text: tr("watermark"), height: 36),
                         Tab(text: tr("lens"), height: 36),
                         Tab(text: tr('superResolution'), height: 36),
+                        Tab(text: tr("watermark"), height: 36),
                       ],
                     ),
                   ),
@@ -162,10 +162,6 @@ class _VerticalAdjustmentPanelState
                 ),
                 _LazyBuild(
                   builder: (_) =>
-                      const SingleChildScrollView(child: WatermarkSection()),
-                ),
-                _LazyBuild(
-                  builder: (_) =>
                       const SingleChildScrollView(child: LensSection()),
                 ),
                 _LazyBuild(
@@ -175,6 +171,10 @@ class _VerticalAdjustmentPanelState
                       onChanged: widget.onChanged,
                     ),
                   ),
+                ),
+                _LazyBuild(
+                  builder: (_) =>
+                      const SingleChildScrollView(child: WatermarkSection()),
                 ),
               ],
             ),

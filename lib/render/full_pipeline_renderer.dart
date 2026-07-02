@@ -339,7 +339,7 @@ class FullPipelineRenderer {
         debugPrint('[Pipeline] Mask pass failed for ${local.id}: $e');
       }
     }
-    
+
     // Spot removal
     if (params.spots.isNotEmpty && spotRemoveProgram != null) {
       try {
@@ -348,7 +348,7 @@ class FullPipelineRenderer {
         // 1. Spots hash 缓存
         final spotsCache = spotRemovalCache?.getFromSpotsCache(params.spots);
         if (spotsCache != null) {
-          spotRemoved = spotsCache.clone();
+          spotRemoved = spotsCache;
         } else {
           // 2. 增量缓存
           final incremental = spotRemovalCache?.getIncremental(
@@ -361,7 +361,7 @@ class FullPipelineRenderer {
           bool batchInputOwned;
 
           if (incremental != null) {
-            batchInput = incremental.$1.clone();
+            batchInput = incremental.$1;
             startIdx = incremental.$2;
             batchInputOwned = true;
           } else {
@@ -377,14 +377,20 @@ class FullPipelineRenderer {
               i,
               (i + _kMaxSpots).clamp(0, params.spots.length),
             );
-            final result = await _runSpotRemovePass(
-              program: spotRemoveProgram,
-              input: batchInput,
-              spots: batch,
-            );
-            if (batchInputOwned) batchInput.dispose();
-            batchInput = result;
-            batchInputOwned = true;
+            try {
+              final result = await _runSpotRemovePass(
+                program: spotRemoveProgram,
+                input: batchInput,
+                spots: batch,
+              );
+              if (batchInputOwned) batchInput.dispose();
+              batchInput = result;
+              batchInputOwned = true;
+            } catch (e) {
+              // 异常时 dispose 当前 batchInput，防止 GPU 内存泄漏
+              if (batchInputOwned) batchInput.dispose();
+              rethrow;
+            }
           }
           spotRemoved = batchInput;
 

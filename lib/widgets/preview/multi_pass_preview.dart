@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
@@ -106,7 +105,6 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     _developCache.dispose();
     _brushCache.dispose();
     _spotRemovalCache.dispose();
-    // developOutput 由下一次渲染或 GC 回收，不在此处用 ref（已卸载不安全）
     super.dispose();
   }
 
@@ -156,7 +154,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
 
       if (gen != _generation || !mounted) {
         result.finalImage.dispose();
-        result.developOutput?.dispose();
+        // developOutput 由下一次 update() 调用回收，此处不 dispose
         return;
       }
       final old = _rendered;
@@ -164,22 +162,11 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       old?.dispose();
 
       // 先更新 spots hash（overlay 用它判断"含本次描边的渲染是否完成"）
-      final spotsHash = Object.hashAll(
-        widget.params.spots.map((s) => s.hashCode),
-      );
+      final spotsHash = SpotRemovalCache.computeSpotsKey(widget.params.spots);
       ref.read(renderedSpotsHashProvider.notifier).state = spotsHash;
 
       // 更新 Develop 输出供 spot removal overlay 笔画预览
-      final oldDev = ref.read(developOutputProvider);
-      ref.read(developOutputProvider.notifier).state = result.developOutput;
-      if (oldDev != null && oldDev != result.developOutput) {
-        // 延迟一帧再 dispose 旧纹理，避免 GPU 并发冲突
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          try {
-            oldDev.dispose();
-          } catch (_) {}
-        });
-      }
+      ref.read(developOutputProvider.notifier).update(result.developOutput);
 
       // 递增渲染代数，通知 preview_area 刷新 develop 输出
       ref.read(renderedPreviewGenerationProvider.notifier).state++;

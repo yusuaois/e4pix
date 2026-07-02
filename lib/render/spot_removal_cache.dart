@@ -30,21 +30,21 @@ class SpotRemovalCache {
       Object.hashAll(spots.map((s) => s.hashCode));
 
   /// 第一级缓存命中：spots 列表未变（参数拖动期间）
-  /// 返回内部持有的引用，调用方需 clone 后使用。
+  /// 返回 clone，调用方拥有所有权，无需再 clone
   ui.Image? getFromSpotsCache(List<SpotMark> spots) {
     if (spots.isEmpty || _spotsResult == null) return null;
-    return computeSpotsKey(spots) == _spotsKey ? _spotsResult : null;
+    return computeSpotsKey(spots) == _spotsKey ? _spotsResult?.clone() : null;
   }
 
-  /// 第二级缓存命中：返回 (中间结果, 已渲染到的 spot index)
-  /// 调用方从返回的 index 继续渲染剩余 spots。
+  /// 第二级缓存命中：返回 (中间结果 clone, 已渲染到的 spot index)
+  /// 返回 clone，调用方拥有所有权，无需再 clone
   (ui.Image, int)? getIncremental(int developKey, List<SpotMark> allSpots) {
     if (_rollingResult == null) return null;
     if (developKey != _rollingDevKey) return null;
     if (_rollingSpotCount == 0 || _rollingSpotCount > allSpots.length) {
       return null;
     }
-    return (_rollingResult!, _rollingSpotCount);
+    return (_rollingResult!.clone(), _rollingSpotCount);
   }
 
   void putSpotsCache(List<SpotMark> spots, ui.Image result) {

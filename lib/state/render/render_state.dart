@@ -97,18 +97,42 @@ final spotRemoveShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   return (await ref.watch(_allShadersProvider.future)).spotRemove;
 });
 
-/// 管道渲染完成计数器。每次 full-pipeline 渲染产出新帧 +1。
-/// spot removal overlay 用它感知"已提交的笔画已管线合成完毕"，然后清除本地预览。
+/// 管道渲染完成计数器每次 full-pipeline 渲染产出新帧 +1
+/// spot removal overlay 用它感知"已提交的笔画已管线合成完毕"，然后清除本地预览
 final renderedPreviewGenerationProvider = StateProvider<int>((ref) => 0);
 
-/// 最后一次渲染完成时使用的 spots 列表哈希。
+/// 最后一次渲染完成时使用的 spots 列表哈希
 /// overlay 用此信号判断"包含本次描边的渲染是否已完成"——
-/// 只有 hash 匹配时才清除 committed preview，避免被无关渲染误触发。
+/// 只有 hash 匹配时才清除 committed preview，避免被无关渲染误触发
 final renderedSpotsHashProvider = StateProvider<int>((ref) => 0);
 
-/// Develop pass 输出快照（spot removal 激活时非空）。
-/// spot removal overlay 用它做笔画预览，替代原始未处理源图。
-final developOutputProvider = StateProvider<ui.Image?>((ref) => null);
+/// Develop pass 输出快照（spot removal 激活时非空）
+/// spot removal overlay 用它做笔画预览，替代原始未处理源图
+///
+/// 使用 Notifier 集中管理旧纹理的 dispose：update() 自动延迟一帧释放旧图
+/// 避免 GPU 并发冲突 调用方无需手动管理生命周期
+class DevelopOutputNotifier extends Notifier<ui.Image?> {
+  @override
+  ui.Image? build() => null;
+
+  void update(ui.Image? newImage) {
+    final old = state;
+    state = newImage;
+    if (old != null && old != newImage) {
+      // 延迟一帧再 dispose 旧纹理，避免 GPU 并发冲突
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        try {
+          old.dispose();
+        } catch (_) {}
+      });
+    }
+  }
+}
+
+final developOutputProvider =
+    NotifierProvider<DevelopOutputNotifier, ui.Image?>(
+      DevelopOutputNotifier.new,
+    );
 
 // 1Hz ticker
 final tickerProvider = StreamProvider<int>((ref) async* {

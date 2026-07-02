@@ -7,12 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/crop_params.dart';
 import '../../../core/models/spot_mark.dart';
+import '../../../render/spot_removal_cache.dart';
 import '../../../state/providers.dart';
 import '../../../utils/path_brush_tracker.dart';
 
-// ═══════════════════════════════════════════════════════════
-// 坐标变换工具函数（公有，overlay 和 painter 共用）
-// ═══════════════════════════════════════════════════════════
+// 坐标变换工具函数
 
 /// 屏幕坐标（相对 imageDisplaySize）→ 归一化源图坐标 [0..1]
 Offset screenToSourceNorm({
@@ -77,8 +76,8 @@ double sourceRadiusToScreen({
 /// - 手机用户可通过 Section 中的 "取样" 按钮切换取样模式
 ///
 /// **笔画中即时反馈**：拖拽时，克隆像素直接在 overlay 的 Canvas 上绘制
-/// （[_SpotPainter] 遍历 [_strokeSpots] 逐点绘制），无需等待管线重渲染。
-/// 松手后一次性提交给管线做最终融合（含硬度渐变），同时清空本地预览。
+/// （[_SpotPainter] 遍历 [_strokeSpots] 逐点绘制），无需等待管线重渲染
+/// 松手后一次性提交给管线做最终融合（含硬度渐变），同时清空本地预览
 class SpotRemoveOverlay extends ConsumerStatefulWidget {
   final Size imageDisplaySize;
   final CropParams crop;
@@ -111,7 +110,7 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
 
   // ── 已提交但管线尚未渲染完成的预览（避免松手后画面消失）──
   bool _isCommitting = false;
-  List<SpotMark> _committedPreview = [];
+  final List<SpotMark> _committedPreview = [];
   int _committedSpotsHash = 0; // 描边提交时的 spots hash，用于匹配渲染结果
 
   @override
@@ -202,18 +201,37 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
           .read(spotRemoveStateProvider.notifier)
           .setCloneSource(_screenToSource(pos));
     } else {
-      // addSpot 内部已有 cloneSource == null 保护
-      ref.read(spotRemoveStateProvider.notifier).addSpot(_screenToSource(pos));
+      final target = _screenToSource(pos);
+      // 保持已建立的偏移关系：先更新 cloneSource 再创建 spot
+      final offset = _paintOffset;
+      if (offset != null) {
+        ref
+            .read(spotRemoveStateProvider.notifier)
+            .setCloneSource(
+              Offset(target.dx + offset.dx, target.dy + offset.dy),
+            );
+      }
+      ref.read(spotRemoveStateProvider.notifier).addSpot(target);
     }
   }
 
   void _onPanStart(Offset pos, SpotRemoveState state, bool isSampling) {
     if (isSampling) return;
-    final source = state.cloneSource;
-    if (source == null) return;
     final target = _screenToSource(pos);
-    // 首次下笔时记录偏移，后续下笔复用同一偏移（PS 仿制图章行为）
-    _paintOffset ??= Offset(source.dx - target.dx, source.dy - target.dy);
+    final Offset source;
+    if (_paintOffset != null) {
+      // 已有偏移：从 target + 偏移反算 source，保持偏移一致性
+      source = Offset(
+        target.dx + _paintOffset!.dx,
+        target.dy + _paintOffset!.dy,
+      );
+    } else {
+      // 首次下笔：从 cloneSource 建立偏移
+      final cs = state.cloneSource;
+      if (cs == null) return;
+      source = cs;
+      _paintOffset = Offset(source.dx - target.dx, source.dy - target.dy);
+    }
     final tracker = PathBrushTracker(spacing: state.brushRadius * 0.5);
     tracker.start(target);
     _tracker = tracker;
@@ -285,11 +303,11 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
           .read(spotRemoveStateProvider.notifier)
           .addSpotsBatch(List<SpotMark>.from(_strokeSpots));
       // 记录提交后的 spots hash，用于匹配"含本次描边的渲染"
-      _committedSpotsHash = Object.hashAll(
-        ref.read(currentParamsNotifierProvider).spots.map((s) => s.hashCode),
+      _committedSpotsHash = SpotRemovalCache.computeSpotsKey(
+        ref.read(currentParamsNotifierProvider).spots,
       );
       // 将笔画移入已提交预览——管线渲染完成前继续绘制这些圆
-      _committedPreview = List<SpotMark>.from(_strokeSpots);
+      _committedPreview.addAll(_strokeSpots);
       _isCommitting = true;
       _strokeSpots.clear();
     }
@@ -417,30 +435,60 @@ class _SpotPainter extends CustomPainter {
     }
   }
 
-  /// 绘制单笔克隆圆（硬边即时预览；硬度融合由管线 shader 处理）
+  /// 计算 OOB 比例映射矩形
   ///
-  /// OOB 处理：采样区域按与图像边界的交集做比例映射，
-  /// 只绘制有效像素，界外部分透明（不拉伸边缘像素）。
-  void _drawStrokeSpot(Canvas canvas, ui.Image img, SpotMark spot) {
-    final sxRaw = spot.source.dx * img.width;
-    final syRaw = spot.source.dy * img.height;
-    final pr = (spot.radius * img.width).clamp(1.0, img.width / 2.0);
-
-    // 采样区域的原始矩形（可能超出图像边界）
+  /// 输入：源矩形在像素空间的中心 (sxRaw, syRaw) 与半径 pr，
+  /// 目标圆在屏幕空间的中心 (screenCenterX, screenCenterY) 与半径 screenR
+  /// 返回 null 表示采样区域完全在图像外，无需绘制
+  ({Rect srcRect, Rect dstRect, Rect fullDstRect})? _computeOOBRects({
+    required double sxRaw,
+    required double syRaw,
+    required double pr,
+    required ui.Image img,
+    required double screenCenterX,
+    required double screenCenterY,
+    required double screenR,
+  }) {
     final rawLeft = sxRaw - pr;
     final rawTop = syRaw - pr;
     final rawRight = sxRaw + pr;
     final rawBottom = syRaw + pr;
     final rawSize = pr * 2;
 
-    // 与图像边界取交集
     final clLeft = rawLeft.clamp(0.0, img.width.toDouble());
     final clTop = rawTop.clamp(0.0, img.height.toDouble());
     final clRight = rawRight.clamp(0.0, img.width.toDouble());
     final clBottom = rawBottom.clamp(0.0, img.height.toDouble());
 
-    // 交集为空（采样区域完全在图像外）→ 透明，跳过
-    if (clRight <= clLeft || clBottom <= clTop) return;
+    if (clRight <= clLeft || clBottom <= clTop) return null;
+
+    final srcRect = Rect.fromLTRB(clLeft, clTop, clRight, clBottom);
+    final leftFrac = (clLeft - rawLeft) / rawSize;
+    final topFrac = (clTop - rawTop) / rawSize;
+    final rightFrac = (clRight - rawLeft) / rawSize;
+    final bottomFrac = (clBottom - rawTop) / rawSize;
+    final dstSize = screenR * 2;
+    final dstRect = Rect.fromLTRB(
+      screenCenterX - screenR + leftFrac * dstSize,
+      screenCenterY - screenR + topFrac * dstSize,
+      screenCenterX - screenR + rightFrac * dstSize,
+      screenCenterY - screenR + bottomFrac * dstSize,
+    );
+    final fullDstRect = Rect.fromCircle(
+      center: Offset(screenCenterX, screenCenterY),
+      radius: screenR,
+    );
+    return (srcRect: srcRect, dstRect: dstRect, fullDstRect: fullDstRect);
+  }
+
+  /// 绘制单笔克隆圆（硬边即时预览；硬度融合由管线 shader 处理）
+  ///
+  /// OOB 处理：采样区域按与图像边界的交集做比例映射，
+  /// 只绘制有效像素，界外部分透明（不拉伸边缘像素）
+  void _drawStrokeSpot(Canvas canvas, ui.Image img, SpotMark spot) {
+    final sxRaw = spot.source.dx * img.width;
+    final syRaw = spot.source.dy * img.height;
+    final pr = (spot.radius * img.width).clamp(1.0, img.width / 2.0);
 
     // 目标圆在屏幕上的位置（完整的圆）
     final screenCenter = sourceToScreenNorm(
@@ -459,30 +507,21 @@ class _SpotPainter extends CustomPainter {
       sourceHeight: sourceHeight,
     );
 
-    // srcRect = 有效采样区域（clamp 后可能不是正方形）
-    final srcRect = Rect.fromLTRB(clLeft, clTop, clRight, clBottom);
-
-    // dstRect = 按比例映射到目标圆内
-    // 有效区域在原始正方形中的相对位置 → 映射到目标圆的包围正方形中
-    final leftFrac = (clLeft - rawLeft) / rawSize;
-    final topFrac = (clTop - rawTop) / rawSize;
-    final rightFrac = (clRight - rawLeft) / rawSize;
-    final bottomFrac = (clBottom - rawTop) / rawSize;
-    final dstSize = screenR * 2;
-    final dstRect = Rect.fromLTRB(
-      screenCenter.dx - screenR + leftFrac * dstSize,
-      screenCenter.dy - screenR + topFrac * dstSize,
-      screenCenter.dx - screenR + rightFrac * dstSize,
-      screenCenter.dy - screenR + bottomFrac * dstSize,
+    final rects = _computeOOBRects(
+      sxRaw: sxRaw,
+      syRaw: syRaw,
+      pr: pr,
+      img: img,
+      screenCenterX: screenCenter.dx,
+      screenCenterY: screenCenter.dy,
+      screenR: screenR,
     );
-
-    // 目标圆的完整包围盒（用于 clipOval）
-    final fullDstRect = Rect.fromCircle(center: screenCenter, radius: screenR);
+    if (rects == null) return;
 
     // clip 到圆形后绘制（只绘制 dstRect 与圆的交集部分）
     canvas.save();
-    canvas.clipPath(Path()..addOval(fullDstRect));
-    canvas.drawImageRect(img, srcRect, dstRect, _imagePaint);
+    canvas.clipPath(Path()..addOval(rects.fullDstRect));
+    canvas.drawImageRect(img, rects.srcRect, rects.dstRect, _imagePaint);
     canvas.restore();
   }
 
@@ -562,7 +601,7 @@ class _SpotPainter extends CustomPainter {
   /// 悬停预览：白圈内显示源点区域的圆形预览，边缘根据硬度显示柔边渐变
   ///
   /// OOB 处理：与 _drawStrokeSpot 一致的比例映射——
-  /// 只绘制有效像素区域，界外部分透明。
+  /// 只绘制有效像素区域，界外部分透明
   void _drawPreviewCursor(
     Canvas canvas,
     Offset screenPos,
@@ -576,41 +615,25 @@ class _SpotPainter extends CustomPainter {
     final sryRaw = srcNorm.dy * img.height;
     final pr = (brushRadius * img.width).clamp(1.0, img.width / 2.0);
 
-    final rawLeft = srxRaw - pr;
-    final rawTop = sryRaw - pr;
-    final rawRight = srxRaw + pr;
-    final rawBottom = sryRaw + pr;
-    final rawSize = pr * 2;
-
-    final clLeft = rawLeft.clamp(0.0, img.width.toDouble());
-    final clTop = rawTop.clamp(0.0, img.height.toDouble());
-    final clRight = rawRight.clamp(0.0, img.width.toDouble());
-    final clBottom = rawBottom.clamp(0.0, img.height.toDouble());
-
-    if (clRight <= clLeft || clBottom <= clTop) {
+    final rects = _computeOOBRects(
+      sxRaw: srxRaw,
+      syRaw: sryRaw,
+      pr: pr,
+      img: img,
+      screenCenterX: screenPos.dx,
+      screenCenterY: screenPos.dy,
+      screenR: radius,
+    );
+    if (rects == null) {
       // 采样区域完全在界外：只显示轮廓圆，不显示内容预览
       _drawTargetCursor(canvas, screenPos, radius);
       return;
     }
 
-    final srcRect = Rect.fromLTRB(clLeft, clTop, clRight, clBottom);
-    final leftFrac = (clLeft - rawLeft) / rawSize;
-    final topFrac = (clTop - rawTop) / rawSize;
-    final rightFrac = (clRight - rawLeft) / rawSize;
-    final bottomFrac = (clBottom - rawTop) / rawSize;
-    final dstSize = radius * 2;
-    final dstRect = Rect.fromLTRB(
-      screenPos.dx - radius + leftFrac * dstSize,
-      screenPos.dy - radius + topFrac * dstSize,
-      screenPos.dx - radius + rightFrac * dstSize,
-      screenPos.dy - radius + bottomFrac * dstSize,
-    );
-    final fullDstRect = Rect.fromCircle(center: screenPos, radius: radius);
-
     if (brushHardness >= 0.99) {
       canvas.save();
-      canvas.clipPath(Path()..addOval(fullDstRect));
-      canvas.drawImageRect(img, srcRect, dstRect, _imagePaint);
+      canvas.clipPath(Path()..addOval(rects.fullDstRect));
+      canvas.drawImageRect(img, rects.srcRect, rects.dstRect, _imagePaint);
       canvas.restore();
     } else {
       final t0 = brushHardness.clamp(0.0, 1.0);
@@ -641,10 +664,10 @@ class _SpotPainter extends CustomPainter {
         ],
       );
 
-      canvas.saveLayer(fullDstRect, Paint());
-      canvas.drawImageRect(img, srcRect, dstRect, _imagePaint);
+      canvas.saveLayer(rects.fullDstRect, Paint());
+      canvas.drawImageRect(img, rects.srcRect, rects.dstRect, _imagePaint);
       canvas.drawRect(
-        fullDstRect,
+        rects.fullDstRect,
         Paint()
           ..shader = gradient
           ..blendMode = ui.BlendMode.dstIn,

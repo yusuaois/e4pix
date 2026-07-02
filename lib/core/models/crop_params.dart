@@ -157,8 +157,8 @@ class CropParams {
 
   /// 正向变换：归一化源图坐标 [0..1] → 归一化输出坐标 [0..1]
   ///
-  /// 与 [outputToSourceNorm] 互为逆运算。
-  /// 用于将污点标记（源图坐标）映射到屏幕显示位置。
+  /// 与 [outputToSourceNorm] 互为逆运算
+  /// 用于将污点标记（源图坐标）映射到屏幕显示位置
   (double, double) forwardToOutputNorm(
     double sx,
     double sy,

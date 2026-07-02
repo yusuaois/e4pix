@@ -72,7 +72,16 @@ class WatermarkPreview extends ConsumerWidget {
     final hasSharpen = params.sharpenAmount > 0.001;
     final hasDenoise =
         params.denoiseLuma > 0.001 || params.denoiseColor > 0.001;
-    final needFullPipeline = hasLocals || hasSharpen || hasDenoise;
+    final hasSpots = params.spots.isNotEmpty;
+    final hasLensCorrection = !params.lensCorrection.isNeutral;
+    final hasPerspective = !params.perspective.isIdentity;
+    final needFullPipeline =
+        hasLocals ||
+        hasSharpen ||
+        hasDenoise ||
+        hasLensCorrection ||
+        hasPerspective ||
+        hasSpots;
 
     if (needFullPipeline) {
       final maskProgram = ref.watch(maskShaderProgramProvider).value;
@@ -96,6 +105,9 @@ class WatermarkPreview extends ConsumerWidget {
           curveTexture: ref.watch(effectiveCurveTextureProvider),
           sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
           denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
+          perspectiveProgram: ref.watch(perspectiveShaderProgramProvider).value,
+          lensCorrectProgram: ref.watch(lensCorrectShaderProgramProvider).value,
+          spotRemoveProgram: ref.watch(spotRemoveShaderProgramProvider).value,
           geometry: geometry,
         ),
         backgroundLayer: _buildBackground(
@@ -414,6 +426,9 @@ class _ComplexImageLayer extends ConsumerWidget {
   final ui.Image? curveTexture;
   final ui.FragmentProgram? sharpenProgram;
   final ui.FragmentProgram? denoiseProgram;
+  final ui.FragmentProgram? perspectiveProgram;
+  final ui.FragmentProgram? lensCorrectProgram;
+  final ui.FragmentProgram? spotRemoveProgram;
   final WatermarkGeometry geometry;
 
   const _ComplexImageLayer({
@@ -428,6 +443,9 @@ class _ComplexImageLayer extends ConsumerWidget {
     this.curveTexture,
     this.sharpenProgram,
     this.denoiseProgram,
+    this.perspectiveProgram,
+    this.lensCorrectProgram,
+    this.spotRemoveProgram,
     required this.geometry,
   });
 
@@ -456,6 +474,9 @@ class _ComplexImageLayer extends ConsumerWidget {
         curveTexture: curveTexture,
         sharpenProgram: sharpenProgram,
         denoiseProgram: denoiseProgram,
+        perspectiveProgram: perspectiveProgram,
+        lensCorrectProgram: lensCorrectProgram,
+        spotRemoveProgram: spotRemoveProgram,
         idleMaxEdge: slotLongest,
         draggingMaxEdge: (slotLongest * 0.5).ceil().clamp(200, dragging),
       ),
