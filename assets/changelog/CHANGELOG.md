@@ -1,4 +1,5 @@
 ## 🚀 新功能 (New Features)
+* **污点修复（Spot Removal / Clone Stamp）**：点击取样，涂抹即可将源区域像素克隆到目标位置，实现瑕疵/污点修复。
 * **Top Bar 多选模式过渡动画**：进入/退出多选模式时左侧区 220ms cross-fade 过渡（`AnimatedSwitcher`），符合项目统一动画规范
 * **Debug Log 分组折叠**：按 Tag 分组显示日志，每组可折叠/展开，支持一键 Expand All / Collapse All
 * **Debug Log 时间范围筛选**：新增 1m / 5m / All 时间范围过滤，快速定位近期日志
