@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -10,6 +9,7 @@ import '../../core/models/rgb_curves.dart';
 import '../../render/curve_baker.dart';
 import '../../render/lut_texture_cache.dart';
 import '../providers.dart';
+import '../utils/texture_notifier.dart';
 
 @immutable
 class _ShaderBundle {
@@ -109,24 +109,14 @@ final renderedSpotsHashProvider = StateProvider<int>((ref) => 0);
 /// Develop pass 输出快照（spot removal 激活时非空）
 /// spot removal overlay 用它做笔画预览，替代原始未处理源图
 ///
-/// 使用 Notifier 集中管理旧纹理的 dispose：update() 自动延迟一帧释放旧图
-/// 避免 GPU 并发冲突 调用方无需手动管理生命周期
-class DevelopOutputNotifier extends Notifier<ui.Image?> {
+/// 通过 [TextureNotifier] mixin 集中管理旧纹理的 dispose：
+/// [update] 自动延迟一帧释放旧图，避免 GPU 并发冲突
+/// 调用方无需手动管理生命周期
+class DevelopOutputNotifier extends Notifier<ui.Image?> with TextureNotifier {
   @override
   ui.Image? build() => null;
 
-  void update(ui.Image? newImage) {
-    final old = state;
-    state = newImage;
-    if (old != null && old != newImage) {
-      // 延迟一帧再 dispose 旧纹理，避免 GPU 并发冲突
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        try {
-          old.dispose();
-        } catch (_) {}
-      });
-    }
-  }
+  void update(ui.Image? newImage) => updateTexture(newImage);
 }
 
 final developOutputProvider =
@@ -241,15 +231,18 @@ final lutNotifierProvider = NotifierProvider<LutNotifier, LutState>(
 // ── 曲线纹理 ──
 
 /// 持有当前曲线烘出的 256×4 纹理（行0=主 行1=R 行2=G 行3=B）
-class CurveTextureNotifier extends Notifier<ui.Image?> {
-  ui.Image? _held;
+///
+/// 通过 [TextureNotifier] mixin 管理纹理生命周期
+/// [update] 是 async 操作（[bakeCurveTexture]），完成后需检查 [_disposed] 守卫，
+/// 防止 Provider 已销毁后赋值
+class CurveTextureNotifier extends Notifier<ui.Image?> with TextureNotifier {
   bool _disposed = false;
 
   @override
   ui.Image? build() {
     ref.onDispose(() {
       _disposed = true;
-      _held?.dispose();
+      state?.dispose();
     });
     return null;
   }
@@ -261,21 +254,7 @@ class CurveTextureNotifier extends Notifier<ui.Image?> {
       img?.dispose();
       return;
     }
-    _swap(img);
-  }
-
-  void _swap(ui.Image? next) {
-    final old = _held;
-    _held = next;
-    state = next;
-    if (old != null && old != next) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_disposed) return;
-        try {
-          old.dispose();
-        } catch (_) {}
-      });
-    }
+    updateTexture(img);
   }
 }
 

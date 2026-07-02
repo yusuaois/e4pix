@@ -299,18 +299,18 @@ assert(i == 2 + 1 + _kMaxSpots * _kSpotUniformsPerSpot);
 - 新增 1-32 spots（同参数）：增量渲染，1 pass
 - 参数变化 + 大量 spots：全量重算，O(N/32) passes
 
-### 10.4 待提取的公共组件
+### 10.4 已提取/待提取的公共组件
 
-以下方法/类可提取供未来其他画笔使用：
+以下方法/类可供未来其他画笔使用：
 
-| 组件 | 位置 | 可复用场景 |
-|------|------|-----------|
-| `_computeOOBRects()` | `spot_remove_overlay.dart` | 任何需要圆形预览 + OOB 处理的画笔（修复画笔、加深减淡） |
-| `PathBrushTracker` | `utils/path_brush_tracker.dart` | 任何需要沿路径均匀采样点的画笔 |
-| `SpotRemovalCache` 模式 | `spot_removal_cache.dart` | 可抽象为 `IncrementalRenderCache<K, V>` 用于其他需要增量渲染的工具 |
-| `DevelopOutputNotifier` 模式 | `render_state.dart` | 可提取为 `TextureNotifier` mixin，任何管理 GPU 纹理生命周期的 Provider 复用 |
-| `screenToSource / sourceToScreen` | `spot_remove_overlay.dart` 顶部 | 任何需要在屏幕坐标和全图坐标间转换的工具 |
-| `_drawStrokeSpot` 的 clipOval + drawImageRect 模式 | `spot_remove_overlay.dart` | 任何需要圆形硬边预览的画笔 |
+| 组件 | 原位置 | 提取目标 | 状态 |
+|------|--------|---------|------|
+| `screenToSourceNorm()` / `sourceToScreenNorm()` / `sourceRadiusToScreen()` | `spot_remove_overlay.dart` 顶部 | `lib/utils/brush_coord_utils.dart` | ✅ 已提取（2026-07-02） |
+| `_computeOOBRects()` | `spot_remove_overlay.dart:_SpotPainter` | `lib/utils/brush_preview_utils.dart` `computeOOBRects()` | ✅ 已提取（2026-07-02） |
+| `DevelopOutputNotifier` 模式 | `render_state.dart` | `lib/state/utils/texture_notifier.dart` `TextureNotifier` mixin | ✅ 已提取（2026-07-02） |
+| `PathBrushTracker` | `utils/path_brush_tracker.dart` | — | ⏸️ 已是公共工具，满足当前需求。可变间距/压力感应/自适应采样待未来需求驱动 |
+| `SpotRemovalCache` 模式 | `spot_removal_cache.dart` | `IncrementalRenderCache<K, V>` (待定) | ⏸️ 仅一个消费者，过早抽象。`clone()`/`dispose()` 语义使泛型边界复杂。待有第二个消费者时重新评估 |
+| `_drawStrokeSpot` 的 clipOval + drawImageRect 模式 | `spot_remove_overlay.dart` | — | ⏸️ 保留为私有方法，硬边预览逻辑未泛化。待其他画笔有此需求时提取 |
 
 ### 10.5 水印预览注意事项
 

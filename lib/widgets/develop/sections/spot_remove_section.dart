@@ -14,7 +14,8 @@ import 'shared.dart';
 /// - 激活切换按钮
 /// - 取样按钮（手机用，替代 hold 键）
 /// - 半径滑块
-/// - spot 数量 badge + 清除全部
+/// - 硬度滑块
+/// - 清除全部按钮
 class SpotRemoveSection extends ConsumerWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
@@ -29,7 +30,6 @@ class SpotRemoveSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(spotRemoveStateProvider);
     final notifier = ref.read(spotRemoveStateProvider.notifier);
-    final spotCount = params.spots.length;
     final isActive = state.mode == SpotRemoveMode.active;
     final isSampling = state.samplingButtonOn;
 
@@ -63,24 +63,6 @@ class SpotRemoveSection extends ConsumerWidget {
                 ),
               ],
               const Spacer(),
-              if (spotCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.activeBg,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '$spotCount',
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.activeValue,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -122,7 +104,7 @@ class SpotRemoveSection extends ConsumerWidget {
         ],
 
         // ── 清除全部 ──
-        if (spotCount > 0)
+        if (isActive)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Align(

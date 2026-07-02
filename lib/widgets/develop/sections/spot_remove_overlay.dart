@@ -9,64 +9,9 @@ import '../../../core/models/crop_params.dart';
 import '../../../core/models/spot_mark.dart';
 import '../../../render/spot_removal_cache.dart';
 import '../../../state/providers.dart';
+import '../../../utils/brush_coord_utils.dart';
+import '../../../utils/brush_preview_utils.dart';
 import '../../../utils/path_brush_tracker.dart';
-
-// 坐标变换工具函数
-
-/// 屏幕坐标（相对 imageDisplaySize）→ 归一化源图坐标 [0..1]
-Offset screenToSourceNorm({
-  required Offset screen,
-  required Size imageDisplaySize,
-  required CropParams crop,
-  required int sourceWidth,
-  required int sourceHeight,
-}) {
-  final nx = (screen.dx / imageDisplaySize.width).clamp(0.0, 1.0);
-  final ny = (screen.dy / imageDisplaySize.height).clamp(0.0, 1.0);
-  final (sx, sy) = crop.outputToSourceNorm(nx, ny, sourceWidth, sourceHeight);
-  return Offset(sx, sy);
-}
-
-/// 归一化源图坐标 [0..1] → 屏幕坐标（相对 imageDisplaySize）
-Offset sourceToScreenNorm({
-  required Offset src,
-  required Size imageDisplaySize,
-  required CropParams crop,
-  required int sourceWidth,
-  required int sourceHeight,
-}) {
-  final (ox, oy) = crop.forwardToOutputNorm(
-    src.dx,
-    src.dy,
-    sourceWidth,
-    sourceHeight,
-  );
-  return Offset(ox * imageDisplaySize.width, oy * imageDisplaySize.height);
-}
-
-/// 将源图半径 r（归一化）转换为屏幕像素半径
-double sourceRadiusToScreen({
-  required double r,
-  required Offset srcCenter,
-  required Size imageDisplaySize,
-  required CropParams crop,
-  required int sourceWidth,
-  required int sourceHeight,
-}) {
-  final (ox0, _) = crop.forwardToOutputNorm(
-    srcCenter.dx,
-    srcCenter.dy,
-    sourceWidth,
-    sourceHeight,
-  );
-  final (ox1, _) = crop.forwardToOutputNorm(
-    srcCenter.dx + r,
-    srcCenter.dy,
-    sourceWidth,
-    sourceHeight,
-  );
-  return (ox1 - ox0).abs() * imageDisplaySize.width;
-}
 
 /// 污点修复交互覆盖层
 ///
@@ -435,52 +380,6 @@ class _SpotPainter extends CustomPainter {
     }
   }
 
-  /// 计算 OOB 比例映射矩形
-  ///
-  /// 输入：源矩形在像素空间的中心 (sxRaw, syRaw) 与半径 pr，
-  /// 目标圆在屏幕空间的中心 (screenCenterX, screenCenterY) 与半径 screenR
-  /// 返回 null 表示采样区域完全在图像外，无需绘制
-  ({Rect srcRect, Rect dstRect, Rect fullDstRect})? _computeOOBRects({
-    required double sxRaw,
-    required double syRaw,
-    required double pr,
-    required ui.Image img,
-    required double screenCenterX,
-    required double screenCenterY,
-    required double screenR,
-  }) {
-    final rawLeft = sxRaw - pr;
-    final rawTop = syRaw - pr;
-    final rawRight = sxRaw + pr;
-    final rawBottom = syRaw + pr;
-    final rawSize = pr * 2;
-
-    final clLeft = rawLeft.clamp(0.0, img.width.toDouble());
-    final clTop = rawTop.clamp(0.0, img.height.toDouble());
-    final clRight = rawRight.clamp(0.0, img.width.toDouble());
-    final clBottom = rawBottom.clamp(0.0, img.height.toDouble());
-
-    if (clRight <= clLeft || clBottom <= clTop) return null;
-
-    final srcRect = Rect.fromLTRB(clLeft, clTop, clRight, clBottom);
-    final leftFrac = (clLeft - rawLeft) / rawSize;
-    final topFrac = (clTop - rawTop) / rawSize;
-    final rightFrac = (clRight - rawLeft) / rawSize;
-    final bottomFrac = (clBottom - rawTop) / rawSize;
-    final dstSize = screenR * 2;
-    final dstRect = Rect.fromLTRB(
-      screenCenterX - screenR + leftFrac * dstSize,
-      screenCenterY - screenR + topFrac * dstSize,
-      screenCenterX - screenR + rightFrac * dstSize,
-      screenCenterY - screenR + bottomFrac * dstSize,
-    );
-    final fullDstRect = Rect.fromCircle(
-      center: Offset(screenCenterX, screenCenterY),
-      radius: screenR,
-    );
-    return (srcRect: srcRect, dstRect: dstRect, fullDstRect: fullDstRect);
-  }
-
   /// 绘制单笔克隆圆（硬边即时预览；硬度融合由管线 shader 处理）
   ///
   /// OOB 处理：采样区域按与图像边界的交集做比例映射，
@@ -507,11 +406,12 @@ class _SpotPainter extends CustomPainter {
       sourceHeight: sourceHeight,
     );
 
-    final rects = _computeOOBRects(
+    final rects = computeOOBRects(
       sxRaw: sxRaw,
       syRaw: syRaw,
       pr: pr,
-      img: img,
+      imageW: img.width.toDouble(),
+      imageH: img.height.toDouble(),
       screenCenterX: screenCenter.dx,
       screenCenterY: screenCenter.dy,
       screenR: screenR,
@@ -615,11 +515,12 @@ class _SpotPainter extends CustomPainter {
     final sryRaw = srcNorm.dy * img.height;
     final pr = (brushRadius * img.width).clamp(1.0, img.width / 2.0);
 
-    final rects = _computeOOBRects(
+    final rects = computeOOBRects(
       sxRaw: srxRaw,
       syRaw: sryRaw,
       pr: pr,
-      img: img,
+      imageW: img.width.toDouble(),
+      imageH: img.height.toDouble(),
       screenCenterX: screenPos.dx,
       screenCenterY: screenPos.dy,
       screenR: radius,
