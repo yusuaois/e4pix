@@ -524,10 +524,10 @@ class FullPipelineRenderer {
     );
   }
 
-  static const _kMaxSpots = 128;
+  static const _kMaxSpots = 64;
   static const _kSpotUniformsPerSpot =
       6; // srcX, srcY, tgtX, tgtY, radius, hardness
-  // Uniform 总数: 2(uSize) + 1(count) + 128*6 = 771 floats < 4096 limit
+  // Uniform 总数: 2(uSize) + 1(count) + 64*6 = 387 floats
 
   static Future<ui.Image> _runSpotRemovePass({
     required ui.FragmentProgram program,
