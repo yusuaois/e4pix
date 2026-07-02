@@ -85,7 +85,7 @@ class _ColorPickerOverlayState extends ConsumerState<ColorPickerOverlay> {
       final dw = (src.width * scale).round().clamp(16, _readbackEdge);
       final dh = (src.height * scale).round().clamp(16, _readbackEdge);
 
-      final rendered = await FullPipelineRenderer.render(
+      final result = await FullPipelineRenderer.render(
         developProgram: widget.developProgram,
         maskProgram: widget.maskProgram,
         sourceImage: src,
@@ -100,6 +100,8 @@ class _ColorPickerOverlayState extends ConsumerState<ColorPickerOverlay> {
         targetWidth: dw,
         targetHeight: dh,
       );
+      final rendered = result.finalImage;
+      result.developOutput?.dispose();
       try {
         final bd = await rendered.toByteData(
           format: ui.ImageByteFormat.rawRgba,

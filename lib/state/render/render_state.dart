@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../core/models/rgb_curves.dart';
 import '../../render/curve_baker.dart';
@@ -95,6 +96,19 @@ final spotRemoveShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
 ) async {
   return (await ref.watch(_allShadersProvider.future)).spotRemove;
 });
+
+/// 管道渲染完成计数器。每次 full-pipeline 渲染产出新帧 +1。
+/// spot removal overlay 用它感知"已提交的笔画已管线合成完毕"，然后清除本地预览。
+final renderedPreviewGenerationProvider = StateProvider<int>((ref) => 0);
+
+/// 最后一次渲染完成时使用的 spots 列表哈希。
+/// overlay 用此信号判断"包含本次描边的渲染是否已完成"——
+/// 只有 hash 匹配时才清除 committed preview，避免被无关渲染误触发。
+final renderedSpotsHashProvider = StateProvider<int>((ref) => 0);
+
+/// Develop pass 输出快照（spot removal 激活时非空）。
+/// spot removal overlay 用它做笔画预览，替代原始未处理源图。
+final developOutputProvider = StateProvider<ui.Image?>((ref) => null);
 
 // 1Hz ticker
 final tickerProvider = StreamProvider<int>((ref) async* {

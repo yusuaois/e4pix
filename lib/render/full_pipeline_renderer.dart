@@ -12,7 +12,18 @@ import 'crop_transform.dart';
 import 'homography.dart';
 import 'mask_cache.dart';
 import 'render_engine.dart';
+import 'spot_removal_cache.dart';
 import '../utils/shader_pass_util.dart';
+
+/// 完整管线渲染结果
+class PipelineRenderResult {
+  final ui.Image finalImage;
+
+  /// 仅在 spot removal 激活时非空：Develop pass 输出的快照，
+  /// 供 spot removal overlay 做笔画预览（避免预览使用原始未处理图像）
+  final ui.Image? developOutput;
+  PipelineRenderResult({required this.finalImage, this.developOutput});
+}
 
 class FullPipelineRenderer {
   // 非 brush mask pass 绑定的 1x1 dummy
@@ -96,7 +107,7 @@ class FullPipelineRenderer {
   }
 
   /// global develop → crop → 所有 local 返回的 ui.Image 已含所有变换
-  static Future<ui.Image> render({
+  static Future<PipelineRenderResult> render({
     required ui.FragmentProgram developProgram,
     required ui.FragmentProgram maskProgram,
     ui.FragmentProgram? sharpenProgram,
@@ -117,6 +128,7 @@ class FullPipelineRenderer {
     DevelopPassCache? developCache,
     BrushMaskCache? brushCache,
     bool allowStaleAutoMask = false,
+    SpotRemovalCache? spotRemovalCache,
   }) async {
     final enabledLocals = params.locals
         .where((l) => l.enabled && !l.params.isNeutral)
@@ -135,6 +147,8 @@ class FullPipelineRenderer {
       targetWidth: targetWidth,
       targetHeight: targetHeight,
     );
+
+    final developKey = Object.hash(devFp.$1, devFp.$2, devFp.$3, devFp.$4);
 
     // Pass -1: 降噪
     ui.Image developInput = sourceImage;
@@ -232,62 +246,7 @@ class FullPipelineRenderer {
     ui.Image current = develop;
     bool currentOwned = developOwned;
 
-    // spot removal (after develop, before perspective/crop)
-    // 每 32 个 spot 一个 pass，链式调用
-    if (params.spots.isNotEmpty && spotRemoveProgram != null) {
-      final allSpots = params.spots;
-      for (int i = 0; i < allSpots.length; i += _kMaxSpots) {
-        final batch = allSpots.sublist(
-          i,
-          (i + _kMaxSpots).clamp(0, allSpots.length),
-        );
-        try {
-          final spotRemoved = await _runSpotRemovePass(
-            program: spotRemoveProgram,
-            input: current,
-            spots: batch,
-          );
-          if (currentOwned) current.dispose();
-          current = spotRemoved;
-          currentOwned = true;
-        } catch (e) {
-          debugPrint('[Pipeline] Spot removal pass failed: $e');
-          break;
-        }
-      }
-    }
-
-    // perspective (after develop, before crop)
-    if (!params.perspective.isIdentity && perspectiveProgram != null) {
-      try {
-        final warped = await _runPerspectivePass(
-          program: perspectiveProgram,
-          input: current,
-          params: params,
-          cache: perspectiveCache,
-        );
-        if (currentOwned) current.dispose();
-        current = warped;
-        currentOwned = true;
-      } catch (e) {
-        debugPrint('[Pipeline] Perspective pass failed: $e');
-      }
-    }
-
-    // crop
-    if (!params.crop.isIdentity) {
-      try {
-        final cropped = await applyCropTransform(current, params.crop);
-        if (currentOwned) current.dispose();
-        current = cropped;
-        currentOwned = true;
-      } catch (e) {
-        debugPrint('[Pipeline] Crop transform failed: $e');
-      }
-    }
-
-    // 自动蒙版引导图：develop+crop 输出像素，仅当存在 auto 笔画时读一次
-    // 降采样到 ≤512px
+    // 自动蒙版引导图（从 develop 输出读取，pre-crop）
     const kMaxGuideEdge = 512;
     Uint8List? guideBytes;
     int guideW = current.width;
@@ -323,7 +282,7 @@ class FullPipelineRenderer {
       }
     }
 
-    // mask passes
+    // Mask passes
     for (final local in enabledLocals) {
       try {
         final shape = local.mask;
@@ -380,7 +339,115 @@ class FullPipelineRenderer {
         debugPrint('[Pipeline] Mask pass failed for ${local.id}: $e');
       }
     }
+    
+    // Spot removal
+    if (params.spots.isNotEmpty && spotRemoveProgram != null) {
+      try {
+        ui.Image spotRemoved;
 
+        // 1. Spots hash 缓存
+        final spotsCache = spotRemovalCache?.getFromSpotsCache(params.spots);
+        if (spotsCache != null) {
+          spotRemoved = spotsCache.clone();
+        } else {
+          // 2. 增量缓存
+          final incremental = spotRemovalCache?.getIncremental(
+            developKey,
+            params.spots,
+          );
+
+          ui.Image batchInput;
+          int startIdx;
+          bool batchInputOwned;
+
+          if (incremental != null) {
+            batchInput = incremental.$1.clone();
+            startIdx = incremental.$2;
+            batchInputOwned = true;
+          } else {
+            // 3. 全量重算
+            batchInput = current;
+            startIdx = 0;
+            batchInputOwned = false;
+          }
+
+          // 从 startIdx 跑剩余 spots
+          for (int i = startIdx; i < params.spots.length; i += _kMaxSpots) {
+            final batch = params.spots.sublist(
+              i,
+              (i + _kMaxSpots).clamp(0, params.spots.length),
+            );
+            final result = await _runSpotRemovePass(
+              program: spotRemoveProgram,
+              input: batchInput,
+              spots: batch,
+            );
+            if (batchInputOwned) batchInput.dispose();
+            batchInput = result;
+            batchInputOwned = true;
+          }
+          spotRemoved = batchInput;
+
+          // 更新两级缓存
+          spotRemovalCache?.putRolling(
+            developKey,
+            params.spots.length,
+            spotRemoved,
+          );
+          spotRemovalCache?.putSpotsCache(params.spots, spotRemoved);
+        }
+
+        if (currentOwned) current.dispose();
+        current = spotRemoved;
+        currentOwned = true;
+      } catch (e) {
+        debugPrint('[Pipeline] Spot removal pass failed: $e');
+      }
+    }
+
+    // 捕获 spot removal 之后的图像供 overlay 笔画预览
+    // （含 develop + mask + 所有已有污点修复，与屏幕显示一致）
+    ui.Image? developOutput;
+    if (hasEnabledMasks ||
+        (params.spots.isNotEmpty && spotRemoveProgram != null)) {
+      try {
+        developOutput = current.clone();
+      } catch (e) {
+        debugPrint('[Pipeline] Failed to clone develop output: $e');
+        developOutput = null;
+      }
+    }
+
+    // perspective
+    if (!params.perspective.isIdentity && perspectiveProgram != null) {
+      try {
+        final warped = await _runPerspectivePass(
+          program: perspectiveProgram,
+          input: current,
+          params: params,
+          cache: perspectiveCache,
+        );
+        if (currentOwned) current.dispose();
+        current = warped;
+        currentOwned = true;
+      } catch (e) {
+        debugPrint('[Pipeline] Perspective pass failed: $e');
+      }
+    }
+
+    // crop
+    if (!params.crop.isIdentity) {
+      try {
+        final cropped = await applyCropTransform(current, params.crop);
+        if (currentOwned) current.dispose();
+        current = cropped;
+        currentOwned = true;
+      } catch (e) {
+        debugPrint('[Pipeline] Crop transform failed: $e');
+      }
+    }
+
+    // sharpen
     if (sharpenProgram != null && params.sharpenAmount > 0.001) {
       try {
         final sharpened = await _runSharpenPass(
@@ -398,8 +465,16 @@ class FullPipelineRenderer {
       }
     }
 
-    if (!currentOwned) return current.clone();
-    return current;
+    final ui.Image finalImage;
+    if (!currentOwned) {
+      finalImage = current.clone();
+    } else {
+      finalImage = current;
+    }
+    return PipelineRenderResult(
+      finalImage: finalImage,
+      developOutput: developOutput,
+    );
   }
 
   /// 将图片降采样到最长边不超过 [maxEdge] 的版本，用于引导图快速回读
@@ -444,7 +519,8 @@ class FullPipelineRenderer {
   }
 
   static const _kMaxSpots = 32;
-  static const _kSpotUniformsPerSpot = 6; // srcX, srcY, tgtX, tgtY, radius, hardness
+  static const _kSpotUniformsPerSpot =
+      6; // srcX, srcY, tgtX, tgtY, radius, hardness
 
   static Future<ui.Image> _runSpotRemovePass({
     required ui.FragmentProgram program,

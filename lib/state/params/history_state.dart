@@ -30,21 +30,25 @@ class HistoryNotifier extends Notifier<HistoryState> {
 
   final _debouncer = Debouncer();
 
-  // 最近一次提交进栈基线 下一次变化时，把这个基线推到 undo
-  AdjustmentParams? _pendingBaseline;
+  // 最近一次提交进栈基线，下一次变化时把这个基线推到 undo
+  // 在 build() 中初始化为文件加载后的初始参数，确保首次编辑也可撤销
+  late AdjustmentParams _pendingBaseline;
 
   /// 标记当前正在通过 undo/redo/preset 主动应用
   bool _isApplying = false;
 
   @override
   HistoryState build() {
-    // 切换文件清栈
+    // 初始基线：当前已加载的参数（或 neutral），确保首次编辑可撤销
+    _pendingBaseline = ref.read(currentParamsNotifierProvider);
+
+    // 切换文件清栈，重新捕获基线
     ref.listen<String?>(activeFilePathProvider, (prev, next) {
       if (prev == next) return;
       _debouncer.cancel();
-      _pendingBaseline = null;
       _isApplying = false;
       state = const HistoryState();
+      _pendingBaseline = ref.read(currentParamsNotifierProvider);
     });
 
     // 参数变化时调度防抖
@@ -62,14 +66,11 @@ class HistoryNotifier extends Notifier<HistoryState> {
   }
 
   void _commit(AdjustmentParams committed) {
-    // 第一次只记录基线，不入栈
-    if (_pendingBaseline == null) {
-      _pendingBaseline = committed;
-      return;
-    }
+    // _pendingBaseline 在 build() 中已初始化为文件加载后的参数，
+    // 此后每次 commit 都将旧基线推入 undo 栈，确保首次编辑即可撤销
     if (_pendingBaseline == committed) return;
 
-    final newUndo = [...state.undoStack, _pendingBaseline!];
+    final newUndo = [...state.undoStack, _pendingBaseline];
     if (newUndo.length > _maxStack) {
       newUndo.removeRange(0, newUndo.length - _maxStack);
     }

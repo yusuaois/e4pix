@@ -123,7 +123,7 @@ class Exporter {
           ? (_wantDenoise(params) ? denoiseProgram : null)
           : (_wantGpuDenoise(params, denoiseEngine) ? denoiseProgram : null);
 
-      final output = await FullPipelineRenderer.render(
+      final result = await FullPipelineRenderer.render(
         developProgram: shaderProgram,
         maskProgram: maskProgram,
         sourceImage: sourceImage,
@@ -139,6 +139,8 @@ class Exporter {
         targetWidth: sourceImage.width,
         targetHeight: sourceImage.height,
       );
+      final output = result.finalImage;
+      result.developOutput?.dispose();
 
       // 源图与 curve 纹理渲染后即可释放
       sourceImage.dispose();

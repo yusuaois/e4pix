@@ -24,7 +24,7 @@ class AIInputRenderer {
     int maxEdge = 768,
     int jpegQuality = 85,
   }) async {
-    final rendered = await FullPipelineRenderer.render(
+    final result = await FullPipelineRenderer.render(
       developProgram: program,
       maskProgram: maskProgram,
       sourceImage: sourceImage,
@@ -38,6 +38,9 @@ class AIInputRenderer {
       targetWidth: sourceImage.width,
       targetHeight: sourceImage.height,
     );
+
+    final rendered = result.finalImage;
+    result.developOutput?.dispose();
 
     final byteData = await rendered.toByteData(
       format: ui.ImageByteFormat.rawRgba,

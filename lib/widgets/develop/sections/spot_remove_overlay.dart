@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/crop_params.dart';
 import '../../../core/models/spot_mark.dart';
-import '../../../state/tools/spot_remove_state.dart';
+import '../../../state/providers.dart';
 import '../../../utils/path_brush_tracker.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -108,6 +109,11 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
   // ── 笔画内本地积攒（不触发管线）──
   final List<SpotMark> _strokeSpots = [];
 
+  // ── 已提交但管线尚未渲染完成的预览（避免松手后画面消失）──
+  bool _isCommitting = false;
+  List<SpotMark> _committedPreview = [];
+  int _committedSpotsHash = 0; // 描边提交时的 spots hash，用于匹配渲染结果
+
   @override
   void dispose() {
     _exitDebounce?.cancel();
@@ -118,6 +124,16 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
   Widget build(BuildContext context) {
     final state = ref.watch(spotRemoveStateProvider);
     final isSampling = state.samplingButtonOn;
+
+    // 只有当"包含本次描边的渲染"完成时才清除 committed preview
+    // 使用 spots hash 匹配避免被滑块拖动等无关渲染的完成误触发
+    ref.listen<int>(renderedSpotsHashProvider, (prev, next) {
+      if (_isCommitting && next == _committedSpotsHash) {
+        _committedPreview.clear();
+        _isCommitting = false;
+        if (mounted) setState(() {});
+      }
+    });
 
     return MouseRegion(
       onEnter: (_) {
@@ -163,6 +179,7 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
             isPainting: _tracker != null,
             sourceImage: widget.sourceImage,
             strokeSpots: _strokeSpots,
+            committedSpots: _committedPreview,
           ),
         ),
       ),
@@ -262,11 +279,18 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
             Offset(cursorSrc.dx + offset.dx, cursorSrc.dy + offset.dy),
           );
     }
-    // 笔画结束：一次性提交所有 spots 给管线，然后清空本地预览
+    // 笔画结束：一次性提交所有 spots 给管线，保留本地预览直到管线渲染完成
     if (_strokeSpots.isNotEmpty) {
       ref
           .read(spotRemoveStateProvider.notifier)
           .addSpotsBatch(List<SpotMark>.from(_strokeSpots));
+      // 记录提交后的 spots hash，用于匹配"含本次描边的渲染"
+      _committedSpotsHash = Object.hashAll(
+        ref.read(currentParamsNotifierProvider).spots.map((s) => s.hashCode),
+      );
+      // 将笔画移入已提交预览——管线渲染完成前继续绘制这些圆
+      _committedPreview = List<SpotMark>.from(_strokeSpots);
+      _isCommitting = true;
       _strokeSpots.clear();
     }
     _tracker = null;
@@ -277,6 +301,8 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
   /// 手势取消（如系统返回手势抢占）：丢弃本地积攒，不提交
   void _onPanCancel() {
     _strokeSpots.clear();
+    _committedPreview.clear();
+    _isCommitting = false;
     _tracker = null;
     setState(() {});
   }
@@ -295,16 +321,16 @@ class _SpotPainter extends CustomPainter {
   final int sourceWidth;
   final int sourceHeight;
   final Offset? cursorPos;
-  final Offset? cursorSrc; // 预计算，避免 painter 内重复转换
+  final Offset? cursorSrc;
   final bool isSampling;
   final Offset? paintOffset;
   final bool isPainting;
   final ui.Image? sourceImage;
-
-  /// 笔画中本地积攒的 spots（GPU 管线尚未处理）。
-  /// Painter 逐个绘制硬边克隆圆，提供即时视觉反馈；
-  /// 松手后由管线提交并做硬度融合。
   final List<SpotMark> strokeSpots;
+  final List<SpotMark> committedSpots;
+
+  // 共用 Paint，启用双线性过滤避免锯齿
+  static final _imagePaint = Paint()..filterQuality = FilterQuality.low;
 
   _SpotPainter({
     required this.cloneSource,
@@ -321,14 +347,17 @@ class _SpotPainter extends CustomPainter {
     this.isPainting = false,
     this.sourceImage,
     this.strokeSpots = const [],
+    this.committedSpots = const [],
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     // ── 先绘制笔画中已累积的克隆像素（硬边即时预览）──
+    // 包括正在绘制的笔画 + 已提交但管线尚未渲染完成的笔画
     final img = sourceImage;
-    if (strokeSpots.isNotEmpty && img != null) {
-      for (final spot in strokeSpots) {
+    final allPreview = <SpotMark>[...strokeSpots, ...committedSpots];
+    if (allPreview.isNotEmpty && img != null) {
+      for (final spot in allPreview) {
         _drawStrokeSpot(canvas, img, spot);
       }
     }
@@ -388,8 +417,32 @@ class _SpotPainter extends CustomPainter {
     }
   }
 
-  /// 绘制单笔克隆圆（硬边，性能优先；硬度融合由管线处理）
+  /// 绘制单笔克隆圆（硬边即时预览；硬度融合由管线 shader 处理）
+  ///
+  /// OOB 处理：采样区域按与图像边界的交集做比例映射，
+  /// 只绘制有效像素，界外部分透明（不拉伸边缘像素）。
   void _drawStrokeSpot(Canvas canvas, ui.Image img, SpotMark spot) {
+    final sxRaw = spot.source.dx * img.width;
+    final syRaw = spot.source.dy * img.height;
+    final pr = (spot.radius * img.width).clamp(1.0, img.width / 2.0);
+
+    // 采样区域的原始矩形（可能超出图像边界）
+    final rawLeft = sxRaw - pr;
+    final rawTop = syRaw - pr;
+    final rawRight = sxRaw + pr;
+    final rawBottom = syRaw + pr;
+    final rawSize = pr * 2;
+
+    // 与图像边界取交集
+    final clLeft = rawLeft.clamp(0.0, img.width.toDouble());
+    final clTop = rawTop.clamp(0.0, img.height.toDouble());
+    final clRight = rawRight.clamp(0.0, img.width.toDouble());
+    final clBottom = rawBottom.clamp(0.0, img.height.toDouble());
+
+    // 交集为空（采样区域完全在图像外）→ 透明，跳过
+    if (clRight <= clLeft || clBottom <= clTop) return;
+
+    // 目标圆在屏幕上的位置（完整的圆）
     final screenCenter = sourceToScreenNorm(
       src: spot.target,
       imageDisplaySize: imageDisplaySize,
@@ -405,21 +458,31 @@ class _SpotPainter extends CustomPainter {
       sourceWidth: sourceWidth,
       sourceHeight: sourceHeight,
     );
-    final dstRect = Rect.fromCircle(center: screenCenter, radius: screenR);
 
-    final sx = (spot.source.dx * img.width).clamp(0.0, img.width.toDouble());
-    final sy = (spot.source.dy * img.height).clamp(0.0, img.height.toDouble());
-    final pr = (spot.radius * img.width).clamp(1.0, img.width / 2.0);
-    final srcRect = Rect.fromLTRB(
-      (sx - pr).clamp(0.0, img.width.toDouble()),
-      (sy - pr).clamp(0.0, img.height.toDouble()),
-      (sx + pr).clamp(0.0, img.width.toDouble()),
-      (sy + pr).clamp(0.0, img.height.toDouble()),
+    // srcRect = 有效采样区域（clamp 后可能不是正方形）
+    final srcRect = Rect.fromLTRB(clLeft, clTop, clRight, clBottom);
+
+    // dstRect = 按比例映射到目标圆内
+    // 有效区域在原始正方形中的相对位置 → 映射到目标圆的包围正方形中
+    final leftFrac = (clLeft - rawLeft) / rawSize;
+    final topFrac = (clTop - rawTop) / rawSize;
+    final rightFrac = (clRight - rawLeft) / rawSize;
+    final bottomFrac = (clBottom - rawTop) / rawSize;
+    final dstSize = screenR * 2;
+    final dstRect = Rect.fromLTRB(
+      screenCenter.dx - screenR + leftFrac * dstSize,
+      screenCenter.dy - screenR + topFrac * dstSize,
+      screenCenter.dx - screenR + rightFrac * dstSize,
+      screenCenter.dy - screenR + bottomFrac * dstSize,
     );
 
+    // 目标圆的完整包围盒（用于 clipOval）
+    final fullDstRect = Rect.fromCircle(center: screenCenter, radius: screenR);
+
+    // clip 到圆形后绘制（只绘制 dstRect 与圆的交集部分）
     canvas.save();
-    canvas.clipPath(Path()..addOval(dstRect));
-    canvas.drawImageRect(img, srcRect, dstRect, Paint());
+    canvas.clipPath(Path()..addOval(fullDstRect));
+    canvas.drawImageRect(img, srcRect, dstRect, _imagePaint);
     canvas.restore();
   }
 
@@ -498,9 +561,8 @@ class _SpotPainter extends CustomPainter {
 
   /// 悬停预览：白圈内显示源点区域的圆形预览，边缘根据硬度显示柔边渐变
   ///
-  /// 图片始终填满整个圆，硬度仅影响边缘透明度：
-  /// - 硬度 100%：硬裁剪（与 shader 一致）
-  /// - 硬度 < 100%：[saveLayer] + 径向渐变 mask，模拟 shader 的 smoothstep
+  /// OOB 处理：与 _drawStrokeSpot 一致的比例映射——
+  /// 只绘制有效像素区域，界外部分透明。
   void _drawPreviewCursor(
     Canvas canvas,
     Offset screenPos,
@@ -510,22 +572,45 @@ class _SpotPainter extends CustomPainter {
     final img = sourceImage;
     if (img == null) return;
 
-    final sx = (srcNorm.dx * img.width).clamp(0.0, img.width.toDouble());
-    final sy = (srcNorm.dy * img.height).clamp(0.0, img.height.toDouble());
+    final srxRaw = srcNorm.dx * img.width;
+    final sryRaw = srcNorm.dy * img.height;
     final pr = (brushRadius * img.width).clamp(1.0, img.width / 2.0);
 
-    final srcRect = Rect.fromLTRB(
-      (sx - pr).clamp(0.0, img.width.toDouble()),
-      (sy - pr).clamp(0.0, img.height.toDouble()),
-      (sx + pr).clamp(0.0, img.width.toDouble()),
-      (sy + pr).clamp(0.0, img.height.toDouble()),
+    final rawLeft = srxRaw - pr;
+    final rawTop = sryRaw - pr;
+    final rawRight = srxRaw + pr;
+    final rawBottom = sryRaw + pr;
+    final rawSize = pr * 2;
+
+    final clLeft = rawLeft.clamp(0.0, img.width.toDouble());
+    final clTop = rawTop.clamp(0.0, img.height.toDouble());
+    final clRight = rawRight.clamp(0.0, img.width.toDouble());
+    final clBottom = rawBottom.clamp(0.0, img.height.toDouble());
+
+    if (clRight <= clLeft || clBottom <= clTop) {
+      // 采样区域完全在界外：只显示轮廓圆，不显示内容预览
+      _drawTargetCursor(canvas, screenPos, radius);
+      return;
+    }
+
+    final srcRect = Rect.fromLTRB(clLeft, clTop, clRight, clBottom);
+    final leftFrac = (clLeft - rawLeft) / rawSize;
+    final topFrac = (clTop - rawTop) / rawSize;
+    final rightFrac = (clRight - rawLeft) / rawSize;
+    final bottomFrac = (clBottom - rawTop) / rawSize;
+    final dstSize = radius * 2;
+    final dstRect = Rect.fromLTRB(
+      screenPos.dx - radius + leftFrac * dstSize,
+      screenPos.dy - radius + topFrac * dstSize,
+      screenPos.dx - radius + rightFrac * dstSize,
+      screenPos.dy - radius + bottomFrac * dstSize,
     );
-    final dstRect = Rect.fromCircle(center: screenPos, radius: radius);
+    final fullDstRect = Rect.fromCircle(center: screenPos, radius: radius);
 
     if (brushHardness >= 0.99) {
       canvas.save();
-      canvas.clipPath(Path()..addOval(dstRect));
-      canvas.drawImageRect(img, srcRect, dstRect, Paint());
+      canvas.clipPath(Path()..addOval(fullDstRect));
+      canvas.drawImageRect(img, srcRect, dstRect, _imagePaint);
       canvas.restore();
     } else {
       final t0 = brushHardness.clamp(0.0, 1.0);
@@ -537,7 +622,6 @@ class _SpotPainter extends CustomPainter {
         [
           Colors.white,
           if (span > 0.01) ...{
-            // 在 t0 处保持全不透明，与 shader smoothstep(inner, r, d) 对齐
             Colors.white,
             Colors.white.withValues(alpha: 1.0 - ss(0.25)),
             Colors.white.withValues(alpha: 1.0 - ss(0.5)),
@@ -557,10 +641,10 @@ class _SpotPainter extends CustomPainter {
         ],
       );
 
-      canvas.saveLayer(dstRect, Paint());
-      canvas.drawImageRect(img, srcRect, dstRect, Paint());
+      canvas.saveLayer(fullDstRect, Paint());
+      canvas.drawImageRect(img, srcRect, dstRect, _imagePaint);
       canvas.drawRect(
-        dstRect,
+        fullDstRect,
         Paint()
           ..shader = gradient
           ..blendMode = ui.BlendMode.dstIn,
@@ -568,6 +652,7 @@ class _SpotPainter extends CustomPainter {
       canvas.restore();
     }
 
+    // 轮廓圆（始终显示，不受内容 OOB 影响）
     canvas.drawCircle(
       screenPos,
       radius,
@@ -589,7 +674,8 @@ class _SpotPainter extends CustomPainter {
       old.isPainting != isPainting ||
       old.paintOffset != paintOffset ||
       old.sourceImage != sourceImage ||
-      old.strokeSpots.length != strokeSpots.length ||
+      !listEquals(old.strokeSpots, strokeSpots) ||
+      !listEquals(old.committedSpots, committedSpots) ||
       old.imageDisplaySize != imageDisplaySize ||
       old.crop != crop ||
       old.sourceWidth != sourceWidth ||

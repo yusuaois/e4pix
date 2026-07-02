@@ -3,12 +3,14 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../render/homography.dart';
 import '../../render/mask_cache.dart';
+import '../../render/spot_removal_cache.dart';
 import '../../state/providers.dart';
 import '../../utils/shader_pass_util.dart';
 
@@ -65,6 +67,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   final _developCache = DevelopPassCache();
   final _brushCache = BrushMaskCache();
   final _perspectiveCache = PerspectiveMatrixCache();
+  final _spotRemovalCache = SpotRemovalCache();
 
   @override
   void initState() {
@@ -77,6 +80,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     super.didUpdateWidget(old);
     if (old.sourceImage != widget.sourceImage) {
       _perspectiveCache.invalidate();
+      _spotRemovalCache.invalidate();
     }
     if (old.sourceImage != widget.sourceImage ||
         old.lutTexture != widget.lutTexture ||
@@ -101,6 +105,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     _rendered?.dispose();
     _developCache.dispose();
     _brushCache.dispose();
+    _spotRemovalCache.dispose();
+    // developOutput 由下一次渲染或 GC 回收，不在此处用 ref（已卸载不安全）
     super.dispose();
   }
 
@@ -145,15 +151,38 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         developCache: _developCache,
         brushCache: _brushCache,
         allowStaleAutoMask: isDragging,
+        spotRemovalCache: _spotRemovalCache,
       );
 
       if (gen != _generation || !mounted) {
-        result.dispose();
+        result.finalImage.dispose();
+        result.developOutput?.dispose();
         return;
       }
       final old = _rendered;
-      setState(() => _rendered = result);
+      setState(() => _rendered = result.finalImage);
       old?.dispose();
+
+      // 先更新 spots hash（overlay 用它判断"含本次描边的渲染是否完成"）
+      final spotsHash = Object.hashAll(
+        widget.params.spots.map((s) => s.hashCode),
+      );
+      ref.read(renderedSpotsHashProvider.notifier).state = spotsHash;
+
+      // 更新 Develop 输出供 spot removal overlay 笔画预览
+      final oldDev = ref.read(developOutputProvider);
+      ref.read(developOutputProvider.notifier).state = result.developOutput;
+      if (oldDev != null && oldDev != result.developOutput) {
+        // 延迟一帧再 dispose 旧纹理，避免 GPU 并发冲突
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          try {
+            oldDev.dispose();
+          } catch (_) {}
+        });
+      }
+
+      // 递增渲染代数，通知 preview_area 刷新 develop 输出
+      ref.read(renderedPreviewGenerationProvider.notifier).state++;
     } on DisposedImageException {
       // 纹理已 dispose，跳过本帧，等待下次渲染
       debugPrint('[MultiPassPreview] Skipped render: source image disposed');
@@ -173,6 +202,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     });
     ref.listen(isUserDraggingSliderProvider, (prev, next) {
       if (prev == true && next == false) {
+        // 拖动结束：失效 spots hash 缓存强制重算，保留增量缓存
+        _spotRemovalCache.invalidateSpotsCache();
         _runRender();
       }
     });

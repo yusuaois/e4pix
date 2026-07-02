@@ -577,6 +577,10 @@ class _PreviewContent extends ConsumerWidget {
     // 污点修复 overlay
     final spotState = ref.watch(spotRemoveStateProvider);
     if (spotState.mode == SpotRemoveMode.active) {
+      // 监听渲染代数，确保 develop 输出更新时 overlay 重建
+      ref.watch(renderedPreviewGenerationProvider);
+      // 优先使用 Develop pass 输出（含曝光/曲线/LUT），回退到原始源图
+      final overlaySource = ref.watch(developOutputProvider) ?? state.uiImage;
       content = SizedBox.fromSize(
         size: displaySize,
         child: Stack(
@@ -588,7 +592,7 @@ class _PreviewContent extends ConsumerWidget {
                 crop: params.crop,
                 sourceWidth: state.uiImage.width,
                 sourceHeight: state.uiImage.height,
-                sourceImage: state.uiImage,
+                sourceImage: overlaySource,
               ),
             ),
           ],

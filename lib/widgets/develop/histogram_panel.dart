@@ -165,7 +165,7 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
 
       if (!mounted || widget.sourceImage != captured) return;
 
-      final rendered = await FullPipelineRenderer.render(
+      final result = await FullPipelineRenderer.render(
         developProgram: widget.program,
         maskProgram: widget.maskProgram,
         sourceImage: src,
@@ -179,6 +179,8 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
         targetHeight: h,
         developCache: _developCache,
       );
+      final rendered = result.finalImage;
+      result.developOutput?.dispose();
       try {
         final bd = await rendered.toByteData(
           format: ui.ImageByteFormat.rawRgba,
