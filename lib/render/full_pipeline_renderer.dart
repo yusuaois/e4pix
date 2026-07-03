@@ -4,13 +4,16 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 import '../core/models/adjustment_params.dart';
+import '../core/models/healing_mark.dart';
 import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
 import '../core/models/spot_mark.dart';
 import 'brush_rasterizer.dart';
 import 'crop_transform.dart';
+import 'healing_cache.dart';
 import 'homography.dart';
 import 'mask_cache.dart';
+import 'pass_config.dart';
 import 'render_engine.dart';
 import 'spot_removal_cache.dart';
 import '../utils/shader_pass_util.dart';
@@ -115,6 +118,7 @@ class FullPipelineRenderer {
     ui.FragmentProgram? perspectiveProgram,
     ui.FragmentProgram? lensCorrectProgram,
     ui.FragmentProgram? spotRemoveProgram,
+    ui.FragmentProgram? healingProgram,
     PerspectiveMatrixCache? perspectiveCache,
     required ui.Image sourceImage,
     required AdjustmentParams params,
@@ -129,10 +133,9 @@ class FullPipelineRenderer {
     BrushMaskCache? brushCache,
     bool allowStaleAutoMask = false,
     SpotRemovalCache? spotRemovalCache,
+    HealingCache? healingCache,
   }) async {
-    final enabledLocals = params.locals
-        .where((l) => l.enabled && !l.params.isNeutral)
-        .toList();
+    final enabledLocals = activeLocals(params);
     final hasEnabledMasks = enabledLocals.isNotEmpty;
     final useCache = developCache != null && hasEnabledMasks;
 
@@ -154,8 +157,7 @@ class FullPipelineRenderer {
     ui.Image developInput = sourceImage;
     bool developInputOwned = false;
     final wantDenoise =
-        denoiseProgram != null &&
-        (params.denoiseLuma > 0.001 || params.denoiseColor > 0.001);
+        denoiseProgram != null && needsDenoisePass(params);
     if (wantDenoise) {
       try {
         final denoised = await _runDenoisePass(
@@ -180,10 +182,7 @@ class FullPipelineRenderer {
     bool developOwned;
 
     final wantLensCorrect =
-        lensCorrectProgram != null &&
-        (params.lensCorrection.isDistortionActive ||
-            params.lensCorrection.isCaActive ||
-            params.lensCorrection.isVignettingActive);
+        lensCorrectProgram != null && needsLensCorrectionPass(params);
 
     ui.Image developPassInput = developInput;
     bool developPassInputOwned = developInputOwned;
@@ -346,7 +345,7 @@ class FullPipelineRenderer {
         ui.Image spotRemoved;
 
         // 1. Spots hash 缓存
-        final spotsCache = spotRemovalCache?.getFromSpotsCache(params.spots);
+        final spotsCache = spotRemovalCache?.getFromSpotsCache(developKey, params.spots);
         if (spotsCache != null) {
           spotRemoved = spotsCache;
         } else {
@@ -400,7 +399,7 @@ class FullPipelineRenderer {
             params.spots.length,
             spotRemoved,
           );
-          spotRemovalCache?.putSpotsCache(params.spots, spotRemoved);
+          spotRemovalCache?.putSpotsCache(developKey, params.spots, spotRemoved);
         }
 
         if (currentOwned) current.dispose();
@@ -411,11 +410,83 @@ class FullPipelineRenderer {
       }
     }
 
-    // 捕获 spot removal 之后的图像供 overlay 笔画预览
-    // （含 develop + mask + 所有已有污点修复，与屏幕显示一致）
+    // Healing brush
+    if (params.healingMarks.isNotEmpty && healingProgram != null) {
+      try {
+        ui.Image healed;
+
+        // 1. Marks hash cache
+        final marksCache = healingCache?.getFromMarksCache(developKey, params.healingMarks);
+        if (marksCache != null) {
+          healed = marksCache;
+        } else {
+          // 2. Incremental cache
+          final incremental = healingCache?.getIncremental(
+            developKey,
+            params.healingMarks,
+          );
+
+          ui.Image batchInput;
+          int startIdx;
+          bool batchInputOwned;
+
+          if (incremental != null) {
+            batchInput = incremental.$1;
+            startIdx = incremental.$2;
+            batchInputOwned = true;
+          } else {
+            // 3. Full recompute
+            batchInput = current;
+            startIdx = 0;
+            batchInputOwned = false;
+          }
+
+          for (int i = startIdx;
+              i < params.healingMarks.length;
+              i += _kMaxMarks) {
+            final batch = params.healingMarks.sublist(
+              i,
+              (i + _kMaxMarks).clamp(0, params.healingMarks.length),
+            );
+            try {
+              final result = await _runHealingPass(
+                program: healingProgram,
+                input: batchInput,
+                marks: batch,
+              );
+              if (batchInputOwned) batchInput.dispose();
+              batchInput = result;
+              batchInputOwned = true;
+            } catch (e) {
+              if (batchInputOwned) batchInput.dispose();
+              rethrow;
+            }
+          }
+          healed = batchInput;
+
+          // Update both cache levels
+          healingCache?.putRolling(
+            developKey,
+            params.healingMarks.length,
+            healed,
+          );
+          healingCache?.putMarksCache(developKey, params.healingMarks, healed);
+        }
+
+        if (currentOwned) current.dispose();
+        current = healed;
+        currentOwned = true;
+      } catch (e) {
+        debugPrint('[Pipeline] Healing pass failed: $e');
+      }
+    }
+
+    // 捕获 spot removal + healing 之后的图像供 overlay 笔画预览
+    // （含 develop + mask + 所有已有污点修复 + 修复画笔，与屏幕显示一致）
     ui.Image? developOutput;
     if (hasEnabledMasks ||
-        (params.spots.isNotEmpty && spotRemoveProgram != null)) {
+        (params.spots.isNotEmpty && spotRemoveProgram != null) ||
+        (params.healingMarks.isNotEmpty && healingProgram != null)) {
       try {
         developOutput = current.clone();
       } catch (e) {
@@ -425,7 +496,7 @@ class FullPipelineRenderer {
     }
 
     // perspective
-    if (!params.perspective.isIdentity && perspectiveProgram != null) {
+    if (needsPerspectivePass(params) && perspectiveProgram != null) {
       try {
         final warped = await _runPerspectivePass(
           program: perspectiveProgram,
@@ -454,7 +525,7 @@ class FullPipelineRenderer {
     }
 
     // sharpen
-    if (sharpenProgram != null && params.sharpenAmount > 0.001) {
+    if (sharpenProgram != null && needsSharpenPass(params)) {
       try {
         final sharpened = await _runSharpenPass(
           program: sharpenProgram,
@@ -565,6 +636,51 @@ class FullPipelineRenderer {
           }
         }
         assert(i == 2 + 1 + _kMaxSpots * _kSpotUniformsPerSpot);
+      },
+    );
+  }
+
+  static const _kMaxMarks = 64;
+  static const _kHealUniformsPerMark =
+      6; // srcX, srcY, tgtX, tgtY, radius, hardness
+  // Uniform total: 2(uSize) + 1(count) + 64*6 = 387 floats
+
+  static Future<ui.Image> _runHealingPass({
+    required ui.FragmentProgram program,
+    required ui.Image input,
+    required List<HealingMark> marks,
+  }) async {
+    final w = input.width;
+    final h = input.height;
+    final count = marks.length.clamp(0, _kMaxMarks);
+    return runSingleShaderPass(
+      shader: program.fragmentShader(),
+      outputWidth: w,
+      outputHeight: h,
+      samplers: [input],
+      setUniforms: (s) {
+        int i = 0;
+        // uSize
+        s.setFloat(i++, w.toDouble());
+        s.setFloat(i++, h.toDouble());
+        // uMarkCount
+        s.setFloat(i++, count.toDouble());
+        for (int n = 0; n < _kMaxMarks; n++) {
+          if (n < count) {
+            final mark = marks[n];
+            s.setFloat(i++, mark.source.dx);
+            s.setFloat(i++, mark.source.dy);
+            s.setFloat(i++, mark.target.dx);
+            s.setFloat(i++, mark.target.dy);
+            s.setFloat(i++, mark.radius);
+            s.setFloat(i++, mark.hardness);
+          } else {
+            for (int j = 0; j < _kHealUniformsPerMark; j++) {
+              s.setFloat(i++, 0.0);
+            }
+          }
+        }
+        assert(i == 2 + 1 + _kMaxMarks * _kHealUniformsPerMark);
       },
     );
   }

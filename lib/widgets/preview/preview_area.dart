@@ -13,6 +13,7 @@ import 'package:flutter/gestures.dart';
 import '../../core/constants/raw_formats.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/crop_params.dart';
+import '../../render/pass_config.dart';
 import '../../render/preview_renderer.dart';
 import '../../screens/folder_import_screen.dart';
 import '../../state/providers.dart';
@@ -20,6 +21,7 @@ import 'color_picker_overlay.dart';
 import 'crop_overlay.dart';
 import 'crop_panel.dart';
 import '../develop/sections/local/local_mask_overlay.dart';
+import '../develop/sections/healing_overlay.dart';
 import '../develop/sections/spot_remove_overlay.dart';
 import 'multi_pass_preview.dart';
 import 'split_compare_view.dart';
@@ -277,22 +279,7 @@ class _PreviewContent extends ConsumerWidget {
     bool lutEnabled,
     WidgetRef ref,
   ) {
-    final hasLocals = params.locals.any(
-      (l) => l.enabled && !l.params.isNeutral,
-    );
-    final hasSharpen = params.sharpenAmount > 0.001;
-    final hasDenoise =
-        params.denoiseLuma > 0.001 || params.denoiseColor > 0.001;
-    final hasLensCorrection = !params.lensCorrection.isNeutral;
-    final hasPerspective = !params.perspective.isIdentity;
-    final hasSpots = params.spots.isNotEmpty;
-    final needFullPipeline =
-        hasLocals ||
-        hasSharpen ||
-        hasDenoise ||
-        hasLensCorrection ||
-        hasPerspective ||
-        hasSpots;
+    final needFullPipeline = needsFullPipeline(params);
 
     if (needFullPipeline) {
       final maskProgram = ref.watch(maskShaderProgramProvider).value;
@@ -332,6 +319,7 @@ class _PreviewContent extends ConsumerWidget {
                 .watch(lensCorrectShaderProgramProvider)
                 .value,
             spotRemoveProgram: ref.watch(spotRemoveShaderProgramProvider).value,
+            healingProgram: ref.watch(healingShaderProgramProvider).value,
             idleMaxEdge: idle,
             draggingMaxEdge: dragging,
           );
@@ -593,6 +581,34 @@ class _PreviewContent extends ConsumerWidget {
                 sourceWidth: state.uiImage.width,
                 sourceHeight: state.uiImage.height,
                 sourceImage: overlaySource,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 修复画笔 overlay
+    // Committed preview persists across tool switches via persistent state
+    // in HealingOverlayState, so marks survive momentary unmounting.
+    final healState = ref.watch(healingStateProvider);
+    if (healState.mode == HealingMode.active ||
+        HealingOverlayState.hasPendingPreview) {
+      ref.watch(renderedPreviewGenerationProvider);
+      final overlaySource = ref.watch(developOutputProvider) ?? state.uiImage;
+      content = SizedBox.fromSize(
+        size: displaySize,
+        child: Stack(
+          children: [
+            content,
+            Positioned.fill(
+              child: HealingOverlay(
+                imageDisplaySize: displaySize,
+                crop: params.crop,
+                sourceWidth: state.uiImage.width,
+                sourceHeight: state.uiImage.height,
+                sourceImage: overlaySource,
+                interactive: healState.mode == HealingMode.active,
               ),
             ),
           ],

@@ -170,6 +170,7 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
     final sharpenProgram = ref.read(sharpenShaderProgramProvider).value;
     final denoiseProgram = ref.read(denoiseShaderProgramProvider).value;
     final spotRemoveProgram = ref.read(spotRemoveShaderProgramProvider).value;
+    final healingProgram = ref.read(healingShaderProgramProvider).value;
     final watermarkCfg = ref.read(watermarkConfigProvider);
     final cfg = job.config;
 
@@ -206,6 +207,7 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
         sharpenProgram: sharpenProgram,
         denoiseProgram: denoiseProgram,
         spotRemoveProgram: spotRemoveProgram,
+        healingProgram: healingProgram,
         denoiseEngine: cfg.denoiseEngine,
         denoiseParallelism: cfg.denoiseParallelism,
         jpegQuality: cfg.jpegQuality,

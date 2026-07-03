@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
+import '../../render/healing_cache.dart';
 import '../../render/homography.dart';
 import '../../render/mask_cache.dart';
 import '../../render/spot_removal_cache.dart';
@@ -29,6 +30,7 @@ class MultiPassPreview extends ConsumerStatefulWidget {
   final ui.FragmentProgram? perspectiveProgram;
   final ui.FragmentProgram? lensCorrectProgram;
   final ui.FragmentProgram? spotRemoveProgram;
+  final ui.FragmentProgram? healingProgram;
   final int idleMaxEdge;
   final int draggingMaxEdge;
 
@@ -48,6 +50,7 @@ class MultiPassPreview extends ConsumerStatefulWidget {
     this.perspectiveProgram,
     this.lensCorrectProgram,
     this.spotRemoveProgram,
+    this.healingProgram,
     this.idleMaxEdge = 2400,
     this.draggingMaxEdge = 800,
   });
@@ -67,6 +70,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   final _brushCache = BrushMaskCache();
   final _perspectiveCache = PerspectiveMatrixCache();
   final _spotRemovalCache = SpotRemovalCache();
+  final _healingCache = HealingCache();
 
   @override
   void initState() {
@@ -105,6 +109,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     _developCache.dispose();
     _brushCache.dispose();
     _spotRemovalCache.dispose();
+    _healingCache.dispose();
     super.dispose();
   }
 
@@ -143,6 +148,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         perspectiveProgram: widget.perspectiveProgram,
         lensCorrectProgram: widget.lensCorrectProgram,
         spotRemoveProgram: widget.spotRemoveProgram,
+        healingProgram: widget.healingProgram,
         perspectiveCache: _perspectiveCache,
         targetWidth: tw,
         targetHeight: th,
@@ -150,6 +156,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         brushCache: _brushCache,
         allowStaleAutoMask: isDragging,
         spotRemovalCache: _spotRemovalCache,
+        healingCache: _healingCache,
       );
 
       if (gen != _generation || !mounted) {
@@ -164,6 +171,12 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       // 先更新 spots hash（overlay 用它判断"含本次描边的渲染是否完成"）
       final spotsHash = SpotRemovalCache.computeSpotsKey(widget.params.spots);
       ref.read(renderedSpotsHashProvider.notifier).state = spotsHash;
+
+      // 更新 healing marks hash（healing overlay 用此信号清除 committed preview）
+      final healingHash = HealingCache.computeHealingKey(
+        widget.params.healingMarks,
+      );
+      ref.read(renderedHealingHashProvider.notifier).state = healingHash;
 
       // 更新 Develop 输出供 spot removal overlay 笔画预览
       ref.read(developOutputProvider.notifier).update(result.developOutput);

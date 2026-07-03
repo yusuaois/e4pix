@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/math_constants.dart';
 import '../../../core/theme/app_colors.dart';
 
 import '../../../core/theme/app_typography.dart';
@@ -31,7 +32,7 @@ class DevelopSliderTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final neutralValue =
         resetValue ?? (min < 0 && max > 0 ? 0.0 : (min + max) / 2);
-    final isNeutral = (value - neutralValue).abs() < 0.001;
+    final isNeutral = (value - neutralValue).abs() < kParamEpsilon;
     final display = value.toStringAsFixed(fractionDigits);
     final sign = value > 0 ? '+' : '';
 

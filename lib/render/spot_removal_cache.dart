@@ -16,9 +16,17 @@ import '../core/models/spot_mark.dart';
 /// 缓存失效条件：
 ///   - 参数变化拖完：只失效 spots hash 缓存（保留增量缓存供新描边使用）
 ///   - 切图：全部失效
+///
+/// ## 所有权约定
+///
+/// 每次 put 时存储 clone，每次 get 时返回 clone，这导致一次往返产生两次
+/// GPU 拷贝（put-clone + get-clone），但这是保障多次缓存命中的最简安全模式：
+/// 同一份缓存条目可能在多次参数拖动中被命中，若 get 转移所有权则第二次命中
+/// 时缓存引用已失效，调用方在获取 clone 后拥有所有权，负责 dispose
 class SpotRemovalCache {
   // ── 第一级：Spots hash 缓存（参数拖动期间用）──
   int _spotsKey = 0;
+  int _spotsDevKey = 0;
   ui.Image? _spotsResult;
 
   // ── 第二级：增量滚动缓存（新增描边用）──
@@ -29,10 +37,11 @@ class SpotRemovalCache {
   static int computeSpotsKey(List<SpotMark> spots) =>
       Object.hashAll(spots.map((s) => s.hashCode));
 
-  /// 第一级缓存命中：spots 列表未变（参数拖动期间）
+  /// 第一级缓存命中：spots 列表未变 + develop 参数未变
   /// 返回 clone，调用方拥有所有权，无需再 clone
-  ui.Image? getFromSpotsCache(List<SpotMark> spots) {
+  ui.Image? getFromSpotsCache(int developKey, List<SpotMark> spots) {
     if (spots.isEmpty || _spotsResult == null) return null;
+    if (developKey != _spotsDevKey) return null;
     return computeSpotsKey(spots) == _spotsKey ? _spotsResult?.clone() : null;
   }
 
@@ -47,10 +56,11 @@ class SpotRemovalCache {
     return (_rollingResult!.clone(), _rollingSpotCount);
   }
 
-  void putSpotsCache(List<SpotMark> spots, ui.Image result) {
+  void putSpotsCache(int developKey, List<SpotMark> spots, ui.Image result) {
     _spotsResult?.dispose();
     _spotsResult = result.clone();
     _spotsKey = computeSpotsKey(spots);
+    _spotsDevKey = developKey;
   }
 
   void putRolling(int developKey, int spotCount, ui.Image result) {

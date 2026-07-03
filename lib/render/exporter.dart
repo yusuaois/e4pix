@@ -21,6 +21,7 @@ import 'curve_baker.dart';
 import 'exif_writer.dart';
 import 'export_template.dart';
 import 'full_pipeline_renderer.dart';
+import 'pass_config.dart';
 import 'pixel_convert.dart';
 import 'watermark_exporter.dart';
 
@@ -78,6 +79,7 @@ class Exporter {
     ui.FragmentProgram? sharpenProgram,
     ui.FragmentProgram? denoiseProgram,
     ui.FragmentProgram? spotRemoveProgram,
+    ui.FragmentProgram? healingProgram,
     DenoiseEngine denoiseEngine = DenoiseEngine.cpu,
     int denoiseParallelism = 4,
     int jpegQuality = 95,
@@ -136,6 +138,7 @@ class Exporter {
         sharpenProgram: sharpenProgram,
         denoiseProgram: passDenoiseProgram,
         spotRemoveProgram: spotRemoveProgram,
+        healingProgram: healingProgram,
         targetWidth: sourceImage.width,
         targetHeight: sourceImage.height,
       );
@@ -307,7 +310,7 @@ class Exporter {
   }
 
   static bool _wantDenoise(AdjustmentParams p) =>
-      p.denoiseLuma > 0.001 || p.denoiseColor > 0.001;
+      needsDenoisePass(p);
 
   static bool _wantCpuDenoise(AdjustmentParams p, DenoiseEngine e) =>
       _wantDenoise(p) && e == DenoiseEngine.cpu;

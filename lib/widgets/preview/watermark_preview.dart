@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/crop_params.dart';
 import '../../core/models/watermark_config.dart';
+import '../../render/pass_config.dart';
 import '../../native/raw_bridge.dart';
 import '../../utils/image_loader_util.dart';
 import '../../render/preview_renderer.dart';
@@ -66,22 +67,7 @@ class WatermarkPreview extends ConsumerWidget {
         : Colors.black;
 
     // ── 渲染路径选择 ──
-    final hasLocals = params.locals.any(
-      (l) => l.enabled && !l.params.isNeutral,
-    );
-    final hasSharpen = params.sharpenAmount > 0.001;
-    final hasDenoise =
-        params.denoiseLuma > 0.001 || params.denoiseColor > 0.001;
-    final hasSpots = params.spots.isNotEmpty;
-    final hasLensCorrection = !params.lensCorrection.isNeutral;
-    final hasPerspective = !params.perspective.isIdentity;
-    final needFullPipeline =
-        hasLocals ||
-        hasSharpen ||
-        hasDenoise ||
-        hasLensCorrection ||
-        hasPerspective ||
-        hasSpots;
+    final needFullPipeline = needsFullPipeline(params);
 
     if (needFullPipeline) {
       final maskProgram = ref.watch(maskShaderProgramProvider).value;
@@ -108,6 +94,7 @@ class WatermarkPreview extends ConsumerWidget {
           perspectiveProgram: ref.watch(perspectiveShaderProgramProvider).value,
           lensCorrectProgram: ref.watch(lensCorrectShaderProgramProvider).value,
           spotRemoveProgram: ref.watch(spotRemoveShaderProgramProvider).value,
+          healingProgram: ref.watch(healingShaderProgramProvider).value,
           geometry: geometry,
         ),
         backgroundLayer: _buildBackground(
@@ -429,6 +416,7 @@ class _ComplexImageLayer extends ConsumerWidget {
   final ui.FragmentProgram? perspectiveProgram;
   final ui.FragmentProgram? lensCorrectProgram;
   final ui.FragmentProgram? spotRemoveProgram;
+  final ui.FragmentProgram? healingProgram;
   final WatermarkGeometry geometry;
 
   const _ComplexImageLayer({
@@ -446,6 +434,7 @@ class _ComplexImageLayer extends ConsumerWidget {
     this.perspectiveProgram,
     this.lensCorrectProgram,
     this.spotRemoveProgram,
+    this.healingProgram,
     required this.geometry,
   });
 
@@ -477,6 +466,7 @@ class _ComplexImageLayer extends ConsumerWidget {
         perspectiveProgram: perspectiveProgram,
         lensCorrectProgram: lensCorrectProgram,
         spotRemoveProgram: spotRemoveProgram,
+        healingProgram: healingProgram,
         idleMaxEdge: slotLongest,
         draggingMaxEdge: (slotLongest * 0.5).ceil().clamp(200, dragging),
       ),

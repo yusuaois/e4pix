@@ -530,11 +530,18 @@
   "hdrAlignConverting": "正在对齐图像...",
   "superResPreview": "预览效果",
   "exportSuperRes": "超分辨率处理中...",
-  "spotRemoveTitle": "污点修复",
+  "spotRemoveTitle": "图章",
   "spotRemoveAltHint": "点击取样按钮，然后点击画面设置源点",
   "spotRemoveSample": "取样",
   "spotRemoveSourceSet": "源点已设 — 点击或拖拽涂抹",
   "spotRemoveRadius": "半径",
   "spotRemoveHardness": "硬度",
-  "spotRemoveClearAll": "清除全部"
+  "spotRemoveClearAll": "清除全部",
+  "healingTitle": "修复画笔",
+  "healingAltHint": "点击取样按钮，然后点击画面设置源点",
+  "healingSample": "取样",
+  "healingSourceSet": "源点已设 — 点击或拖拽涂抹",
+  "healingRadius": "半径",
+  "healingHardness": "硬度",
+  "healingClearAll": "清除全部"
 }

@@ -33,6 +33,7 @@ export 'tools/develop_tool_state.dart';
 export 'tools/compare_state.dart';
 export 'tools/sr_state.dart';
 export 'tools/spot_remove_state.dart';
+export 'tools/healing_state.dart';
 
 // watermark
 export 'watermark/watermark_state.dart';

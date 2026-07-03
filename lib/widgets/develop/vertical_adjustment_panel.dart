@@ -33,12 +33,13 @@ class _VerticalAdjustmentPanelState
     with TickerProviderStateMixin {
   static const _localTabIndex = 7;
   static const _spotRemoveTabIndex = 8;
+  static const _healingTabIndex = 9;
   late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 12, vsync: this);
+    _tabController = TabController(length: 13, vsync: this);
     _tabController.addListener(_onTabChanged);
   }
 
@@ -51,6 +52,11 @@ class _VerticalAdjustmentPanelState
       ref
           .read(spotRemoveStateProvider.notifier)
           .setMode(SpotRemoveMode.inactive);
+    }
+    if (_tabController.index != _healingTabIndex) {
+      ref
+          .read(healingStateProvider.notifier)
+          .setMode(HealingMode.inactive);
     }
   }
 
@@ -96,6 +102,7 @@ class _VerticalAdjustmentPanelState
                         Tab(text: tr("preset"), height: 36),
                         Tab(text: tr("local"), height: 36),
                         Tab(text: tr("spotRemoveTitle"), height: 36),
+                        Tab(text: tr("healingTitle"), height: 36),
                         Tab(text: tr("lens"), height: 36),
                         Tab(text: tr('superResolution'), height: 36),
                         Tab(text: tr("watermark"), height: 36),
@@ -155,6 +162,14 @@ class _VerticalAdjustmentPanelState
                 _LazyBuild(
                   builder: (_) => SingleChildScrollView(
                     child: SpotRemoveSection(
+                      params: params,
+                      onChanged: widget.onChanged,
+                    ),
+                  ),
+                ),
+                _LazyBuild(
+                  builder: (_) => SingleChildScrollView(
+                    child: HealingSection(
                       params: params,
                       onChanged: widget.onChanged,
                     ),

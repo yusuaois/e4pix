@@ -530,11 +530,18 @@
   "hdrAlignConverting": "Aligning images...",
   "superResPreview": "Preview",
   "exportSuperRes": "Super Resolution...",
-  "spotRemoveTitle": "Spot Removal",
+  "spotRemoveTitle": "Clone Stamp",
   "spotRemoveAltHint": "Tap Sample button, then tap to set source",
   "spotRemoveSample": "Sample",
   "spotRemoveSourceSet": "Source set — click or drag to paint",
   "spotRemoveRadius": "Radius",
   "spotRemoveHardness": "Hardness",
-  "spotRemoveClearAll": "Clear All"
+  "spotRemoveClearAll": "Clear All",
+  "healingTitle": "Healing Brush",
+  "healingAltHint": "Tap Sample button, then tap to set source",
+  "healingSample": "Sample",
+  "healingSourceSet": "Source set — click or drag to paint",
+  "healingRadius": "Radius",
+  "healingHardness": "Hardness",
+  "healingClearAll": "Clear All"
 }

@@ -58,6 +58,8 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
         return const LocalPanel();
       case DevelopTool.spotRemove:
         return SpotRemoveSection(params: params, onChanged: onChanged);
+      case DevelopTool.healing:
+        return HealingSection(params: params, onChanged: onChanged);
       case DevelopTool.watermark:
         return const WatermarkSection();
       case DevelopTool.lens:
@@ -83,6 +85,12 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
         ref
             .read(spotRemoveStateProvider.notifier)
             .setMode(SpotRemoveMode.inactive);
+      }
+      // 切离 healing 时退出修复画笔模式
+      if (prev == DevelopTool.healing && next != DevelopTool.healing) {
+        ref
+            .read(healingStateProvider.notifier)
+            .setMode(HealingMode.inactive);
       }
     });
 
@@ -222,6 +230,12 @@ class _ToolRail extends StatelessWidget {
               tooltip: tr('spotRemoveTitle'),
               selected: selected == DevelopTool.spotRemove,
               onTap: () => onSelect(DevelopTool.spotRemove),
+            ),
+            _RailItem(
+              icon: Icons.auto_fix_high,
+              tooltip: tr('healingTitle'),
+              selected: selected == DevelopTool.healing,
+              onTap: () => onSelect(DevelopTool.healing),
             ),
             _RailItem(
               icon: Icons.camera_outlined,

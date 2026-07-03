@@ -5,6 +5,7 @@ import 'package:e4pix/core/models/lens_correction_params.dart';
 import 'package:e4pix/core/models/perspective_params.dart';
 import 'package:flutter/foundation.dart';
 
+import 'healing_mark.dart';
 import 'local_adjustment.dart';
 import 'rgb_curves.dart';
 import 'spot_mark.dart';
@@ -48,6 +49,9 @@ class AdjustmentParams {
   /// 污点修复标记列表
   final List<SpotMark> spots;
 
+  /// 修复画笔标记列表
+  final List<HealingMark> healingMarks;
+
   const AdjustmentParams({
     this.exposure = 0.0,
     this.temperature = 5500,
@@ -78,6 +82,7 @@ class AdjustmentParams {
     this.srEnabled = false,
     this.srScale = 2,
     this.spots = const [],
+    this.healingMarks = const [],
   });
 
   static const neutral = AdjustmentParams();
@@ -112,6 +117,7 @@ class AdjustmentParams {
     bool? srEnabled,
     int? srScale,
     List<SpotMark>? spots,
+    List<HealingMark>? healingMarks,
   }) => AdjustmentParams(
     exposure: exposure ?? this.exposure,
     temperature: temperature ?? this.temperature,
@@ -142,6 +148,7 @@ class AdjustmentParams {
     srEnabled: srEnabled ?? this.srEnabled,
     srScale: srScale ?? this.srScale,
     spots: spots ?? this.spots,
+    healingMarks: healingMarks ?? this.healingMarks,
   );
 
   @override
@@ -176,7 +183,8 @@ class AdjustmentParams {
           srEnabled == other.srEnabled &&
           srScale == other.srScale &&
           listEquals(locals, other.locals) &&
-          listEquals(spots, other.spots);
+          listEquals(spots, other.spots) &&
+          listEquals(healingMarks, other.healingMarks);
 
   @override
   int get hashCode => Object.hashAll([
@@ -209,6 +217,7 @@ class AdjustmentParams {
     srScale,
     locals,
     spots,
+    healingMarks,
   ]);
 
   Map<String, dynamic> toJson() => {
@@ -241,6 +250,7 @@ class AdjustmentParams {
     'srScale': srScale,
     'locals': locals.map((e) => e.toJson()).toList(),
     'spots': spots.map((e) => e.toJson()).toList(),
+    'healingMarks': healingMarks.map((e) => e.toJson()).toList(),
   };
 
   factory AdjustmentParams.fromJson(Map<String, dynamic> j) => AdjustmentParams(
@@ -299,6 +309,11 @@ class AdjustmentParams {
     spots:
         (j['spots'] as List?)
             ?.map((e) => SpotMark.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
+    healingMarks:
+        (j['healingMarks'] as List?)
+            ?.map((e) => HealingMark.fromJson(e as Map<String, dynamic>))
             .toList() ??
         const [],
   );
