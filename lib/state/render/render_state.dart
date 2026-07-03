@@ -20,6 +20,8 @@ class _ShaderBundle {
   final ui.FragmentProgram perspective;
   final ui.FragmentProgram lensCorrect;
   final ui.FragmentProgram spotRemove;
+  final ui.FragmentProgram compose;
+  final ui.FragmentProgram spotHeal;
   const _ShaderBundle({
     required this.develop,
     required this.mask,
@@ -28,6 +30,8 @@ class _ShaderBundle {
     required this.perspective,
     required this.lensCorrect,
     required this.spotRemove,
+    required this.compose,
+    required this.spotHeal,
   });
 }
 
@@ -41,6 +45,8 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     ui.FragmentProgram.fromAsset('assets/shaders/perspective.shader'),
     ui.FragmentProgram.fromAsset('assets/shaders/lens_correct.shader'),
     ui.FragmentProgram.fromAsset('assets/shaders/spot_remove.shader'),
+    ui.FragmentProgram.fromAsset('assets/shaders/compose.shader'),
+    ui.FragmentProgram.fromAsset('assets/shaders/spot_heal.shader'),
   ]);
   for (final p in results) {
     p.fragmentShader(); // 预热编译
@@ -53,6 +59,8 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     perspective: results[4],
     lensCorrect: results[5],
     spotRemove: results[6],
+    compose: results[7],
+    spotHeal: results[8],
   );
 });
 
@@ -97,6 +105,18 @@ final spotRemoveShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   return (await ref.watch(_allShadersProvider.future)).spotRemove;
 });
 
+final composeShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
+  ref,
+) async {
+  return (await ref.watch(_allShadersProvider.future)).compose;
+});
+
+final spotHealShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
+  ref,
+) async {
+  return (await ref.watch(_allShadersProvider.future)).spotHeal;
+});
+
 /// Healing brush shader.
 ///
 /// Same independent-loading pattern as [composeShaderProgramProvider].
@@ -112,6 +132,17 @@ final healingShaderProgramProvider = FutureProvider<ui.FragmentProgram?>((
   } catch (_) {
     return null;
   }
+});
+
+/// 在 app 启动时预热全部 8 个 shader：并行加载、编译到 GPU，
+/// 避免 Clone Stamp / Healing Brush 等工具的首次笔画卡顿。
+///
+/// 应在 [E4pixApp.build] 中尽早 watch，不阻塞 UI。
+final shaderWarmupProvider = FutureProvider<void>((ref) async {
+  await Future.wait([
+    ref.watch(_allShadersProvider.future),
+    ref.watch(healingShaderProgramProvider.future),
+  ]);
 });
 
 /// 管道渲染完成计数器每次 full-pipeline 渲染产出新帧 +1

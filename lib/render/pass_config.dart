@@ -13,12 +13,10 @@ bool needsDenoisePass(AdjustmentParams p) =>
     p.denoiseLuma > kParamEpsilon || p.denoiseColor > kParamEpsilon;
 
 /// Whether the sharpen pass is required.
-bool needsSharpenPass(AdjustmentParams p) =>
-    p.sharpenAmount > kParamEpsilon;
+bool needsSharpenPass(AdjustmentParams p) => p.sharpenAmount > kParamEpsilon;
 
 /// Whether the perspective / keystone pass is required.
-bool needsPerspectivePass(AdjustmentParams p) =>
-    !p.perspective.isIdentity;
+bool needsPerspectivePass(AdjustmentParams p) => !p.perspective.isIdentity;
 
 /// Whether the lens-correction pass is required
 /// (distortion, CA, or vignetting).
@@ -40,6 +38,9 @@ bool hasSpots(AdjustmentParams p) => p.spots.isNotEmpty;
 /// Whether any healing-brush marks exist.
 bool hasHealingMarks(AdjustmentParams p) => p.healingMarks.isNotEmpty;
 
+/// Whether any spot-heal marks exist.
+bool hasSpotHealMarks(AdjustmentParams p) => p.spotHealMarks.isNotEmpty;
+
 /// Whether the full pipeline (beyond a simple develop pass) is required.
 bool needsFullPipeline(AdjustmentParams p) =>
     hasActiveLocals(p) ||
@@ -48,4 +49,9 @@ bool needsFullPipeline(AdjustmentParams p) =>
     needsLensCorrectionPass(p) ||
     needsPerspectivePass(p) ||
     hasSpots(p) ||
-    hasHealingMarks(p);
+    hasHealingMarks(p) ||
+    hasSpotHealMarks(p);
+
+/// Whether the compose pass is required (any brush has active marks).
+bool needsComposePass(AdjustmentParams p) =>
+    hasSpots(p) || hasHealingMarks(p) || hasSpotHealMarks(p);

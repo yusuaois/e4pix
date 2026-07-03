@@ -12,6 +12,7 @@ enum DevelopTool {
   local,
   spotRemove,
   healing,
+  spotHeal,
   watermark,
   lens,
   sr,

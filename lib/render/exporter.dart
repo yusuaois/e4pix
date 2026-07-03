@@ -20,6 +20,7 @@ import 'cpu_denoise.dart';
 import 'curve_baker.dart';
 import 'exif_writer.dart';
 import 'export_template.dart';
+import 'brush_layer_registry.dart';
 import 'full_pipeline_renderer.dart';
 import 'pass_config.dart';
 import 'pixel_convert.dart';
@@ -80,6 +81,8 @@ class Exporter {
     ui.FragmentProgram? denoiseProgram,
     ui.FragmentProgram? spotRemoveProgram,
     ui.FragmentProgram? healingProgram,
+    ui.FragmentProgram? composeProgram,
+    BrushLayerRegistry? brushLayerRegistry,
     DenoiseEngine denoiseEngine = DenoiseEngine.cpu,
     int denoiseParallelism = 4,
     int jpegQuality = 95,
@@ -139,6 +142,8 @@ class Exporter {
         denoiseProgram: passDenoiseProgram,
         spotRemoveProgram: spotRemoveProgram,
         healingProgram: healingProgram,
+        composeProgram: composeProgram,
+        brushLayerRegistry: brushLayerRegistry,
         targetWidth: sourceImage.width,
         targetHeight: sourceImage.height,
       );
@@ -309,8 +314,7 @@ class Exporter {
     }
   }
 
-  static bool _wantDenoise(AdjustmentParams p) =>
-      needsDenoisePass(p);
+  static bool _wantDenoise(AdjustmentParams p) => needsDenoisePass(p);
 
   static bool _wantCpuDenoise(AdjustmentParams p, DenoiseEngine e) =>
       _wantDenoise(p) && e == DenoiseEngine.cpu;

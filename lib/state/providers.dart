@@ -32,8 +32,9 @@ export 'tools/local_state.dart';
 export 'tools/develop_tool_state.dart';
 export 'tools/compare_state.dart';
 export 'tools/sr_state.dart';
-export 'tools/spot_remove_state.dart';
-export 'tools/healing_state.dart';
+export '../brushes/clone_stamp/clone_stamp_state.dart';
+export '../brushes/healing/healing_state.dart';
+export '../brushes/spot_heal/spot_heal_state.dart';
 
 // watermark
 export 'watermark/watermark_state.dart';

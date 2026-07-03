@@ -34,12 +34,13 @@ class _VerticalAdjustmentPanelState
   static const _localTabIndex = 7;
   static const _spotRemoveTabIndex = 8;
   static const _healingTabIndex = 9;
+  static const _spotHealTabIndex = 10;
   late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 13, vsync: this);
+    _tabController = TabController(length: 14, vsync: this);
     _tabController.addListener(_onTabChanged);
   }
 
@@ -54,9 +55,10 @@ class _VerticalAdjustmentPanelState
           .setMode(SpotRemoveMode.inactive);
     }
     if (_tabController.index != _healingTabIndex) {
-      ref
-          .read(healingStateProvider.notifier)
-          .setMode(HealingMode.inactive);
+      ref.read(healingStateProvider.notifier).setMode(HealingMode.inactive);
+    }
+    if (_tabController.index != _spotHealTabIndex) {
+      ref.read(spotHealStateProvider.notifier).setMode(SpotHealMode.inactive);
     }
   }
 
@@ -103,6 +105,7 @@ class _VerticalAdjustmentPanelState
                         Tab(text: tr("local"), height: 36),
                         Tab(text: tr("spotRemoveTitle"), height: 36),
                         Tab(text: tr("healingTitle"), height: 36),
+                        Tab(text: tr("spotHealTitle"), height: 36),
                         Tab(text: tr("lens"), height: 36),
                         Tab(text: tr('superResolution'), height: 36),
                         Tab(text: tr("watermark"), height: 36),
@@ -170,6 +173,14 @@ class _VerticalAdjustmentPanelState
                 _LazyBuild(
                   builder: (_) => SingleChildScrollView(
                     child: HealingSection(
+                      params: params,
+                      onChanged: widget.onChanged,
+                    ),
+                  ),
+                ),
+                _LazyBuild(
+                  builder: (_) => SingleChildScrollView(
+                    child: SpotHealSection(
                       params: params,
                       onChanged: widget.onChanged,
                     ),

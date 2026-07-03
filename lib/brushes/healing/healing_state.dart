@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
-import '../../core/models/healing_mark.dart';
-import '../params/params_state.dart';
+import 'healing_model.dart';
+import '../../state/params/params_state.dart';
 
 /// Healing brush interaction mode.
 enum HealingMode {

@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import '../core/models/healing_mark.dart';
+import 'healing_model.dart';
 
 /// Healing brush result cache (two-level).
 ///

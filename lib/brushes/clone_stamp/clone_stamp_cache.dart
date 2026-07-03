@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import '../core/models/spot_mark.dart';
+import 'clone_stamp_model.dart';
 
 /// Spot removal 结果缓存（两级）
 ///

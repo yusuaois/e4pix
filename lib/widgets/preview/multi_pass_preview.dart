@@ -6,11 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
+import '../../render/brush_layer_provider.dart';
+import '../../render/brush_layer_registry.dart';
 import '../../render/full_pipeline_renderer.dart';
-import '../../render/healing_cache.dart';
+import '../../brushes/healing/healing_cache.dart';
 import '../../render/homography.dart';
+import '../../../brushes/healing/healing_layer.dart';
+import '../../../brushes/spot_heal/spot_heal_layer.dart';
+import '../../../brushes/clone_stamp/clone_stamp_layer.dart';
 import '../../render/mask_cache.dart';
-import '../../render/spot_removal_cache.dart';
+import '../../../brushes/clone_stamp/clone_stamp_cache.dart';
 import '../../state/providers.dart';
 import '../../utils/shader_pass_util.dart';
 
@@ -72,6 +77,12 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   final _spotRemovalCache = SpotRemovalCache();
   final _healingCache = HealingCache();
 
+  // Compose pass: layer providers (created lazily when shaders are ready)
+  SpotRemovalLayerProvider? _spotLayer;
+  HealingLayerProvider? _healLayer;
+  SpotHealLayerProvider? _spotHealLayer;
+  BrushLayerRegistry? _layerRegistry;
+
   @override
   void initState() {
     super.initState();
@@ -84,6 +95,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     if (old.sourceImage != widget.sourceImage) {
       _perspectiveCache.invalidate();
       _spotRemovalCache.invalidate();
+      _layerRegistry?.invalidateAll();
     }
     if (old.sourceImage != widget.sourceImage ||
         old.lutTexture != widget.lutTexture ||
@@ -110,6 +122,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     _brushCache.dispose();
     _spotRemovalCache.dispose();
     _healingCache.dispose();
+    _layerRegistry?.dispose();
     super.dispose();
   }
 
@@ -133,6 +146,35 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       final tw = (src.width * scale).round();
       final th = (src.height * scale).round();
 
+      // Compose pass: build layer registry from available brush shaders.
+      // Lazy-init providers; rebuild registry each render for freshness.
+      final composeProgram = ref.read(composeShaderProgramProvider).value;
+      BrushLayerRegistry? layerReg;
+      if (composeProgram != null) {
+        final providers = <BrushLayerProvider>[];
+        final spotRemoveProgram = ref
+            .read(spotRemoveShaderProgramProvider)
+            .value;
+        if (spotRemoveProgram != null) {
+          _spotLayer ??= SpotRemovalLayerProvider(program: spotRemoveProgram);
+          providers.add(_spotLayer!);
+        }
+        final healingProgram = ref.read(healingShaderProgramProvider).value;
+        if (healingProgram != null) {
+          _healLayer ??= HealingLayerProvider(program: healingProgram);
+          providers.add(_healLayer!);
+        }
+        final spotHealProgram = ref.read(spotHealShaderProgramProvider).value;
+        if (spotHealProgram != null) {
+          _spotHealLayer ??= SpotHealLayerProvider(program: spotHealProgram);
+          providers.add(_spotHealLayer!);
+        }
+        if (providers.isNotEmpty) {
+          _layerRegistry = BrushLayerRegistry(providers: providers);
+          layerReg = _layerRegistry;
+        }
+      }
+
       final result = await FullPipelineRenderer.render(
         developProgram: widget.developProgram,
         maskProgram: widget.maskProgram,
@@ -149,6 +191,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         lensCorrectProgram: widget.lensCorrectProgram,
         spotRemoveProgram: widget.spotRemoveProgram,
         healingProgram: widget.healingProgram,
+        composeProgram: composeProgram,
+        brushLayerRegistry: layerReg,
         perspectiveCache: _perspectiveCache,
         targetWidth: tw,
         targetHeight: th,

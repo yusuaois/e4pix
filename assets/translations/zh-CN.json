@@ -543,5 +543,10 @@
   "healingSourceSet": "源点已设 — 点击或拖拽涂抹",
   "healingRadius": "半径",
   "healingHardness": "硬度",
-  "healingClearAll": "清除全部"
+  "healingClearAll": "清除全部",
+  "spotHealTitle": "污点修复",
+  "spotHealHint": "涂抹以覆盖瑕疵，工具将自动从周围区域填充",
+  "spotHealRadius": "半径",
+  "spotHealHardness": "硬度",
+  "spotHealClearAll": "清除全部"
 }

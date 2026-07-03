@@ -61,6 +61,9 @@ class E4pixApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 尽早触发 shader 预热（8 个 shader 并行加载编译），不阻塞 UI
+    ref.watch(shaderWarmupProvider);
+
     final dynamicEnabled = ref.watch(dynamicColorEnabledProvider);
     final seed = ref.watch(seedColorProvider);
 

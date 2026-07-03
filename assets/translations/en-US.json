@@ -543,5 +543,10 @@
   "healingSourceSet": "Source set — click or drag to paint",
   "healingRadius": "Radius",
   "healingHardness": "Hardness",
-  "healingClearAll": "Clear All"
+  "healingClearAll": "Clear All",
+  "spotHealTitle": "Spot Heal",
+  "spotHealHint": "Paint over defects; the tool auto-fills from surrounding area",
+  "spotHealRadius": "Radius",
+  "spotHealHardness": "Hardness",
+  "spotHealClearAll": "Clear All"
 }

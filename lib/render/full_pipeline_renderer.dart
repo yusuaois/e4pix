@@ -4,18 +4,18 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 import '../core/models/adjustment_params.dart';
-import '../core/models/healing_mark.dart';
 import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
-import '../core/models/spot_mark.dart';
+import '../core/models/brush_layer.dart';
+import 'brush_layer_registry.dart';
 import 'brush_rasterizer.dart';
 import 'crop_transform.dart';
-import 'healing_cache.dart';
+import '../brushes/healing/healing_cache.dart';
 import 'homography.dart';
 import 'mask_cache.dart';
 import 'pass_config.dart';
 import 'render_engine.dart';
-import 'spot_removal_cache.dart';
+import '../brushes/clone_stamp/clone_stamp_cache.dart';
 import '../utils/shader_pass_util.dart';
 
 /// 完整管线渲染结果
@@ -119,6 +119,8 @@ class FullPipelineRenderer {
     ui.FragmentProgram? lensCorrectProgram,
     ui.FragmentProgram? spotRemoveProgram,
     ui.FragmentProgram? healingProgram,
+    ui.FragmentProgram? composeProgram,
+    BrushLayerRegistry? brushLayerRegistry,
     PerspectiveMatrixCache? perspectiveCache,
     required ui.Image sourceImage,
     required AdjustmentParams params,
@@ -339,154 +341,50 @@ class FullPipelineRenderer {
       }
     }
 
-    // Spot removal
-    if (params.spots.isNotEmpty && spotRemoveProgram != null) {
-      try {
-        ui.Image spotRemoved;
-
-        // 1. Spots hash 缓存
-        final spotsCache = spotRemovalCache?.getFromSpotsCache(developKey, params.spots);
-        if (spotsCache != null) {
-          spotRemoved = spotsCache;
-        } else {
-          // 2. 增量缓存
-          final incremental = spotRemovalCache?.getIncremental(
-            developKey,
-            params.spots,
-          );
-
-          ui.Image batchInput;
-          int startIdx;
-          bool batchInputOwned;
-
-          if (incremental != null) {
-            batchInput = incremental.$1;
-            startIdx = incremental.$2;
-            batchInputOwned = true;
-          } else {
-            // 3. 全量重算
-            batchInput = current;
-            startIdx = 0;
-            batchInputOwned = false;
-          }
-
-          // 从 startIdx 跑剩余 spots
-          for (int i = startIdx; i < params.spots.length; i += _kMaxSpots) {
-            final batch = params.spots.sublist(
-              i,
-              (i + _kMaxSpots).clamp(0, params.spots.length),
-            );
+    // Compose pass — blend registered brush layers onto the develop output.
+    // During Phase 1 the registry has zero providers; this section is a no-op.
+    // In Phase 2-3, Spot Removal and Healing are migrated to layer providers
+    // and rendered through this path instead of the inline blocks below.
+    if (composeProgram != null && brushLayerRegistry != null) {
+      final activeProviders = brushLayerRegistry.activeProviders(params);
+      if (activeProviders.isNotEmpty) {
+        try {
+          final layers = <BrushLayer>[];
+          for (final provider in activeProviders) {
             try {
-              final result = await _runSpotRemovePass(
-                program: spotRemoveProgram,
-                input: batchInput,
-                spots: batch,
+              final layer = await provider.render(
+                params: params,
+                developOutput: current,
+                developKey: developKey,
+                targetWidth: current.width,
+                targetHeight: current.height,
               );
-              if (batchInputOwned) batchInput.dispose();
-              batchInput = result;
-              batchInputOwned = true;
+              if (layer.active) layers.add(layer);
             } catch (e) {
-              // 异常时 dispose 当前 batchInput，防止 GPU 内存泄漏
-              if (batchInputOwned) batchInput.dispose();
-              rethrow;
+              debugPrint(
+                '[Pipeline] Layer ${provider.id} render failed: $e',
+              );
             }
           }
-          spotRemoved = batchInput;
-
-          // 更新两级缓存
-          spotRemovalCache?.putRolling(
-            developKey,
-            params.spots.length,
-            spotRemoved,
-          );
-          spotRemovalCache?.putSpotsCache(developKey, params.spots, spotRemoved);
+          if (layers.isNotEmpty) {
+            final composed = await _runComposePass(
+              program: composeProgram,
+              base: current,
+              layers: layers,
+            );
+            if (currentOwned) current.dispose();
+            current = composed;
+            currentOwned = true;
+          }
+        } catch (e) {
+          debugPrint('[Pipeline] Compose pass failed: $e');
         }
-
-        if (currentOwned) current.dispose();
-        current = spotRemoved;
-        currentOwned = true;
-      } catch (e) {
-        debugPrint('[Pipeline] Spot removal pass failed: $e');
       }
     }
 
-    // Healing brush
-    if (params.healingMarks.isNotEmpty && healingProgram != null) {
-      try {
-        ui.Image healed;
-
-        // 1. Marks hash cache
-        final marksCache = healingCache?.getFromMarksCache(developKey, params.healingMarks);
-        if (marksCache != null) {
-          healed = marksCache;
-        } else {
-          // 2. Incremental cache
-          final incremental = healingCache?.getIncremental(
-            developKey,
-            params.healingMarks,
-          );
-
-          ui.Image batchInput;
-          int startIdx;
-          bool batchInputOwned;
-
-          if (incremental != null) {
-            batchInput = incremental.$1;
-            startIdx = incremental.$2;
-            batchInputOwned = true;
-          } else {
-            // 3. Full recompute
-            batchInput = current;
-            startIdx = 0;
-            batchInputOwned = false;
-          }
-
-          for (int i = startIdx;
-              i < params.healingMarks.length;
-              i += _kMaxMarks) {
-            final batch = params.healingMarks.sublist(
-              i,
-              (i + _kMaxMarks).clamp(0, params.healingMarks.length),
-            );
-            try {
-              final result = await _runHealingPass(
-                program: healingProgram,
-                input: batchInput,
-                marks: batch,
-              );
-              if (batchInputOwned) batchInput.dispose();
-              batchInput = result;
-              batchInputOwned = true;
-            } catch (e) {
-              if (batchInputOwned) batchInput.dispose();
-              rethrow;
-            }
-          }
-          healed = batchInput;
-
-          // Update both cache levels
-          healingCache?.putRolling(
-            developKey,
-            params.healingMarks.length,
-            healed,
-          );
-          healingCache?.putMarksCache(developKey, params.healingMarks, healed);
-        }
-
-        if (currentOwned) current.dispose();
-        current = healed;
-        currentOwned = true;
-      } catch (e) {
-        debugPrint('[Pipeline] Healing pass failed: $e');
-      }
-    }
-
-    // 捕获 spot removal + healing 之后的图像供 overlay 笔画预览
-    // （含 develop + mask + 所有已有污点修复 + 修复画笔，与屏幕显示一致）
+    // 捕获 compose 之后的图像供 overlay 笔画预览
     ui.Image? developOutput;
-    if (hasEnabledMasks ||
-        (params.spots.isNotEmpty && spotRemoveProgram != null) ||
-        (params.healingMarks.isNotEmpty && healingProgram != null)) {
+    if (hasEnabledMasks || needsComposePass(params)) {
       try {
         developOutput = current.clone();
       } catch (e) {
@@ -595,92 +493,49 @@ class FullPipelineRenderer {
     );
   }
 
-  static const _kMaxSpots = 64;
-  static const _kSpotUniformsPerSpot =
-      6; // srcX, srcY, tgtX, tgtY, radius, hardness
-  // Uniform 总数: 2(uSize) + 1(count) + 64*6 = 387 floats
 
-  static Future<ui.Image> _runSpotRemovePass({
+  // Compose pass: blends brush layers onto base image.
+  // Each layer is independently rendered against the base;
+  // unmodified pixels equal the base, so sequential replacement works.
+  static const _kMaxComposeLayers = 8;
+  // Total sampler slots: uBase + 8 layers = 9 (must ALL be bound for GPU compat)
+  static const _kComposeSamplerSlots = 9;
+
+  static Future<ui.Image> _runComposePass({
     required ui.FragmentProgram program,
-    required ui.Image input,
-    required List<SpotMark> spots,
+    required ui.Image base,
+    required List<BrushLayer> layers,
   }) async {
-    final w = input.width;
-    final h = input.height;
-    final count = spots.length.clamp(0, _kMaxSpots);
+    final w = base.width;
+    final h = base.height;
+    final count = layers.length.clamp(0, _kMaxComposeLayers);
+
+    // Build sampler list with ALL 9 slots bound.
+    // Unused slots reuse the base image to avoid undefined GPU behaviour.
+    final samplers = <ui.Image>[base]; // slot 0: uBase
+    for (int n = 0; n < _kMaxComposeLayers; n++) {
+      if (n < layers.length && layers[n].texture != null) {
+        samplers.add(layers[n].texture!);
+      } else {
+        samplers.add(base); // bind dummy for unused layer slots
+      }
+    }
+    assert(samplers.length == _kComposeSamplerSlots);
+
     return runSingleShaderPass(
       shader: program.fragmentShader(),
       outputWidth: w,
       outputHeight: h,
-      samplers: [input],
+      samplers: samplers,
       setUniforms: (s) {
         int i = 0;
-        // uSize
         s.setFloat(i++, w.toDouble());
         s.setFloat(i++, h.toDouble());
-        // uSpotCount
         s.setFloat(i++, count.toDouble());
-        for (int n = 0; n < _kMaxSpots; n++) {
-          if (n < count) {
-            final spot = spots[n];
-            s.setFloat(i++, spot.source.dx);
-            s.setFloat(i++, spot.source.dy);
-            s.setFloat(i++, spot.target.dx);
-            s.setFloat(i++, spot.target.dy);
-            s.setFloat(i++, spot.radius);
-            s.setFloat(i++, spot.hardness);
-          } else {
-            for (int j = 0; j < _kSpotUniformsPerSpot; j++) {
-              s.setFloat(i++, 0.0);
-            }
-          }
+        // Per-layer active flags
+        for (int n = 0; n < _kMaxComposeLayers; n++) {
+          s.setFloat(i++, (n < count) ? 1.0 : 0.0);
         }
-        assert(i == 2 + 1 + _kMaxSpots * _kSpotUniformsPerSpot);
-      },
-    );
-  }
-
-  static const _kMaxMarks = 64;
-  static const _kHealUniformsPerMark =
-      6; // srcX, srcY, tgtX, tgtY, radius, hardness
-  // Uniform total: 2(uSize) + 1(count) + 64*6 = 387 floats
-
-  static Future<ui.Image> _runHealingPass({
-    required ui.FragmentProgram program,
-    required ui.Image input,
-    required List<HealingMark> marks,
-  }) async {
-    final w = input.width;
-    final h = input.height;
-    final count = marks.length.clamp(0, _kMaxMarks);
-    return runSingleShaderPass(
-      shader: program.fragmentShader(),
-      outputWidth: w,
-      outputHeight: h,
-      samplers: [input],
-      setUniforms: (s) {
-        int i = 0;
-        // uSize
-        s.setFloat(i++, w.toDouble());
-        s.setFloat(i++, h.toDouble());
-        // uMarkCount
-        s.setFloat(i++, count.toDouble());
-        for (int n = 0; n < _kMaxMarks; n++) {
-          if (n < count) {
-            final mark = marks[n];
-            s.setFloat(i++, mark.source.dx);
-            s.setFloat(i++, mark.source.dy);
-            s.setFloat(i++, mark.target.dx);
-            s.setFloat(i++, mark.target.dy);
-            s.setFloat(i++, mark.radius);
-            s.setFloat(i++, mark.hardness);
-          } else {
-            for (int j = 0; j < _kHealUniformsPerMark; j++) {
-              s.setFloat(i++, 0.0);
-            }
-          }
-        }
-        assert(i == 2 + 1 + _kMaxMarks * _kHealUniformsPerMark);
       },
     );
   }

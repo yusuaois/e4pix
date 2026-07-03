@@ -1,7 +1,14 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../brushes/clone_stamp/clone_stamp_layer.dart';
+import '../../brushes/healing/healing_layer.dart';
+import '../../brushes/spot_heal/spot_heal_layer.dart';
 import '../../core/models/export_job.dart';
+import '../../render/brush_layer_provider.dart';
+import '../../render/brush_layer_registry.dart';
 import '../../render/exporter.dart';
 import '../../render/lut_texture_cache.dart';
 import '../../services/app/app_settings.dart';
@@ -16,6 +23,18 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
   bool _running = false;
   final Set<String> _cancelled = {};
   final Set<String> _usedNames = {}; // 跨队列文件名去重
+
+  static BrushLayerRegistry? _buildRegistry(
+    ui.FragmentProgram? spotRemove,
+    ui.FragmentProgram? healing,
+    ui.FragmentProgram? spotHeal,
+  ) {
+    final providers = <BrushLayerProvider>[];
+    if (spotRemove != null) providers.add(SpotRemovalLayerProvider(program: spotRemove));
+    if (healing != null) providers.add(HealingLayerProvider(program: healing));
+    if (spotHeal != null) providers.add(SpotHealLayerProvider(program: spotHeal));
+    return providers.isNotEmpty ? BrushLayerRegistry(providers: providers) : null;
+  }
 
   @override
   List<ExportJob> build() => const [];
@@ -171,6 +190,8 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
     final denoiseProgram = ref.read(denoiseShaderProgramProvider).value;
     final spotRemoveProgram = ref.read(spotRemoveShaderProgramProvider).value;
     final healingProgram = ref.read(healingShaderProgramProvider).value;
+    final spotHealProgram = ref.read(spotHealShaderProgramProvider).value;
+    final composeProgram = ref.read(composeShaderProgramProvider).value;
     final watermarkCfg = ref.read(watermarkConfigProvider);
     final cfg = job.config;
 
@@ -208,6 +229,10 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
         denoiseProgram: denoiseProgram,
         spotRemoveProgram: spotRemoveProgram,
         healingProgram: healingProgram,
+        composeProgram: composeProgram,
+        brushLayerRegistry: _buildRegistry(
+          spotRemoveProgram, healingProgram, spotHealProgram,
+        ),
         denoiseEngine: cfg.denoiseEngine,
         denoiseParallelism: cfg.denoiseParallelism,
         jpegQuality: cfg.jpegQuality,

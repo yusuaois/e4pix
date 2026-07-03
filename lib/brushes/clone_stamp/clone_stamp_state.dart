@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
-import '../../core/models/spot_mark.dart';
-import '../params/params_state.dart';
+import 'clone_stamp_model.dart';
+import '../../state/params/params_state.dart';
 
 /// 污点修复交互模式
 enum SpotRemoveMode {

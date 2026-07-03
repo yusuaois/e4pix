@@ -21,8 +21,9 @@ import 'color_picker_overlay.dart';
 import 'crop_overlay.dart';
 import 'crop_panel.dart';
 import '../develop/sections/local/local_mask_overlay.dart';
-import '../develop/sections/healing_overlay.dart';
-import '../develop/sections/spot_remove_overlay.dart';
+import '../../brushes/healing/healing_overlay.dart';
+import '../../brushes/spot_heal/spot_heal_overlay.dart';
+import '../../brushes/clone_stamp/clone_stamp_overlay.dart';
 import 'multi_pass_preview.dart';
 import 'split_compare_view.dart';
 import 'sr_preview_overlay.dart';
@@ -576,6 +577,30 @@ class _PreviewContent extends ConsumerWidget {
             content,
             Positioned.fill(
               child: SpotRemoveOverlay(
+                imageDisplaySize: displaySize,
+                crop: params.crop,
+                sourceWidth: state.uiImage.width,
+                sourceHeight: state.uiImage.height,
+                sourceImage: overlaySource,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 污点修复 overlay (圈中自动修复)
+    final spotHealState = ref.watch(spotHealStateProvider);
+    if (spotHealState.mode == SpotHealMode.active) {
+      ref.watch(renderedPreviewGenerationProvider);
+      final overlaySource = ref.watch(developOutputProvider) ?? state.uiImage;
+      content = SizedBox.fromSize(
+        size: displaySize,
+        child: Stack(
+          children: [
+            content,
+            Positioned.fill(
+              child: SpotHealOverlay(
                 imageDisplaySize: displaySize,
                 crop: params.crop,
                 sourceWidth: state.uiImage.width,
