@@ -148,14 +148,16 @@ final shaderWarmupProvider = FutureProvider<void>((ref) async {
 /// spot removal overlay 用它感知"已提交的笔画已管线合成完毕"，然后清除本地预览
 final renderedPreviewGenerationProvider = StateProvider<int>((ref) => 0);
 
-/// 最后一次渲染完成时使用的 spots 列表哈希
+/// 最后一次渲染完成时各画笔 marks 的哈希，按 [BrushLayerProvider.id] 索引
+///
 /// overlay 用此信号判断"包含本次描边的渲染是否已完成"——
 /// 只有 hash 匹配时才清除 committed preview，避免被无关渲染误触发
-final renderedSpotsHashProvider = StateProvider<int>((ref) => 0);
-
-/// 最后一次渲染完成时使用的 healing marks 列表哈希
-/// healing overlay 用此信号判断"包含本次描边的渲染是否已完成"
-final renderedHealingHashProvider = StateProvider<int>((ref) => 0);
+///
+/// 新画笔无需在此注册——[multi_pass_preview] 遍历活跃 provider
+/// 自动收集所有 hash
+final renderedBrushHashesProvider = StateProvider<Map<String, int>>(
+  (ref) => const <String, int>{},
+);
 
 /// Develop pass 输出快照（spot removal 激活时非空）
 /// spot removal overlay 用它做笔画预览，替代原始未处理源图

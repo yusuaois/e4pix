@@ -6,6 +6,7 @@ import '../../core/models/adjustment_params.dart';
 import '../../core/models/brush_layer.dart';
 import 'healing_model.dart';
 import '../../render/brush_layer_provider.dart';
+import '../../render/incremental_render_cache.dart';
 import 'healing_cache.dart';
 import '../../utils/shader_pass_util.dart';
 
@@ -17,7 +18,7 @@ class HealingLayerProvider implements BrushLayerProvider {
   @override
   String get id => 'healing';
 
-  final HealingCache _cache = HealingCache();
+  final _cache = IncrementalRenderCache<HealingMark>(computeKey: hashMarks);
   final ui.FragmentProgram _program;
   ui.FragmentShader? _cachedShader;
 
@@ -33,6 +34,10 @@ class HealingLayerProvider implements BrushLayerProvider {
 
   @override
   bool isActive(AdjustmentParams params) => params.healingMarks.isNotEmpty;
+
+  @override
+  int computeMarksHash(AdjustmentParams params) =>
+      hashMarks(params.healingMarks);
 
   @override
   Future<BrushLayer> render({

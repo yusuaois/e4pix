@@ -42,7 +42,7 @@ class HealingSection extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
             children: [
-              _PillChip(
+              PillChip(
                 icon: Icons.healing,
                 label: tr('healingTitle'),
                 isActive: isActive,
@@ -52,7 +52,7 @@ class HealingSection extends ConsumerWidget {
               ),
               if (isActive) ...[
                 const SizedBox(width: 8),
-                _PillChip(
+                PillChip(
                   icon: Icons.colorize,
                   label: tr('healingSample'),
                   isActive: isSampling,
@@ -119,56 +119,6 @@ class HealingSection extends ConsumerWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _PillChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _PillChip({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? AppColors.activeBg : AppColors.dividerLine,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isActive
-                ? AppColors.lightBorder.withValues(alpha: 0.6)
-                : AppColors.subtleBorder,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 14,
-              color: isActive ? AppColors.activeValue : AppColors.mediumText,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: AppTypography.labelSmall.copyWith(
-                color: isActive ? AppColors.activeValue : AppColors.mediumText,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

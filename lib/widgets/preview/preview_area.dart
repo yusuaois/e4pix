@@ -13,6 +13,7 @@ import 'package:flutter/gestures.dart';
 import '../../core/constants/raw_formats.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/crop_params.dart';
+import '../../core/models/perspective_params.dart';
 import '../../render/gpu_warmup.dart';
 import '../../render/pass_config.dart';
 import '../../render/preview_renderer.dart';
@@ -272,6 +273,18 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
           Expanded(
             child: LayoutBuilder(
               builder: (ctx, constraints) {
+                final develop = ref.watch(shaderProgramProvider).value;
+                final maskProgram = ref.watch(maskShaderProgramProvider).value;
+                if (develop == null || maskProgram == null) {
+                  return const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  );
+                }
+                final previewParams = params.copyWith(
+                  crop: CropParams.identity,
+                  perspective: PerspectiveParams.identity,
+                );
+
                 final imgW = state.uiImage.width.toDouble();
                 final imgH = state.uiImage.height.toDouble();
                 final orientedW = draft.orientationSwapsAxes ? imgH : imgW;
@@ -306,38 +319,71 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
                     0,
                     1.0,
                   );
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox.fromSize(
-                      size: displaySize,
-                      child: ClipRect(
-                        child: Transform(
-                          transform: matrix,
-                          child: OverflowBox(
-                            minWidth: imgW * scale,
-                            maxWidth: imgW * scale,
-                            minHeight: imgH * scale,
-                            maxHeight: imgH * scale,
-                            alignment: Alignment.topLeft,
-                            child: SizedBox(
-                              width: imgW * scale,
-                              height: imgH * scale,
-                              child: PreviewRenderer(
-                                image: state.uiImage,
-                                lutTexture: lutEnabled ? lut.textureA : null,
-                                lutSize: lutEnabled ? lut.sizeA : 0,
-                                lutTextureB: lutEnabled ? lut.textureB : null,
-                                lutSizeB: lutEnabled ? lut.sizeB : 0,
-                                curveTexture: ref.watch(
-                                  effectiveCurveTextureProvider,
-                                ),
-                              ),
+                Widget imageContent = SizedBox.fromSize(
+                  size: displaySize,
+                  child: ClipRect(
+                    child: Transform(
+                      transform: matrix,
+                      child: OverflowBox(
+                        minWidth: imgW * scale,
+                        maxWidth: imgW * scale,
+                        minHeight: imgH * scale,
+                        maxHeight: imgH * scale,
+                        alignment: Alignment.topLeft,
+                        child: SizedBox(
+                          width: imgW * scale,
+                          height: imgH * scale,
+                          child: MultiPassPreview(
+                            developProgram: develop,
+                            maskProgram: maskProgram,
+                            sourceImage: state.uiImage,
+                            params: previewParams,
+                            lutTexture: lutEnabled ? lut.textureA : null,
+                            lutSize: lutEnabled ? lut.sizeA : 0,
+                            lutTextureB: lutEnabled ? lut.textureB : null,
+                            lutSizeB: lutEnabled ? lut.sizeB : 0,
+                            curveTexture: ref.watch(
+                              effectiveCurveTextureProvider,
                             ),
+                            sharpenProgram: ref
+                                .watch(sharpenShaderProgramProvider)
+                                .value,
+                            denoiseProgram: ref
+                                .watch(denoiseShaderProgramProvider)
+                                .value,
+                            perspectiveProgram: ref
+                                .watch(perspectiveShaderProgramProvider)
+                                .value,
+                            lensCorrectProgram: ref
+                                .watch(lensCorrectShaderProgramProvider)
+                                .value,
+                            spotRemoveProgram: ref
+                                .watch(spotRemoveShaderProgramProvider)
+                                .value,
+                            healingProgram: ref
+                                .watch(healingShaderProgramProvider)
+                                .value,
+                            idleMaxEdge: 2400,
+                            draggingMaxEdge: 800,
                           ),
                         ),
                       ),
                     ),
+                  ),
+                );
+                imageContent = _wrapPreviewContent(
+                  ref,
+                  imageContent,
+                  displaySize,
+                  state,
+                  params,
+                  lut,
+                  lutEnabled,
+                );
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    imageContent,
                     SizedBox.fromSize(
                       size: displaySize,
                       child: CropOverlay(imageDisplaySize: displaySize),

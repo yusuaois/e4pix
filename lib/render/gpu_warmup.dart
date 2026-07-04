@@ -7,7 +7,7 @@ import '../brushes/healing/healing_layer.dart';
 import '../brushes/spot_heal/spot_heal_layer.dart';
 import '../utils/shader_pass_util.dart';
 
-/// 构建所有 brush shader 的有序预热任务列表。
+/// 构建所有 brush shader 的有序预热任务列表
 /// [spotRemoveProgram]、[healingProgram]、[spotHealProgram]、[composeProgram]
 /// 为 null 时跳过对应任务
 List<(String, Future<void> Function())> buildWarmupTasks({

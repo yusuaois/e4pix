@@ -9,7 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../widgets/develop/sections/shared.dart';
 
-/// 污点修复 (Spot Heal) 设置面板。
+/// 污点修复 (Spot Heal) 设置面板
 ///
 /// 与图章/修复画笔一致的布局风格：
 /// - 标题
@@ -44,7 +44,7 @@ class SpotHealSection extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
             children: [
-              _PillChip(
+              PillChip(
                 icon: Icons.auto_fix_normal,
                 label: tr('spotHealTitle'),
                 isActive: isActive,
@@ -108,56 +108,6 @@ class SpotHealSection extends ConsumerWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _PillChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _PillChip({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? AppColors.activeBg : AppColors.dividerLine,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isActive
-                ? AppColors.lightBorder.withValues(alpha: 0.6)
-                : AppColors.subtleBorder,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 14,
-              color: isActive ? AppColors.activeValue : AppColors.mediumText,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: AppTypography.labelSmall.copyWith(
-                color: isActive ? AppColors.activeValue : AppColors.mediumText,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

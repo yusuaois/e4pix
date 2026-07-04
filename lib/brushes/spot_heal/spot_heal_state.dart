@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'spot_heal_model.dart';
 import '../../state/providers.dart';
 
-/// 污点修复的交互模式。
+/// 污点修复的交互模式
 enum SpotHealMode {
   /// 未激活（不处理手势）
   inactive,
@@ -15,7 +15,7 @@ enum SpotHealMode {
   active,
 }
 
-/// 污点修复的交互状态。
+/// 污点修复的交互状态
 @immutable
 class SpotHealState {
   final SpotHealMode mode;

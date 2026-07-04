@@ -16,6 +16,10 @@
 * **整体管线简化**：移除所有逐画笔参数传递链（spotRemoveProgram/healingProgram），改为 Compose registry 统一管理
 * **提取 GPU 预热工具**：新增 `lib/render/gpu_warmup.dart`，`buildWarmupTasks()` / `runWarmupChain()` 为 `MultiPassPreview` 和 `PreviewArea` 共用
 * **`_PreviewContent` 迁移**：从 `ConsumerWidget` 改为 `ConsumerStatefulWidget`，以支持 `initState` 预热触发
+* **PillChip 提取**：三个画笔 section 中完全相同的 `_PillChip`（~55行×3）提升为公共 `PillChip` widget（`lib/widgets/develop/sections/shared.dart`）
+* **IncrementalRenderCache\<T\> 泛型提取**：新增 `lib/render/incremental_render_cache.dart`——两级缓存泛型基类，三个画笔缓存缩减为顶层 hash 函数，消除 ~180 行重复缓存逻辑
+* **统一画笔 hash map**：`renderedSpotsHashProvider` + `renderedHealingHashProvider` 合并为 `renderedBrushHashesProvider (Map<String, int>)`；`BrushLayerProvider` 新增 `computeMarksHash`；`multi_pass_preview` 遍历活跃 provider 自动收集 hash——新画笔无需再碰 `render_state` 或 `multi_pass_preview`
+* **清理死代码**：移除 spot_heal 中无效的 `putRolling` 调用（spot_heal 不使用增量渲染）；补上 slider 拖拽结束时遗漏的 healing cache Level-1 失效
 
 ## 🐛 问题修复 (Bug Fixes)
 * **修复画笔缓存陈旧**：Level 1 缓存（marks hash）加入 `developKey` 双 key 检查，修复调整曝光/曲线等参数后画面不刷新的问题

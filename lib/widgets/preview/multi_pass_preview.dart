@@ -9,6 +9,7 @@ import '../../core/models/adjustment_params.dart';
 import '../../render/brush_layer_provider.dart';
 import '../../render/brush_layer_registry.dart';
 import '../../render/full_pipeline_renderer.dart';
+import '../../render/incremental_render_cache.dart';
 import '../../brushes/healing/healing_cache.dart';
 import '../../render/gpu_warmup.dart';
 import '../../render/homography.dart';
@@ -77,8 +78,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   final _developCache = DevelopPassCache();
   final _brushCache = BrushMaskCache();
   final _perspectiveCache = PerspectiveMatrixCache();
-  final _spotRemovalCache = SpotRemovalCache();
-  final _healingCache = HealingCache();
+  final _spotRemovalCache = IncrementalRenderCache(computeKey: hashSpots);
+  final _healingCache = IncrementalRenderCache(computeKey: hashMarks);
 
   // Compose pass: layer providers (created lazily when shaders are ready)
   SpotRemovalLayerProvider? _spotLayer;
@@ -216,15 +217,15 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       setState(() => _rendered = result.finalImage);
       old?.dispose();
 
-      // 先更新 spots hash（overlay 用它判断"含本次描边的渲染是否完成"）
-      final spotsHash = SpotRemovalCache.computeSpotsKey(widget.params.spots);
-      ref.read(renderedSpotsHashProvider.notifier).state = spotsHash;
-
-      // 更新 healing marks hash（healing overlay 用此信号清除 committed preview）
-      final healingHash = HealingCache.computeHealingKey(
-        widget.params.healingMarks,
-      );
-      ref.read(renderedHealingHashProvider.notifier).state = healingHash;
+      // 遍历活跃 provider 收集所有 brush marks hash
+      // overlay 按 provider.id 订阅，hash 匹配时清除 committed preview
+      final hashes = <String, int>{};
+      for (final p
+          in layerReg?.activeProviders(widget.params) ??
+              <BrushLayerProvider>[]) {
+        hashes[p.id] = p.computeMarksHash(widget.params);
+      }
+      ref.read(renderedBrushHashesProvider.notifier).state = hashes;
 
       // 更新 Develop 输出供 spot removal overlay 笔画预览
       ref.read(developOutputProvider.notifier).update(result.developOutput);
@@ -298,8 +299,9 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     });
     ref.listen(isUserDraggingSliderProvider, (prev, next) {
       if (prev == true && next == false) {
-        // 拖动结束：失效 spots hash 缓存强制重算，保留增量缓存
-        _spotRemovalCache.invalidateSpotsCache();
+        // 拖动结束：失效 Level-1 hash 缓存强制重算，保留增量缓存
+        _spotRemovalCache.invalidateMarksCache();
+        _healingCache.invalidateMarksCache();
         _runRender();
       }
     });

@@ -6,6 +6,7 @@ import '../../core/models/adjustment_params.dart';
 import '../../core/models/brush_layer.dart';
 import 'clone_stamp_model.dart';
 import '../../render/brush_layer_provider.dart';
+import '../../render/incremental_render_cache.dart';
 import 'clone_stamp_cache.dart';
 import '../../utils/shader_pass_util.dart';
 
@@ -19,7 +20,7 @@ class SpotRemovalLayerProvider implements BrushLayerProvider {
   @override
   String get id => 'spot_removal';
 
-  final SpotRemovalCache _cache = SpotRemovalCache();
+  final _cache = IncrementalRenderCache<SpotMark>(computeKey: hashSpots);
   final ui.FragmentProgram _program;
   ui.FragmentShader? _cachedShader;
 
@@ -35,6 +36,9 @@ class SpotRemovalLayerProvider implements BrushLayerProvider {
 
   @override
   bool isActive(AdjustmentParams params) => params.spots.isNotEmpty;
+
+  @override
+  int computeMarksHash(AdjustmentParams params) => hashSpots(params.spots);
 
   @override
   Future<BrushLayer> render({
@@ -67,7 +71,7 @@ class SpotRemovalLayerProvider implements BrushLayerProvider {
     if (spots.isEmpty) return base;
 
     // 1. Full hash cache
-    final cached = _cache.getFromSpotsCache(developKey, spots);
+    final cached = _cache.getFromMarksCache(developKey, spots);
     if (cached != null) return cached;
 
     // 2. Incremental cache
@@ -109,7 +113,7 @@ class SpotRemovalLayerProvider implements BrushLayerProvider {
 
     // 4. Update caches
     if (lastResult != null) {
-      _cache.putSpotsCache(developKey, spots, lastResult);
+      _cache.putMarksCache(developKey, spots, lastResult);
       _cache.putRolling(developKey, spots.length, lastResult);
     }
 
@@ -159,7 +163,7 @@ class SpotRemovalLayerProvider implements BrushLayerProvider {
     int targetWidth,
     int targetHeight,
   ) async {
-    // 用 _kMaxSpots 个 dummy mark 填满整个 batch。
+    // 用 _kMaxSpots 个 dummy mark 填满整个 batch
     // GPU 驱动对不同循环次数的 shader 生成不同 JIT 变体——
     // 1 个 mark（count=1）的预热不会加速 64 个 mark（count=64）的实际使用
     final dummies = List.generate(

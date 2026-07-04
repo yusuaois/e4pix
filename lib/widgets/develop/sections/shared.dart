@@ -99,3 +99,59 @@ class SectionLabel extends StatelessWidget {
     );
   }
 }
+
+/// 激活/非激活切换胶囊按钮
+///
+/// 在画笔 Section 面板中用于切换工具激活状态和模式开关
+/// 激活状态下显示高亮背景、亮色边框和活跃文字色；
+/// 非激活状态下显示低调背景和暗色文字
+class PillChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const PillChip({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.activeBg : AppColors.dividerLine,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isActive
+                ? AppColors.lightBorder.withValues(alpha: 0.6)
+                : AppColors.subtleBorder,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isActive ? AppColors.activeValue : AppColors.mediumText,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: AppTypography.labelSmall.copyWith(
+                color: isActive ? AppColors.activeValue : AppColors.mediumText,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

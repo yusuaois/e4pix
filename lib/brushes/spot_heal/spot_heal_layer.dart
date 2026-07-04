@@ -8,6 +8,7 @@ import '../../core/models/mask_shape.dart';
 import 'spot_heal_model.dart';
 import '../../render/brush_layer_provider.dart';
 import '../../render/brush_rasterizer.dart';
+import '../../render/incremental_render_cache.dart';
 import 'spot_heal_cache.dart';
 import '../../utils/shader_pass_util.dart';
 
@@ -20,7 +21,7 @@ class SpotHealLayerProvider implements BrushLayerProvider {
   @override
   String get id => 'spot_heal';
 
-  final SpotHealCache _cache = SpotHealCache();
+  final _cache = IncrementalRenderCache<SpotHealMark>(computeKey: hashMarks);
   final ui.FragmentProgram _program;
   ui.FragmentShader? _cachedShader;
 
@@ -31,6 +32,10 @@ class SpotHealLayerProvider implements BrushLayerProvider {
 
   @override
   bool isActive(AdjustmentParams params) => params.spotHealMarks.isNotEmpty;
+
+  @override
+  int computeMarksHash(AdjustmentParams params) =>
+      hashMarks(params.spotHealMarks);
 
   @override
   Future<BrushLayer> render({
@@ -101,9 +106,10 @@ class SpotHealLayerProvider implements BrushLayerProvider {
 
     maskTex.dispose();
 
-    // 4. Update cache
+    // 4. Update cache (spot_heal does not use incremental rendering —
+    //    marks are rasterized to a mask in one pass, so only the full
+    //    marks-hash cache is relevant)
     _cache.putMarksCache(developKey, marks, result);
-    _cache.putRolling(developKey, marks.length, result);
 
     return result;
   }

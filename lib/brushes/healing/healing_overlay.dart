@@ -16,8 +16,8 @@ import '../../utils/path_brush_tracker.dart';
 /// Healing brush interaction overlay.
 ///
 /// Interaction is identical to [SpotRemoveOverlay]:
-/// - Alt+click or sampling button → set clone source
-/// - Click/drag → paint healing marks
+/// - Click or drag to paint healing marks.
+/// - Clone source is set via the UI sampling button.
 ///
 /// The difference is in the shader: healing uses frequency-separation
 /// blending (preserves target colour context) rather than direct pixel copy.
@@ -76,7 +76,6 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
   @override
   void initState() {
     super.initState();
-    // Restore committed preview that was persisted before unmount.
     if (_persistedCommitting && _persistedMarks.isNotEmpty) {
       _committedPreview.addAll(_persistedMarks);
       _committedMarksHash = _persistedHash;
@@ -89,8 +88,6 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
 
   @override
   void dispose() {
-    // Persist unrendered preview so it survives a tool switch that
-    // momentarily removes this widget from the tree.
     if (_isCommitting && _committedPreview.isNotEmpty) {
       _persistedMarks
         ..clear()
@@ -105,8 +102,6 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
   @override
   void didUpdateWidget(HealingOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reset transient stroke state when the tool is deactivated
-    // so a stale _paintOffset doesn't corrupt the next stroke.
     if (oldWidget.interactive && !widget.interactive) {
       _paintOffset = null;
       _tracker = null;
@@ -120,11 +115,9 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
     final isSampling = state.samplingButtonOn;
     final interactive = widget.interactive;
 
-    // Clear committed preview when the pipeline finishes rendering
-    // the marks we submitted.  Keep listening even when non-interactive
-    // so the preview disappears naturally once the pipeline catches up.
-    ref.listen<int>(renderedHealingHashProvider, (prev, next) {
-      if (_isCommitting && next == _committedMarksHash) {
+    ref.listen<Map<String, int>>(renderedBrushHashesProvider, (prev, next) {
+      final hash = next['healing'] ?? 0;
+      if (_isCommitting && hash == _committedMarksHash) {
         _committedPreview.clear();
         _isCommitting = false;
         if (mounted) setState(() {});
@@ -144,8 +137,8 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
         cursorPos: interactive ? (_isHovering ? _cursorPos : null) : null,
         cursorSrc: interactive
             ? ((_isHovering && _cursorPos != null)
-                ? _screenToSource(_cursorPos!)
-                : null)
+                  ? _screenToSource(_cursorPos!)
+                  : null)
             : null,
         isSampling: interactive && isSampling,
         paintOffset: interactive ? _paintOffset : null,
@@ -290,15 +283,11 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
             Offset(cursorSrc.dx + offset.dx, cursorSrc.dy + offset.dy),
           );
     }
-    // Commit stroke and show committed preview until pipeline finishes.
-    // The clone preview is an approximation — the frequency-separation shader
-    // produces the final result.  Committed preview prevents a flash to the
-    // old (pre-stroke) image while the pipeline renders.
     if (_strokeMarks.isNotEmpty) {
       ref
           .read(healingStateProvider.notifier)
           .addMarksBatch(List<HealingMark>.from(_strokeMarks));
-      _committedMarksHash = HealingCache.computeHealingKey(
+      _committedMarksHash = hashMarks(
         ref.read(currentParamsNotifierProvider).healingMarks,
       );
       _committedPreview.addAll(_strokeMarks);
@@ -468,15 +457,32 @@ class _HealingPainter extends CustomPainter {
     canvas.drawCircle(pos, radius, p);
     final len = radius * 0.6;
     final gap = radius * 0.15;
-    canvas.drawLine(Offset(pos.dx - len, pos.dy), Offset(pos.dx - gap, pos.dy), p);
-    canvas.drawLine(Offset(pos.dx + gap, pos.dy), Offset(pos.dx + len, pos.dy), p);
-    canvas.drawLine(Offset(pos.dx, pos.dy - len), Offset(pos.dx, pos.dy - gap), p);
-    canvas.drawLine(Offset(pos.dx, pos.dy + gap), Offset(pos.dx, pos.dy + len), p);
+    canvas.drawLine(
+      Offset(pos.dx - len, pos.dy),
+      Offset(pos.dx - gap, pos.dy),
+      p,
+    );
+    canvas.drawLine(
+      Offset(pos.dx + gap, pos.dy),
+      Offset(pos.dx + len, pos.dy),
+      p,
+    );
+    canvas.drawLine(
+      Offset(pos.dx, pos.dy - len),
+      Offset(pos.dx, pos.dy - gap),
+      p,
+    );
+    canvas.drawLine(
+      Offset(pos.dx, pos.dy + gap),
+      Offset(pos.dx, pos.dy + len),
+      p,
+    );
   }
 
   void _drawTargetCursor(Canvas canvas, Offset pos, double radius) {
     canvas.drawCircle(
-      pos, radius,
+      pos,
+      radius,
       Paint()
         ..color = Colors.white.withValues(alpha: 0.7)
         ..style = PaintingStyle.stroke
@@ -490,14 +496,33 @@ class _HealingPainter extends CustomPainter {
       ..color = Colors.white.withValues(alpha: 0.9)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
-    canvas.drawLine(Offset(pos.dx - size, pos.dy), Offset(pos.dx - gap, pos.dy), p);
-    canvas.drawLine(Offset(pos.dx + gap, pos.dy), Offset(pos.dx + size, pos.dy), p);
-    canvas.drawLine(Offset(pos.dx, pos.dy - size), Offset(pos.dx, pos.dy - gap), p);
-    canvas.drawLine(Offset(pos.dx, pos.dy + gap), Offset(pos.dx, pos.dy + size), p);
+    canvas.drawLine(
+      Offset(pos.dx - size, pos.dy),
+      Offset(pos.dx - gap, pos.dy),
+      p,
+    );
+    canvas.drawLine(
+      Offset(pos.dx + gap, pos.dy),
+      Offset(pos.dx + size, pos.dy),
+      p,
+    );
+    canvas.drawLine(
+      Offset(pos.dx, pos.dy - size),
+      Offset(pos.dx, pos.dy - gap),
+      p,
+    );
+    canvas.drawLine(
+      Offset(pos.dx, pos.dy + gap),
+      Offset(pos.dx, pos.dy + size),
+      p,
+    );
   }
 
   void _drawPreviewCursor(
-    Canvas canvas, Offset screenPos, double radius, Offset srcNorm,
+    Canvas canvas,
+    Offset screenPos,
+    double radius,
+    Offset srcNorm,
   ) {
     final img = sourceImage;
     if (img == null) return;
@@ -507,9 +532,13 @@ class _HealingPainter extends CustomPainter {
     final pr = (brushRadius * img.width).clamp(1.0, img.width / 2.0);
 
     final rects = computeOOBRects(
-      sxRaw: srxRaw, syRaw: sryRaw, pr: pr,
-      imageW: img.width.toDouble(), imageH: img.height.toDouble(),
-      screenCenterX: screenPos.dx, screenCenterY: screenPos.dy,
+      sxRaw: srxRaw,
+      syRaw: sryRaw,
+      pr: pr,
+      imageW: img.width.toDouble(),
+      imageH: img.height.toDouble(),
+      screenCenterX: screenPos.dx,
+      screenCenterY: screenPos.dy,
       screenR: radius,
     );
     if (rects == null) {
@@ -527,7 +556,8 @@ class _HealingPainter extends CustomPainter {
       final span = 1.0 - t0;
       double ss(double t) => (3 * t * t - 2 * t * t * t).clamp(0.0, 1.0);
       final gradient = ui.Gradient.radial(
-        screenPos, radius,
+        screenPos,
+        radius,
         [
           Colors.white,
           if (span > 0.01) ...{
@@ -541,7 +571,10 @@ class _HealingPainter extends CustomPainter {
         [
           0.0,
           if (span > 0.01) ...{
-            t0, t0 + span * 0.25, t0 + span * 0.5, t0 + span * 0.75,
+            t0,
+            t0 + span * 0.25,
+            t0 + span * 0.5,
+            t0 + span * 0.75,
           },
           1.0,
         ],
@@ -551,13 +584,16 @@ class _HealingPainter extends CustomPainter {
       canvas.drawImageRect(img, rects.srcRect, rects.dstRect, _imagePaint);
       canvas.drawRect(
         rects.fullDstRect,
-        Paint()..shader = gradient..blendMode = ui.BlendMode.dstIn,
+        Paint()
+          ..shader = gradient
+          ..blendMode = ui.BlendMode.dstIn,
       );
       canvas.restore();
     }
 
     canvas.drawCircle(
-      screenPos, radius,
+      screenPos,
+      radius,
       Paint()
         ..color = Colors.white.withValues(alpha: 0.8)
         ..style = PaintingStyle.stroke

@@ -10,12 +10,11 @@ import '../core/models/brush_layer.dart';
 import 'brush_layer_registry.dart';
 import 'brush_rasterizer.dart';
 import 'crop_transform.dart';
-import '../brushes/healing/healing_cache.dart';
 import 'homography.dart';
+import 'incremental_render_cache.dart';
 import 'mask_cache.dart';
 import 'pass_config.dart';
 import 'render_engine.dart';
-import '../brushes/clone_stamp/clone_stamp_cache.dart';
 import '../utils/shader_pass_util.dart';
 
 /// 完整管线渲染结果
@@ -134,8 +133,8 @@ class FullPipelineRenderer {
     DevelopPassCache? developCache,
     BrushMaskCache? brushCache,
     bool allowStaleAutoMask = false,
-    SpotRemovalCache? spotRemovalCache,
-    HealingCache? healingCache,
+    IncrementalRenderCache? spotRemovalCache,
+    IncrementalRenderCache? healingCache,
   }) async {
     final enabledLocals = activeLocals(params);
     final hasEnabledMasks = enabledLocals.isNotEmpty;
@@ -158,8 +157,7 @@ class FullPipelineRenderer {
     // Pass -1: 降噪
     ui.Image developInput = sourceImage;
     bool developInputOwned = false;
-    final wantDenoise =
-        denoiseProgram != null && needsDenoisePass(params);
+    final wantDenoise = denoiseProgram != null && needsDenoisePass(params);
     if (wantDenoise) {
       try {
         final denoised = await _runDenoisePass(
@@ -361,9 +359,7 @@ class FullPipelineRenderer {
               );
               if (layer.active) layers.add(layer);
             } catch (e) {
-              debugPrint(
-                '[Pipeline] Layer ${provider.id} render failed: $e',
-              );
+              debugPrint('[Pipeline] Layer ${provider.id} render failed: $e');
             }
           }
           if (layers.isNotEmpty) {
@@ -492,7 +488,6 @@ class FullPipelineRenderer {
       },
     );
   }
-
 
   // Compose pass: blends brush layers onto base image.
   // Each layer is independently rendered against the base;

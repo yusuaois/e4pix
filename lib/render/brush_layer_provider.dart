@@ -36,9 +36,16 @@ abstract class BrushLayerProvider {
     int targetHeight,
   ) async {}
 
-  /// 源图变更时使缓存失效。
+  /// 计算当前 marks 的 hash，用于 committed preview 清除信号
+  ///
+  /// 渲染完成后 [multi_pass_preview] 遍历活跃 provider 收集所有 hash，
+  /// 统一写入 [renderedBrushHashesProvider]，各 overlay 按 [id] 订阅，
+  /// hash 匹配时清除本地 committed preview，避免滑块拖动等无关渲染误触发
+  int computeMarksHash(AdjustmentParams params) => 0;
+
+  /// 源图变更时使缓存失效
   void invalidate();
 
-  /// 释放 GPU 资源。
+  /// 释放 GPU 资源
   void dispose();
 }
