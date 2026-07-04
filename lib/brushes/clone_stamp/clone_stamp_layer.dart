@@ -21,9 +21,12 @@ class SpotRemovalLayerProvider implements BrushLayerProvider {
 
   final SpotRemovalCache _cache = SpotRemovalCache();
   final ui.FragmentProgram _program;
+  ui.FragmentShader? _cachedShader;
 
   SpotRemovalLayerProvider({required ui.FragmentProgram program})
     : _program = program;
+
+  ui.FragmentShader get _shader => _cachedShader ??= _program.fragmentShader();
 
   static const _kMaxSpots = 64;
   static const _kSpotUniformsPerSpot =
@@ -87,10 +90,7 @@ class SpotRemovalLayerProvider implements BrushLayerProvider {
     // 3. Batch render remaining spots
     ui.Image? lastResult;
     for (int i = startIdx; i < spots.length; i += _kMaxSpots) {
-      final batch = spots.sublist(
-        i,
-        (i + _kMaxSpots).clamp(0, spots.length),
-      );
+      final batch = spots.sublist(i, (i + _kMaxSpots).clamp(0, spots.length));
       try {
         final result = await _runSpotRemovePass(
           input: batchInput,
@@ -124,7 +124,7 @@ class SpotRemovalLayerProvider implements BrushLayerProvider {
     final h = input.height;
     final count = spots.length.clamp(0, _kMaxSpots);
     return runSingleShaderPass(
-      shader: _program.fragmentShader(),
+      shader: _shader,
       outputWidth: w,
       outputHeight: h,
       samplers: [input],
@@ -151,6 +151,35 @@ class SpotRemovalLayerProvider implements BrushLayerProvider {
         assert(i == 2 + 1 + _kMaxSpots * _kSpotUniformsPerSpot);
       },
     );
+  }
+
+  @override
+  Future<void> warmup(
+    ui.Image developOutput,
+    int targetWidth,
+    int targetHeight,
+  ) async {
+    // 用 _kMaxSpots 个 dummy mark 填满整个 batch。
+    // GPU 驱动对不同循环次数的 shader 生成不同 JIT 变体——
+    // 1 个 mark（count=1）的预热不会加速 64 个 mark（count=64）的实际使用
+    final dummies = List.generate(
+      _kMaxSpots,
+      (i) => SpotMark(
+        source: const ui.Offset(0.0, 0.0),
+        target: ui.Offset(i * 0.0001, i * 0.0001),
+        radius: 0.0001,
+        hardness: 1.0,
+      ),
+    );
+    try {
+      final result = await _runSpotRemovePass(
+        input: developOutput,
+        spots: dummies,
+      );
+      result.dispose();
+    } catch (e) {
+      debugPrint('[Warmup] clone_stamp FAILED: $e');
+    }
   }
 
   @override

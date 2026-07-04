@@ -5,13 +5,17 @@
 * **图章改名**：UI 名称从"污点修复/Spot Removal"改为"图章/Clone Stamp"
 
 ## ⚡ 性能优化 (Performance)
+* **GPU 着色器预热自动触发**：图片加载后自动预编译所有 brush shader 的 GPU Pipeline State Object，消除首次笔画 7-30s 的 JIT 编译卡顿。预热通过 `addPostFrameCallback` 链逐帧执行，与 UI 光栅化错开
 * **Compose pass 替代内联渲染**：所有画笔通过单一 Compose pass 混合
 * **Pass Config 集中化**：新增 `lib/render/pass_config.dart`，8 个纯函数统一判断 pass 是否激活，消除 5 个文件中的重复检查逻辑。
+* **FragmentShader 跨帧复用**：三个 brush layer 的 `_shader` getter 通过 `_cachedShader` 复用 FragmentShader 对象，避免重复创建
 * **数学常量提取**：新增 `lib/core/constants/math_constants.dart`，定义 `kParamEpsilon = 0.001`。
 
 ## 🛠️ 底层改进 (Under the Hood)
 * **画笔文件重组**：三个像素画笔从散落目录迁至 `lib/brushes/clone_stamp/`、`healing/`、`spot_heal/`，每个画笔 6 文件自包含
 * **整体管线简化**：移除所有逐画笔参数传递链（spotRemoveProgram/healingProgram），改为 Compose registry 统一管理
+* **提取 GPU 预热工具**：新增 `lib/render/gpu_warmup.dart`，`buildWarmupTasks()` / `runWarmupChain()` 为 `MultiPassPreview` 和 `PreviewArea` 共用
+* **`_PreviewContent` 迁移**：从 `ConsumerWidget` 改为 `ConsumerStatefulWidget`，以支持 `initState` 预热触发
 
 ## 🐛 问题修复 (Bug Fixes)
 * **修复画笔缓存陈旧**：Level 1 缓存（marks hash）加入 `developKey` 双 key 检查，修复调整曝光/曲线等参数后画面不刷新的问题

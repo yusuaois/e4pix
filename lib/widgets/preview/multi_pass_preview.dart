@@ -10,6 +10,7 @@ import '../../render/brush_layer_provider.dart';
 import '../../render/brush_layer_registry.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../brushes/healing/healing_cache.dart';
+import '../../render/gpu_warmup.dart';
 import '../../render/homography.dart';
 import '../../../brushes/healing/healing_layer.dart';
 import '../../../brushes/spot_heal/spot_heal_layer.dart';
@@ -71,6 +72,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   bool _isRendering = false;
   bool _pendingRender = false;
 
+  bool _hasWarmedUpProviders = false;
+
   final _developCache = DevelopPassCache();
   final _brushCache = BrushMaskCache();
   final _perspectiveCache = PerspectiveMatrixCache();
@@ -96,6 +99,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       _perspectiveCache.invalidate();
       _spotRemovalCache.invalidate();
       _layerRegistry?.invalidateAll();
+      _hasWarmedUpProviders = false;
     }
     if (old.sourceImage != widget.sourceImage ||
         old.lutTexture != widget.lutTexture ||
@@ -227,6 +231,15 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
 
       // 递增渲染代数，通知 preview_area 刷新 develop 输出
       ref.read(renderedPreviewGenerationProvider.notifier).state++;
+
+      // 首次渲染后，用真实 developOutput 后台预热所有 brush provider
+      // 首帧 developOutput 通常为 null（无 mask 无 compose marks）
+      // 此时用 finalImage 替代——预热只需纹理作 sampler 占位，内容不重要
+      final warmupImage = result.developOutput ?? result.finalImage;
+      if (!_hasWarmedUpProviders) {
+        _hasWarmedUpProviders = true;
+        _runProviderWarmup(warmupImage, tw, th);
+      }
     } on DisposedImageException {
       // 纹理已 dispose，跳过本帧，等待下次渲染
       debugPrint('[MultiPassPreview] Skipped render: source image disposed');
@@ -237,6 +250,45 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         _runRender();
       }
     }
+  }
+
+  void _runProviderWarmup(ui.Image? developOutput, int tw, int th) {
+    if (developOutput == null || !mounted) return;
+
+    ui.Image devClone;
+    try {
+      devClone = developOutput.clone();
+    } catch (_) {
+      return;
+    }
+
+    ref.read(shaderWarmupProvider.future).then((_) {
+      if (!mounted) {
+        devClone.dispose();
+        return;
+      }
+
+      final spotProg = ref.read(spotRemoveShaderProgramProvider).value;
+      final healProg = ref.read(healingShaderProgramProvider).value;
+      final spotHealProg = ref.read(spotHealShaderProgramProvider).value;
+      final composeProg = ref.read(composeShaderProgramProvider).value;
+
+      final tasks = buildWarmupTasks(
+        spotRemoveProgram: spotProg,
+        healingProgram: healProg,
+        spotHealProgram: spotHealProg,
+        composeProgram: composeProg,
+        developOutput: devClone,
+        targetWidth: tw,
+        targetHeight: th,
+      );
+
+      if (tasks.isEmpty) {
+        devClone.dispose();
+        return;
+      }
+      runWarmupChain(tasks, devClone, isMounted: () => mounted);
+    });
   }
 
   @override

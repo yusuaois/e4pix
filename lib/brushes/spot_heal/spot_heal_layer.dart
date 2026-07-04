@@ -1,5 +1,7 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
+
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/brush_layer.dart';
 import '../../core/models/mask_shape.dart';
@@ -20,9 +22,12 @@ class SpotHealLayerProvider implements BrushLayerProvider {
 
   final SpotHealCache _cache = SpotHealCache();
   final ui.FragmentProgram _program;
+  ui.FragmentShader? _cachedShader;
 
   SpotHealLayerProvider({required ui.FragmentProgram program})
     : _program = program;
+
+  ui.FragmentShader get _shader => _cachedShader ??= _program.fragmentShader();
 
   @override
   bool isActive(AdjustmentParams params) => params.spotHealMarks.isNotEmpty;
@@ -83,7 +88,7 @@ class SpotHealLayerProvider implements BrushLayerProvider {
         : marks.map((m) => m.hardness).reduce((a, b) => a + b) / marks.length;
 
     final result = await runSingleShaderPass(
-      shader: _program.fragmentShader(),
+      shader: _shader,
       outputWidth: targetWidth,
       outputHeight: targetHeight,
       samplers: [base, maskTex],
@@ -101,6 +106,45 @@ class SpotHealLayerProvider implements BrushLayerProvider {
     _cache.putRolling(developKey, marks.length, result);
 
     return result;
+  }
+
+  @override
+  Future<void> warmup(
+    ui.Image developOutput,
+    int targetWidth,
+    int targetHeight,
+  ) async {
+    // 创建一个空 mask 纹理（全零 = 无填充区域）
+    // 着色器仍然会执行完整的渲染流程，触发 PSO 创建
+    final emptyMask = await _createEmptyMask();
+    try {
+      final result = await runSingleShaderPass(
+        shader: _shader,
+        outputWidth: targetWidth,
+        outputHeight: targetHeight,
+        samplers: [developOutput, emptyMask],
+        setUniforms: (s) {
+          s.setFloat(0, targetWidth.toDouble());
+          s.setFloat(1, targetHeight.toDouble());
+          s.setFloat(2, 0.0);
+        },
+      );
+      result.dispose();
+    } catch (e) {
+      debugPrint('[Warmup] spot_heal FAILED: $e');
+    }
+    emptyMask.dispose();
+  }
+
+  Future<ui.Image> _createEmptyMask() async {
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    canvas.drawRect(
+      const ui.Rect.fromLTWH(0, 0, 1, 1),
+      ui.Paint()..color = const ui.Color(0x00000000),
+    );
+    final picture = recorder.endRecording();
+    return picture.toImage(1, 1);
   }
 
   @override

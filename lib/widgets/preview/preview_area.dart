@@ -13,6 +13,7 @@ import 'package:flutter/gestures.dart';
 import '../../core/constants/raw_formats.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/crop_params.dart';
+import '../../render/gpu_warmup.dart';
 import '../../render/pass_config.dart';
 import '../../render/preview_renderer.dart';
 import '../../screens/folder_import_screen.dart';
@@ -112,31 +113,113 @@ class PreviewArea extends ConsumerWidget {
 }
 
 // _PreviewContent — 图片内容渲染控件
-class _PreviewContent extends ConsumerWidget {
+class _PreviewContent extends ConsumerStatefulWidget {
   final DecodedImageState state;
   const _PreviewContent({super.key, required this.state});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_PreviewContent> createState() => _PreviewContentState();
+}
+
+class _PreviewContentState extends ConsumerState<_PreviewContent> {
+  @override
+  void initState() {
+    super.initState();
+    _scheduleWarmup();
+  }
+
+  void _scheduleWarmup() {
+    ref.read(shaderWarmupProvider.future).then((_) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _triggerWarmup();
+      });
+    });
+  }
+
+  void _triggerWarmup() {
+    // 如果当前走 FullPipeline 路径，预热由 MultiPassPreview 负责
+    final params = ref.read(effectiveParamsProvider);
+    if (needsFullPipeline(params)) return;
+
+    final spotProg = ref.read(spotRemoveShaderProgramProvider).value;
+    final healProg = ref.read(healingShaderProgramProvider).value;
+    final spotHealProg = ref.read(spotHealShaderProgramProvider).value;
+    final composeProg = ref.read(composeShaderProgramProvider).value;
+
+    if (spotProg == null &&
+        healProg == null &&
+        spotHealProg == null &&
+        composeProg == null) {
+      return;
+    }
+
+    final src = widget.state.uiImage;
+    const maxEdge = 2048;
+    final longest = math.max(src.width, src.height);
+    final scale = longest > maxEdge ? maxEdge / longest : 1.0;
+    final tw = (src.width * scale).round();
+    final th = (src.height * scale).round();
+
+    ui.Image clone;
+    try {
+      clone = src.clone();
+    } catch (_) {
+      return;
+    }
+
+    final tasks = buildWarmupTasks(
+      spotRemoveProgram: spotProg,
+      healingProgram: healProg,
+      spotHealProgram: spotHealProg,
+      composeProgram: composeProg,
+      developOutput: clone,
+      targetWidth: tw,
+      targetHeight: th,
+    );
+
+    if (tasks.isEmpty) {
+      clone.dispose();
+      return;
+    }
+
+    runWarmupChain(tasks, clone, isMounted: () => mounted);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final params = ref.watch(effectiveParamsProvider);
     final lutState = ref.watch(lutNotifierProvider);
     final lutEnabled = ref.watch(effectiveLutEnabledProvider);
     final cropEditMode = ref.watch(cropEditModeProvider);
 
     if (cropEditMode) {
-      return _buildCropEdit(state, params, lutState, lutEnabled, ref);
+      return _buildCropEdit(widget.state, params, lutState, lutEnabled, ref);
     }
     final compareMode = ref.watch(compareViewModeProvider);
     if (compareMode == CompareViewMode.split) {
-      return _buildSplitCompare(state, lutState, lutEnabled, ref);
+      return _buildSplitCompare(widget.state, lutState, lutEnabled, ref);
     }
     final watermarkOn = ref.watch(
       watermarkConfigProvider.select((c) => c.enabled),
     );
     if (watermarkOn) {
-      return _buildWatermarkPreview(state, params, lutState, lutEnabled, ref);
+      return _buildWatermarkPreview(
+        widget.state,
+        params,
+        lutState,
+        lutEnabled,
+        ref,
+      );
     }
-    return _buildCroppedPreview(state, params, lutState, lutEnabled, ref);
+    return _buildCroppedPreview(
+      widget.state,
+      params,
+      lutState,
+      lutEnabled,
+      ref,
+    );
   }
 
   Widget _buildSplitCompare(

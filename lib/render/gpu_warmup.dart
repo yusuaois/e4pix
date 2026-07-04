@@ -1,0 +1,131 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/widgets.dart';
+
+import '../brushes/clone_stamp/clone_stamp_layer.dart';
+import '../brushes/healing/healing_layer.dart';
+import '../brushes/spot_heal/spot_heal_layer.dart';
+import '../utils/shader_pass_util.dart';
+
+/// 构建所有 brush shader 的有序预热任务列表。
+/// [spotRemoveProgram]、[healingProgram]、[spotHealProgram]、[composeProgram]
+/// 为 null 时跳过对应任务
+List<(String, Future<void> Function())> buildWarmupTasks({
+  required ui.FragmentProgram? spotRemoveProgram,
+  required ui.FragmentProgram? healingProgram,
+  required ui.FragmentProgram? spotHealProgram,
+  required ui.FragmentProgram? composeProgram,
+  required ui.Image developOutput,
+  required int targetWidth,
+  required int targetHeight,
+}) {
+  final tasks = <(String, Future<void> Function())>[];
+
+  if (spotRemoveProgram != null) {
+    final spotLayer = SpotRemovalLayerProvider(program: spotRemoveProgram);
+    tasks.add((
+      'spot_removal',
+      () => spotLayer.warmup(developOutput, targetWidth, targetHeight),
+    ));
+  }
+
+  if (healingProgram != null) {
+    final healLayer = HealingLayerProvider(program: healingProgram);
+    tasks.add((
+      'healing',
+      () => healLayer.warmup(developOutput, targetWidth, targetHeight),
+    ));
+  }
+
+  if (spotHealProgram != null) {
+    final spotHealLayer = SpotHealLayerProvider(program: spotHealProgram);
+    tasks.add((
+      'spot_heal',
+      () => spotHealLayer.warmup(developOutput, targetWidth, targetHeight),
+    ));
+  }
+
+  if (composeProgram != null) {
+    tasks.add((
+      'compose',
+      () => _warmupComposeShader(
+        composeProgram,
+        developOutput,
+        targetWidth,
+        targetHeight,
+      ),
+    ));
+  }
+
+  return tasks;
+}
+
+/// 用 0 active layers 执行一次 compose shader，预编译 PSO（9 samplers）
+Future<void> _warmupComposeShader(
+  ui.FragmentProgram compose,
+  ui.Image base,
+  int tw,
+  int th,
+) async {
+  final result = await runSingleShaderPass(
+    shader: compose.fragmentShader(),
+    outputWidth: tw,
+    outputHeight: th,
+    samplers: List.filled(9, base),
+    setUniforms: (s) {
+      s.setFloat(0, tw.toDouble());
+      s.setFloat(1, th.toDouble());
+      s.setFloat(2, 0.0); // uActiveLayerCount = 0
+      for (int i = 3; i < 11; i++) {
+        s.setFloat(i, 0.0);
+      }
+    },
+  );
+  result.dispose();
+}
+
+/// 递归 addPostFrameCallback 链——每帧执行一个任务，与 UI 光栅化错开
+/// [devClone] 在链完成或提前终止时由内部 dispose，[onComplete] 在 dispose 后调用
+void runWarmupChain(
+  List<(String, Future<void> Function())> tasks,
+  ui.Image devClone, {
+  required bool Function() isMounted,
+  void Function()? onComplete,
+}) {
+  _step(tasks, 0, devClone, isMounted: isMounted, onComplete: onComplete);
+}
+
+void _step(
+  List<(String, Future<void> Function())> tasks,
+  int index,
+  ui.Image devClone, {
+  required bool Function() isMounted,
+  void Function()? onComplete,
+}) {
+  if (!isMounted()) {
+    devClone.dispose();
+    onComplete?.call();
+    return;
+  }
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    if (!isMounted() || index >= tasks.length) {
+      devClone.dispose();
+      onComplete?.call();
+      return;
+    }
+    final (name, task) = tasks[index];
+    try {
+      debugPrint('[Warmup] $name (${index + 1}/${tasks.length})');
+      await task();
+    } catch (e) {
+      debugPrint('[Warmup] $name failed: $e');
+    }
+    _step(
+      tasks,
+      index + 1,
+      devClone,
+      isMounted: isMounted,
+      onComplete: onComplete,
+    );
+  });
+}

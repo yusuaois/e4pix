@@ -19,9 +19,12 @@ class HealingLayerProvider implements BrushLayerProvider {
 
   final HealingCache _cache = HealingCache();
   final ui.FragmentProgram _program;
+  ui.FragmentShader? _cachedShader;
 
   HealingLayerProvider({required ui.FragmentProgram program})
     : _program = program;
+
+  ui.FragmentShader get _shader => _cachedShader ??= _program.fragmentShader();
 
   static const _kMaxMarks = 64;
   static const _kHealUniformsPerMark =
@@ -84,15 +87,9 @@ class HealingLayerProvider implements BrushLayerProvider {
     // 3. Batch render remaining marks
     ui.Image? lastResult;
     for (int i = startIdx; i < marks.length; i += _kMaxMarks) {
-      final batch = marks.sublist(
-        i,
-        (i + _kMaxMarks).clamp(0, marks.length),
-      );
+      final batch = marks.sublist(i, (i + _kMaxMarks).clamp(0, marks.length));
       try {
-        final result = await _runHealingPass(
-          input: batchInput,
-          marks: batch,
-        );
+        final result = await _runHealingPass(input: batchInput, marks: batch);
         if (batchInputOwned) batchInput.dispose();
         batchInput = result;
         batchInputOwned = true;
@@ -121,7 +118,7 @@ class HealingLayerProvider implements BrushLayerProvider {
     final h = input.height;
     final count = marks.length.clamp(0, _kMaxMarks);
     return runSingleShaderPass(
-      shader: _program.fragmentShader(),
+      shader: _shader,
       outputWidth: w,
       outputHeight: h,
       samplers: [input],
@@ -148,6 +145,34 @@ class HealingLayerProvider implements BrushLayerProvider {
         assert(i == 2 + 1 + _kMaxMarks * _kHealUniformsPerMark);
       },
     );
+  }
+
+  @override
+  Future<void> warmup(
+    ui.Image developOutput,
+    int targetWidth,
+    int targetHeight,
+  ) async {
+    // 用 _kMaxMarks 个 dummy mark 填满整个 batch
+    // GPU 驱动对不同循环次数的 shader 生成不同 JIT 变体
+    final dummies = List.generate(
+      _kMaxMarks,
+      (i) => HealingMark(
+        source: const ui.Offset(0.0, 0.0),
+        target: ui.Offset(i * 0.0001, i * 0.0001),
+        radius: 0.0001,
+        hardness: 1.0,
+      ),
+    );
+    try {
+      final result = await _runHealingPass(
+        input: developOutput,
+        marks: dummies,
+      );
+      result.dispose();
+    } catch (e) {
+      debugPrint('[Warmup] healing FAILED: $e');
+    }
   }
 
   @override

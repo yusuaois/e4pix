@@ -134,10 +134,9 @@ final healingShaderProgramProvider = FutureProvider<ui.FragmentProgram?>((
   }
 });
 
-/// 在 app 启动时预热全部 8 个 shader：并行加载、编译到 GPU，
-/// 避免 Clone Stamp / Healing Brush 等工具的首次笔画卡顿。
-///
-/// 应在 [E4pixApp.build] 中尽早 watch，不阻塞 UI。
+/// 启动时预加载所有 shader 文件到内存（CPU 侧），不执行 GPU PSO 创建
+/// GPU 预热由 [MultiPassPreview] 在首次渲染后按帧触发
+/// 应在 [E4pixApp.build] 中尽早 watch
 final shaderWarmupProvider = FutureProvider<void>((ref) async {
   await Future.wait([
     ref.watch(_allShadersProvider.future),
