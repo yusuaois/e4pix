@@ -36,7 +36,9 @@ class _SpotHealOverlayState extends ConsumerState<SpotHealOverlay> {
   Offset? _cursorPos;
   bool _isHovering = false;
 
-  final _tracker = PathBrushTracker(spacing: 0.005); // dense spacing for smooth fill
+  final _tracker = PathBrushTracker(
+    spacing: 0.005,
+  ); // dense spacing for smooth fill
   final List<Offset> _strokePoints = [];
   bool _isPainting = false;
 
@@ -76,11 +78,9 @@ class _SpotHealOverlayState extends ConsumerState<SpotHealOverlay> {
       _strokePoints.add(sampled);
     }
     if (_strokePoints.isNotEmpty) {
-      ref.read(spotHealStateProvider.notifier).addStrokesBatch(
-            _strokePoints,
-            _brushNorm,
-            _hardness,
-          );
+      ref
+          .read(spotHealStateProvider.notifier)
+          .addStrokesBatch(_strokePoints, _brushNorm, _hardness);
     }
     _strokePoints.clear();
     setState(() {});
@@ -90,6 +90,13 @@ class _SpotHealOverlayState extends ConsumerState<SpotHealOverlay> {
     _isPainting = false;
     _strokePoints.clear();
     setState(() {});
+  }
+
+  void _onTapDown(Offset localPosition) {
+    final target = _screenToSourceNorm(localPosition);
+    ref
+        .read(spotHealStateProvider.notifier)
+        .addMarkAt(target, _brushNorm, _hardness);
   }
 
   @override
@@ -103,6 +110,7 @@ class _SpotHealOverlayState extends ConsumerState<SpotHealOverlay> {
       onHover: (e) => setState(() => _cursorPos = e.localPosition),
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
+        onTapDown: (d) => _onTapDown(d.localPosition),
         onPanStart: _onPanStart,
         onPanUpdate: _onPanUpdate,
         onPanEnd: _onPanEnd,
@@ -201,7 +209,8 @@ class _SpotHealBrushPainter extends CustomPainter {
     if (isHovering && cursorPos != null && !isPainting) {
       final r = brushNorm * imageDisplaySize.width;
       canvas.drawCircle(
-        cursorPos!, r,
+        cursorPos!,
+        r,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5
