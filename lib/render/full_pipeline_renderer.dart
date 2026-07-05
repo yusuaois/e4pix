@@ -245,7 +245,83 @@ class FullPipelineRenderer {
     ui.Image current = develop;
     bool currentOwned = developOwned;
 
-    // 自动蒙版引导图（从 develop 输出读取，pre-crop）
+    // 合成趟：将已注册画笔图层混合到调色输出上
+    if (composeProgram != null && brushLayerRegistry != null) {
+      final activeProviders = brushLayerRegistry.activeProviders(params);
+      if (activeProviders.isNotEmpty) {
+        try {
+          final layers = <BrushLayer>[];
+          for (final provider in activeProviders) {
+            try {
+              final layer = await provider.render(
+                params: params,
+                developOutput: current,
+                developKey: developKey,
+                targetWidth: current.width,
+                targetHeight: current.height,
+              );
+              if (layer.active) layers.add(layer);
+            } catch (e) {
+              debugPrint('[Pipeline] Layer ${provider.id} render failed: $e');
+            }
+          }
+          if (layers.isNotEmpty) {
+            final composed = await _runComposePass(
+              program: composeProgram,
+              base: current,
+              layers: layers,
+            );
+            if (currentOwned) current.dispose();
+            current = composed;
+            currentOwned = true;
+          }
+        } catch (e) {
+          debugPrint('[Pipeline] Compose pass failed: $e');
+        }
+      }
+    }
+
+    // 捕获 compose 之后的图像供 overlay 笔画预览
+    ui.Image? developOutput;
+    if (hasEnabledMasks || needsComposePass(params)) {
+      try {
+        developOutput = current.clone();
+      } catch (e) {
+        debugPrint('[Pipeline] Failed to clone develop output: $e');
+        developOutput = null;
+      }
+    }
+
+    // 透视
+    if (needsPerspectivePass(params) && perspectiveProgram != null) {
+      try {
+        final warped = await _runPerspectivePass(
+          program: perspectiveProgram,
+          input: current,
+          params: params,
+          cache: perspectiveCache,
+        );
+        if (currentOwned) current.dispose();
+        current = warped;
+        currentOwned = true;
+      } catch (e) {
+        debugPrint('[Pipeline] Perspective pass failed: $e');
+      }
+    }
+
+    // 裁剪
+    if (!params.crop.isIdentity) {
+      try {
+        final cropped = await applyCropTransform(current, params.crop);
+        if (currentOwned) current.dispose();
+        current = cropped;
+        currentOwned = true;
+      } catch (e) {
+        debugPrint('[Pipeline] Crop transform failed: $e');
+      }
+    }
+
+    // 自动蒙版引导图（从裁剪后输出读取）
     const kMaxGuideEdge = 512;
     Uint8List? guideBytes;
     int guideW = current.width;
@@ -336,82 +412,6 @@ class FullPipelineRenderer {
         if (maskTexOwned) maskTex.dispose();
       } catch (e) {
         debugPrint('[Pipeline] Mask pass failed for ${local.id}: $e');
-      }
-    }
-
-    // 合成趟：将已注册画笔图层混合到调色输出上
-    if (composeProgram != null && brushLayerRegistry != null) {
-      final activeProviders = brushLayerRegistry.activeProviders(params);
-      if (activeProviders.isNotEmpty) {
-        try {
-          final layers = <BrushLayer>[];
-          for (final provider in activeProviders) {
-            try {
-              final layer = await provider.render(
-                params: params,
-                developOutput: current,
-                developKey: developKey,
-                targetWidth: current.width,
-                targetHeight: current.height,
-              );
-              if (layer.active) layers.add(layer);
-            } catch (e) {
-              debugPrint('[Pipeline] Layer ${provider.id} render failed: $e');
-            }
-          }
-          if (layers.isNotEmpty) {
-            final composed = await _runComposePass(
-              program: composeProgram,
-              base: current,
-              layers: layers,
-            );
-            if (currentOwned) current.dispose();
-            current = composed;
-            currentOwned = true;
-          }
-        } catch (e) {
-          debugPrint('[Pipeline] Compose pass failed: $e');
-        }
-      }
-    }
-
-    // 捕获 compose 之后的图像供 overlay 笔画预览
-    ui.Image? developOutput;
-    if (hasEnabledMasks || needsComposePass(params)) {
-      try {
-        developOutput = current.clone();
-      } catch (e) {
-        debugPrint('[Pipeline] Failed to clone develop output: $e');
-        developOutput = null;
-      }
-    }
-
-    // 透视
-    if (needsPerspectivePass(params) && perspectiveProgram != null) {
-      try {
-        final warped = await _runPerspectivePass(
-          program: perspectiveProgram,
-          input: current,
-          params: params,
-          cache: perspectiveCache,
-        );
-        if (currentOwned) current.dispose();
-        current = warped;
-        currentOwned = true;
-      } catch (e) {
-        debugPrint('[Pipeline] Perspective pass failed: $e');
-      }
-    }
-
-    // 裁剪
-    if (!params.crop.isIdentity) {
-      try {
-        final cropped = await applyCropTransform(current, params.crop);
-        if (currentOwned) current.dispose();
-        current = cropped;
-        currentOwned = true;
-      } catch (e) {
-        debugPrint('[Pipeline] Crop transform failed: $e');
       }
     }
 

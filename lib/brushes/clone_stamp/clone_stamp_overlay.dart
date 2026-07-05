@@ -377,19 +377,26 @@ class _SpotPainter extends CustomPainter {
       sourceHeight: sourceHeight,
     );
 
+    // 画布变换到目标中心，后续以原点为参考
+    canvas.save();
+    canvasApplyCrop(canvas, screenCenter, crop);
+
+    // OOB 映射（原点即画布原点 = 屏幕目标中心）
     final rects = computeOOBRects(
       sxRaw: sxRaw,
       syRaw: syRaw,
       pr: pr,
       imageW: img.width.toDouble(),
       imageH: img.height.toDouble(),
-      screenCenterX: screenCenter.dx,
-      screenCenterY: screenCenter.dy,
+      screenCenterX: 0,
+      screenCenterY: 0,
       screenR: screenR,
     );
-    if (rects == null) return;
+    if (rects == null) {
+      canvas.restore();
+      return;
+    }
 
-    canvas.save();
     canvas.clipPath(Path()..addOval(rects.fullDstRect));
     canvas.drawImageRect(img, rects.srcRect, rects.dstRect, _imagePaint);
     canvas.restore();
@@ -478,32 +485,35 @@ class _SpotPainter extends CustomPainter {
     final sryRaw = srcNorm.dy * img.height;
     final pr = (brushRadius * img.width).clamp(1.0, img.width / 2.0);
 
+    canvas.save();
+    canvasApplyCrop(canvas, screenPos, crop);
+
+    // OOB 映射（原点即画布原点 = 屏幕光标中心）
     final rects = computeOOBRects(
       sxRaw: srxRaw,
       syRaw: sryRaw,
       pr: pr,
       imageW: img.width.toDouble(),
       imageH: img.height.toDouble(),
-      screenCenterX: screenPos.dx,
-      screenCenterY: screenPos.dy,
+      screenCenterX: 0,
+      screenCenterY: 0,
       screenR: radius,
     );
     if (rects == null) {
+      canvas.restore();
       _drawTargetCursor(canvas, screenPos, radius);
       return;
     }
 
     if (brushHardness >= 0.99) {
-      canvas.save();
       canvas.clipPath(Path()..addOval(rects.fullDstRect));
       canvas.drawImageRect(img, rects.srcRect, rects.dstRect, _imagePaint);
-      canvas.restore();
     } else {
       final t0 = brushHardness.clamp(0.0, 1.0);
       final span = 1.0 - t0;
       double ss(double t) => (3 * t * t - 2 * t * t * t).clamp(0.0, 1.0);
       final gradient = ui.Gradient.radial(
-        screenPos,
+        Offset.zero,
         radius,
         [
           Colors.white,
@@ -537,6 +547,7 @@ class _SpotPainter extends CustomPainter {
       );
       canvas.restore();
     }
+    canvas.restore();
 
     canvas.drawCircle(
       screenPos,

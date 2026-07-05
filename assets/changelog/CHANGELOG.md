@@ -28,6 +28,10 @@
 ## 🐛 问题修复 (Bug Fixes)
 * **Dodge/Burn 无效果**：`pass_config.dart` 缺少 `hasDodgeBurnMarks` 导致 compose pass 被跳过——只有 dodge_burn 笔画时画面不刷新
 * **画笔光标不显示**：`spot_heal_overlay` 和 `dodge_burn_overlay` 的 `onHover` 遗漏 `_isHovering = true`，激活画笔后鼠标已在区域内时 `onEnter` 不触发，光标不渲染
+* **裁剪逆旋转数学修正**：`CropParams.inverseMap` 和 `outputToSourceNorm` 中逆旋转迭代次数 `(4-o)%4` 在 o=1 时产生正向旋转而非逆向，导致 screen↔source 来回变换不闭合。修正为 `o%4` 次迭代
+* **裁剪下屏幕半径计算修正**：`sourceRadiusToScreen` 丢弃 `forwardToOutputNorm` 的 y 分量，orientation=1/3 时 ox 不依赖于 sx 导致屏幕半径恒为 0。改用双分量欧几里得距离
+* **detail section 画笔点击误退出**：`_finishBrush()` 在 tap（未拖动）时错误清除选区退出画笔模式。修复：统一调用 `_commitBrushStroke()` 提交单点笔画
+* **detail section 画笔栏无法取消选中**：`_MaskListItem.onTap` 始终设为 `local.id`，点击已激活项无反应。修复：`isSelected` 时设为 `null` 实现 toggle 取消
 * **修复画笔缓存陈旧**：Level 1 缓存（marks hash）加入 `developKey` 双 key 检查，修复调整曝光/曲线等参数后画面不刷新的问题
 * **Committed preview 持久化**：切换工具时未渲染完的 committed preview 通过静态字段持久化，避免闪回旧画面后跳变
 * **_healingCache 内存泄漏**：修复 `MultiPassPreviewState.dispose()` 中遗漏 `_healingCache.dispose()` 的问题

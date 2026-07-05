@@ -147,7 +147,9 @@ class _MaskListItem extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => {
-          ref.read(selectedLocalIdProvider.notifier).state = local.id,
+          ref.read(selectedLocalIdProvider.notifier).state = isSelected
+              ? null
+              : local.id,
           SamSession.instance.resetPoints(),
         },
         child: Container(

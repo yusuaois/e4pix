@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import '../core/models/crop_params.dart';
@@ -53,8 +54,8 @@ Offset sourceToScreenNorm({
 
 /// 源图归一化半径 → 屏幕像素半径
 ///
-/// 通过计算源点 x 方向偏移 [r] 后的屏幕位置差来得到屏幕像素半径，
-/// 正确处理裁剪/旋转带来的各向异性缩放
+/// 通过计算 x/y 双分量欧几里得距离得到屏幕像素半径，
+/// 正确处理裁剪/旋转变换
 ///
 /// [r] 全图归一化半径（相对于源图宽度）
 /// [srcCenter] 源点中心的全图归一化坐标
@@ -69,17 +70,19 @@ double sourceRadiusToScreen({
   required int sourceWidth,
   required int sourceHeight,
 }) {
-  final (ox0, _) = crop.forwardToOutputNorm(
+  final (ox0, oy0) = crop.forwardToOutputNorm(
     srcCenter.dx,
     srcCenter.dy,
     sourceWidth,
     sourceHeight,
   );
-  final (ox1, _) = crop.forwardToOutputNorm(
+  final (ox1, oy1) = crop.forwardToOutputNorm(
     srcCenter.dx + r,
     srcCenter.dy,
     sourceWidth,
     sourceHeight,
   );
-  return (ox1 - ox0).abs() * imageDisplaySize.width;
+  final dx = (ox1 - ox0).abs() * imageDisplaySize.width;
+  final dy = (oy1 - oy0).abs() * imageDisplaySize.height;
+  return math.sqrt(dx * dx + dy * dy);
 }

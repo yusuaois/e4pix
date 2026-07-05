@@ -1,4 +1,20 @@
+import 'dart:math' as math;
 import 'dart:ui';
+
+import '../core/models/crop_params.dart';
+
+/// 画布变换到 [center] 并应用裁剪旋转和翻转
+///
+/// 调用方需自行 canvas.save / canvas.restore
+void canvasApplyCrop(Canvas canvas, Offset center, CropParams crop) {
+  canvas.translate(center.dx, center.dy);
+  final angle =
+      crop.orientation * math.pi / 2 + crop.straighten * math.pi / 180;
+  if (angle != 0) canvas.rotate(angle);
+  if (crop.flipH || crop.flipV) {
+    canvas.scale(crop.flipH ? -1.0 : 1.0, crop.flipV ? -1.0 : 1.0);
+  }
+}
 
 /// 计算 OOB（Out-of-Bounds）比例映射矩形
 ///

@@ -86,7 +86,7 @@ class CropParams {
       iy = ry;
     }
 
-    for (int i = 0; i < (4 - orientation) % 4; i++) {
+    for (int i = 0; i < orientation % 4; i++) {
       final rx = -iy;
       iy = ix;
       ix = rx;
@@ -135,7 +135,7 @@ class CropParams {
       iy = ry;
     }
 
-    for (int i = 0; i < (4 - orientation) % 4; i++) {
+    for (int i = 0; i < orientation % 4; i++) {
       final rx = -iy;
       iy = ix;
       ix = rx;

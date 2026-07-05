@@ -43,7 +43,6 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
 
   List<Offset>? _paintingPoints;
   Offset? _cursorScreen;
-  bool _brushDidMove = false;
   bool _interactionWasBrush = false;
   bool _interactionWasWand = false;
   bool _interactionWasSubject = false;
@@ -141,15 +140,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
 
   void _finishBrush() {
     if (_paintingPoints == null) return;
-    final moved = _brushDidMove && _paintingPoints!.length > 1;
-    if (moved) {
-      _commitBrushStroke();
-    } else {
-      _paintingPoints = null;
-      _cursorScreen = null;
-      ref.read(selectedLocalIdProvider.notifier).state = null;
-      setState(() {});
-    }
+    _commitBrushStroke();
   }
 
   void _commitBrushStroke() {
@@ -260,7 +251,6 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         if (_interactionWasBrush) {
           _cursorScreen = d.localPosition;
           _paintingPoints = [_screenToMask(d.localPosition)];
-          _brushDidMove = false;
           setState(() {});
           return;
         }
@@ -291,7 +281,6 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         }
         if (_interactionWasBrush) {
           if (_paintingPoints == null) return;
-          _brushDidMove = true;
           _cursorScreen = d.localPosition;
           _paintingPoints!.add(_screenToMask(d.localPosition));
           setState(() {});
