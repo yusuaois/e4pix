@@ -752,7 +752,10 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     for (final m in brushManifests) {
       final overlay = _buildOverlayIfActive(m, ref, displaySize, state, params);
       if (overlay != null) {
-        ref.watch(renderedPreviewGenerationProvider);
+        // spot_heal 和 dodge_burn 没有 committed preview 生命周期，跳过 watch
+        if (m.id != 'spot_heal' && m.id != 'dodge_burn') {
+          ref.watch(renderedPreviewGenerationProvider);
+        }
         content = SizedBox.fromSize(
           size: displaySize,
           child: Stack(

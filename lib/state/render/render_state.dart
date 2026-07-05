@@ -197,6 +197,20 @@ final developOutputProvider =
       DevelopOutputNotifier.new,
     );
 
+/// compose 结果低分辨率快照供主体/智能选区作 guide
+///
+/// 像素画笔 marks 存在时非空，选区服务用此替代 develop-only 渲染
+class ComposeGuideNotifier extends Notifier<ui.Image?> with TextureNotifier {
+  @override
+  ui.Image? build() => null;
+
+  void update(ui.Image? newImage) => updateTexture(newImage);
+}
+
+final composeGuideProvider = NotifierProvider<ComposeGuideNotifier, ui.Image?>(
+  ComposeGuideNotifier.new,
+);
+
 // 1Hz ticker
 final tickerProvider = StreamProvider<int>((ref) async* {
   int i = 0;

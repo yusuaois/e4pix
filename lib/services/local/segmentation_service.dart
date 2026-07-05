@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../brushes/brush_manifest.dart';
 import '../../core/models/crop_params.dart';
 import '../../render/render_engine.dart';
 import '../../state/providers.dart';
@@ -34,19 +35,26 @@ class SegmentationService {
       final tw = (src.width * scale).round();
       final th = (src.height * scale).round();
 
-      // 渲染全图 guide（不裁剪），蒙版存储在全图坐标
-      ui.Image guideImg = await RenderEngine.renderToImage(
-        program: program,
-        sourceImage: src,
-        params: params.copyWith(crop: CropParams.identity),
-        lutTexture: lutEnabled ? lut.textureA : null,
-        lutSize: lutEnabled ? lut.sizeA : 0,
-        lutTextureB: lutEnabled ? lut.textureB : null,
-        lutSizeB: lutEnabled ? lut.sizeB : 0,
-        curveTexture: ref.read(curveTextureProvider),
-        targetWidth: tw,
-        targetHeight: th,
-      );
+      // 像素 marks 存在时用 compose guide，确保选区感知图章等修改
+      ui.Image guideImg;
+      final composeGuide = ref.read(composeGuideProvider);
+      if (composeGuide != null &&
+          brushManifests.any((m) => m.hasMarks(params))) {
+        guideImg = composeGuide.clone();
+      } else {
+        guideImg = await RenderEngine.renderToImage(
+          program: program,
+          sourceImage: src,
+          params: params.copyWith(crop: CropParams.identity),
+          lutTexture: lutEnabled ? lut.textureA : null,
+          lutSize: lutEnabled ? lut.sizeA : 0,
+          lutTextureB: lutEnabled ? lut.textureB : null,
+          lutSizeB: lutEnabled ? lut.sizeB : 0,
+          curveTexture: ref.read(curveTextureProvider),
+          targetWidth: tw,
+          targetHeight: th,
+        );
+      }
       final gw = guideImg.width, gh = guideImg.height;
       final bd = await guideImg.toByteData(format: ui.ImageByteFormat.rawRgba);
       guideImg.dispose();

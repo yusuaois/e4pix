@@ -207,6 +207,17 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       // 更新 Develop 输出供 spot removal overlay 笔画预览
       ref.read(developOutputProvider.notifier).update(result.developOutput);
 
+      // 捕获 compose guide 供选区服务
+      final devOut = result.developOutput;
+      if (devOut != null) {
+        final hasPixelMarks = brushManifests.any(
+          (m) => m.hasMarks(widget.params),
+        );
+        if (hasPixelMarks) {
+          _captureComposeGuide(devOut);
+        }
+      }
+
       // 递增渲染代数，通知 preview_area 刷新 develop 输出
       ref.read(renderedPreviewGenerationProvider.notifier).state++;
 
@@ -263,6 +274,39 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       }
       runWarmupChain(tasks, devClone, isMounted: () => mounted);
     });
+  }
+
+  /// 降采样 compose 结果供主体/智能选区作 guide
+  Future<void> _captureComposeGuide(ui.Image src) async {
+    const maxEdge = 1024;
+    final longest = math.max(src.width, src.height);
+    if (longest <= maxEdge) {
+      try {
+        ref.read(composeGuideProvider.notifier).update(src.clone());
+      } catch (e) {
+        debugPrint('[MultiPassPreview] Failed to capture compose guide: $e');
+      }
+      return;
+    }
+    final scale = maxEdge / longest;
+    final tw = (src.width * scale).round();
+    final th = (src.height * scale).round();
+    try {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.drawImageRect(
+        src,
+        Rect.fromLTWH(0, 0, src.width.toDouble(), src.height.toDouble()),
+        Rect.fromLTWH(0, 0, tw.toDouble(), th.toDouble()),
+        Paint(),
+      );
+      final picture = recorder.endRecording();
+      final result = await picture.toImage(tw, th);
+      picture.dispose();
+      ref.read(composeGuideProvider.notifier).update(result);
+    } catch (e) {
+      debugPrint('[MultiPassPreview] Failed to capture compose guide: $e');
+    }
   }
 
   @override

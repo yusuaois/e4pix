@@ -26,8 +26,7 @@
 * **清理死代码**：移除 spot_heal 中无效的 `putRolling` 调用（spot_heal 不使用增量渲染）；补上 slider 拖拽结束时遗漏的 healing cache Level-1 失效
 
 ## 🐛 问题修复 (Bug Fixes)
-* **Dodge/Burn 无效果**：`pass_config.dart` 缺少 `hasDodgeBurnMarks` 导致 compose pass 被跳过——只有 dodge_burn 笔画时画面不刷新
-* **画笔光标不显示**：`spot_heal_overlay` 和 `dodge_burn_overlay` 的 `onHover` 遗漏 `_isHovering = true`，激活画笔后鼠标已在区域内时 `onEnter` 不触发，光标不渲染
+* **已有画笔选区修复**：修复在已有画笔时使用智能选区只能选中底图的问题
 * **裁剪逆旋转数学修正**：`CropParams.inverseMap` 和 `outputToSourceNorm` 中逆旋转迭代次数 `(4-o)%4` 在 o=1 时产生正向旋转而非逆向，导致 screen↔source 来回变换不闭合。修正为 `o%4` 次迭代
 * **裁剪下屏幕半径计算修正**：`sourceRadiusToScreen` 丢弃 `forwardToOutputNorm` 的 y 分量，orientation=1/3 时 ox 不依赖于 sx 导致屏幕半径恒为 0。改用双分量欧几里得距离
 * **detail section 画笔点击误退出**：`_finishBrush()` 在 tap（未拖动）时错误清除选区退出画笔模式。修复：统一调用 `_commitBrushStroke()` 提交单点笔画
