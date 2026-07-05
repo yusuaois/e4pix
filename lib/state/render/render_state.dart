@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
+import '../../brushes/brush_manifest.dart';
 import '../../core/models/rgb_curves.dart';
 import '../../render/curve_baker.dart';
 import '../../render/lut_texture_cache.dart';
@@ -19,10 +20,7 @@ class _ShaderBundle {
   final ui.FragmentProgram denoise;
   final ui.FragmentProgram perspective;
   final ui.FragmentProgram lensCorrect;
-  final ui.FragmentProgram spotRemove;
   final ui.FragmentProgram compose;
-  final ui.FragmentProgram spotHeal;
-  final ui.FragmentProgram dodgeBurn;
   const _ShaderBundle({
     required this.develop,
     required this.mask,
@@ -30,14 +28,11 @@ class _ShaderBundle {
     required this.denoise,
     required this.perspective,
     required this.lensCorrect,
-    required this.spotRemove,
     required this.compose,
-    required this.spotHeal,
-    required this.dodgeBurn,
   });
 }
 
-// 并行加载全部 shader，首个访问触发批量加载
+// 并行加载全部核心 shader（非画笔），首个访问触发批量加载
 final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
   final results = await Future.wait([
     ui.FragmentProgram.fromAsset('assets/shaders/develop.shader'),
@@ -46,10 +41,7 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     ui.FragmentProgram.fromAsset('assets/shaders/denoise.shader'),
     ui.FragmentProgram.fromAsset('assets/shaders/perspective.shader'),
     ui.FragmentProgram.fromAsset('assets/shaders/lens_correct.shader'),
-    ui.FragmentProgram.fromAsset('assets/shaders/spot_remove.shader'),
     ui.FragmentProgram.fromAsset('assets/shaders/compose.shader'),
-    ui.FragmentProgram.fromAsset('assets/shaders/spot_heal.shader'),
-    ui.FragmentProgram.fromAsset('assets/shaders/dodge_burn.shader'),
   ]);
   for (final p in results) {
     p.fragmentShader(); // 预热编译
@@ -61,10 +53,7 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     denoise: results[3],
     perspective: results[4],
     lensCorrect: results[5],
-    spotRemove: results[6],
-    compose: results[7],
-    spotHeal: results[8],
-    dodgeBurn: results[9],
+    compose: results[6],
   );
 });
 
@@ -103,45 +92,66 @@ final lensCorrectShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   return (await ref.watch(_allShadersProvider.future)).lensCorrect;
 });
 
-final spotRemoveShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
-  ref,
-) async {
-  return (await ref.watch(_allShadersProvider.future)).spotRemove;
-});
-
 final composeShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   ref,
 ) async {
   return (await ref.watch(_allShadersProvider.future)).compose;
 });
 
-final spotHealShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
-  ref,
-) async {
-  return (await ref.watch(_allShadersProvider.future)).spotHeal;
-});
-
-final dodgeBurnShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
-  ref,
-) async {
-  return (await ref.watch(_allShadersProvider.future)).dodgeBurn;
-});
-
-/// Healing brush shader.
+/// Brush shader programs, keyed by [BrushManifest.id].
 ///
-/// Same independent-loading pattern as [composeShaderProgramProvider].
+/// Loads shaders for all registered brushes in [brushManifests] order.
+/// A missing shader asset produces a null entry rather than failing
+/// the entire map.
+final brushShaderProgramsProvider =
+    FutureProvider<Map<String, ui.FragmentProgram?>>((ref) async {
+      final result = <String, ui.FragmentProgram?>{};
+      // Load all brush shaders concurrently, tolerating individual failures.
+      final futures = <Future<(String, ui.FragmentProgram?)>>[];
+      for (final m in brushManifests) {
+        futures.add(
+          ui.FragmentProgram.fromAsset(m.shaderAsset).then((p) {
+            p.fragmentShader(); // warm-up
+            return (m.id, p);
+          }, onError: (_) => (m.id, null)),
+        );
+      }
+      for (final f in futures) {
+        final entry = await f;
+        result[entry.$1] = entry.$2;
+      }
+      return result;
+    });
+
+// Deprecated per-brush shader providers — kept for backward compatibility.
+// Prefer [brushShaderProgramsProvider] for new code.
+
+@Deprecated('Use brushShaderProgramsProvider instead')
+final spotRemoveShaderProgramProvider = FutureProvider<ui.FragmentProgram?>((
+  ref,
+) async {
+  return (await ref.watch(brushShaderProgramsProvider.future))['spot_removal'];
+});
+
+@Deprecated('Use brushShaderProgramsProvider instead')
+final spotHealShaderProgramProvider = FutureProvider<ui.FragmentProgram?>((
+  ref,
+) async {
+  return (await ref.watch(brushShaderProgramsProvider.future))['spot_heal'];
+});
+
+@Deprecated('Use brushShaderProgramsProvider instead')
+final dodgeBurnShaderProgramProvider = FutureProvider<ui.FragmentProgram?>((
+  ref,
+) async {
+  return (await ref.watch(brushShaderProgramsProvider.future))['dodge_burn'];
+});
+
+@Deprecated('Use brushShaderProgramsProvider instead')
 final healingShaderProgramProvider = FutureProvider<ui.FragmentProgram?>((
   ref,
 ) async {
-  try {
-    final p = await ui.FragmentProgram.fromAsset(
-      'assets/shaders/healing.shader',
-    );
-    p.fragmentShader(); // warm-up
-    return p;
-  } catch (_) {
-    return null;
-  }
+  return (await ref.watch(brushShaderProgramsProvider.future))['healing'];
 });
 
 /// 启动时预加载所有 shader 文件到内存（CPU 侧），不执行 GPU PSO 创建
@@ -150,7 +160,7 @@ final healingShaderProgramProvider = FutureProvider<ui.FragmentProgram?>((
 final shaderWarmupProvider = FutureProvider<void>((ref) async {
   await Future.wait([
     ref.watch(_allShadersProvider.future),
-    ref.watch(healingShaderProgramProvider.future),
+    ref.watch(brushShaderProgramsProvider.future),
   ]);
 });
 

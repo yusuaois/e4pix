@@ -2,20 +2,16 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 
-import '../brushes/clone_stamp/clone_stamp_layer.dart';
-import '../brushes/healing/healing_layer.dart';
-import '../brushes/spot_heal/spot_heal_layer.dart';
-import '../brushes/dodge_burn/dodge_burn_layer.dart';
+import '../brushes/brush_manifest.dart';
 import '../utils/shader_pass_util.dart';
 
-/// 构建所有 brush shader 的有序预热任务列表
-/// [spotRemoveProgram]、[healingProgram]、[spotHealProgram]、[composeProgram]
-/// 为 null 时跳过对应任务
+/// 构建所有 brush shader 的有序预热任务列表。
+///
+/// [brushPrograms] is keyed by [BrushManifest.id]; null entries are skipped.
+/// [composeProgram] is separate because compose is not a brush but still
+/// needs warmup.
 List<(String, Future<void> Function())> buildWarmupTasks({
-  required ui.FragmentProgram? spotRemoveProgram,
-  required ui.FragmentProgram? healingProgram,
-  required ui.FragmentProgram? spotHealProgram,
-  required ui.FragmentProgram? dodgeBurnProgram,
+  required Map<String, ui.FragmentProgram?> brushPrograms,
   required ui.FragmentProgram? composeProgram,
   required ui.Image developOutput,
   required int targetWidth,
@@ -23,36 +19,15 @@ List<(String, Future<void> Function())> buildWarmupTasks({
 }) {
   final tasks = <(String, Future<void> Function())>[];
 
-  if (spotRemoveProgram != null) {
-    final spotLayer = SpotRemovalLayerProvider(program: spotRemoveProgram);
-    tasks.add((
-      'spot_removal',
-      () => spotLayer.warmup(developOutput, targetWidth, targetHeight),
-    ));
-  }
-
-  if (healingProgram != null) {
-    final healLayer = HealingLayerProvider(program: healingProgram);
-    tasks.add((
-      'healing',
-      () => healLayer.warmup(developOutput, targetWidth, targetHeight),
-    ));
-  }
-
-  if (spotHealProgram != null) {
-    final spotHealLayer = SpotHealLayerProvider(program: spotHealProgram);
-    tasks.add((
-      'spot_heal',
-      () => spotHealLayer.warmup(developOutput, targetWidth, targetHeight),
-    ));
-  }
-
-  if (dodgeBurnProgram != null) {
-    final dodgeBurnLayer = DodgeBurnLayerProvider(program: dodgeBurnProgram);
-    tasks.add((
-      'dodge_burn',
-      () => dodgeBurnLayer.warmup(developOutput, targetWidth, targetHeight),
-    ));
+  for (final m in brushManifests) {
+    final prog = brushPrograms[m.id];
+    if (prog != null) {
+      final layer = m.layerFactory(prog);
+      tasks.add((
+        m.id,
+        () => layer.warmup(developOutput, targetWidth, targetHeight),
+      ));
+    }
   }
 
   if (composeProgram != null) {

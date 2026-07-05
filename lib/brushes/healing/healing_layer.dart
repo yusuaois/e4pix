@@ -7,25 +7,26 @@ import '../../core/models/brush_layer.dart';
 import 'healing_model.dart';
 import '../../render/brush_layer_provider.dart';
 import '../../render/incremental_render_cache.dart';
-import 'healing_cache.dart';
+import '../shared/brush_hashes.dart';
+import '../shared/brush_layer_mixin.dart';
 import '../../utils/shader_pass_util.dart';
 
 /// Healing Brush layer provider.
 ///
 /// Renders healing marks onto the develop output and returns a [BrushLayer]
 /// whose alpha channel encodes which pixels were modified.
-class HealingLayerProvider implements BrushLayerProvider {
+class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
   @override
   String get id => 'healing';
 
-  final _cache = IncrementalRenderCache<HealingMark>(computeKey: hashMarks);
-  final ui.FragmentProgram _program;
-  ui.FragmentShader? _cachedShader;
+  final _cache = IncrementalRenderCache<HealingMark>(
+    computeKey: hashHealingMarks,
+  );
+  @override
+  final ui.FragmentProgram brushProgram;
 
   HealingLayerProvider({required ui.FragmentProgram program})
-    : _program = program;
-
-  ui.FragmentShader get _shader => _cachedShader ??= _program.fragmentShader();
+    : brushProgram = program;
 
   static const _kMaxMarks = 64;
   static const _kHealUniformsPerMark =
@@ -37,7 +38,7 @@ class HealingLayerProvider implements BrushLayerProvider {
 
   @override
   int computeMarksHash(AdjustmentParams params) =>
-      hashMarks(params.healingMarks);
+      hashHealingMarks(params.healingMarks);
 
   @override
   Future<BrushLayer> render({
@@ -123,7 +124,7 @@ class HealingLayerProvider implements BrushLayerProvider {
     final h = input.height;
     final count = marks.length.clamp(0, _kMaxMarks);
     return runSingleShaderPass(
-      shader: _shader,
+      shader: brushShader,
       outputWidth: w,
       outputHeight: h,
       samplers: [input],

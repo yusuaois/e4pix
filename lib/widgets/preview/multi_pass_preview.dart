@@ -5,20 +5,14 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../brushes/brush_manifest.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../render/brush_layer_provider.dart';
 import '../../render/brush_layer_registry.dart';
 import '../../render/full_pipeline_renderer.dart';
-import '../../render/incremental_render_cache.dart';
-import '../../brushes/healing/healing_cache.dart';
 import '../../render/gpu_warmup.dart';
 import '../../render/homography.dart';
-import '../../../brushes/healing/healing_layer.dart';
-import '../../../brushes/spot_heal/spot_heal_layer.dart';
-import '../../../brushes/dodge_burn/dodge_burn_layer.dart';
-import '../../../brushes/clone_stamp/clone_stamp_layer.dart';
 import '../../render/mask_cache.dart';
-import '../../../brushes/clone_stamp/clone_stamp_cache.dart';
 import '../../state/providers.dart';
 import '../../utils/shader_pass_util.dart';
 
@@ -79,14 +73,9 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   final _developCache = DevelopPassCache();
   final _brushCache = BrushMaskCache();
   final _perspectiveCache = PerspectiveMatrixCache();
-  final _spotRemovalCache = IncrementalRenderCache(computeKey: hashSpots);
-  final _healingCache = IncrementalRenderCache(computeKey: hashMarks);
 
   // Compose pass: layer providers (created lazily when shaders are ready)
-  SpotRemovalLayerProvider? _spotLayer;
-  HealingLayerProvider? _healLayer;
-  SpotHealLayerProvider? _spotHealLayer;
-  DodgeBurnLayerProvider? _dodgeBurnLayer;
+  final _brushLayers = <String, BrushLayerProvider>{};
   BrushLayerRegistry? _layerRegistry;
 
   @override
@@ -100,7 +89,6 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     super.didUpdateWidget(old);
     if (old.sourceImage != widget.sourceImage) {
       _perspectiveCache.invalidate();
-      _spotRemovalCache.invalidate();
       _layerRegistry?.invalidateAll();
       _hasWarmedUpProviders = false;
     }
@@ -127,8 +115,6 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     _rendered?.dispose();
     _developCache.dispose();
     _brushCache.dispose();
-    _spotRemovalCache.dispose();
-    _healingCache.dispose();
     _layerRegistry?.dispose();
     super.dispose();
   }
@@ -158,28 +144,14 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       final composeProgram = ref.read(composeShaderProgramProvider).value;
       BrushLayerRegistry? layerReg;
       if (composeProgram != null) {
+        final brushPrograms = ref.read(brushShaderProgramsProvider).value ?? {};
         final providers = <BrushLayerProvider>[];
-        final spotRemoveProgram = ref
-            .read(spotRemoveShaderProgramProvider)
-            .value;
-        if (spotRemoveProgram != null) {
-          _spotLayer ??= SpotRemovalLayerProvider(program: spotRemoveProgram);
-          providers.add(_spotLayer!);
-        }
-        final healingProgram = ref.read(healingShaderProgramProvider).value;
-        if (healingProgram != null) {
-          _healLayer ??= HealingLayerProvider(program: healingProgram);
-          providers.add(_healLayer!);
-        }
-        final spotHealProgram = ref.read(spotHealShaderProgramProvider).value;
-        if (spotHealProgram != null) {
-          _spotHealLayer ??= SpotHealLayerProvider(program: spotHealProgram);
-          providers.add(_spotHealLayer!);
-        }
-        final dodgeBurnProgram = ref.read(dodgeBurnShaderProgramProvider).value;
-        if (dodgeBurnProgram != null) {
-          _dodgeBurnLayer ??= DodgeBurnLayerProvider(program: dodgeBurnProgram);
-          providers.add(_dodgeBurnLayer!);
+        for (final m in brushManifests) {
+          final prog = brushPrograms[m.id];
+          if (prog != null) {
+            _brushLayers.putIfAbsent(m.id, () => m.layerFactory(prog));
+            providers.add(_brushLayers[m.id]!);
+          }
         }
         if (providers.isNotEmpty) {
           _layerRegistry = BrushLayerRegistry(providers: providers);
@@ -211,8 +183,6 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         developCache: _developCache,
         brushCache: _brushCache,
         allowStaleAutoMask: isDragging,
-        spotRemovalCache: _spotRemovalCache,
-        healingCache: _healingCache,
       );
 
       if (gen != _generation || !mounted) {
@@ -276,17 +246,11 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         return;
       }
 
-      final spotProg = ref.read(spotRemoveShaderProgramProvider).value;
-      final healProg = ref.read(healingShaderProgramProvider).value;
-      final spotHealProg = ref.read(spotHealShaderProgramProvider).value;
-      final dodgeBurnProg = ref.read(dodgeBurnShaderProgramProvider).value;
+      final brushProgs = ref.read(brushShaderProgramsProvider).value ?? {};
       final composeProg = ref.read(composeShaderProgramProvider).value;
 
       final tasks = buildWarmupTasks(
-        spotRemoveProgram: spotProg,
-        healingProgram: healProg,
-        spotHealProgram: spotHealProg,
-        dodgeBurnProgram: dodgeBurnProg,
+        brushPrograms: brushProgs,
         composeProgram: composeProg,
         developOutput: devClone,
         targetWidth: tw,
@@ -308,9 +272,10 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     });
     ref.listen(isUserDraggingSliderProvider, (prev, next) {
       if (prev == true && next == false) {
-        // 拖动结束：失效 Level-1 hash 缓存强制重算，保留增量缓存
-        _spotRemovalCache.invalidateMarksCache();
-        _healingCache.invalidateMarksCache();
+        // 拖动结束：通过 layer provider 失效缓存再重算
+        for (final p in _brushLayers.values) {
+          p.invalidate();
+        }
         _runRender();
       }
     });

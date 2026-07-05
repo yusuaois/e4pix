@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
 import 'healing_model.dart';
-import 'healing_cache.dart';
+import '../shared/brush_hashes.dart';
 import '../../state/providers.dart';
 import '../../utils/brush_coord_utils.dart';
 import '../../utils/brush_preview_utils.dart';
@@ -287,7 +287,7 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
       ref
           .read(healingStateProvider.notifier)
           .addMarksBatch(List<HealingMark>.from(_strokeMarks));
-      _committedMarksHash = hashMarks(
+      _committedMarksHash = hashHealingMarks(
         ref.read(currentParamsNotifierProvider).healingMarks,
       );
       _committedPreview.addAll(_strokeMarks);

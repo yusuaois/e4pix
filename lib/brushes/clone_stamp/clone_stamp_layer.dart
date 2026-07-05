@@ -7,7 +7,8 @@ import '../../core/models/brush_layer.dart';
 import 'clone_stamp_model.dart';
 import '../../render/brush_layer_provider.dart';
 import '../../render/incremental_render_cache.dart';
-import 'clone_stamp_cache.dart';
+import '../shared/brush_hashes.dart';
+import '../shared/brush_layer_mixin.dart';
 import '../../utils/shader_pass_util.dart';
 
 /// Spot Removal (Clone Stamp) brush layer provider.
@@ -16,18 +17,18 @@ import '../../utils/shader_pass_util.dart';
 /// whose alpha channel encodes which pixels were modified (1.0 = modified,
 /// 0.0 = untouched). The Compose pass uses this alpha mask to blend
 /// the layer onto the base image.
-class SpotRemovalLayerProvider implements BrushLayerProvider {
+class SpotRemovalLayerProvider
+    with ShaderCacheMixin
+    implements BrushLayerProvider {
   @override
   String get id => 'spot_removal';
 
   final _cache = IncrementalRenderCache<SpotMark>(computeKey: hashSpots);
-  final ui.FragmentProgram _program;
-  ui.FragmentShader? _cachedShader;
+  @override
+  final ui.FragmentProgram brushProgram;
 
   SpotRemovalLayerProvider({required ui.FragmentProgram program})
-    : _program = program;
-
-  ui.FragmentShader get _shader => _cachedShader ??= _program.fragmentShader();
+    : brushProgram = program;
 
   static const _kMaxSpots = 64;
   static const _kSpotUniformsPerSpot =
@@ -128,7 +129,7 @@ class SpotRemovalLayerProvider implements BrushLayerProvider {
     final h = input.height;
     final count = spots.length.clamp(0, _kMaxSpots);
     return runSingleShaderPass(
-      shader: _shader,
+      shader: brushShader,
       outputWidth: w,
       outputHeight: h,
       samplers: [input],

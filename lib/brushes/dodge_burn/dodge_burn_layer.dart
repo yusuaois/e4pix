@@ -9,7 +9,9 @@ import 'dodge_burn_model.dart';
 import '../../render/brush_layer_provider.dart';
 import '../../render/brush_rasterizer.dart';
 import '../../render/incremental_render_cache.dart';
-import 'dodge_burn_cache.dart';
+import '../shared/brush_hashes.dart';
+import '../shared/brush_layer_mixin.dart';
+import '../shared/brush_warmup_utils.dart';
 import '../../utils/shader_pass_util.dart';
 
 /// Dodge/Burn brush layer — tonal range targeted lighten/darken.
@@ -18,20 +20,20 @@ import '../../utils/shader_pass_util.dart';
 /// frozen at paint time. Marks are grouped by (mode, range, exposure)
 /// and rendered in separate shader passes, chained so that later
 /// groups layer on top of earlier ones.
-class DodgeBurnLayerProvider implements BrushLayerProvider {
+class DodgeBurnLayerProvider
+    with ShaderCacheMixin
+    implements BrushLayerProvider {
   @override
   String get id => 'dodge_burn';
 
   final _cache = IncrementalRenderCache<DodgeBurnMark>(
     computeKey: hashDodgeBurnMarks,
   );
-  final ui.FragmentProgram _program;
-  ui.FragmentShader? _cachedShader;
+  @override
+  final ui.FragmentProgram brushProgram;
 
   DodgeBurnLayerProvider({required ui.FragmentProgram program})
-    : _program = program;
-
-  ui.FragmentShader get _shader => _cachedShader ??= _program.fragmentShader();
+    : brushProgram = program;
 
   @override
   bool isActive(AdjustmentParams params) => params.dodgeBurnMarks.isNotEmpty;
@@ -118,7 +120,7 @@ class DodgeBurnLayerProvider implements BrushLayerProvider {
           : 1.0;
 
       final groupResult = await runSingleShaderPass(
-        shader: _shader,
+        shader: brushShader,
         outputWidth: targetWidth,
         outputHeight: targetHeight,
         samplers: [current, maskTex],
@@ -151,10 +153,10 @@ class DodgeBurnLayerProvider implements BrushLayerProvider {
     int targetWidth,
     int targetHeight,
   ) async {
-    final emptyMask = await _createEmptyMask();
+    final emptyMask = await createEmptyMask();
     try {
       final result = await runSingleShaderPass(
-        shader: _shader,
+        shader: brushShader,
         outputWidth: targetWidth,
         outputHeight: targetHeight,
         samplers: [developOutput, emptyMask],
@@ -171,17 +173,6 @@ class DodgeBurnLayerProvider implements BrushLayerProvider {
       debugPrint('[Warmup] dodge_burn FAILED: $e');
     }
     emptyMask.dispose();
-  }
-
-  Future<ui.Image> _createEmptyMask() async {
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-    canvas.drawRect(
-      const ui.Rect.fromLTWH(0, 0, 1, 1),
-      ui.Paint()..color = const ui.Color(0x00000000),
-    );
-    final picture = recorder.endRecording();
-    return picture.toImage(1, 1);
   }
 
   @override

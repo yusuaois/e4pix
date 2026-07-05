@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
 import 'clone_stamp_model.dart';
-import 'clone_stamp_cache.dart';
+import '../shared/brush_hashes.dart';
 import '../../state/providers.dart';
 import '../../utils/brush_coord_utils.dart';
 import '../../utils/brush_preview_utils.dart';

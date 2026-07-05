@@ -23,6 +23,7 @@ import 'color_picker_overlay.dart';
 import 'crop_overlay.dart';
 import 'crop_panel.dart';
 import '../develop/sections/local/local_mask_overlay.dart';
+import '../../brushes/brush_manifest.dart';
 import '../../brushes/healing/healing_overlay.dart';
 import '../../brushes/spot_heal/spot_heal_overlay.dart';
 import '../../brushes/dodge_burn/dodge_burn_overlay.dart';
@@ -145,17 +146,10 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     final params = ref.read(effectiveParamsProvider);
     if (needsFullPipeline(params)) return;
 
-    final spotProg = ref.read(spotRemoveShaderProgramProvider).value;
-    final healProg = ref.read(healingShaderProgramProvider).value;
-    final spotHealProg = ref.read(spotHealShaderProgramProvider).value;
-    final dodgeBurnProg = ref.read(dodgeBurnShaderProgramProvider).value;
+    final brushProgs = ref.read(brushShaderProgramsProvider).value ?? {};
     final composeProg = ref.read(composeShaderProgramProvider).value;
 
-    if (spotProg == null &&
-        healProg == null &&
-        spotHealProg == null &&
-        dodgeBurnProg == null &&
-        composeProg == null) {
+    if (brushProgs.values.every((p) => p == null) && composeProg == null) {
       return;
     }
 
@@ -174,10 +168,7 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     }
 
     final tasks = buildWarmupTasks(
-      spotRemoveProgram: spotProg,
-      healingProgram: healProg,
-      spotHealProgram: spotHealProg,
-      dodgeBurnProgram: dodgeBurnProg,
+      brushPrograms: brushProgs,
       composeProgram: composeProg,
       developOutput: clone,
       targetWidth: tw,
@@ -687,6 +678,68 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     );
   }
 
+  /// Build a brush overlay widget if the brush is active, or null.
+  ///
+  /// Each brush has a different state shape and overlay class — the switch
+  /// dispatches by [BrushManifest.id]. New brushes add one case here.
+  Widget? _buildOverlayIfActive(
+    BrushManifest m,
+    WidgetRef ref,
+    Size displaySize,
+    DecodedImageState state,
+    AdjustmentParams params,
+  ) {
+    final overlaySource = ref.watch(developOutputProvider) ?? state.uiImage;
+    switch (m.id) {
+      case 'spot_removal':
+        final st = ref.watch(spotRemoveStateProvider);
+        if (st.mode != SpotRemoveMode.active) return null;
+        return SpotRemoveOverlay(
+          imageDisplaySize: displaySize,
+          crop: params.crop,
+          sourceWidth: state.uiImage.width,
+          sourceHeight: state.uiImage.height,
+          sourceImage: overlaySource,
+        );
+      case 'healing':
+        final st = ref.watch(healingStateProvider);
+        if (st.mode != HealingMode.active &&
+            !HealingOverlayState.hasPendingPreview) {
+          return null;
+        }
+        return HealingOverlay(
+          imageDisplaySize: displaySize,
+          crop: params.crop,
+          sourceWidth: state.uiImage.width,
+          sourceHeight: state.uiImage.height,
+          sourceImage: overlaySource,
+          interactive: st.mode == HealingMode.active,
+        );
+      case 'spot_heal':
+        final st = ref.watch(spotHealStateProvider);
+        if (st.mode != SpotHealMode.active) return null;
+        return SpotHealOverlay(
+          imageDisplaySize: displaySize,
+          crop: params.crop,
+          sourceWidth: state.uiImage.width,
+          sourceHeight: state.uiImage.height,
+          sourceImage: overlaySource,
+        );
+      case 'dodge_burn':
+        final st = ref.watch(dodgeBurnStateProvider);
+        if (st.brushMode != DodgeBurnBrushMode.active) return null;
+        return DodgeBurnOverlay(
+          imageDisplaySize: displaySize,
+          crop: params.crop,
+          sourceWidth: state.uiImage.width,
+          sourceHeight: state.uiImage.height,
+          sourceImage: overlaySource,
+        );
+      default:
+        return null;
+    }
+  }
+
   Widget _wrapPreviewContent(
     WidgetRef ref,
     Widget content,
@@ -696,106 +749,21 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     LutState lut,
     bool lutEnabled,
   ) {
-    // 污点修复 overlay
-    final spotState = ref.watch(spotRemoveStateProvider);
-    if (spotState.mode == SpotRemoveMode.active) {
-      // 监听渲染代数，确保 develop 输出更新时 overlay 重建
-      ref.watch(renderedPreviewGenerationProvider);
-      // 优先使用 Develop pass 输出（含曝光/曲线/LUT），回退到原始源图
-      final overlaySource = ref.watch(developOutputProvider) ?? state.uiImage;
-      content = SizedBox.fromSize(
-        size: displaySize,
-        child: Stack(
-          children: [
-            content,
-            Positioned.fill(
-              child: SpotRemoveOverlay(
-                imageDisplaySize: displaySize,
-                crop: params.crop,
-                sourceWidth: state.uiImage.width,
-                sourceHeight: state.uiImage.height,
-                sourceImage: overlaySource,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 污点修复 overlay (圈中自动修复)
-    final spotHealState = ref.watch(spotHealStateProvider);
-    if (spotHealState.mode == SpotHealMode.active) {
-      ref.watch(renderedPreviewGenerationProvider);
-      final overlaySource = ref.watch(developOutputProvider) ?? state.uiImage;
-      content = SizedBox.fromSize(
-        size: displaySize,
-        child: Stack(
-          children: [
-            content,
-            Positioned.fill(
-              child: SpotHealOverlay(
-                imageDisplaySize: displaySize,
-                crop: params.crop,
-                sourceWidth: state.uiImage.width,
-                sourceHeight: state.uiImage.height,
-                sourceImage: overlaySource,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 加深减淡 overlay
-    final dodgeBurnState = ref.watch(dodgeBurnStateProvider);
-    if (dodgeBurnState.brushMode == DodgeBurnBrushMode.active) {
-      ref.watch(renderedPreviewGenerationProvider);
-      final overlaySource = ref.watch(developOutputProvider) ?? state.uiImage;
-      content = SizedBox.fromSize(
-        size: displaySize,
-        child: Stack(
-          children: [
-            content,
-            Positioned.fill(
-              child: DodgeBurnOverlay(
-                imageDisplaySize: displaySize,
-                crop: params.crop,
-                sourceWidth: state.uiImage.width,
-                sourceHeight: state.uiImage.height,
-                sourceImage: overlaySource,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 修复画笔 overlay
-    // Committed preview persists across tool switches via persistent state
-    // in HealingOverlayState, so marks survive momentary unmounting.
-    final healState = ref.watch(healingStateProvider);
-    if (healState.mode == HealingMode.active ||
-        HealingOverlayState.hasPendingPreview) {
-      ref.watch(renderedPreviewGenerationProvider);
-      final overlaySource = ref.watch(developOutputProvider) ?? state.uiImage;
-      content = SizedBox.fromSize(
-        size: displaySize,
-        child: Stack(
-          children: [
-            content,
-            Positioned.fill(
-              child: HealingOverlay(
-                imageDisplaySize: displaySize,
-                crop: params.crop,
-                sourceWidth: state.uiImage.width,
-                sourceHeight: state.uiImage.height,
-                sourceImage: overlaySource,
-                interactive: healState.mode == HealingMode.active,
-              ),
-            ),
-          ],
-        ),
-      );
+    // 画笔 overlays — 通过 manifest 循环，统一的 Stack 包裹模式
+    for (final m in brushManifests) {
+      final overlay = _buildOverlayIfActive(m, ref, displaySize, state, params);
+      if (overlay != null) {
+        ref.watch(renderedPreviewGenerationProvider);
+        content = SizedBox.fromSize(
+          size: displaySize,
+          child: Stack(
+            children: [
+              content,
+              Positioned.fill(child: overlay),
+            ],
+          ),
+        );
+      }
     }
 
     final selectedLocalId = ref.watch(selectedLocalIdProvider);

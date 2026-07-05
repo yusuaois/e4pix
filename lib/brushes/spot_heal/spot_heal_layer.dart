@@ -9,7 +9,9 @@ import 'spot_heal_model.dart';
 import '../../render/brush_layer_provider.dart';
 import '../../render/brush_rasterizer.dart';
 import '../../render/incremental_render_cache.dart';
-import 'spot_heal_cache.dart';
+import '../shared/brush_hashes.dart';
+import '../shared/brush_layer_mixin.dart';
+import '../shared/brush_warmup_utils.dart';
 import '../../utils/shader_pass_util.dart';
 
 /// Spot Heal brush layer — mask-based fill from boundary.
@@ -17,25 +19,27 @@ import '../../utils/shader_pass_util.dart';
 /// Converts brush marks to a binary mask via [rasterizeBrushMask],
 /// then the shader fills the mask region by sampling boundary pixels
 /// along 16 ray directions with IDW blending.
-class SpotHealLayerProvider implements BrushLayerProvider {
+class SpotHealLayerProvider
+    with ShaderCacheMixin
+    implements BrushLayerProvider {
   @override
   String get id => 'spot_heal';
 
-  final _cache = IncrementalRenderCache<SpotHealMark>(computeKey: hashMarks);
-  final ui.FragmentProgram _program;
-  ui.FragmentShader? _cachedShader;
+  final _cache = IncrementalRenderCache<SpotHealMark>(
+    computeKey: hashSpotHealMarks,
+  );
+  @override
+  final ui.FragmentProgram brushProgram;
 
   SpotHealLayerProvider({required ui.FragmentProgram program})
-    : _program = program;
-
-  ui.FragmentShader get _shader => _cachedShader ??= _program.fragmentShader();
+    : brushProgram = program;
 
   @override
   bool isActive(AdjustmentParams params) => params.spotHealMarks.isNotEmpty;
 
   @override
   int computeMarksHash(AdjustmentParams params) =>
-      hashMarks(params.spotHealMarks);
+      hashSpotHealMarks(params.spotHealMarks);
 
   @override
   Future<BrushLayer> render({
@@ -93,7 +97,7 @@ class SpotHealLayerProvider implements BrushLayerProvider {
         : marks.map((m) => m.hardness).reduce((a, b) => a + b) / marks.length;
 
     final result = await runSingleShaderPass(
-      shader: _shader,
+      shader: brushShader,
       outputWidth: targetWidth,
       outputHeight: targetHeight,
       samplers: [base, maskTex],
@@ -122,10 +126,10 @@ class SpotHealLayerProvider implements BrushLayerProvider {
   ) async {
     // 创建一个空 mask 纹理（全零 = 无填充区域）
     // 着色器仍然会执行完整的渲染流程，触发 PSO 创建
-    final emptyMask = await _createEmptyMask();
+    final emptyMask = await createEmptyMask();
     try {
       final result = await runSingleShaderPass(
-        shader: _shader,
+        shader: brushShader,
         outputWidth: targetWidth,
         outputHeight: targetHeight,
         samplers: [developOutput, emptyMask],
@@ -140,17 +144,6 @@ class SpotHealLayerProvider implements BrushLayerProvider {
       debugPrint('[Warmup] spot_heal FAILED: $e');
     }
     emptyMask.dispose();
-  }
-
-  Future<ui.Image> _createEmptyMask() async {
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-    canvas.drawRect(
-      const ui.Rect.fromLTWH(0, 0, 1, 1),
-      ui.Paint()..color = const ui.Color(0x00000000),
-    );
-    final picture = recorder.endRecording();
-    return picture.toImage(1, 1);
   }
 
   @override

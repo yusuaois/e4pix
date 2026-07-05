@@ -2,6 +2,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../brushes/brush_manifest.dart';
+import '../../brushes/shared/brush_deactivate.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -31,17 +33,22 @@ class VerticalAdjustmentPanel extends ConsumerStatefulWidget {
 class _VerticalAdjustmentPanelState
     extends ConsumerState<VerticalAdjustmentPanel>
     with TickerProviderStateMixin {
-  static const _localTabIndex = 7;
-  static const _spotRemoveTabIndex = 8;
-  static const _healingTabIndex = 9;
-  static const _spotHealTabIndex = 10;
-  static const _dodgeBurnTabIndex = 11;
+  /// Number of non-brush tabs before the brush section begins.
+  static const _tabsBeforeBrushes = 8; // light..preset(7) + local(1)
+
+  /// Number of non-brush tabs after the brush section.
+  static const _tabsAfterBrushes = 3; // lens, sr, watermark
+
+  int get _totalTabs =>
+      _tabsBeforeBrushes + brushManifests.length + _tabsAfterBrushes;
+  int get _localTabIndex => 7;
+
   late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 15, vsync: this);
+    _tabController = TabController(length: _totalTabs, vsync: this);
     _tabController.addListener(_onTabChanged);
   }
 
@@ -50,21 +57,27 @@ class _VerticalAdjustmentPanelState
     if (_tabController.index != _localTabIndex) {
       _exitLocalTool(ref);
     }
-    if (_tabController.index != _spotRemoveTabIndex) {
-      ref
-          .read(spotRemoveStateProvider.notifier)
-          .setMode(SpotRemoveMode.inactive);
+    // Deactivate any brush whose tab is being left.
+    for (int i = 0; i < brushManifests.length; i++) {
+      final idx = _tabsBeforeBrushes + i;
+      if (_tabController.index != idx) {
+        deactivateBrush(brushManifests[i].id, ref);
+      }
     }
-    if (_tabController.index != _healingTabIndex) {
-      ref.read(healingStateProvider.notifier).setMode(HealingMode.inactive);
-    }
-    if (_tabController.index != _spotHealTabIndex) {
-      ref.read(spotHealStateProvider.notifier).setMode(SpotHealMode.inactive);
-    }
-    if (_tabController.index != _dodgeBurnTabIndex) {
-      ref
-          .read(dodgeBurnStateProvider.notifier)
-          .setBrushMode(DodgeBurnBrushMode.inactive);
+  }
+
+  Widget _brushSection(DevelopTool tool, AdjustmentParams params) {
+    switch (tool) {
+      case DevelopTool.spotRemove:
+        return SpotRemoveSection(params: params, onChanged: widget.onChanged);
+      case DevelopTool.healing:
+        return HealingSection(params: params, onChanged: widget.onChanged);
+      case DevelopTool.spotHeal:
+        return SpotHealSection(params: params, onChanged: widget.onChanged);
+      case DevelopTool.dodgeBurn:
+        return DodgeBurnSection(params: params, onChanged: widget.onChanged);
+      default:
+        return const SizedBox.shrink();
     }
   }
 
@@ -109,10 +122,8 @@ class _VerticalAdjustmentPanelState
                         Tab(text: tr('detail'), height: 36),
                         Tab(text: tr("preset"), height: 36),
                         Tab(text: tr("local"), height: 36),
-                        Tab(text: tr("spotRemoveTitle"), height: 36),
-                        Tab(text: tr("healingTitle"), height: 36),
-                        Tab(text: tr("spotHealTitle"), height: 36),
-                        Tab(text: tr("dodgeBurnTitle"), height: 36),
+                        for (final m in brushManifests)
+                          Tab(text: tr(m.titleKey), height: 36),
                         Tab(text: tr("lens"), height: 36),
                         Tab(text: tr('superResolution'), height: 36),
                         Tab(text: tr("watermark"), height: 36),
@@ -169,38 +180,12 @@ class _VerticalAdjustmentPanelState
                   builder: (_) =>
                       const SingleChildScrollView(child: LocalPanel()),
                 ),
-                _LazyBuild(
-                  builder: (_) => SingleChildScrollView(
-                    child: SpotRemoveSection(
-                      params: params,
-                      onChanged: widget.onChanged,
+                for (final m in brushManifests)
+                  _LazyBuild(
+                    builder: (_) => SingleChildScrollView(
+                      child: _brushSection(m.tool, params),
                     ),
                   ),
-                ),
-                _LazyBuild(
-                  builder: (_) => SingleChildScrollView(
-                    child: HealingSection(
-                      params: params,
-                      onChanged: widget.onChanged,
-                    ),
-                  ),
-                ),
-                _LazyBuild(
-                  builder: (_) => SingleChildScrollView(
-                    child: SpotHealSection(
-                      params: params,
-                      onChanged: widget.onChanged,
-                    ),
-                  ),
-                ),
-                _LazyBuild(
-                  builder: (_) => SingleChildScrollView(
-                    child: DodgeBurnSection(
-                      params: params,
-                      onChanged: widget.onChanged,
-                    ),
-                  ),
-                ),
                 _LazyBuild(
                   builder: (_) =>
                       const SingleChildScrollView(child: LensSection()),

@@ -3,10 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../brushes/clone_stamp/clone_stamp_layer.dart';
-import '../../brushes/healing/healing_layer.dart';
-import '../../brushes/spot_heal/spot_heal_layer.dart';
-import '../../brushes/dodge_burn/dodge_burn_layer.dart';
+import '../../brushes/brush_manifest.dart';
 import '../../core/models/export_job.dart';
 import '../../render/brush_layer_provider.dart';
 import '../../render/brush_layer_registry.dart';
@@ -26,19 +23,15 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
   final Set<String> _usedNames = {}; // 跨队列文件名去重
 
   static BrushLayerRegistry? _buildRegistry(
-    ui.FragmentProgram? spotRemove,
-    ui.FragmentProgram? healing,
-    ui.FragmentProgram? spotHeal,
-    ui.FragmentProgram? dodgeBurn,
+    Map<String, ui.FragmentProgram?> brushPrograms,
   ) {
     final providers = <BrushLayerProvider>[];
-    if (spotRemove != null)
-      providers.add(SpotRemovalLayerProvider(program: spotRemove));
-    if (healing != null) providers.add(HealingLayerProvider(program: healing));
-    if (spotHeal != null)
-      providers.add(SpotHealLayerProvider(program: spotHeal));
-    if (dodgeBurn != null)
-      providers.add(DodgeBurnLayerProvider(program: dodgeBurn));
+    for (final m in brushManifests) {
+      final prog = brushPrograms[m.id];
+      if (prog != null) {
+        providers.add(m.layerFactory(prog));
+      }
+    }
     return providers.isNotEmpty
         ? BrushLayerRegistry(providers: providers)
         : null;
@@ -196,10 +189,7 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
 
     final sharpenProgram = ref.read(sharpenShaderProgramProvider).value;
     final denoiseProgram = ref.read(denoiseShaderProgramProvider).value;
-    final spotRemoveProgram = ref.read(spotRemoveShaderProgramProvider).value;
-    final healingProgram = ref.read(healingShaderProgramProvider).value;
-    final spotHealProgram = ref.read(spotHealShaderProgramProvider).value;
-    final dodgeBurnProgram = ref.read(dodgeBurnShaderProgramProvider).value;
+    final brushPrograms = ref.read(brushShaderProgramsProvider).value ?? {};
     final composeProgram = ref.read(composeShaderProgramProvider).value;
     final watermarkCfg = ref.read(watermarkConfigProvider);
     final cfg = job.config;
@@ -236,15 +226,10 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
         lutSizeB: lutB?.size ?? 0,
         sharpenProgram: sharpenProgram,
         denoiseProgram: denoiseProgram,
-        spotRemoveProgram: spotRemoveProgram,
-        healingProgram: healingProgram,
+        spotRemoveProgram: brushPrograms['spot_removal'],
+        healingProgram: brushPrograms['healing'],
         composeProgram: composeProgram,
-        brushLayerRegistry: _buildRegistry(
-          spotRemoveProgram,
-          healingProgram,
-          spotHealProgram,
-          dodgeBurnProgram,
-        ),
+        brushLayerRegistry: _buildRegistry(brushPrograms),
         denoiseEngine: cfg.denoiseEngine,
         denoiseParallelism: cfg.denoiseParallelism,
         jpegQuality: cfg.jpegQuality,

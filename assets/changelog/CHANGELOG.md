@@ -13,6 +13,7 @@
 * **数学常量提取**：新增 `lib/core/constants/math_constants.dart`，定义 `kParamEpsilon = 0.001`。
 
 ## 🛠️ 底层改进 (Under the Hood)
+* **插槽化提取**：新增 `BrushManifest` 单点注册机制 + `lib/brushes/shared/` 共享基础设施（`ShaderCacheMixin`、`brush_hashes`、`createEmptyMask`、`deactivateBrush`）。新增画笔从 14 个集成点 ~131 行胶水代码缩减至 4 个集成点 ~38 行。所有集成点（shader 加载、pass 判断、layer 创建、预热、面板 tabs/rail、exit listener、overlay stacking）改为 manifest 循环驱动，消除 per-brush 复制粘贴。详见 `docs/brushes/ADDING_A_BRUSH.md`
 * **画笔文件重组**：三个像素画笔从散落目录迁至 `lib/brushes/clone_stamp/`、`healing/`、`spot_heal/`，每个画笔 6 文件自包含
 * **整体管线简化**：移除所有逐画笔参数传递链（spotRemoveProgram/healingProgram），改为 Compose registry 统一管理
 * **提取 GPU 预热工具**：新增 `lib/render/gpu_warmup.dart`，`buildWarmupTasks()` / `runWarmupChain()` 为 `MultiPassPreview` 和 `PreviewArea` 共用

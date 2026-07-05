@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../brushes/brush_manifest.dart';
+import '../../brushes/shared/brush_deactivate.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
@@ -84,27 +86,15 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
       if (prev == DevelopTool.local && next != DevelopTool.local) {
         _exitLocalTool(ref);
       }
-      // 切离 spotRemove 时退出污点修复模式
-      if (prev == DevelopTool.spotRemove && next != DevelopTool.spotRemove) {
-        ref
-            .read(spotRemoveStateProvider.notifier)
-            .setMode(SpotRemoveMode.inactive);
-      }
-      // 切离 healing 时退出修复画笔模式
-      if (prev == DevelopTool.healing && next != DevelopTool.healing) {
-        ref.read(healingStateProvider.notifier).setMode(HealingMode.inactive);
-      }
-      // 切离 spotHeal 时退出污点修复模式
-      if (prev == DevelopTool.spotHeal && next != DevelopTool.spotHeal) {
-        ref.read(spotHealStateProvider.notifier).setMode(SpotHealMode.inactive);
-      }
-      // 切离 dodgeBurn 时退出加深减淡模式
-      if (prev == DevelopTool.dodgeBurn && next != DevelopTool.dodgeBurn) {
-        ref
-            .read(dodgeBurnStateProvider.notifier)
-            .setBrushMode(DodgeBurnBrushMode.inactive);
-      }
     });
+    // 切离任意画笔工具时通过 manifest 自动退出
+    for (final m in brushManifests) {
+      ref.listen(developToolProvider, (prev, next) {
+        if (prev == m.tool && next != m.tool) {
+          deactivateBrush(m.id, ref);
+        }
+      });
+    }
 
     return SizedBox(
       width: 340,
@@ -237,30 +227,13 @@ class _ToolRail extends StatelessWidget {
               selected: selected == DevelopTool.local,
               onTap: () => onSelect(DevelopTool.local),
             ),
-            _RailItem(
-              icon: Icons.healing,
-              tooltip: tr('spotRemoveTitle'),
-              selected: selected == DevelopTool.spotRemove,
-              onTap: () => onSelect(DevelopTool.spotRemove),
-            ),
-            _RailItem(
-              icon: Icons.auto_fix_high,
-              tooltip: tr('healingTitle'),
-              selected: selected == DevelopTool.healing,
-              onTap: () => onSelect(DevelopTool.healing),
-            ),
-            _RailItem(
-              icon: Icons.auto_fix_normal,
-              tooltip: tr('spotHealTitle'),
-              selected: selected == DevelopTool.spotHeal,
-              onTap: () => onSelect(DevelopTool.spotHeal),
-            ),
-            _RailItem(
-              icon: Icons.tonality,
-              tooltip: tr('dodgeBurnTitle'),
-              selected: selected == DevelopTool.dodgeBurn,
-              onTap: () => onSelect(DevelopTool.dodgeBurn),
-            ),
+            for (final m in brushManifests)
+              _RailItem(
+                icon: m.icon,
+                tooltip: tr(m.titleKey),
+                selected: selected == m.tool,
+                onTap: () => onSelect(m.tool),
+              ),
             _RailItem(
               icon: Icons.camera_outlined,
               tooltip: tr('lens'),
