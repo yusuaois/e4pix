@@ -35,9 +35,7 @@ class AIProviderPreset {
     this.extraRequestBody,
   });
 
-  // ============================================================
-  // Presets
-  // ============================================================
+  // ── 预设 ──
 
   static const _anthropic = AIProviderPreset(
     id: 'anthropic',

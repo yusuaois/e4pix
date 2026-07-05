@@ -10,15 +10,12 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../widgets/develop/sections/shared.dart';
 
-/// Dodge/Burn 设置面板（对齐 Photoshop）
+/// 加深减淡设置面板（对齐 Photoshop）
 ///
-/// 布局：
-/// - 标题
 /// - 激活切换 PillChip
-/// - 提示文字
-/// - Dodge / Burn 模式切换
-/// - Shadows / Midtones / Highlights 范围选择
-/// - 曝光 / 半径 / 硬度滑块
+/// - 减淡/加深模式切换
+/// - 阴影/中间调/高光范围选择
+/// - 曝光/半径/硬度滑块
 /// - 清除全部按钮
 class DodgeBurnSection extends ConsumerWidget {
   final AdjustmentParams params;

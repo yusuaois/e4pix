@@ -1,39 +1,33 @@
 import 'dart:ui' as ui;
 
-/// Generic two-level render cache for mark-based brush providers.
+/// 画笔标记型提供者的通用二级渲染缓存
 ///
-/// Level 1 — Full marks-hash cache (parameter drag optimisation):
-///   key = (developKey, hash of all marks)
-///   Slider changes → develop output changes, but marks don't → cache hit,
-///   0 GPU passes for this brush.
+/// 一级——标记哈希缓存（参数拖动优化）：
+///   key = (developKey, 所有标记的哈希)
+///   滑块变化时 develop 输出变化但标记不变 → 缓存命中，该画笔 0 GPU 趟
 ///
-/// Level 2 — Incremental rolling cache (new stroke optimisation):
+/// 二级——增量滚动缓存（新增笔画优化）：
 ///   key = (developKey, markCount)
-///   Same develop params, more marks added → resume from last index.
-///   O(N) → O(new marks).
+///   develop 参数相同，新增标记 → 从上一索引恢复，O(N) → O(新增标记)
 ///
-/// Cache invalidation conditions:
-///   - Drag end: only Level 1 is invalidated (Level 2 survives for next
-///     stroke continuation).
-///   - Source image change: both levels invalidated.
+/// 缓存失效条件：
+///   - 拖动结束：仅一级失效（二级保留用于下一笔画继续）
+///   - 源图变更：两级全部失效
 ///
-/// ## Ownership convention
+/// ## 所有权约定
 ///
-/// Every [put] stores a clone; every [get] returns a clone. This costs
-/// two GPU copies per round-trip (put-clone + get-clone) in exchange for
-/// safe multiple cache hits — the same entry can be hit many times across
-/// parameter drags without the caller worrying about ownership. The caller
-/// that receives a clone from [get] owns it and must dispose it.
+/// 每次 [put] 存储克隆，每次 [get] 返回克隆，一趟来回消耗两倍 GPU 拷贝
+/// （put 克隆 + get 克隆），换取安全的多缓存命中——同一条目可在参数拖动期间
+/// 命中多次，调用方无需关心所有权，从 [get] 获取克隆的调用方拥有它并负责 dispose
 ///
-/// [T] is the mark type. [computeKey] extracts a hashable value from a
-/// mark list.
+/// [T] 是标记类型，[computeKey] 从标记列表中提取可哈希的值
 class IncrementalRenderCache<T> {
-  // ── Level 1: Marks hash cache ──
+  // ── 一级：标记哈希缓存 ──
   int _marksKey = 0;
   int _marksDevKey = 0;
   ui.Image? _marksResult;
 
-  // ── Level 2: Incremental rolling cache ──
+  // ── 二级：增量滚动缓存 ──
   int _rollingDevKey = 0;
   int _rollingCount = 0;
   ui.Image? _rollingResult;
@@ -42,16 +36,16 @@ class IncrementalRenderCache<T> {
 
   IncrementalRenderCache({required this.computeKey});
 
-  /// Level 1 cache hit: marks list unchanged AND develop params unchanged.
-  /// Returns a clone — caller owns it, must dispose.
+  /// 一级缓存命中：标记列表不变且 develop 参数不变
+  /// 返回克隆，调用方拥有并负责 dispose
   ui.Image? getFromMarksCache(int developKey, List<T> marks) {
     if (marks.isEmpty || _marksResult == null) return null;
     if (developKey != _marksDevKey) return null;
     return computeKey(marks) == _marksKey ? _marksResult?.clone() : null;
   }
 
-  /// Level 2 cache hit: returns (intermediate result clone, rendered count).
-  /// Returns a clone — caller owns the image in the record, must dispose.
+  /// 二级缓存命中：返回（中间结果克隆, 已渲染数）
+  /// 返回克隆，调用方拥有记录中的 image 并负责 dispose
   (ui.Image, int)? getIncremental(int developKey, List<T> marks) {
     if (_rollingResult == null) return null;
     if (developKey != _rollingDevKey) return null;
@@ -59,7 +53,7 @@ class IncrementalRenderCache<T> {
     return (_rollingResult!.clone(), _rollingCount);
   }
 
-  /// Store a Level 1 cache entry. Clones [result] — caller retains ownership.
+  /// 存储一级缓存条目，克隆 [result]，调用方保留所有权
   void putMarksCache(int developKey, List<T> marks, ui.Image result) {
     _marksResult?.dispose();
     _marksResult = result.clone();
@@ -67,8 +61,7 @@ class IncrementalRenderCache<T> {
     _marksDevKey = developKey;
   }
 
-  /// Store a Level 2 rolling cache entry. Clones [result] — caller retains
-  /// ownership.
+  /// 存储二级滚动缓存条目，克隆 [result]，调用方保留所有权
   void putRolling(int developKey, int count, ui.Image result) {
     _rollingResult?.dispose();
     _rollingResult = result.clone();
@@ -76,15 +69,15 @@ class IncrementalRenderCache<T> {
     _rollingCount = count;
   }
 
-  /// Invalidate only Level 1 (called on drag end).
-  /// Level 2 survives — it auto-invalidates on devKey change.
+  /// 仅使一级失效（拖动结束时调用）
+  /// 二级保留——会在 devKey 变化时自动失效
   void invalidateMarksCache() {
     _marksResult?.dispose();
     _marksResult = null;
     _marksKey = 0;
   }
 
-  /// Full invalidation (source image changed).
+  /// 全部失效（源图变更时）
   void invalidate() {
     _marksResult?.dispose();
     _marksResult = null;

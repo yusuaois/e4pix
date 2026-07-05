@@ -78,7 +78,6 @@ class LutTextureCache {
         }
       }
 
-      // 如果找到了可以淘汰的 LUT
       if (keyToEvict != null) {
         final old = _map.remove(keyToEvict);
         if (old != null) _disposeLater(old.texture);

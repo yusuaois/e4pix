@@ -11,29 +11,27 @@ class AISettings {
   static String _endpointOfId(String id) => 'ai_endpoint_$id';
 
   static const defaultMaxEdge = 1568;
-  // Must match the first entry in AIProviderPreset.all
+  // 须与 AIProviderPreset.all 第一项匹配
   static const _defaultProviderId = 'anthropic';
 
-  // ============================================================
-  // Provider
-  // ============================================================
+  // ── 提供商 ──
 
   static Future<String> getProvider() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getString(_kProvider);
     if (raw == null) return _defaultProviderId;
 
-    // Already a valid preset id?
+    // 已是有效预设 id？
     if (AIProviderPreset.safeById(raw) != null) return raw;
 
-    // 【可删除】下个大版本：旧 enum 迁移已全部完成，此分支可删
-    // Try old enum migration
+    // TODO 【可删除】下个大版本：旧 enum 迁移已全部完成
+    // 尝试旧枚举迁移
     final migrated = AIProviderPreset.migrateOldEnumName(raw);
     if (migrated == null) return _defaultProviderId;
     if (migrated != '__needs_custom_migration__') return migrated;
 
     // 【可删除】与 _migrateOldCustom 一起删
-    // Old 'custom' needs special handling
+    // 旧 'custom' 需特殊处理
     return await _migrateOldCustom(p);
   }
 
@@ -48,21 +46,21 @@ class AISettings {
   // ============================================================
 
   static Future<String> _migrateOldCustom(SharedPreferences p) async {
-    // Read old custom format to decide which new preset
+    // 读取旧 custom 格式决定新预设
     final oldFormat = p.getString('ai_custom_format') ?? 'anthropic';
     final newId = oldFormat == 'openai' ? 'custom_openai' : 'custom_anthropic';
 
-    // Migrate: ai_custom_endpoint → ai_endpoint_{newId}
+    // 迁移：ai_custom_endpoint → ai_endpoint_{newId}
     final oldEndpoint = p.getString('ai_custom_endpoint') ?? '';
     if (oldEndpoint.isNotEmpty) {
       await p.setString(_endpointOfId(newId), oldEndpoint);
     }
     await p.remove('ai_custom_endpoint');
 
-    // Migrate: ai_custom_format → no equivalent needed (protocol is in preset)
+    // 迁移：ai_custom_format → 无需等价项（预设已含协议）
     await p.remove('ai_custom_format');
 
-    // Migrate: ai_key_custom → ai_key_{newId}
+    // 迁移：ai_key_custom → ai_key_{newId}
     final oldKey = p.getString('ai_key_custom');
     if (oldKey != null && oldKey.isNotEmpty) {
       await p.setString(_keyOfId(newId), oldKey);

@@ -2,27 +2,24 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
-/// Healing brush mark.
+/// 修复画笔标记
 ///
-/// Unlike SpotMark (clone stamp — direct pixel copy), the healing brush
-/// uses frequency-separation blending: source texture detail is transferred
-/// while target color/luminance context is preserved.
+/// 与图章（直接像素复制）不同，修复画笔使用频域分离混合：
+/// 转移源纹理细节，同时保留目标颜色/亮度上下文
 ///
-/// All coordinates are normalized [0..1], relative to the source image
-/// (pre-crop) coordinate system.
+/// 所有坐标归一化 [0..1]，相对源图（裁剪前）坐标系
 @immutable
 class HealingMark {
-  /// Sample source position (normalized [0..1], source-image coords)
+  /// 采样源位置（归一化 [0..1]，源图坐标系）
   final Offset source;
 
-  /// Repair target position (normalized [0..1], source-image coords)
+  /// 修复目标位置（归一化 [0..1]，源图坐标系）
   final Offset target;
 
-  /// Brush radius (normalized, relative to source image width).
-  /// Default 0.02 = 2 % of source width.
+  /// 笔刷半径（归一化，相对源图宽度），默认 0.02 = 源图宽度的 2%
   final double radius;
 
-  /// Edge hardness 0..1, 1 = hard edge, 0 = soft edge.
+  /// 边缘硬度 0..1，1=硬边，0=柔边
   final double hardness;
 
   const HealingMark({

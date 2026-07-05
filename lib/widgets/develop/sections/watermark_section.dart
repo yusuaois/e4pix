@@ -421,7 +421,7 @@ class WatermarkSection extends ConsumerWidget {
 
 // ── 内部通用组件 ──
 
-/// 开关 Tile
+/// 开关磁贴
 class _SwitchTile extends StatelessWidget {
   final String label;
   final bool value;

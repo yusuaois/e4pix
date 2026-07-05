@@ -3,22 +3,20 @@ import '../healing/healing_model.dart';
 import '../spot_heal/spot_heal_model.dart';
 import '../dodge_burn/dodge_burn_model.dart';
 
-/// Hash all clone-stamp spots into a single integer for cache-key and
-/// committed-preview matching.
+/// 图章 marks 哈希，用于缓存键和 committed-preview 匹配
 int hashSpots(List<SpotMark> spots) =>
     Object.hashAll(spots.map((s) => s.hashCode));
 
-/// Hash all healing marks into a single integer for cache-key and
-/// committed-preview matching.
+/// 修复画笔 marks 哈希，用于缓存键和 committed-preview 匹配
 int hashHealingMarks(List<HealingMark> marks) =>
     Object.hashAll(marks.map((m) => m.hashCode));
 
-/// Hash all spot-heal marks into a single integer for cache-key matching.
+/// 污点修复 marks 哈希，用于缓存键匹配
 int hashSpotHealMarks(List<SpotHealMark> marks) => Object.hashAll(
   marks.map((m) => Object.hash(m.target, m.radius, m.hardness)),
 );
 
-/// Hash all dodge/burn marks into a single integer for cache-key matching.
-/// Each mark's hashCode includes its per-mark rendering params (mode/range/exposure).
+/// 加深减淡 marks 哈希，用于缓存键匹配
+/// 每个 mark 的 hashCode 已包含其 per-mark 渲染参数（mode/range/exposure）
 int hashDodgeBurnMarks(List<DodgeBurnMark> marks) =>
     Object.hashAll(marks.map((m) => m.hashCode));

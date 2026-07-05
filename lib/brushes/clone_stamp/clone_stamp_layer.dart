@@ -11,12 +11,11 @@ import '../shared/brush_hashes.dart';
 import '../shared/brush_layer_mixin.dart';
 import '../../utils/shader_pass_util.dart';
 
-/// Spot Removal (Clone Stamp) brush layer provider.
+/// 图章笔刷输出层
 ///
-/// Renders spots onto the develop output and returns a [BrushLayer]
-/// whose alpha channel encodes which pixels were modified (1.0 = modified,
-/// 0.0 = untouched). The Compose pass uses this alpha mask to blend
-/// the layer onto the base image.
+/// 将 spots 渲染到 develop 输出上，返回 [BrushLayer]
+/// 其 alpha 通道标记被修改的像素（1=已修改，0=未修改）
+/// Compose pass 用此 alpha 遮罩将输出层混合到基底图像
 class SpotRemovalLayerProvider
     with ShaderCacheMixin
     implements BrushLayerProvider {
@@ -31,9 +30,8 @@ class SpotRemovalLayerProvider
     : brushProgram = program;
 
   static const _kMaxSpots = 64;
-  static const _kSpotUniformsPerSpot =
-      6; // srcX, srcY, tgtX, tgtY, radius, hardness
-  // Uniform total: 2(uSize) + 1(count) + 64*6 = 387 floats
+  static const _kSpotUniformsPerSpot = 6; // 每个 spot 的 6 个 uniform 分量
+  // uniform 总数：2 + 1 + 64x6 = 387
 
   @override
   bool isActive(AdjustmentParams params) => params.spots.isNotEmpty;
@@ -63,7 +61,7 @@ class SpotRemovalLayerProvider
     return BrushLayer(id: id, texture: texture, active: true);
   }
 
-  /// Render spots onto [base], returning a new texture.
+  /// 将 spots 渲染到 [base] 上，返回新纹理
   Future<ui.Image> _renderSpots({
     required ui.Image base,
     required List<SpotMark> spots,
@@ -71,11 +69,11 @@ class SpotRemovalLayerProvider
   }) async {
     if (spots.isEmpty) return base;
 
-    // 1. Full hash cache
+    // 1. 完整哈希缓存
     final cached = _cache.getFromMarksCache(developKey, spots);
     if (cached != null) return cached;
 
-    // 2. Incremental cache
+    // 2. 增量缓存
     final incremental = _cache.getIncremental(developKey, spots);
 
     ui.Image batchInput;
@@ -92,7 +90,7 @@ class SpotRemovalLayerProvider
       batchInputOwned = false;
     }
 
-    // 3. Batch render remaining spots
+    // 3. 分批渲染剩余 spots
     ui.Image? lastResult;
     for (int i = startIdx; i < spots.length; i += _kMaxSpots) {
       final batch = spots.sublist(i, (i + _kMaxSpots).clamp(0, spots.length));
@@ -112,7 +110,7 @@ class SpotRemovalLayerProvider
       }
     }
 
-    // 4. Update caches
+    // 4. 更新缓存
     if (lastResult != null) {
       _cache.putMarksCache(developKey, spots, lastResult);
       _cache.putRolling(developKey, spots.length, lastResult);

@@ -11,10 +11,10 @@ import '../shared/brush_hashes.dart';
 import '../shared/brush_layer_mixin.dart';
 import '../../utils/shader_pass_util.dart';
 
-/// Healing Brush layer provider.
+/// 修复画笔输出层
 ///
-/// Renders healing marks onto the develop output and returns a [BrushLayer]
-/// whose alpha channel encodes which pixels were modified.
+/// 将修复 marks 渲染到 develop 输出上，返回 [BrushLayer]
+/// 其 alpha 通道标记被修改的像素
 class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
   @override
   String get id => 'healing';
@@ -29,9 +29,8 @@ class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
     : brushProgram = program;
 
   static const _kMaxMarks = 64;
-  static const _kHealUniformsPerMark =
-      6; // srcX, srcY, tgtX, tgtY, radius, hardness
-  // Uniform total: 2(uSize) + 1(count) + 64*6 = 387 floats
+  static const _kHealUniformsPerMark = 6; // 每个 mark 的 6 个 uniform 分量
+  // uniform 总数：2 + 1 + 64x6 = 387
 
   @override
   bool isActive(AdjustmentParams params) => params.healingMarks.isNotEmpty;
@@ -69,11 +68,11 @@ class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
   }) async {
     if (marks.isEmpty) return base;
 
-    // 1. Full hash cache
+    // 1. 完整哈希缓存
     final cached = _cache.getFromMarksCache(developKey, marks);
     if (cached != null) return cached;
 
-    // 2. Incremental cache
+    // 2. 增量缓存
     final incremental = _cache.getIncremental(developKey, marks);
 
     ui.Image batchInput;
@@ -90,7 +89,7 @@ class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
       batchInputOwned = false;
     }
 
-    // 3. Batch render remaining marks
+    // 3. 分批渲染剩余 marks
     ui.Image? lastResult;
     for (int i = startIdx; i < marks.length; i += _kMaxMarks) {
       final batch = marks.sublist(i, (i + _kMaxMarks).clamp(0, marks.length));
@@ -107,7 +106,7 @@ class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
       }
     }
 
-    // 4. Update caches
+    // 4. 更新缓存
     if (lastResult != null) {
       _cache.putMarksCache(developKey, marks, lastResult);
       _cache.putRolling(developKey, marks.length, lastResult);

@@ -349,7 +349,7 @@ class WatermarkExporter {
       refCanvasHeight: th / exportScale,
     );
 
-    // Pass 1: 降采样到缩略图 + 模糊（合并：saveLayer 内缩放绘制并施加模糊）
+    // 第 1 趟：降采样到缩略图 + 模糊（合并：saveLayer 内缩放绘制并施加模糊）
     final r1 = ui.PictureRecorder();
     final c1 = ui.Canvas(r1);
     c1.saveLayer(
@@ -372,7 +372,7 @@ class WatermarkExporter {
     final blurredThumb = await p1.toImage(b.thumbW, b.thumbH);
     p1.dispose();
 
-    // Pass 2: 拉伸模糊缩略图到导出画布
+    // 第 2 趟：拉伸模糊缩略图到导出画布
     final r2 = ui.PictureRecorder();
     ui.Canvas(r2).drawImageRect(
       blurredThumb,

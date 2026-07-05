@@ -9,13 +9,11 @@ import '../../core/theme/app_typography.dart';
 
 import "../../widgets/develop/sections/shared.dart";
 
-/// 污点修复 Section
+/// 污点修复面板
 ///
-/// - 标题 "Spot Removal"
 /// - 激活切换按钮
 /// - 取样按钮（手机用，替代 hold 键）
-/// - 半径滑块
-/// - 硬度滑块
+/// - 半径/硬度滑块
 /// - 清除全部按钮
 class SpotRemoveSection extends ConsumerWidget {
   final AdjustmentParams params;

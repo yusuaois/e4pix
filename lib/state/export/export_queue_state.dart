@@ -88,7 +88,7 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
     state = state.where((j) => j.status == ExportJobStatus.running).toList();
   }
 
-  // —— 内部 ——
+  // 内部
 
   ExportJob? _find(String id) {
     for (final j in state) {

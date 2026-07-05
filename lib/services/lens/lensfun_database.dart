@@ -149,7 +149,7 @@ _ParseResult _parseAllXml(List<String> xmlStrings) {
 
   final docs = <XmlDocument>[];
 
-  // Phase 1: parse DOMs & extract cameras
+  // 阶段 1：解析 DOM 并提取相机
   for (final xml in xmlStrings) {
     try {
       final doc = XmlDocument.parse(xml);
@@ -172,7 +172,7 @@ _ParseResult _parseAllXml(List<String> xmlStrings) {
     }
   }
 
-  // Phase 2: re-use DOMs to extract lenses
+  // 阶段 2：复用 DOM 提取镜头
   for (final doc in docs) {
     for (final node in doc.rootElement.children.whereType<XmlElement>()) {
       if (node.name.local != 'lens') continue;

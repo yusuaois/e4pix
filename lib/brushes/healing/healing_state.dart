@@ -7,12 +7,12 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'healing_model.dart';
 import '../../state/params/params_state.dart';
 
-/// Healing brush interaction mode.
+/// 修复画笔交互模式
 enum HealingMode {
-  /// Not active.
+  /// 非激活状态
   inactive,
 
-  /// Active: tap to set source, click/drag to paint.
+  /// 激活状态：点击设置源点，拖拽涂抹
   active,
 }
 
@@ -20,16 +20,16 @@ enum HealingMode {
 class HealingState {
   final HealingMode mode;
 
-  /// Sample source point (normalized source-image coords [0..1]).
+  /// 采样源点（归一化源图坐标 [0..1]）
   final ui.Offset? cloneSource;
 
-  /// Brush radius (normalized, relative to source image width).
+  /// 笔刷半径（归一化，相对源图宽度）
   final double brushRadius;
 
-  /// Edge hardness 0..1, 1 = hard edge, 0 = soft edge.
+  /// 边缘硬度 0..1，1=硬边，0=柔边
   final double brushHardness;
 
-  /// Mobile sampling button toggle.
+  /// 手机取样按钮开关
   final bool samplingButtonOn;
 
   const HealingState({
@@ -61,7 +61,6 @@ class HealingNotifier extends StateNotifier<HealingState> {
 
   HealingNotifier(this._ref) : super(const HealingState());
 
-  /// Toggle activation mode.
   void setMode(HealingMode mode) {
     state = state.copyWith(
       mode: mode,
@@ -69,43 +68,35 @@ class HealingNotifier extends StateNotifier<HealingState> {
     );
   }
 
-  /// Set the sample source point.
-  ///
-  /// After setting, auto-clears the sampling button flag so the next
-  /// tap goes to painting rather than setting the source again.
+  /// 设置采样源点，自动清除取样按钮标记
   void setCloneSource(ui.Offset source) {
     state = state.copyWith(cloneSource: source, samplingButtonOn: false);
   }
 
-  /// Clear the sample source point.
   void clearCloneSource() {
     state = state.copyWith(clearCloneSource: true);
   }
 
-  /// Toggle the mobile sampling button.
   void toggleSamplingButton() {
     state = state.copyWith(samplingButtonOn: !state.samplingButtonOn);
   }
 
-  /// Set brush radius.
   void setBrushRadius(double radius) {
     state = state.copyWith(brushRadius: radius);
   }
 
-  /// Set edge hardness.
   void setBrushHardness(double hardness) {
     state = state.copyWith(brushHardness: hardness);
   }
 
-  /// Add a single healing mark (from cloneSource to target).
+  /// 添加单个修复 mark（从 cloneSource 到 target）
   void addMark(ui.Offset target) {
     final source = state.cloneSource;
     if (source == null) return;
     _addMarkRaw(source, target);
   }
 
-  /// Add a healing mark with an explicit source (for drag strokes where
-  /// the source moves with the target).
+  /// 添加带显式源的修复 mark（拖拽时源随目标同步移动）
   void addMarkWithSource(ui.Offset source, ui.Offset target) {
     _addMarkRaw(source, target);
   }
@@ -126,7 +117,7 @@ class HealingNotifier extends StateNotifier<HealingState> {
         .update(params.copyWith(healingMarks: updated));
   }
 
-  /// Batch-add marks (stroke end — triggers one pipeline re-render).
+  /// 批量添加 marks（笔画结束，触发一次管线重渲染）
   void addMarksBatch(List<HealingMark> marks) {
     if (marks.isEmpty) return;
     final params = _ref.read(currentParamsNotifierProvider);
@@ -136,7 +127,6 @@ class HealingNotifier extends StateNotifier<HealingState> {
         .update(params.copyWith(healingMarks: updated));
   }
 
-  /// Remove a mark by index.
   void removeMark(int index) {
     final params = _ref.read(currentParamsNotifierProvider);
     if (index < 0 || index >= params.healingMarks.length) return;
@@ -147,7 +137,6 @@ class HealingNotifier extends StateNotifier<HealingState> {
         .update(params.copyWith(healingMarks: updated));
   }
 
-  /// Clear all healing marks.
   void clearAll() {
     final params = _ref.read(currentParamsNotifierProvider);
     _ref

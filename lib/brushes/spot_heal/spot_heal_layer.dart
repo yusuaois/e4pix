@@ -14,11 +14,10 @@ import '../shared/brush_layer_mixin.dart';
 import '../shared/brush_warmup_utils.dart';
 import '../../utils/shader_pass_util.dart';
 
-/// Spot Heal brush layer — mask-based fill from boundary.
+/// 污点修复输出层
 ///
-/// Converts brush marks to a binary mask via [rasterizeBrushMask],
-/// then the shader fills the mask region by sampling boundary pixels
-/// along 16 ray directions with IDW blending.
+/// 通过 [rasterizeBrushMask] 将 marks 转为二值遮罩
+/// shader 沿 16 个射线方向采样边界像素，用 IDW 混合填充遮罩区域
 class SpotHealLayerProvider
     with ShaderCacheMixin
     implements BrushLayerProvider {
@@ -69,13 +68,12 @@ class SpotHealLayerProvider
     required int targetWidth,
     required int targetHeight,
   }) async {
-    // 1. Cache check
+    // 1. 缓存检查
     final cached = _cache.getFromMarksCache(developKey, marks);
     if (cached != null) return cached;
 
-    // 2. Convert marks to brush strokes and rasterize mask
-    // Each mark becomes a single-point stroke with its radius.
-    // Clamp radius to at most 0.5 to avoid unreasonable GPU cost.
+    // 2. 将 marks 转为笔触并光栅化遮罩
+    // 每个 mark 成为带半径的单点笔触，限制半径上限 0.5 避免 GPU 开销过大
     final strokes = marks.map((m) {
       return BrushStroke(
         points: [m.target],
@@ -91,7 +89,7 @@ class SpotHealLayerProvider
       targetHeight,
     );
 
-    // 3. Shader pass: fill mask region from boundary
+    // 3. Shader pass：从边界采样填充遮罩区域
     final avgHardness = marks.isEmpty
         ? 0.0
         : marks.map((m) => m.hardness).reduce((a, b) => a + b) / marks.length;
@@ -110,9 +108,8 @@ class SpotHealLayerProvider
 
     maskTex.dispose();
 
-    // 4. Update cache (spot_heal does not use incremental rendering —
-    //    marks are rasterized to a mask in one pass, so only the full
-    //    marks-hash cache is relevant)
+    // 4. 更新缓存（spot_heal 不使用增量渲染
+    //    marks 一次性光栅化为遮罩，仅完整 marks 哈希缓存有效）
     _cache.putMarksCache(developKey, marks, result);
 
     return result;

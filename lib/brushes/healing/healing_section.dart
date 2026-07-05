@@ -9,12 +9,12 @@ import '../../core/theme/app_typography.dart';
 
 import "../../widgets/develop/sections/shared.dart";
 
-/// Healing Brush section.
+/// 修复画笔面板
 ///
-/// - Activation pill chip
-/// - Sampling button (mobile — replaces hold key)
-/// - Radius / Hardness sliders
-/// - Clear All button
+/// - 激活切换按钮
+/// - 取样按钮（手机用，替代 hold 键）
+/// - 半径/硬度滑块
+/// - 清除全部按钮
 class HealingSection extends ConsumerWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;

@@ -170,7 +170,7 @@ class _SrSectionState extends ConsumerState<SrSection> {
   }
 }
 
-/// 开关 Tile
+/// 开关磁贴
 class _SwitchTile extends StatelessWidget {
   final String label;
   final bool value;

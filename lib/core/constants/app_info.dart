@@ -11,7 +11,7 @@ class AppInfo {
   /// github.com/owner/repo
   static const String repoDisplay = 'github.com/$repoOwner/$repoName';
 
-  /// GitHub API release
+  /// GitHub API 发布地址
   static const String latestReleaseApi =
       'https://api.github.com/repos/$repoOwner/$repoName/releases/latest';
 }

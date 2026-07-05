@@ -13,14 +13,10 @@ import '../../utils/brush_coord_utils.dart';
 import '../../utils/brush_preview_utils.dart';
 import '../../utils/path_brush_tracker.dart';
 
-/// Clone Stamp interaction overlay.
+/// 图章交互覆盖层
 ///
-/// - Click or drag to paint clone-stamp marks.
-/// - Clone source is set via the UI sampling button.
-///
-/// **Instant stroke feedback**: during a drag, cloned pixels are drawn
-/// directly on the Canvas (hard-edge preview).  On release the stroke is
-/// committed to the pipeline for final blending with hardness falloff.
+/// 点击或拖拽绘制图章 marks，源点通过取样按钮设置
+/// 拖拽期间在 Canvas 上绘制硬边预览，松手后提交管线做柔边混合
 class SpotRemoveOverlay extends ConsumerStatefulWidget {
   final Size imageDisplaySize;
   final CropParams crop;
@@ -46,12 +42,12 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
   bool _isHovering = false;
   Timer? _exitDebounce;
   PathBrushTracker? _tracker;
-  Offset? _paintOffset; // fixed source→target offset (PS clone-stamp behaviour)
+  Offset? _paintOffset; // source→target 固定偏移（PS 图章行为）
 
-  // ── In-stroke local accumulation (no pipeline trigger) ──
+  // ── 笔画内本地累积（不触发管线）──
   final List<SpotMark> _strokeSpots = [];
 
-  // ── Committed but not yet rendered preview (anti-flash) ──
+  // ── 已提交但尚未渲染的预览（防闪烁）──
   bool _isCommitting = false;
   final List<SpotMark> _committedPreview = [];
   int _committedSpotsHash = 0;
@@ -67,9 +63,8 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
     final state = ref.watch(spotRemoveStateProvider);
     final isSampling = state.samplingButtonOn;
 
-    // Clear committed preview when the pipeline finishes rendering the
-    // spots we submitted.  Subscribe by brush id — hash matching avoids
-    // false clears from unrelated renders (e.g. slider drags).
+    // 管线渲染完已提交的 spots 后清除预览，按 brush id 订阅
+    // 哈希匹配避免无关渲染（如滑块拖动）误清除
     ref.listen<Map<String, int>>(renderedBrushHashesProvider, (prev, next) {
       final hash = next['spot_removal'] ?? 0;
       if (_isCommitting && hash == _committedSpotsHash) {

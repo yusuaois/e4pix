@@ -13,18 +13,12 @@ import '../../utils/brush_coord_utils.dart';
 import '../../utils/brush_preview_utils.dart';
 import '../../utils/path_brush_tracker.dart';
 
-/// Healing brush interaction overlay.
+/// 修复画笔交互覆盖层
 ///
-/// Interaction is identical to [SpotRemoveOverlay]:
-/// - Click or drag to paint healing marks.
-/// - Clone source is set via the UI sampling button.
+/// 交互方式与 [SpotRemoveOverlay] 相同：点击或拖拽绘制修复 marks
+/// 区别在于 shader 用频域分离混合而非直接像素复制
 ///
-/// The difference is in the shader: healing uses frequency-separation
-/// blending (preserves target colour context) rather than direct pixel copy.
-///
-/// **Instant stroke feedback**: during a drag, cloned pixels are drawn
-/// directly on the Canvas (hard-edge preview).  On release the stroke is
-/// committed to the pipeline for final blending with hardness falloff.
+/// 拖拽期间在 Canvas 上绘制硬边预览，松手后提交管线做柔边混合
 class HealingOverlay extends ConsumerStatefulWidget {
   final Size imageDisplaySize;
   final CropParams crop;
@@ -32,9 +26,7 @@ class HealingOverlay extends ConsumerStatefulWidget {
   final int sourceHeight;
   final ui.Image? sourceImage;
 
-  /// When false, the overlay does not process gestures or draw cursor
-  /// indicators, but still draws the committed preview and listens for
-  /// pipeline completion so unrendered marks survive tool switches.
+  /// 为 false 时不处理手势和光标，但仍绘制已提交预览并监听管线完成
   final bool interactive;
 
   const HealingOverlay({
@@ -52,12 +44,12 @@ class HealingOverlay extends ConsumerStatefulWidget {
 }
 
 class HealingOverlayState extends ConsumerState<HealingOverlay> {
-  // ── Persistent committed preview (survives unmount) ──
+  // ── 持久化已提交预览（卸载后仍存活）──
   static final List<HealingMark> _persistedMarks = [];
   static int _persistedHash = 0;
   static bool _persistedCommitting = false;
 
-  /// Whether there are unrendered marks that should keep the overlay alive.
+  /// 是否有未渲染 marks 需要保持覆盖层存活
   static bool get hasPendingPreview => _persistedCommitting;
   Offset? _cursorPos;
   bool _isHovering = false;
@@ -65,10 +57,10 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
   PathBrushTracker? _tracker;
   Offset? _paintOffset;
 
-  // ── In-stroke local accumulation (no pipeline trigger) ──
+  // ── 笔画内本地累积（不触发管线）──
   final List<HealingMark> _strokeMarks = [];
 
-  // ── Committed but not yet rendered preview (anti-flash) ──
+  // ── 已提交但尚未渲染的预览（防闪烁）──
   bool _isCommitting = false;
   final List<HealingMark> _committedPreview = [];
   int _committedMarksHash = 0;

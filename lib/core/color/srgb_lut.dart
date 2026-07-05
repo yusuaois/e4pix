@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-/// 16-bit linear-light → 8-bit sRGB-encoded 查表
+/// 16-bit 线性光 → 8-bit sRGB 编码查找表
 final Uint8List srgbLut16To8 = _build();
 
 Uint8List _build() {

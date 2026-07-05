@@ -28,7 +28,7 @@ Float32List _solve8x8(
     a[r1][1] = y;
     a[r1][2] = 1.0;
     a[r1][7] = -x * X;
-    a[r1][8 - 2] = -y * X; // wait, index 6 and 7
+    a[r1][8 - 2] = -y * X;
     b[r1] = X;
 
     final r2 = 2 * i + 1;

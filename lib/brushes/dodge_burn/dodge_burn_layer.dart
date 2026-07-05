@@ -14,12 +14,11 @@ import '../shared/brush_layer_mixin.dart';
 import '../shared/brush_warmup_utils.dart';
 import '../../utils/shader_pass_util.dart';
 
-/// Dodge/Burn brush layer — tonal range targeted lighten/darken.
+/// 加深减淡笔刷输出层
 ///
-/// Each mark stores its own rendering params (mode/range/exposure),
-/// frozen at paint time. Marks are grouped by (mode, range, exposure)
-/// and rendered in separate shader passes, chained so that later
-/// groups layer on top of earlier ones.
+/// 每个 mark 冻结绘制时的渲染参数（模式/范围/曝光）
+/// marks 按 (mode, range, exposure) 分组，分 pass 渲染
+/// 后续组叠加在先前组之上
 class DodgeBurnLayerProvider
     with ShaderCacheMixin
     implements BrushLayerProvider {
@@ -38,8 +37,8 @@ class DodgeBurnLayerProvider
   @override
   bool isActive(AdjustmentParams params) => params.dodgeBurnMarks.isNotEmpty;
 
-  /// Marks hash now includes per-mark mode/range/exposure, so switching
-  /// tool params does not change this hash — only painting new marks does.
+  /// marks 哈希已包含每个 mark 的 mode/range/exposure
+  /// 切换工具参数不改变哈希，仅绘制新 mark 才会
   @override
   int computeMarksHash(AdjustmentParams params) =>
       hashDodgeBurnMarks(params.dodgeBurnMarks);
@@ -65,7 +64,7 @@ class DodgeBurnLayerProvider
     return BrushLayer(id: id, texture: texture, active: true);
   }
 
-  /// Integer group key for a mark's rendering params.
+  /// mark 渲染参数的整数分组键
   static int _groupKey(DodgeBurnMark m) =>
       Object.hash(m.mode.index, m.range.index, (m.exposure * 1000).round());
 
@@ -76,27 +75,25 @@ class DodgeBurnLayerProvider
     required int targetWidth,
     required int targetHeight,
   }) async {
-    // 1. Cache check — marks hash now includes per-mark params,
-    //    so changing tool settings no longer invalidates the cache.
+    // 1. 缓存检查 — marks 哈希已包含 per-mark 参数
+    //    切换工具设置不再使缓存失效
     final cached = _cache.getFromMarksCache(developKey, marks);
     if (cached != null) return cached;
 
-    // 2. Group marks by (mode, range, exposure)
+    // 2. 按 (mode, range, exposure) 分组 marks
     final groups = <int, List<DodgeBurnMark>>{};
     for (final m in marks) {
       groups.putIfAbsent(_groupKey(m), () => []).add(m);
     }
 
-    // 3. Render each group, chaining outputs
-    //    Group N+1 renders on top of group N's result.
-    //    Dispose intermediate images promptly to avoid GPU memory bloat.
+    // 3. 逐组渲染并链式叠加，及时释放中间纹理避免 GPU 内存膨胀
     ui.Image current = base;
 
     for (final entry in groups.entries) {
       final groupMarks = entry.value;
       final first = groupMarks.first;
 
-      // Rasterize this group's marks to a feathered mask
+      // 将本组 marks 光栅化为羽化遮罩
       final strokes = groupMarks.map((m) {
         return BrushStroke(
           points: [m.target],
@@ -135,13 +132,12 @@ class DodgeBurnLayerProvider
 
       maskTex.dispose();
 
-      // Dispose previous intermediate before advancing
-      // (base is owned by the caller — never dispose it)
+      // 前进前释放上一个中间结果（base 由调用方持有，不释放）
       if (current != base) current.dispose();
       current = groupResult;
     }
 
-    // 4. Cache
+    // 4. 缓存
     _cache.putMarksCache(developKey, marks, current);
 
     return current;
@@ -163,9 +159,9 @@ class DodgeBurnLayerProvider
         setUniforms: (s) {
           s.setFloat(0, targetWidth.toDouble());
           s.setFloat(1, targetHeight.toDouble());
-          s.setFloat(2, 0.0); // dodge
-          s.setFloat(3, 0.5); // exposure
-          s.setFloat(4, 0.5); // midtones
+          s.setFloat(2, 0.0); // 减淡
+          s.setFloat(3, 0.5); // 曝光
+          s.setFloat(4, 0.5); // 中间调
         },
       );
       result.dispose();

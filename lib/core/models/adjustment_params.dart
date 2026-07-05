@@ -15,8 +15,8 @@ import 'tone_curve.dart';
 
 @immutable
 class AdjustmentParams {
-  final double exposure; // EV, [-5, +5]
-  final int temperature; // K, 2000-12000
+  final double exposure; // EV [-5, +5]
+  final int temperature; // K [2000, 12000]
   final double tint; // [-100, +100]
   final double contrast; // [-100, +100]
   final double highlights;

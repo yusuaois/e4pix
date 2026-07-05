@@ -2,9 +2,7 @@
 import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 
-// ============================================================================
-// E4pixDecodeResult struct - 字段顺序必须与 C 头文件完全一致
-// ============================================================================
+// E4pixDecodeResult 结构体 — 字段顺序须与 C 头文件完全一致
 final class E4pixDecodeResult extends Struct {
   @Int32()
   external int errorCode;

@@ -17,28 +17,28 @@ import 'shared/brush_hashes.dart';
 /// warmup, UI panels) iterate over [brushManifests] instead of having
 /// per-brush code.
 class BrushManifest {
-  /// Unique id matching [BrushLayerProvider.id].
+  /// 唯一 id，对应 [BrushLayerProvider.id]
   final String id;
 
-  /// Translation key for the tool's display name (e.g. 'spotRemoveTitle').
+  /// 工具显示名称的翻译 key（如 'spotRemoveTitle'）
   final String titleKey;
 
-  /// Icon for the tool rail / tab.
+  /// 工具栏/标签页图标
   final IconData icon;
 
-  /// Asset path for this brush's compiled fragment shader.
+  /// 笔刷已编译 fragment shader 的资源路径
   final String shaderAsset;
 
-  /// Whether this brush has active marks in the given params.
+  /// 笔刷在给定 params 中是否有活跃 marks
   final bool Function(AdjustmentParams) hasMarks;
 
-  /// Factory: creates a [BrushLayerProvider] from a compiled program.
+  /// 从已编译 program 创建 [BrushLayerProvider] 的工厂函数
   final BrushLayerProvider Function(ui.FragmentProgram program) layerFactory;
 
-  /// Hash of all marks for cache-key and committed-preview matching.
+  /// 所有 marks 的哈希，用于缓存键和已提交预览匹配
   final int Function(AdjustmentParams params) hashMarks;
 
-  /// The [DevelopTool] enum value associated with this brush.
+  /// 关联此笔刷的 [DevelopTool] 枚举值
   final DevelopTool tool;
 
   const BrushManifest({
@@ -53,12 +53,11 @@ class BrushManifest {
   });
 }
 
-/// Single source of truth for all brush tools.
+/// 所有笔刷工具的唯一数据源
 ///
-/// Registration order determines Compose layer order (first = bottom layer)
-/// and tab/rail order in both panels.
+/// 注册顺序决定 Compose 层级（首个=底层）和面板 tab/rail 顺序
 const brushManifests = <BrushManifest>[
-  // --- Clone Stamp (图章) ---
+  // --- 图章 ---
   BrushManifest(
     id: 'spot_removal',
     titleKey: 'spotRemoveTitle',
@@ -69,7 +68,7 @@ const brushManifests = <BrushManifest>[
     hashMarks: _hashSpots,
     tool: DevelopTool.spotRemove,
   ),
-  // --- Healing Brush (修复画笔) ---
+  // --- 修复画笔 ---
   BrushManifest(
     id: 'healing',
     titleKey: 'healingTitle',
@@ -80,7 +79,7 @@ const brushManifests = <BrushManifest>[
     hashMarks: _hashHealingMarks,
     tool: DevelopTool.healing,
   ),
-  // --- Spot Heal (污点修复) ---
+  // --- 污点修复 ---
   BrushManifest(
     id: 'spot_heal',
     titleKey: 'spotHealTitle',
@@ -91,7 +90,7 @@ const brushManifests = <BrushManifest>[
     hashMarks: _hashSpotHealMarks,
     tool: DevelopTool.spotHeal,
   ),
-  // --- Dodge & Burn (加深减淡) ---
+  // --- 加深减淡 ---
   BrushManifest(
     id: 'dodge_burn',
     titleKey: 'dodgeBurnTitle',
@@ -104,7 +103,7 @@ const brushManifests = <BrushManifest>[
   ),
 ];
 
-// Private helpers
+// 私有辅助函数
 
 bool _hasSpots(AdjustmentParams p) => p.spots.isNotEmpty;
 bool _hasHealingMarks(AdjustmentParams p) => p.healingMarks.isNotEmpty;
@@ -127,9 +126,9 @@ BrushLayerProvider _makeSpotHealLayer(ui.FragmentProgram p) =>
 BrushLayerProvider _makeDodgeBurnLayer(ui.FragmentProgram p) =>
     DodgeBurnLayerProvider(program: p);
 
-// Public helpers
+// 公开辅助函数
 
-/// Lookup a [BrushManifest] by its [DevelopTool] enum value.
+/// 按 [DevelopTool] 枚举值查找 [BrushManifest]
 BrushManifest? manifestForTool(DevelopTool tool) {
   for (final m in brushManifests) {
     if (m.tool == tool) return m;

@@ -40,7 +40,7 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
     }
     if (preset.allowsCustomModels) {
       _customModelController.text = _modelId;
-      // If saved model isn't in preconfigured list, user was using a custom model
+      // 若已保存模型不在预配置列表中，则为用户自定义模型
       if (preset.preconfiguredModels.isNotEmpty &&
           !preset.preconfiguredModels.any((m) => m.id == _modelId)) {
         _useCustomModel = true;

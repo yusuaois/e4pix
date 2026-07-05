@@ -19,7 +19,7 @@ enum SpotHealMode {
 @immutable
 class SpotHealState {
   final SpotHealMode mode;
-  final double brushRadius;   // UI 显示值 (= 归一化值 × 1000)
+  final double brushRadius; // UI 显示值 (= 归一化值 × 1000)
   final double brushHardness; // 0..1
 
   const SpotHealState({
@@ -52,19 +52,29 @@ class SpotHealNotifier extends Notifier<SpotHealState> {
   /// 归一化半径（供 shader 和坐标变换使用）
   double get radiusNorm => state.brushRadius / 1000.0;
 
-  /// Add a single mark with explicit radius and hardness (free-form brush).
+  /// 添加单个 mark（指定半径和硬度，自由笔刷）
   void addMarkAt(Offset target, double radiusNorm, double hardness) {
-    final mark = SpotHealMark(target: target, radius: radiusNorm, hardness: hardness);
+    final mark = SpotHealMark(
+      target: target,
+      radius: radiusNorm,
+      hardness: hardness,
+    );
     _addMarkRaw(mark);
   }
 
-  /// Batch-commit marks from a free-form brush stroke.
-  void addStrokesBatch(List<Offset> targets, double radiusNorm, double hardness) {
+  /// 笔画批量提交 marks（自由笔刷）
+  void addStrokesBatch(
+    List<Offset> targets,
+    double radiusNorm,
+    double hardness,
+  ) {
     if (targets.isEmpty) return;
     final params = ref.read(currentParamsNotifierProvider);
     final updated = List<SpotHealMark>.from(params.spotHealMarks);
     for (final t in targets) {
-      updated.add(SpotHealMark(target: t, radius: radiusNorm, hardness: hardness));
+      updated.add(
+        SpotHealMark(target: t, radius: radiusNorm, hardness: hardness),
+      );
     }
     ref
         .read(currentParamsNotifierProvider.notifier)
@@ -98,5 +108,6 @@ class SpotHealNotifier extends Notifier<SpotHealState> {
   }
 }
 
-final spotHealStateProvider =
-    NotifierProvider<SpotHealNotifier, SpotHealState>(SpotHealNotifier.new);
+final spotHealStateProvider = NotifierProvider<SpotHealNotifier, SpotHealState>(
+  SpotHealNotifier.new,
+);

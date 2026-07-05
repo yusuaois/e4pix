@@ -177,7 +177,7 @@ class FullPipelineRenderer {
       }
     }
 
-    // Pass 0a: lens correction (distortion + CA + vignetting)
+    // 第 0a 趟：镜头校正（畸变 + 色差 + 暗角）
     ui.Image develop;
     bool developOwned;
 
@@ -203,7 +203,7 @@ class FullPipelineRenderer {
       }
     }
 
-    // Pass 0: global develop
+    // 第 0 趟：全局调色
     if (useCache) {
       develop = await developCache.getOrCompute(
         devFp,
@@ -281,7 +281,7 @@ class FullPipelineRenderer {
       }
     }
 
-    // Mask passes
+    // 蒙版趟
     for (final local in enabledLocals) {
       try {
         final shape = local.mask;
@@ -339,10 +339,7 @@ class FullPipelineRenderer {
       }
     }
 
-    // Compose pass — blend registered brush layers onto the develop output.
-    // During Phase 1 the registry has zero providers; this section is a no-op.
-    // In Phase 2-3, Spot Removal and Healing are migrated to layer providers
-    // and rendered through this path instead of the inline blocks below.
+    // 合成趟：将已注册画笔图层混合到调色输出上
     if (composeProgram != null && brushLayerRegistry != null) {
       final activeProviders = brushLayerRegistry.activeProviders(params);
       if (activeProviders.isNotEmpty) {
@@ -389,7 +386,7 @@ class FullPipelineRenderer {
       }
     }
 
-    // perspective
+    // 透视
     if (needsPerspectivePass(params) && perspectiveProgram != null) {
       try {
         final warped = await _runPerspectivePass(
@@ -406,7 +403,7 @@ class FullPipelineRenderer {
       }
     }
 
-    // crop
+    // 裁剪
     if (!params.crop.isIdentity) {
       try {
         final cropped = await applyCropTransform(current, params.crop);
@@ -418,7 +415,7 @@ class FullPipelineRenderer {
       }
     }
 
-    // sharpen
+    // 锐化
     if (sharpenProgram != null && needsSharpenPass(params)) {
       try {
         final sharpened = await _runSharpenPass(
@@ -489,11 +486,10 @@ class FullPipelineRenderer {
     );
   }
 
-  // Compose pass: blends brush layers onto base image.
-  // Each layer is independently rendered against the base;
-  // unmodified pixels equal the base, so sequential replacement works.
+  // 合成趟：将画笔图层混合到基底图上，各图层独立渲染
+  // 未修改像素等于底图，顺序替换可正确工作
   static const _kMaxComposeLayers = 8;
-  // Total sampler slots: uBase + 8 layers = 9 (must ALL be bound for GPU compat)
+  // 采样器槽位总数：uBase + 8 图层 = 9（GPU 兼容要求全部绑定）
   static const _kComposeSamplerSlots = 9;
 
   static Future<ui.Image> _runComposePass({
@@ -505,8 +501,7 @@ class FullPipelineRenderer {
     final h = base.height;
     final count = layers.length.clamp(0, _kMaxComposeLayers);
 
-    // Build sampler list with ALL 9 slots bound.
-    // Unused slots reuse the base image to avoid undefined GPU behaviour.
+    // 构建包含全部 9 个槽位的采样器列表，未使用槽位复用底图
     final samplers = <ui.Image>[base]; // slot 0: uBase
     for (int n = 0; n < _kMaxComposeLayers; n++) {
       if (n < layers.length && layers[n].texture != null) {
@@ -527,7 +522,7 @@ class FullPipelineRenderer {
         s.setFloat(i++, w.toDouble());
         s.setFloat(i++, h.toDouble());
         s.setFloat(i++, count.toDouble());
-        // Per-layer active flags
+        // 逐层活跃标记
         for (int n = 0; n < _kMaxComposeLayers; n++) {
           s.setFloat(i++, (n < count) ? 1.0 : 0.0);
         }
@@ -642,29 +637,29 @@ class FullPipelineRenderer {
       samplers: [input],
       setUniforms: (s) {
         int i = 0;
-        // uK1..uK5
+        // 畸变系数
         s.setFloat(i++, lens.distortionEnabled ? lens.distortionK1 : 0.0);
         s.setFloat(i++, lens.distortionEnabled ? lens.distortionK2 : 0.0);
         s.setFloat(i++, lens.distortionEnabled ? lens.distortionK3 : 0.0);
         s.setFloat(i++, lens.distortionEnabled ? lens.distortionK4 : 0.0);
         s.setFloat(i++, lens.distortionEnabled ? lens.distortionK5 : 0.0);
-        // uOpticalCenter
+        // 光心
         s.setFloat(i++, lens.opticalCenterX);
         s.setFloat(i++, lens.opticalCenterY);
-        // uDistortionEnabled
+        // 畸变开关
         s.setFloat(i++, lens.distortionEnabled ? 1.0 : 0.0);
-        // uCARed, uCABlue
+        // 色差校正
         s.setFloat(i++, lens.enabled ? lens.caRed : 1.0);
         s.setFloat(i++, lens.enabled ? lens.caBlue : 1.0);
-        // uCAEnabled
+        // 色差开关
         s.setFloat(i++, lens.isCaActive ? 1.0 : 0.0);
-        // uVK1..uVK3
+        // 暗角系数
         s.setFloat(i++, lens.vignettingEnabled ? lens.vignettingK1 : 0.0);
         s.setFloat(i++, lens.vignettingEnabled ? lens.vignettingK2 : 0.0);
         s.setFloat(i++, lens.vignettingEnabled ? lens.vignettingK3 : 0.0);
-        // uVignettingEnabled
+        // 暗角开关
         s.setFloat(i++, lens.vignettingEnabled ? 1.0 : 0.0);
-        // uSize
+        // 输出尺寸
         s.setFloat(i++, targetWidth.toDouble());
         s.setFloat(i++, targetHeight.toDouble());
       },

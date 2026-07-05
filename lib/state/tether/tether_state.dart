@@ -15,7 +15,7 @@ import '../../services/export/sidecar_service.dart';
 import '../../services/tether/tether_watcher.dart';
 import '../providers.dart';
 
-// Tether 会话
+// 联机会话
 @immutable
 class TetherSession {
   final TetherWatcher watcher;
@@ -100,7 +100,7 @@ final tetherSessionNotifierProvider =
       TetherSessionNotifier.new,
     );
 
-// Shots list
+// 照片列表
 class ShotsNotifier extends Notifier<List<TetheredShot>> {
   bool _isDisposed = false;
 

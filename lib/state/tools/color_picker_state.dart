@@ -8,7 +8,8 @@ class PickedColor {
   final double nx, ny; // 归一化位置（用于浮层定位参考）
   const PickedColor(this.r, this.g, this.b, this.nx, this.ny);
 
-  int get luma => ((r * 299 + g * 587 + b * 114) / 1000).round(); // Rec.601
+  int get luma =>
+      ((r * 299 + g * 587 + b * 114) / 1000).round(); // Rec.601 亮度公式
   String get hex =>
       '#${r.toRadixString(16).padLeft(2, '0')}'
               '${g.toRadixString(16).padLeft(2, '0')}'

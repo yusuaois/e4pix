@@ -7,7 +7,7 @@ import '../../services/export/sidecar_service.dart';
 class SidecarWriter {
   final _debouncer = KeyedDebouncer<String>(const Duration(milliseconds: 500));
 
-  /// debounce 写（参数变化用）
+  /// 防抖写入（参数变化用）
   void schedule(
     String rawPath,
     AdjustmentParams params,

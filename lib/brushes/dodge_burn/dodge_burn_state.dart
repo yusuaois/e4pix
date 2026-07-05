@@ -19,10 +19,10 @@ enum DodgeBurnBrushMode {
 @immutable
 class DodgeBurnState {
   final DodgeBurnBrushMode brushMode;
-  final DodgeBurnMode mode; // dodge or burn
-  final DodgeBurnRange range; // shadows / midtones / highlights
+  final DodgeBurnMode mode; // 减淡或加深
+  final DodgeBurnRange range; // 阴影/中间调/高光
   final double exposure; // 0..1
-  final double brushRadius; // UI 显示值 (= 归一化值 × 1000)
+  final double brushRadius; // UI 显示值（= 归一化值 × 1000）
   final double brushHardness; // 0..1
 
   const DodgeBurnState({

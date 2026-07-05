@@ -5,7 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../tracked_slider.dart';
 
-// 通用滑块 tile
+// 通用滑块
 class DevelopSliderTile extends StatelessWidget {
   final String label;
   final double value, min, max;
@@ -74,7 +74,7 @@ class DevelopSliderTile extends StatelessWidget {
   }
 }
 
-// Section 标签
+// 分区标签
 class SectionLabel extends StatelessWidget {
   final String title;
   final Widget? trailing;

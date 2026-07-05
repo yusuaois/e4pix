@@ -74,7 +74,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   final _brushCache = BrushMaskCache();
   final _perspectiveCache = PerspectiveMatrixCache();
 
-  // Compose pass: layer providers (created lazily when shaders are ready)
+  // Compose pass：layer provider（shader 就绪后惰性创建）
   final _brushLayers = <String, BrushLayerProvider>{};
   BrushLayerRegistry? _layerRegistry;
 
@@ -139,8 +139,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       final tw = (src.width * scale).round();
       final th = (src.height * scale).round();
 
-      // Compose pass: build layer registry from available brush shaders.
-      // Lazy-init providers; rebuild registry each render for freshness.
+      // Compose pass：从可用画笔 shader 构建 layer registry
+      // provider 惰性初始化，每次渲染重建 registry
       final composeProgram = ref.read(composeShaderProgramProvider).value;
       BrushLayerRegistry? layerReg;
       if (composeProgram != null) {

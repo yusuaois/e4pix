@@ -9,10 +9,10 @@ import '../../utils/brush_coord_utils.dart';
 import '../../utils/path_brush_tracker.dart';
 import 'dodge_burn_model.dart';
 
-/// Dodge/Burn overlay — free-form brush like PS Dodge/Burn tools.
+/// 加深减淡覆盖层
 ///
-/// Paint freely to lighten (dodge) or darken (burn) image regions,
-/// with tonal range targeting (shadows/midtones/highlights).
+/// 自由绘制提亮（减淡）或压暗（加深）图像区域
+/// 可指定色调范围（阴影/中间调/高光）
 class DodgeBurnOverlay extends ConsumerStatefulWidget {
   final Size imageDisplaySize;
   final CropParams crop;

@@ -1,10 +1,9 @@
 import 'dart:ui' as ui;
 
-/// Create a 1×1 transparent mask texture for brush shader warmup.
+/// 创建 1×1 透明纹理，用于 brush shader 预热
 ///
-/// Used by spot_heal and dodge_burn — their shaders take a mask sampler
-/// and a 1×1 empty texture is sufficient to trigger GPU PSO compilation
-/// without consuming GPU memory.
+/// spot_heal 和 dodge_burn 的 shader 接受 mask sampler，
+/// 1×1 空纹理足够触发 GPU PSO 编译，且几乎不占 GPU 内存
 Future<ui.Image> createEmptyMask() async {
   final recorder = ui.PictureRecorder();
   final canvas = ui.Canvas(recorder);

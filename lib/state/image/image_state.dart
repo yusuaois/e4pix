@@ -12,7 +12,6 @@ import '../../render/lut_texture_cache.dart';
 import '../../render/raw_to_ui_image.dart';
 import '../../services/image/image_loader.dart';
 import '../providers.dart';
-// tether_state.dart/params_state.dart
 
 class ActiveFilePathNotifier extends Notifier<String?> {
   @override
@@ -140,7 +139,7 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
       return _buildStandard(path, gen);
     }
 
-    // RAW phase1: 快速预览
+    // RAW 阶段1：快速预览
     final sw1 = Stopwatch()..start();
     final fastDecoded = await RawBridge.decodePreviewFast(path);
     sw1.stop();

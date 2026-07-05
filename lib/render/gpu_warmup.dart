@@ -5,11 +5,10 @@ import 'package:flutter/widgets.dart';
 import '../brushes/brush_manifest.dart';
 import '../utils/shader_pass_util.dart';
 
-/// 构建所有 brush shader 的有序预热任务列表。
+/// 构建所有 brush shader 的有序预热任务列表
 ///
-/// [brushPrograms] is keyed by [BrushManifest.id]; null entries are skipped.
-/// [composeProgram] is separate because compose is not a brush but still
-/// needs warmup.
+/// [brushPrograms] 以 [BrushManifest.id] 为键，null 条目跳过
+/// [composeProgram] 单独传入，因 compose 非画笔但仍需预热
 List<(String, Future<void> Function())> buildWarmupTasks({
   required Map<String, ui.FragmentProgram?> brushPrograms,
   required ui.FragmentProgram? composeProgram,

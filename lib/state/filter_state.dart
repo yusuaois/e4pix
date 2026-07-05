@@ -1,4 +1,3 @@
-// lib/state/filter_state.dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,8 +8,8 @@ enum FlagFilter { all, pickOnly, rejectHidden }
 
 @immutable
 class ShotFilter {
-  final int minRating;     // 0 = 不限
-  final FlagFilter flag;   // all = 不限
+  final int minRating; // 0 = 不限
+  final FlagFilter flag; // all = 不限
 
   const ShotFilter({this.minRating = 0, this.flag = FlagFilter.all});
 
@@ -29,8 +28,10 @@ class ShotFilter {
     return true;
   }
 
-  ShotFilter copyWith({int? minRating, FlagFilter? flag}) =>
-      ShotFilter(minRating: minRating ?? this.minRating, flag: flag ?? this.flag);
+  ShotFilter copyWith({int? minRating, FlagFilter? flag}) => ShotFilter(
+    minRating: minRating ?? this.minRating,
+    flag: flag ?? this.flag,
+  );
 }
 
 class ShotFilterNotifier extends Notifier<ShotFilter> {
@@ -41,8 +42,9 @@ class ShotFilterNotifier extends Notifier<ShotFilter> {
   void reset() => state = const ShotFilter();
 }
 
-final shotFilterProvider =
-    NotifierProvider<ShotFilterNotifier, ShotFilter>(ShotFilterNotifier.new);
+final shotFilterProvider = NotifierProvider<ShotFilterNotifier, ShotFilter>(
+  ShotFilterNotifier.new,
+);
 
 /// 过滤后的 shots
 final filteredShotsProvider = Provider<List<TetheredShot>>((ref) {

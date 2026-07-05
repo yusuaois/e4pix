@@ -33,7 +33,6 @@ import 'split_compare_view.dart';
 import 'sr_preview_overlay.dart';
 import 'watermark_preview.dart';
 
-// Preview area
 class PreviewArea extends ConsumerWidget {
   const PreviewArea({super.key});
 
@@ -678,10 +677,10 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     );
   }
 
-  /// Build a brush overlay widget if the brush is active, or null.
+  /// 若画笔活跃则构建 overlay widget，否则返回 null
   ///
-  /// Each brush has a different state shape and overlay class — the switch
-  /// dispatches by [BrushManifest.id]. New brushes add one case here.
+  /// 每支画笔有独立的状态形状和 overlay 类，按 [BrushManifest.id] 分发
+  /// 新增画笔在此添加 case
   Widget? _buildOverlayIfActive(
     BrushManifest m,
     WidgetRef ref,

@@ -210,9 +210,7 @@ class WatermarkGeometry {
     return Size(canvasSize.width * s, canvasSize.height * s);
   }
 
-  // ────────────────────────────────────────────────────────────
-  // Debug
-  // ────────────────────────────────────────────────────────────
+  // 调试
 
   @override
   String toString() {
@@ -245,7 +243,7 @@ bool watermarkHasLogo(WatermarkConfig c) {
   return false;
 }
 
-/// 判断是否应显示 EXIF（自动模式下需有有效元数据
+/// 判断是否应显示 EXIF（自动模式下需有有效元数据）
 bool watermarkShowExif(WatermarkConfig c, {String? exifText}) {
   if (!c.showExif) return false;
   if (c.exifMode == ExifMode.custom) {
@@ -279,7 +277,7 @@ FontWeight fontWeightFromIndex(int index) {
   return map[index.clamp(0, map.length - 1)];
 }
 
-/// Logo asset 路径
+/// Logo 资源路径
 String logoAssetPath(String brand, WatermarkColorMode mode) {
   final dir = mode == WatermarkColorMode.light ? 'light' : 'dark';
   return 'assets/borders/logos/$dir/$brand.webp';

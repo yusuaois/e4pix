@@ -35,13 +35,12 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
     return Rect.fromLTWH(c.x * w, c.y * h, c.width * w, c.height * h);
   }
 
-  // knob 位置
-  // 始终 clamp 在 displaySize 内
+  // 旋钮位置（始终 clamp 在 displaySize 内）
   Offset _knobPosition(Rect screenRect) {
     final dW = widget.imageDisplaySize.width;
     final dH = widget.imageDisplaySize.height;
     final spaceBelow = dH - screenRect.bottom;
-    final margin = _knobRadius + 4; // knob 中心距边缘的最小距离
+    final margin = _knobRadius + 4; // 旋钮中心距边缘的最小距离
     final cx = (screenRect.left + screenRect.right) / 2;
     final knobY = spaceBelow >= _knobOffset + 28
         ? (screenRect.bottom + _knobOffset).clamp(margin, dH - margin)
@@ -50,7 +49,7 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
   }
 
   _Handle _hitTest(Offset pos, Rect screenRect) {
-    // 优先 knob（在 crop rect 外侧）
+    // 优先旋钮（在裁剪矩形外侧）
     if ((pos - _knobPosition(screenRect)).distance < _knobRadius + 4) {
       return _Handle.rotationKnob;
     }
@@ -229,7 +228,7 @@ class _CropPainter extends CustomPainter {
       crop.height * h,
     );
 
-    // 外部 darken
+    // 外部暗化
     final dark = Paint()..color = Colors.black.withValues(alpha: 0.55);
     canvas.drawRect(Rect.fromLTWH(0, 0, w, r.top), dark);
     canvas.drawRect(Rect.fromLTWH(0, r.bottom, w, h - r.bottom), dark);
@@ -254,7 +253,7 @@ class _CropPainter extends CustomPainter {
       canvas.drawLine(Offset(r.left, dy), Offset(r.right, dy), grid);
     }
 
-    // 8 个 handle
+    // 8 个手柄
     final handle = Paint()..color = AppColors.textPrimary;
     void hSquare(Offset c) => canvas.drawRect(
       Rect.fromCenter(center: c, width: 10, height: 10),
@@ -269,7 +268,7 @@ class _CropPainter extends CustomPainter {
     hSquare(Offset(r.left, r.center.dy));
     hSquare(Offset(r.right, r.center.dy));
 
-    // 旋转 knob
+    // 旋转旋钮
     canvas.drawCircle(knobPosition, 14, Paint()..color = AppColors.activeValue);
     canvas.drawCircle(
       knobPosition,

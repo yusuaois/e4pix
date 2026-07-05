@@ -8,10 +8,10 @@ import '../../state/providers.dart';
 import '../../utils/brush_coord_utils.dart';
 import '../../utils/path_brush_tracker.dart';
 
-/// Spot Heal overlay — free-form brush like PS Spot Healing Brush.
+/// 污点修复覆盖层
 ///
-/// Paint freely over defects; strokes are converted to dense overlapping
-/// circle marks that the IDW shader fills from surrounding boundary pixels.
+/// 自由绘制覆盖缺陷，笔画转为密集重叠圆形 marks
+/// IDW shader 从周围边界像素采样填充
 class SpotHealOverlay extends ConsumerStatefulWidget {
   final Size imageDisplaySize;
   final CropParams crop;
