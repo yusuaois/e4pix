@@ -35,6 +35,7 @@ export 'tools/sr_state.dart';
 export '../brushes/clone_stamp/clone_stamp_state.dart';
 export '../brushes/healing/healing_state.dart';
 export '../brushes/spot_heal/spot_heal_state.dart';
+export '../brushes/dodge_burn/dodge_burn_state.dart';
 
 // watermark
 export 'watermark/watermark_state.dart';

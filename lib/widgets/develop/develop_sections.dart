@@ -11,4 +11,5 @@ export 'sections/local_section.dart';
 export '../../brushes/clone_stamp/clone_stamp_section.dart';
 export '../../brushes/healing/healing_section.dart';
 export '../../brushes/spot_heal/spot_heal_section.dart';
+export '../../brushes/dodge_burn/dodge_burn_section.dart';
 export 'sections/sr_section.dart';

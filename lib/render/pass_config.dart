@@ -41,6 +41,9 @@ bool hasHealingMarks(AdjustmentParams p) => p.healingMarks.isNotEmpty;
 /// Whether any spot-heal marks exist.
 bool hasSpotHealMarks(AdjustmentParams p) => p.spotHealMarks.isNotEmpty;
 
+/// Whether any dodge-burn marks exist.
+bool hasDodgeBurnMarks(AdjustmentParams p) => p.dodgeBurnMarks.isNotEmpty;
+
 /// Whether the full pipeline (beyond a simple develop pass) is required.
 bool needsFullPipeline(AdjustmentParams p) =>
     hasActiveLocals(p) ||
@@ -50,8 +53,12 @@ bool needsFullPipeline(AdjustmentParams p) =>
     needsPerspectivePass(p) ||
     hasSpots(p) ||
     hasHealingMarks(p) ||
-    hasSpotHealMarks(p);
+    hasSpotHealMarks(p) ||
+    hasDodgeBurnMarks(p);
 
 /// Whether the compose pass is required (any brush has active marks).
 bool needsComposePass(AdjustmentParams p) =>
-    hasSpots(p) || hasHealingMarks(p) || hasSpotHealMarks(p);
+    hasSpots(p) ||
+    hasHealingMarks(p) ||
+    hasSpotHealMarks(p) ||
+    hasDodgeBurnMarks(p);

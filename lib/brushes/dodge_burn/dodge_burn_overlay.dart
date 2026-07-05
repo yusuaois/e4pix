@@ -7,19 +7,20 @@ import '../../core/models/crop_params.dart';
 import '../../state/providers.dart';
 import '../../utils/brush_coord_utils.dart';
 import '../../utils/path_brush_tracker.dart';
+import 'dodge_burn_model.dart';
 
-/// Spot Heal overlay — free-form brush like PS Spot Healing Brush.
+/// Dodge/Burn overlay — free-form brush like PS Dodge/Burn tools.
 ///
-/// Paint freely over defects; strokes are converted to dense overlapping
-/// circle marks that the IDW shader fills from surrounding boundary pixels.
-class SpotHealOverlay extends ConsumerStatefulWidget {
+/// Paint freely to lighten (dodge) or darken (burn) image regions,
+/// with tonal range targeting (shadows/midtones/highlights).
+class DodgeBurnOverlay extends ConsumerStatefulWidget {
   final Size imageDisplaySize;
   final CropParams crop;
   final int sourceWidth;
   final int sourceHeight;
   final ui.Image sourceImage;
 
-  const SpotHealOverlay({
+  const DodgeBurnOverlay({
     super.key,
     required this.imageDisplaySize,
     required this.crop,
@@ -29,21 +30,20 @@ class SpotHealOverlay extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<SpotHealOverlay> createState() => _SpotHealOverlayState();
+  ConsumerState<DodgeBurnOverlay> createState() => _DodgeBurnOverlayState();
 }
 
-class _SpotHealOverlayState extends ConsumerState<SpotHealOverlay> {
+class _DodgeBurnOverlayState extends ConsumerState<DodgeBurnOverlay> {
   Offset? _cursorPos;
   bool _isHovering = false;
 
-  final _tracker = PathBrushTracker(
-    spacing: 0.005,
-  ); // dense spacing for smooth fill
+  final _tracker = PathBrushTracker(spacing: 0.005);
   final List<Offset> _strokePoints = [];
   bool _isPainting = false;
 
-  double get _brushNorm => ref.read(spotHealStateProvider).brushRadius / 1000.0;
-  double get _hardness => ref.read(spotHealStateProvider).brushHardness;
+  double get _brushNorm =>
+      ref.read(dodgeBurnStateProvider).brushRadius / 1000.0;
+  double get _hardness => ref.read(dodgeBurnStateProvider).brushHardness;
 
   Offset _screenToSourceNorm(Offset screen) {
     return screenToSourceNorm(
@@ -79,7 +79,7 @@ class _SpotHealOverlayState extends ConsumerState<SpotHealOverlay> {
     }
     if (_strokePoints.isNotEmpty) {
       ref
-          .read(spotHealStateProvider.notifier)
+          .read(dodgeBurnStateProvider.notifier)
           .addStrokesBatch(_strokePoints, _brushNorm, _hardness);
     }
     _strokePoints.clear();
@@ -95,14 +95,21 @@ class _SpotHealOverlayState extends ConsumerState<SpotHealOverlay> {
   void _onTapDown(Offset localPosition) {
     final target = _screenToSourceNorm(localPosition);
     ref
-        .read(spotHealStateProvider.notifier)
+        .read(dodgeBurnStateProvider.notifier)
         .addMarkAt(target, _brushNorm, _hardness);
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(spotHealStateProvider);
-    if (state.mode != SpotHealMode.active) return const SizedBox.shrink();
+    final state = ref.watch(dodgeBurnStateProvider);
+    if (state.brushMode != DodgeBurnBrushMode.active) {
+      return const SizedBox.shrink();
+    }
+
+    // Cursor color reflects current mode (dodge = warm, burn = cool)
+    final cursorColor = state.mode == DodgeBurnMode.dodge
+        ? const Color(0x80FFCC00) // warm gold for dodge
+        : const Color(0x800088FF); // cool blue for burn
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -120,12 +127,13 @@ class _SpotHealOverlayState extends ConsumerState<SpotHealOverlay> {
         onPanCancel: _onPanCancel,
         child: CustomPaint(
           size: widget.imageDisplaySize,
-          painter: _SpotHealBrushPainter(
+          painter: _DodgeBurnBrushPainter(
             strokePoints: _strokePoints,
             isPainting: _isPainting,
             cursorPos: _cursorPos,
             isHovering: _isHovering,
             brushNorm: _brushNorm,
+            cursorColor: cursorColor,
             imageDisplaySize: widget.imageDisplaySize,
             crop: widget.crop,
             sourceWidth: widget.sourceWidth,
@@ -137,23 +145,25 @@ class _SpotHealOverlayState extends ConsumerState<SpotHealOverlay> {
   }
 }
 
-class _SpotHealBrushPainter extends CustomPainter {
+class _DodgeBurnBrushPainter extends CustomPainter {
   final List<Offset> strokePoints;
   final bool isPainting;
   final Offset? cursorPos;
   final bool isHovering;
   final double brushNorm;
+  final Color cursorColor;
   final Size imageDisplaySize;
   final CropParams crop;
   final int sourceWidth;
   final int sourceHeight;
 
-  _SpotHealBrushPainter({
+  _DodgeBurnBrushPainter({
     required this.strokePoints,
     required this.isPainting,
     this.cursorPos,
     required this.isHovering,
     required this.brushNorm,
+    required this.cursorColor,
     required this.imageDisplaySize,
     required this.crop,
     required this.sourceWidth,
@@ -162,12 +172,9 @@ class _SpotHealBrushPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Draw current stroke as a continuous thick path (same technique as
-    // local_mask_painter.dart _overlayStroke) — not individual circles.
     if (strokePoints.length > 1) {
-      // Continuous path: round caps + round joins at brush-width thickness
       final strokePaint = Paint()
-        ..color = const Color(0x30FFFFFF)
+        ..color = cursorColor.withAlpha(0x30)
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
@@ -194,9 +201,8 @@ class _SpotHealBrushPainter extends CustomPainter {
       }
       canvas.drawPath(path, strokePaint);
     } else if (strokePoints.length == 1) {
-      // Single point: draw a filled circle
       final fillPaint = Paint()
-        ..color = const Color(0x30FFFFFF)
+        ..color = cursorColor.withAlpha(0x30)
         ..style = PaintingStyle.fill;
       final c = sourceToScreenNorm(
         src: strokePoints.first,
@@ -208,7 +214,7 @@ class _SpotHealBrushPainter extends CustomPainter {
       canvas.drawCircle(c, brushNorm * imageDisplaySize.width, fillPaint);
     }
 
-    // Draw cursor as a simple white outline circle
+    // Draw cursor as colored outline circle
     if (isHovering && cursorPos != null && !isPainting) {
       final r = brushNorm * imageDisplaySize.width;
       canvas.drawCircle(
@@ -217,18 +223,19 @@ class _SpotHealBrushPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5
-          ..color = const Color(0xFFFFFFFF),
+          ..color = cursorColor,
       );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _SpotHealBrushPainter old) {
+  bool shouldRepaint(covariant _DodgeBurnBrushPainter old) {
     return strokePoints != old.strokePoints ||
         isPainting != old.isPainting ||
         cursorPos != old.cursorPos ||
         isHovering != old.isHovering ||
         brushNorm != old.brushNorm ||
+        cursorColor != old.cursorColor ||
         imageDisplaySize != old.imageDisplaySize;
   }
 }

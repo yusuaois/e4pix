@@ -22,6 +22,7 @@ class _ShaderBundle {
   final ui.FragmentProgram spotRemove;
   final ui.FragmentProgram compose;
   final ui.FragmentProgram spotHeal;
+  final ui.FragmentProgram dodgeBurn;
   const _ShaderBundle({
     required this.develop,
     required this.mask,
@@ -32,10 +33,11 @@ class _ShaderBundle {
     required this.spotRemove,
     required this.compose,
     required this.spotHeal,
+    required this.dodgeBurn,
   });
 }
 
-// 并行加载全部 7 个 shader，首个访问触发批量加载
+// 并行加载全部 shader，首个访问触发批量加载
 final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
   final results = await Future.wait([
     ui.FragmentProgram.fromAsset('assets/shaders/develop.shader'),
@@ -47,6 +49,7 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     ui.FragmentProgram.fromAsset('assets/shaders/spot_remove.shader'),
     ui.FragmentProgram.fromAsset('assets/shaders/compose.shader'),
     ui.FragmentProgram.fromAsset('assets/shaders/spot_heal.shader'),
+    ui.FragmentProgram.fromAsset('assets/shaders/dodge_burn.shader'),
   ]);
   for (final p in results) {
     p.fragmentShader(); // 预热编译
@@ -61,6 +64,7 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     spotRemove: results[6],
     compose: results[7],
     spotHeal: results[8],
+    dodgeBurn: results[9],
   );
 });
 
@@ -115,6 +119,12 @@ final spotHealShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   ref,
 ) async {
   return (await ref.watch(_allShadersProvider.future)).spotHeal;
+});
+
+final dodgeBurnShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
+  ref,
+) async {
+  return (await ref.watch(_allShadersProvider.future)).dodgeBurn;
 });
 
 /// Healing brush shader.

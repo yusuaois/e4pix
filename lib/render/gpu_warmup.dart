@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import '../brushes/clone_stamp/clone_stamp_layer.dart';
 import '../brushes/healing/healing_layer.dart';
 import '../brushes/spot_heal/spot_heal_layer.dart';
+import '../brushes/dodge_burn/dodge_burn_layer.dart';
 import '../utils/shader_pass_util.dart';
 
 /// 构建所有 brush shader 的有序预热任务列表
@@ -14,6 +15,7 @@ List<(String, Future<void> Function())> buildWarmupTasks({
   required ui.FragmentProgram? spotRemoveProgram,
   required ui.FragmentProgram? healingProgram,
   required ui.FragmentProgram? spotHealProgram,
+  required ui.FragmentProgram? dodgeBurnProgram,
   required ui.FragmentProgram? composeProgram,
   required ui.Image developOutput,
   required int targetWidth,
@@ -42,6 +44,14 @@ List<(String, Future<void> Function())> buildWarmupTasks({
     tasks.add((
       'spot_heal',
       () => spotHealLayer.warmup(developOutput, targetWidth, targetHeight),
+    ));
+  }
+
+  if (dodgeBurnProgram != null) {
+    final dodgeBurnLayer = DodgeBurnLayerProvider(program: dodgeBurnProgram);
+    tasks.add((
+      'dodge_burn',
+      () => dodgeBurnLayer.warmup(developOutput, targetWidth, targetHeight),
     ));
   }
 

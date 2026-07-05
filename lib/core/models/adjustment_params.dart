@@ -10,6 +10,7 @@ import 'local_adjustment.dart';
 import 'rgb_curves.dart';
 import '../../brushes/spot_heal/spot_heal_model.dart';
 import '../../brushes/clone_stamp/clone_stamp_model.dart';
+import '../../brushes/dodge_burn/dodge_burn_model.dart';
 import 'tone_curve.dart';
 
 @immutable
@@ -56,6 +57,9 @@ class AdjustmentParams {
   /// 污点修复标记列表（圈中自动修复）
   final List<SpotHealMark> spotHealMarks;
 
+  /// 加深减淡标记列表
+  final List<DodgeBurnMark> dodgeBurnMarks;
+
   const AdjustmentParams({
     this.exposure = 0.0,
     this.temperature = 5500,
@@ -88,6 +92,7 @@ class AdjustmentParams {
     this.spots = const [],
     this.healingMarks = const [],
     this.spotHealMarks = const [],
+    this.dodgeBurnMarks = const [],
   });
 
   static const neutral = AdjustmentParams();
@@ -124,6 +129,7 @@ class AdjustmentParams {
     List<SpotMark>? spots,
     List<HealingMark>? healingMarks,
     List<SpotHealMark>? spotHealMarks,
+    List<DodgeBurnMark>? dodgeBurnMarks,
   }) => AdjustmentParams(
     exposure: exposure ?? this.exposure,
     temperature: temperature ?? this.temperature,
@@ -155,7 +161,8 @@ class AdjustmentParams {
     srScale: srScale ?? this.srScale,
     spots: spots ?? this.spots,
     healingMarks: healingMarks ?? this.healingMarks,
-      spotHealMarks: spotHealMarks ?? this.spotHealMarks,
+    spotHealMarks: spotHealMarks ?? this.spotHealMarks,
+    dodgeBurnMarks: dodgeBurnMarks ?? this.dodgeBurnMarks,
   );
 
   @override
@@ -192,7 +199,8 @@ class AdjustmentParams {
           listEquals(locals, other.locals) &&
           listEquals(spots, other.spots) &&
           listEquals(healingMarks, other.healingMarks) &&
-          listEquals(spotHealMarks, other.spotHealMarks);
+          listEquals(spotHealMarks, other.spotHealMarks) &&
+          listEquals(dodgeBurnMarks, other.dodgeBurnMarks);
 
   @override
   int get hashCode => Object.hashAll([
@@ -227,6 +235,7 @@ class AdjustmentParams {
     spots,
     healingMarks,
     spotHealMarks,
+    dodgeBurnMarks,
   ]);
 
   Map<String, dynamic> toJson() => {
@@ -261,6 +270,7 @@ class AdjustmentParams {
     'spots': spots.map((e) => e.toJson()).toList(),
     'healingMarks': healingMarks.map((e) => e.toJson()).toList(),
     'spotHealMarks': spotHealMarks.map((e) => e.toJson()).toList(),
+    'dodgeBurnMarks': dodgeBurnMarks.map((e) => e.toJson()).toList(),
   };
 
   factory AdjustmentParams.fromJson(Map<String, dynamic> j) => AdjustmentParams(
@@ -329,6 +339,11 @@ class AdjustmentParams {
     spotHealMarks:
         (j['spotHealMarks'] as List?)
             ?.map((e) => SpotHealMark.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
+    dodgeBurnMarks:
+        (j['dodgeBurnMarks'] as List?)
+            ?.map((e) => DodgeBurnMark.fromJson(e as Map<String, dynamic>))
             .toList() ??
         const [],
   );

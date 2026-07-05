@@ -15,6 +15,7 @@ import '../../render/gpu_warmup.dart';
 import '../../render/homography.dart';
 import '../../../brushes/healing/healing_layer.dart';
 import '../../../brushes/spot_heal/spot_heal_layer.dart';
+import '../../../brushes/dodge_burn/dodge_burn_layer.dart';
 import '../../../brushes/clone_stamp/clone_stamp_layer.dart';
 import '../../render/mask_cache.dart';
 import '../../../brushes/clone_stamp/clone_stamp_cache.dart';
@@ -85,6 +86,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
   SpotRemovalLayerProvider? _spotLayer;
   HealingLayerProvider? _healLayer;
   SpotHealLayerProvider? _spotHealLayer;
+  DodgeBurnLayerProvider? _dodgeBurnLayer;
   BrushLayerRegistry? _layerRegistry;
 
   @override
@@ -173,6 +175,11 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         if (spotHealProgram != null) {
           _spotHealLayer ??= SpotHealLayerProvider(program: spotHealProgram);
           providers.add(_spotHealLayer!);
+        }
+        final dodgeBurnProgram = ref.read(dodgeBurnShaderProgramProvider).value;
+        if (dodgeBurnProgram != null) {
+          _dodgeBurnLayer ??= DodgeBurnLayerProvider(program: dodgeBurnProgram);
+          providers.add(_dodgeBurnLayer!);
         }
         if (providers.isNotEmpty) {
           _layerRegistry = BrushLayerRegistry(providers: providers);
@@ -272,12 +279,14 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       final spotProg = ref.read(spotRemoveShaderProgramProvider).value;
       final healProg = ref.read(healingShaderProgramProvider).value;
       final spotHealProg = ref.read(spotHealShaderProgramProvider).value;
+      final dodgeBurnProg = ref.read(dodgeBurnShaderProgramProvider).value;
       final composeProg = ref.read(composeShaderProgramProvider).value;
 
       final tasks = buildWarmupTasks(
         spotRemoveProgram: spotProg,
         healingProgram: healProg,
         spotHealProgram: spotHealProg,
+        dodgeBurnProgram: dodgeBurnProg,
         composeProgram: composeProg,
         developOutput: devClone,
         targetWidth: tw,

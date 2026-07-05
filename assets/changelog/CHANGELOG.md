@@ -1,7 +1,8 @@
 ## 🚀 新功能 (New Features)
-* **污点修复 (Spot Heal)**：新增 PS 风格污点修复画笔
+* **加深减淡 (Dodge & Burn)**：新增加深减淡画笔——Screen/Multiply 混合 + 三色调范围遮罩（Shadows/Midtones/Highlights），per-mark 参数冻结，支持混用不同模式/范围的笔画
+* **污点修复 (Spot Heal)**：新增污点修复画笔
 * **Compose 图层化架构**：所有像素画笔接入 Compose 图层系统，新画笔只需注册 BrushLayerProvider 即可自动覆盖预览/导出/水印/分割对比全通路
-* **修复画笔 (Healing Brush)**：新增 PS 风格修复画笔工具，使用边界匹配修复算法——沿笔刷边界采样干净背景色，对克隆像素做全局光照补偿，可消除小面积缺陷
+* **修复画笔 (Healing Brush)**：新增修复画笔工具，使用边界匹配修复算法——沿笔刷边界采样干净背景色，对克隆像素做全局光照补偿，可消除小面积缺陷
 * **图章改名**：UI 名称从"污点修复/Spot Removal"改为"图章/Clone Stamp"
 
 ## ⚡ 性能优化 (Performance)
@@ -19,9 +20,13 @@
 * **PillChip 提取**：三个画笔 section 中完全相同的 `_PillChip`（~55行×3）提升为公共 `PillChip` widget（`lib/widgets/develop/sections/shared.dart`）
 * **IncrementalRenderCache\<T\> 泛型提取**：新增 `lib/render/incremental_render_cache.dart`——两级缓存泛型基类，三个画笔缓存缩减为顶层 hash 函数，消除 ~180 行重复缓存逻辑
 * **统一画笔 hash map**：`renderedSpotsHashProvider` + `renderedHealingHashProvider` 合并为 `renderedBrushHashesProvider (Map<String, int>)`；`BrushLayerProvider` 新增 `computeMarksHash`；`multi_pass_preview` 遍历活跃 provider 自动收集 hash——新画笔无需再碰 `render_state` 或 `multi_pass_preview`
+* **清除死字段**：从 `AdjustmentParams` 移除 `dodgeBurnMode`/`dodgeBurnRange`/`dodgeBurnExposure`（per-mark 参数冻结后不再需要工具级渲染参数）及 notifier 中对应的同步代码
+* **统一 ClearAll 翻译 key**：4 个独立的 `***ClearAll` key 合并为 1 个 `ClearAll`，新增画笔无需再定义清除按钮翻译
 * **清理死代码**：移除 spot_heal 中无效的 `putRolling` 调用（spot_heal 不使用增量渲染）；补上 slider 拖拽结束时遗漏的 healing cache Level-1 失效
 
 ## 🐛 问题修复 (Bug Fixes)
+* **Dodge/Burn 无效果**：`pass_config.dart` 缺少 `hasDodgeBurnMarks` 导致 compose pass 被跳过——只有 dodge_burn 笔画时画面不刷新
+* **画笔光标不显示**：`spot_heal_overlay` 和 `dodge_burn_overlay` 的 `onHover` 遗漏 `_isHovering = true`，激活画笔后鼠标已在区域内时 `onEnter` 不触发，光标不渲染
 * **修复画笔缓存陈旧**：Level 1 缓存（marks hash）加入 `developKey` 双 key 检查，修复调整曝光/曲线等参数后画面不刷新的问题
 * **Committed preview 持久化**：切换工具时未渲染完的 committed preview 通过静态字段持久化，避免闪回旧画面后跳变
 * **_healingCache 内存泄漏**：修复 `MultiPassPreviewState.dispose()` 中遗漏 `_healingCache.dispose()` 的问题

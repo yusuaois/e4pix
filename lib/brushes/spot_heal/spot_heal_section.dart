@@ -98,7 +98,7 @@ class SpotHealSection extends ConsumerWidget {
               child: TextButton.icon(
                 onPressed: notifier.clearAll,
                 icon: const Icon(Icons.delete_outline, size: 16),
-                label: Text(tr('spotHealClearAll')),
+                label: Text(tr('ClearAll')),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.semanticError,
                   visualDensity: VisualDensity.compact,

@@ -35,12 +35,13 @@ class _VerticalAdjustmentPanelState
   static const _spotRemoveTabIndex = 8;
   static const _healingTabIndex = 9;
   static const _spotHealTabIndex = 10;
+  static const _dodgeBurnTabIndex = 11;
   late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 14, vsync: this);
+    _tabController = TabController(length: 15, vsync: this);
     _tabController.addListener(_onTabChanged);
   }
 
@@ -59,6 +60,11 @@ class _VerticalAdjustmentPanelState
     }
     if (_tabController.index != _spotHealTabIndex) {
       ref.read(spotHealStateProvider.notifier).setMode(SpotHealMode.inactive);
+    }
+    if (_tabController.index != _dodgeBurnTabIndex) {
+      ref
+          .read(dodgeBurnStateProvider.notifier)
+          .setBrushMode(DodgeBurnBrushMode.inactive);
     }
   }
 
@@ -106,6 +112,7 @@ class _VerticalAdjustmentPanelState
                         Tab(text: tr("spotRemoveTitle"), height: 36),
                         Tab(text: tr("healingTitle"), height: 36),
                         Tab(text: tr("spotHealTitle"), height: 36),
+                        Tab(text: tr("dodgeBurnTitle"), height: 36),
                         Tab(text: tr("lens"), height: 36),
                         Tab(text: tr('superResolution'), height: 36),
                         Tab(text: tr("watermark"), height: 36),
@@ -181,6 +188,14 @@ class _VerticalAdjustmentPanelState
                 _LazyBuild(
                   builder: (_) => SingleChildScrollView(
                     child: SpotHealSection(
+                      params: params,
+                      onChanged: widget.onChanged,
+                    ),
+                  ),
+                ),
+                _LazyBuild(
+                  builder: (_) => SingleChildScrollView(
+                    child: DodgeBurnSection(
                       params: params,
                       onChanged: widget.onChanged,
                     ),

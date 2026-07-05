@@ -13,6 +13,7 @@ enum DevelopTool {
   spotRemove,
   healing,
   spotHeal,
+  dodgeBurn,
   watermark,
   lens,
   sr,

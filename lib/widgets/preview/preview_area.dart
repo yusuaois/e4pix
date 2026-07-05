@@ -25,6 +25,7 @@ import 'crop_panel.dart';
 import '../develop/sections/local/local_mask_overlay.dart';
 import '../../brushes/healing/healing_overlay.dart';
 import '../../brushes/spot_heal/spot_heal_overlay.dart';
+import '../../brushes/dodge_burn/dodge_burn_overlay.dart';
 import '../../brushes/clone_stamp/clone_stamp_overlay.dart';
 import 'multi_pass_preview.dart';
 import 'split_compare_view.dart';
@@ -147,11 +148,13 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     final spotProg = ref.read(spotRemoveShaderProgramProvider).value;
     final healProg = ref.read(healingShaderProgramProvider).value;
     final spotHealProg = ref.read(spotHealShaderProgramProvider).value;
+    final dodgeBurnProg = ref.read(dodgeBurnShaderProgramProvider).value;
     final composeProg = ref.read(composeShaderProgramProvider).value;
 
     if (spotProg == null &&
         healProg == null &&
         spotHealProg == null &&
+        dodgeBurnProg == null &&
         composeProg == null) {
       return;
     }
@@ -174,6 +177,7 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
       spotRemoveProgram: spotProg,
       healingProgram: healProg,
       spotHealProgram: spotHealProg,
+      dodgeBurnProgram: dodgeBurnProg,
       composeProgram: composeProg,
       developOutput: clone,
       targetWidth: tw,
@@ -730,6 +734,30 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
             content,
             Positioned.fill(
               child: SpotHealOverlay(
+                imageDisplaySize: displaySize,
+                crop: params.crop,
+                sourceWidth: state.uiImage.width,
+                sourceHeight: state.uiImage.height,
+                sourceImage: overlaySource,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 加深减淡 overlay
+    final dodgeBurnState = ref.watch(dodgeBurnStateProvider);
+    if (dodgeBurnState.brushMode == DodgeBurnBrushMode.active) {
+      ref.watch(renderedPreviewGenerationProvider);
+      final overlaySource = ref.watch(developOutputProvider) ?? state.uiImage;
+      content = SizedBox.fromSize(
+        size: displaySize,
+        child: Stack(
+          children: [
+            content,
+            Positioned.fill(
+              child: DodgeBurnOverlay(
                 imageDisplaySize: displaySize,
                 crop: params.crop,
                 sourceWidth: state.uiImage.width,

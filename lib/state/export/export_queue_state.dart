@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../brushes/clone_stamp/clone_stamp_layer.dart';
 import '../../brushes/healing/healing_layer.dart';
 import '../../brushes/spot_heal/spot_heal_layer.dart';
+import '../../brushes/dodge_burn/dodge_burn_layer.dart';
 import '../../core/models/export_job.dart';
 import '../../render/brush_layer_provider.dart';
 import '../../render/brush_layer_registry.dart';
@@ -28,12 +29,19 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
     ui.FragmentProgram? spotRemove,
     ui.FragmentProgram? healing,
     ui.FragmentProgram? spotHeal,
+    ui.FragmentProgram? dodgeBurn,
   ) {
     final providers = <BrushLayerProvider>[];
-    if (spotRemove != null) providers.add(SpotRemovalLayerProvider(program: spotRemove));
+    if (spotRemove != null)
+      providers.add(SpotRemovalLayerProvider(program: spotRemove));
     if (healing != null) providers.add(HealingLayerProvider(program: healing));
-    if (spotHeal != null) providers.add(SpotHealLayerProvider(program: spotHeal));
-    return providers.isNotEmpty ? BrushLayerRegistry(providers: providers) : null;
+    if (spotHeal != null)
+      providers.add(SpotHealLayerProvider(program: spotHeal));
+    if (dodgeBurn != null)
+      providers.add(DodgeBurnLayerProvider(program: dodgeBurn));
+    return providers.isNotEmpty
+        ? BrushLayerRegistry(providers: providers)
+        : null;
   }
 
   @override
@@ -191,6 +199,7 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
     final spotRemoveProgram = ref.read(spotRemoveShaderProgramProvider).value;
     final healingProgram = ref.read(healingShaderProgramProvider).value;
     final spotHealProgram = ref.read(spotHealShaderProgramProvider).value;
+    final dodgeBurnProgram = ref.read(dodgeBurnShaderProgramProvider).value;
     final composeProgram = ref.read(composeShaderProgramProvider).value;
     final watermarkCfg = ref.read(watermarkConfigProvider);
     final cfg = job.config;
@@ -231,7 +240,10 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
         healingProgram: healingProgram,
         composeProgram: composeProgram,
         brushLayerRegistry: _buildRegistry(
-          spotRemoveProgram, healingProgram, spotHealProgram,
+          spotRemoveProgram,
+          healingProgram,
+          spotHealProgram,
+          dodgeBurnProgram,
         ),
         denoiseEngine: cfg.denoiseEngine,
         denoiseParallelism: cfg.denoiseParallelism,

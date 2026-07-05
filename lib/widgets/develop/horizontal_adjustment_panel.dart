@@ -62,6 +62,8 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
         return HealingSection(params: params, onChanged: onChanged);
       case DevelopTool.spotHeal:
         return SpotHealSection(params: params, onChanged: onChanged);
+      case DevelopTool.dodgeBurn:
+        return DodgeBurnSection(params: params, onChanged: onChanged);
       case DevelopTool.watermark:
         return const WatermarkSection();
       case DevelopTool.lens:
@@ -90,15 +92,17 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
       }
       // 切离 healing 时退出修复画笔模式
       if (prev == DevelopTool.healing && next != DevelopTool.healing) {
-        ref
-            .read(healingStateProvider.notifier)
-            .setMode(HealingMode.inactive);
+        ref.read(healingStateProvider.notifier).setMode(HealingMode.inactive);
       }
       // 切离 spotHeal 时退出污点修复模式
       if (prev == DevelopTool.spotHeal && next != DevelopTool.spotHeal) {
+        ref.read(spotHealStateProvider.notifier).setMode(SpotHealMode.inactive);
+      }
+      // 切离 dodgeBurn 时退出加深减淡模式
+      if (prev == DevelopTool.dodgeBurn && next != DevelopTool.dodgeBurn) {
         ref
-            .read(spotHealStateProvider.notifier)
-            .setMode(SpotHealMode.inactive);
+            .read(dodgeBurnStateProvider.notifier)
+            .setBrushMode(DodgeBurnBrushMode.inactive);
       }
     });
 
@@ -250,6 +254,12 @@ class _ToolRail extends StatelessWidget {
               tooltip: tr('spotHealTitle'),
               selected: selected == DevelopTool.spotHeal,
               onTap: () => onSelect(DevelopTool.spotHeal),
+            ),
+            _RailItem(
+              icon: Icons.tonality,
+              tooltip: tr('dodgeBurnTitle'),
+              selected: selected == DevelopTool.dodgeBurn,
+              onTap: () => onSelect(DevelopTool.dodgeBurn),
             ),
             _RailItem(
               icon: Icons.camera_outlined,
