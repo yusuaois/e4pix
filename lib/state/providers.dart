@@ -25,6 +25,7 @@ export 'tether/tether_state.dart';
 export 'tether/camera_state.dart';
 
 // 工具
+export 'tools/brush_layer_order_state.dart';
 export 'tools/color_picker_state.dart';
 export 'tools/brush_state.dart';
 export 'tools/crop_state.dart';

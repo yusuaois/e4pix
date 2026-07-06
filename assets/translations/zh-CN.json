@@ -556,5 +556,9 @@
   "dodgeBurnExposure": "曝光",
   "dodgeBurnRadius": "半径",
   "dodgeBurnHardness": "硬度",
-  "ClearAll": "清除全部"
+  "ClearAll": "清除全部",
+  "brushLayerOrder": "画笔图层顺序",
+  "brushLayerOrderHint": "上层画笔覆盖下层画笔的修改",
+  "brushLayerOrderTop": "最顶层",
+  "brushLayerOrderBottom": "最底层"
 }

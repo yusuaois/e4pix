@@ -556,5 +556,9 @@
   "dodgeBurnExposure": "Exposure",
   "dodgeBurnRadius": "Radius",
   "dodgeBurnHardness": "Hardness",
-  "ClearAll": "Clear All"
+  "ClearAll": "Clear All",
+  "brushLayerOrder": "Brush Layer Order",
+  "brushLayerOrderHint": "Upper layers overwrite lower layer modifications",
+  "brushLayerOrderTop": "Top",
+  "brushLayerOrderBottom": "Bottom"
 }

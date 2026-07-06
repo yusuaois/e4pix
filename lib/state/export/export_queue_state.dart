@@ -22,11 +22,13 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
   final Set<String> _cancelled = {};
   final Set<String> _usedNames = {}; // 跨队列文件名去重
 
-  static BrushLayerRegistry? _buildRegistry(
+  static Future<BrushLayerRegistry?> _buildRegistry(
     Map<String, ui.FragmentProgram?> brushPrograms,
-  ) {
+  ) async {
     final providers = <BrushLayerProvider>[];
-    for (final m in brushManifests) {
+    final saved = await AppSettings.getBrushLayerOrder();
+    final order = saved ?? brushManifests.map((m) => m.id).toList();
+    for (final m in orderedManifests(order)) {
       final prog = brushPrograms[m.id];
       if (prog != null) {
         providers.add(m.layerFactory(prog));
@@ -229,7 +231,7 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
         spotRemoveProgram: brushPrograms['spot_removal'],
         healingProgram: brushPrograms['healing'],
         composeProgram: composeProgram,
-        brushLayerRegistry: _buildRegistry(brushPrograms),
+        brushLayerRegistry: await _buildRegistry(brushPrograms),
         denoiseEngine: cfg.denoiseEngine,
         denoiseParallelism: cfg.denoiseParallelism,
         jpegQuality: cfg.jpegQuality,

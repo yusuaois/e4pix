@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
+import 'sections/brush_layer_order_sheet.dart';
 import 'sections/preset_section.dart';
 
 /// 退出画笔/智能/主体工具
@@ -130,6 +131,11 @@ class _VerticalAdjustmentPanelState
                       ],
                     ),
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.layers, size: 18),
+                  tooltip: tr('brushLayerOrder'),
+                  onPressed: () => showBrushLayerOrderSheet(context, ref),
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh, size: 18),

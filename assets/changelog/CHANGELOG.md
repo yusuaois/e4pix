@@ -36,6 +36,8 @@
 * **_healingCache 内存泄漏**：修复 `MultiPassPreviewState.dispose()` 中遗漏 `_healingCache.dispose()` 的问题
 
 ## 🛠️ 底层改进 (Under the Hood)
+* **P5 画笔图层顺序可配置**：Compose 图层叠加顺序从固定的 manifest 注册顺序改为用户可拖拽配置。在纵向面板 TabBar 右侧、横向面板 _ToolRail 中新增 `Icons.layers` 按钮 → 弹出 `showModalBottomSheet` 内含 `ReorderableListView` 拖拽排序。顺序持久化到 SharedPreferences。Compose shader 无需改动——仅调整 `BrushLayerRegistry` 中 provider 顺序即可控制 last-write-wins 叠加
+* **裁剪预览隐藏局部调整紫色遮罩**：裁剪模式下不再渲染 `LocalMaskOverlay`
 
 ---
 

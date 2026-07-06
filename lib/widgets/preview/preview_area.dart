@@ -769,7 +769,8 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     }
 
     final selectedLocalId = ref.watch(selectedLocalIdProvider);
-    if (selectedLocalId != null) {
+    final cropEditMode = ref.watch(cropEditModeProvider);
+    if (selectedLocalId != null && !cropEditMode) {
       return _withSrOverlay(
         ref,
         Container(

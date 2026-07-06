@@ -146,7 +146,8 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       if (composeProgram != null) {
         final brushPrograms = ref.read(brushShaderProgramsProvider).value ?? {};
         final providers = <BrushLayerProvider>[];
-        for (final m in brushManifests) {
+        final layerOrder = ref.read(brushLayerOrderProvider);
+        for (final m in orderedManifests(layerOrder)) {
           final prog = brushPrograms[m.id];
           if (prog != null) {
             _brushLayers.putIfAbsent(m.id, () => m.layerFactory(prog));
@@ -322,6 +323,10 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         }
         _runRender();
       }
+    });
+    // 画笔图层顺序变化时触发重渲染
+    ref.listen(brushLayerOrderProvider, (prev, next) {
+      if (prev != next) _runRender();
     });
 
     if (_rendered == null) {

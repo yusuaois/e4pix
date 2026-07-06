@@ -8,6 +8,7 @@ import '../../brushes/shared/brush_deactivate.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
+import 'sections/brush_layer_order_sheet.dart';
 import 'sections/preset_section.dart';
 
 /// 退出画笔/智能/主体工具
@@ -135,7 +136,7 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
   }
 }
 
-class _ToolRail extends StatelessWidget {
+class _ToolRail extends ConsumerWidget {
   final DevelopTool selected;
   final ValueChanged<DevelopTool> onSelect;
   final VoidCallback? onEnterCrop;
@@ -148,7 +149,7 @@ class _ToolRail extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: 46,
       decoration: const BoxDecoration(color: AppColors.surfaceBg),
@@ -168,6 +169,11 @@ class _ToolRail extends StatelessWidget {
                 tooltip: tr('crop'),
                 onTap: onEnterCrop!,
               ),
+            _RailItem(
+              icon: Icons.layers,
+              tooltip: tr('brushLayerOrder'),
+              onTap: () => showBrushLayerOrderSheet(context, ref),
+            ),
             _RailItem(
               icon: Icons.refresh,
               tooltip: tr("reset"),

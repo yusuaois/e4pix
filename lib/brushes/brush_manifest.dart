@@ -126,6 +126,13 @@ BrushLayerProvider _makeSpotHealLayer(ui.FragmentProgram p) =>
 BrushLayerProvider _makeDodgeBurnLayer(ui.FragmentProgram p) =>
     DodgeBurnLayerProvider(program: p);
 
+/// 按 [order] 排序 manifest 列表（ID 不在 order 中的追加到末尾）
+List<BrushManifest> orderedManifests(List<String> order) {
+  final sorted = brushManifests.toList()
+    ..sort((a, b) => order.indexOf(a.id).compareTo(order.indexOf(b.id)));
+  return sorted;
+}
+
 // 公开辅助函数
 
 /// 按 [DevelopTool] 枚举值查找 [BrushManifest]

@@ -19,6 +19,22 @@ class AppSettings {
     }
   }
 
+  static const _kBrushLayerOrder = 'brush_layer_order';
+
+  /// 画笔图层顺序（逗号分隔的 ID 列表）
+  static Future<List<String>?> getBrushLayerOrder() async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getString(_kBrushLayerOrder);
+    if (raw == null || raw.isEmpty) return null;
+    return raw.split(',');
+  }
+
+  /// 保存画笔图层顺序
+  static Future<void> setBrushLayerOrder(List<String> order) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_kBrushLayerOrder, order.join(','));
+  }
+
   /// 并发导出数（1-4，默认 1）
   static Future<int> getExportConcurrency() async {
     final p = await SharedPreferences.getInstance();
