@@ -74,3 +74,62 @@ void canvasApplyCrop(Canvas canvas, Offset center, CropParams crop) {
   );
   return (srcRect: srcRect, dstRect: dstRect, fullDstRect: fullDstRect);
 }
+
+const _kWhite = Color(0xFFFFFFFF);
+const _kTransparent = Color(0x00000000);
+
+/// 绘制带径向渐变柔边的圆形图像 stamp（含硬边快速路径）
+///
+/// Canvas 需已通过 [canvasApplyCrop] 变换到目标中心
+/// [hardness] 0=最软 1=硬边；≥0.99 走硬边路径
+void drawSoftEdgeStamp({
+  required Canvas canvas,
+  required Image image,
+  required ({Rect srcRect, Rect dstRect, Rect fullDstRect}) rects,
+  required double hardness,
+  required double screenRadius,
+  required Paint imagePaint,
+}) {
+  if (hardness >= 0.99) {
+    canvas.clipPath(Path()..addOval(rects.fullDstRect));
+    canvas.drawImageRect(image, rects.srcRect, rects.dstRect, imagePaint);
+    return;
+  }
+  final t0 = hardness.clamp(0.0, 1.0);
+  final span = 1.0 - t0;
+  double ss(double t) => (3 * t * t - 2 * t * t * t).clamp(0.0, 1.0);
+  final gradient = Gradient.radial(
+    Offset.zero,
+    screenRadius,
+    [
+      _kWhite,
+      if (span > 0.01) ...[
+        _kWhite,
+        Color(((255 * (1 - ss(0.25))).round() << 24) | 0xFFFFFF),
+        Color(((255 * (1 - ss(0.5))).round() << 24) | 0xFFFFFF),
+        Color(((255 * (1 - ss(0.75))).round() << 24) | 0xFFFFFF),
+      ],
+      _kTransparent,
+    ],
+    [
+      0.0,
+      if (span > 0.01) ...[
+        t0,
+        t0 + span * 0.25,
+        t0 + span * 0.5,
+        t0 + span * 0.75,
+      ],
+      1.0,
+    ],
+  );
+  canvas.clipPath(Path()..addOval(rects.fullDstRect));
+  canvas.saveLayer(rects.fullDstRect.inflate(2.0), Paint());
+  canvas.drawImageRect(image, rects.srcRect, rects.dstRect, imagePaint);
+  canvas.drawRect(
+    rects.fullDstRect,
+    Paint()
+      ..shader = gradient
+      ..blendMode = BlendMode.dstIn,
+  );
+  canvas.restore();
+}

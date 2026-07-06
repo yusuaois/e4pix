@@ -777,7 +777,7 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
           child: Center(
             child: GestureDetector(
               onTap: () =>
-                  ref.read(fullscreenPreviewProvider.notifier).state = true,
+                  ref.read(fullscreenPreviewProvider.notifier).set(true),
               child: SizedBox.fromSize(
                 size: displaySize,
                 child: Stack(
@@ -817,7 +817,7 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
         child: Center(
           child: _ZoomableView(
             onTapNoZoom: () =>
-                ref.read(fullscreenPreviewProvider.notifier).state = true,
+                ref.read(fullscreenPreviewProvider.notifier).set(true),
             child: content,
           ),
         ),

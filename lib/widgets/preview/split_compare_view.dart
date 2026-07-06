@@ -173,8 +173,9 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
                                         .clamp(0.02, 0.98);
                               },
                               onHorizontalDragEnd: (_) {
-                                ref.read(splitDividerProvider.notifier).state =
-                                    _dividerNotifier.value;
+                                ref
+                                    .read(splitDividerProvider.notifier)
+                                    .set(_dividerNotifier.value);
                               },
                               child: Container(
                                 width: 64,

@@ -202,7 +202,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
               <BrushLayerProvider>[]) {
         hashes[p.id] = p.computeMarksHash(widget.params);
       }
-      ref.read(renderedBrushHashesProvider.notifier).state = hashes;
+      ref.read(renderedBrushHashesProvider.notifier).set(hashes);
 
       // 更新 Develop 输出供 spot removal overlay 笔画预览
       ref.read(developOutputProvider.notifier).update(result.developOutput);
@@ -219,7 +219,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       }
 
       // 递增渲染代数，通知 preview_area 刷新 develop 输出
-      ref.read(renderedPreviewGenerationProvider.notifier).state++;
+      ref.read(renderedPreviewGenerationProvider.notifier).increment();
 
       // 首次渲染后，用真实 developOutput 后台预热所有 brush provider
       // 首帧 developOutput 通常为 null（无 mask 无 compose marks）
@@ -278,7 +278,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
 
   /// 降采样 compose 结果供主体/智能选区作 guide
   Future<void> _captureComposeGuide(ui.Image src) async {
-    const maxEdge = 1024;
+    const maxEdge = 1280;
     final longest = math.max(src.width, src.height);
     if (longest <= maxEdge) {
       try {

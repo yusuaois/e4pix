@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 右侧工具栏当前选中的功能页
 enum DevelopTool {
@@ -20,6 +20,12 @@ enum DevelopTool {
   info,
 }
 
-final developToolProvider = StateProvider<DevelopTool>(
-  (ref) => DevelopTool.light,
+class DevelopToolNotifier extends Notifier<DevelopTool> {
+  @override
+  DevelopTool build() => DevelopTool.light;
+  void set(DevelopTool v) => state = v;
+}
+
+final developToolProvider = NotifierProvider<DevelopToolNotifier, DevelopTool>(
+  DevelopToolNotifier.new,
 );

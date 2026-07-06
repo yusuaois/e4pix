@@ -2,14 +2,22 @@ import 'dart:typed_data';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 
 import '../../core/models/local_adjustment.dart';
 import '../../core/models/mask_shape.dart';
 import '../providers.dart';
 
 /// 当前正在编辑的 LocalAdjustment 的 id；null 表示在编辑全局
-final selectedLocalIdProvider = StateProvider<String?>((ref) => null);
+class SelectedLocalIdNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void set(String? v) => state = v;
+}
+
+final selectedLocalIdProvider =
+    NotifierProvider<SelectedLocalIdNotifier, String?>(
+      SelectedLocalIdNotifier.new,
+    );
 
 /// 当前选中的 local
 final selectedLocalProvider = Provider<LocalAdjustment?>((ref) {
@@ -49,7 +57,7 @@ class LocalAdjustmentActions {
       ],
     );
     ref.read(currentParamsNotifierProvider.notifier).update(next);
-    ref.read(selectedLocalIdProvider.notifier).state = id;
+    ref.read(selectedLocalIdProvider.notifier).set(id);
     return id;
   }
 
@@ -69,7 +77,7 @@ class LocalAdjustmentActions {
       ],
     );
     ref.read(currentParamsNotifierProvider.notifier).update(next);
-    ref.read(selectedLocalIdProvider.notifier).state = id;
+    ref.read(selectedLocalIdProvider.notifier).set(id);
     return id;
   }
 
@@ -89,7 +97,7 @@ class LocalAdjustmentActions {
       ],
     );
     ref.read(currentParamsNotifierProvider.notifier).update(next);
-    ref.read(selectedLocalIdProvider.notifier).state = id;
+    ref.read(selectedLocalIdProvider.notifier).set(id);
     return id;
   }
 
@@ -146,13 +154,13 @@ class LocalAdjustmentActions {
     );
     ref.read(currentParamsNotifierProvider.notifier).update(next);
     if (ref.read(selectedLocalIdProvider) == id) {
-      ref.read(selectedLocalIdProvider.notifier).state = null;
+      ref.read(selectedLocalIdProvider.notifier).set(null);
     }
   }
 
   /// 取消选中（返回到全局调整面板）
   void deselect() {
-    ref.read(selectedLocalIdProvider.notifier).state = null;
+    ref.read(selectedLocalIdProvider.notifier).set(null);
   }
 
   /// 清除智能区域基底（保留笔画）

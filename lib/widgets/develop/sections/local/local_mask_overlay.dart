@@ -132,7 +132,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
 
   void _endDrag() {
     if (_drag != _Handle.none) {
-      ref.read(isUserDraggingSliderProvider.notifier).state = false;
+      ref.read(isUserDraggingSliderProvider.notifier).set(false);
     }
     _drag = _Handle.none;
     _dragId = null;
@@ -265,13 +265,13 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         _dragStartPos = d.localPosition;
         _shapeAtDragStart = locals.firstWhere((l) => l.id == _dragId).mask;
         if (selectedId != _dragId) {
-          ref.read(selectedLocalIdProvider.notifier).state = _dragId;
+          ref.read(selectedLocalIdProvider.notifier).set(_dragId);
         }
       },
       onPanStart: (_) {
         if (_interactionWasBrush || _interactionWasWand) return;
         if (_drag != _Handle.none) {
-          ref.read(isUserDraggingSliderProvider.notifier).state = true;
+          ref.read(isUserDraggingSliderProvider.notifier).set(true);
         }
       },
       onPanUpdate: (d) {
@@ -320,9 +320,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         }
         final hit = _hitTest(d.localPosition, locals, selectedId);
         if (hit == null) {
-          ref.read(selectedLocalIdProvider.notifier).state = null;
+          ref.read(selectedLocalIdProvider.notifier).set(null);
         } else if (hit.$1 != selectedId) {
-          ref.read(selectedLocalIdProvider.notifier).state = hit.$1;
+          ref.read(selectedLocalIdProvider.notifier).set(hit.$1);
         }
       },
       child: Stack(

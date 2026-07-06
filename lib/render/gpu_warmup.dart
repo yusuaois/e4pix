@@ -59,7 +59,7 @@ Future<void> _warmupComposeShader(
     setUniforms: (s) {
       s.setFloat(0, tw.toDouble());
       s.setFloat(1, th.toDouble());
-      s.setFloat(2, 0.0); // uActiveLayerCount = 0
+      s.setFloat(2, 0.0);
       for (int i = 3; i < 11; i++) {
         s.setFloat(i, 0.0);
       }

@@ -105,7 +105,7 @@ class FullscreenExitButton extends ConsumerWidget {
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
-        onTap: () => ref.read(fullscreenPreviewProvider.notifier).state = false,
+        onTap: () => ref.read(fullscreenPreviewProvider.notifier).set(false),
         child: const Padding(
           padding: EdgeInsets.all(8),
           child: Icon(

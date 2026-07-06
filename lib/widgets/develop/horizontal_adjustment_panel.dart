@@ -12,7 +12,7 @@ import 'sections/preset_section.dart';
 
 /// 退出画笔/智能/主体工具
 void _exitLocalTool(WidgetRef ref) {
-  ref.read(selectedLocalIdProvider.notifier).state = null;
+  ref.read(selectedLocalIdProvider.notifier).set(null);
   final mode = ref.read(brushSettingsProvider).mode;
   if (mode != BrushMode.paint) {
     ref.read(brushSettingsProvider.notifier).setMode(BrushMode.paint);
@@ -125,7 +125,7 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
           ),
           _ToolRail(
             selected: tool,
-            onSelect: (t) => ref.read(developToolProvider.notifier).state = t,
+            onSelect: (t) => ref.read(developToolProvider.notifier).set(t),
             onEnterCrop: onEnterCrop,
             onReset: () => onChanged(AdjustmentParams.neutral),
           ),

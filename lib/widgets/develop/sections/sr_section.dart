@@ -61,7 +61,7 @@ class _SrSectionState extends ConsumerState<SrSection> {
     // 参数重置时同步关闭预览开关
     if (!p.srEnabled && previewEnabled) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) ref.read(srPreviewEnabledProvider.notifier).state = false;
+        if (mounted) ref.read(srPreviewEnabledProvider.notifier).set(false);
       });
     }
 
@@ -126,7 +126,7 @@ class _SrSectionState extends ConsumerState<SrSection> {
             label: tr('superResPreview'),
             value: previewEnabled,
             onChanged: (v) {
-              ref.read(srPreviewEnabledProvider.notifier).state = v;
+              ref.read(srPreviewEnabledProvider.notifier).set(v);
             },
           ),
 

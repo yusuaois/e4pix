@@ -30,9 +30,9 @@ class TrackedSlider extends ConsumerWidget {
       divisions: divisions,
       onChanged: onChanged,
       onChangeStart: (_) =>
-          ref.read(isUserDraggingSliderProvider.notifier).state = true,
+          ref.read(isUserDraggingSliderProvider.notifier).set(true),
       onChangeEnd: (_) =>
-          ref.read(isUserDraggingSliderProvider.notifier).state = false,
+          ref.read(isUserDraggingSliderProvider.notifier).set(false),
     );
   }
 }

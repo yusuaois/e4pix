@@ -220,7 +220,7 @@ class FullPipelineRenderer {
           targetHeight: targetHeight,
         ),
       );
-      developOwned = false; // 缓存持有
+      developOwned = true; // getOrCompute 始终返回 clone，调用方持有
     } else {
       develop = await RenderEngine.renderToImage(
         program: developProgram,
@@ -522,7 +522,6 @@ class FullPipelineRenderer {
         s.setFloat(i++, w.toDouble());
         s.setFloat(i++, h.toDouble());
         s.setFloat(i++, count.toDouble());
-        // 逐层活跃标记
         for (int n = 0; n < _kMaxComposeLayers; n++) {
           s.setFloat(i++, (n < count) ? 1.0 : 0.0);
         }

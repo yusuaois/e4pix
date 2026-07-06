@@ -125,7 +125,7 @@ class DevelopTopBar extends ConsumerWidget {
           tooltip: tr('fullscreenPreviewBtnHint'),
           menuKey: 'fullscreen',
           onPressed: () =>
-              ref.read(fullscreenPreviewProvider.notifier).state = true,
+              ref.read(fullscreenPreviewProvider.notifier).set(true),
           priority: 40,
         ),
       if (session == null)

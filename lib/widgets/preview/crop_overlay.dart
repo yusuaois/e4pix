@@ -95,7 +95,7 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
       },
       onPanStart: (_) {
         if (_drag != _Handle.none) {
-          ref.read(isUserDraggingSliderProvider.notifier).state = true;
+          ref.read(isUserDraggingSliderProvider.notifier).set(true);
         }
       },
       onPanUpdate: (d) {
@@ -181,13 +181,13 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
       },
       onPanEnd: (_) {
         if (_drag != _Handle.none) {
-          ref.read(isUserDraggingSliderProvider.notifier).state = false;
+          ref.read(isUserDraggingSliderProvider.notifier).set(false);
         }
         _drag = _Handle.none;
       },
       onPanCancel: () {
         if (_drag != _Handle.none) {
-          ref.read(isUserDraggingSliderProvider.notifier).state = false;
+          ref.read(isUserDraggingSliderProvider.notifier).set(false);
         }
         _drag = _Handle.none;
       },

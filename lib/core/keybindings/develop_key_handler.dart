@@ -67,10 +67,10 @@ KeyEventResult _handleAction(
   // hold：down 设 true、up 设 false
   if (action == AppAction.compareHold) {
     if (event is KeyDownEvent) {
-      ref.read(compareBypassProvider.notifier).state = true;
+      ref.read(compareBypassProvider.notifier).set(true);
       return KeyEventResult.handled;
     } else if (event is KeyUpEvent) {
-      ref.read(compareBypassProvider.notifier).state = false;
+      ref.read(compareBypassProvider.notifier).set(false);
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -81,7 +81,7 @@ KeyEventResult _handleAction(
   switch (action) {
     case AppAction.toggleFullscreen:
       final cur = ref.read(fullscreenPreviewProvider);
-      ref.read(fullscreenPreviewProvider.notifier).state = !cur;
+      ref.read(fullscreenPreviewProvider.notifier).set(!cur);
       return KeyEventResult.handled;
 
     case AppAction.enterCrop:

@@ -146,6 +146,7 @@ class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
           s.setFloat(0, w.toDouble());
           s.setFloat(1, h.toDouble());
           s.setFloat(2, count.toDouble());
+          s.setFloat(3, markTex.width.toDouble());
         },
       );
     } finally {

@@ -119,7 +119,7 @@ class LocalPanel extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: TextButton(
               onPressed: () =>
-                  ref.read(selectedLocalIdProvider.notifier).state = null,
+                  ref.read(selectedLocalIdProvider.notifier).set(null),
               child: Text(tr("completed"), style: AppTypography.labelSmall),
             ),
           ),
@@ -147,9 +147,9 @@ class _MaskListItem extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => {
-          ref.read(selectedLocalIdProvider.notifier).state = isSelected
-              ? null
-              : local.id,
+          ref
+              .read(selectedLocalIdProvider.notifier)
+              .set(isSelected ? null : local.id),
           SamSession.instance.resetPoints(),
         },
         child: Container(

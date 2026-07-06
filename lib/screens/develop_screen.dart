@@ -444,14 +444,14 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        ref.read(fullscreenPreviewProvider.notifier).state = false;
+        ref.read(fullscreenPreviewProvider.notifier).set(false);
       },
       child: Focus(
         autofocus: true,
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.escape) {
-            ref.read(fullscreenPreviewProvider.notifier).state = false;
+            ref.read(fullscreenPreviewProvider.notifier).set(false);
             return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;
@@ -463,8 +463,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               Positioned.fill(
                 child: GestureDetector(
                   onDoubleTap: () =>
-                      ref.read(fullscreenPreviewProvider.notifier).state =
-                          false,
+                      ref.read(fullscreenPreviewProvider.notifier).set(false),
                   child: const PreviewArea(),
                 ),
               ),

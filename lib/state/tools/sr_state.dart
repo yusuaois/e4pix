@@ -1,4 +1,13 @@
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 超分辨率预览开关（独立于 srEnabled）
-final srPreviewEnabledProvider = StateProvider<bool>((ref) => false);
+class SrPreviewEnabledNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool v) => state = v;
+}
+
+final srPreviewEnabledProvider =
+    NotifierProvider<SrPreviewEnabledNotifier, bool>(
+      SrPreviewEnabledNotifier.new,
+    );

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/tethered_shot.dart';
@@ -44,7 +43,15 @@ final currentParamsNotifierProvider =
 
 // ── 对比原片 ──
 
-final compareBypassProvider = StateProvider<bool>((ref) => false);
+class CompareBypassNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool v) => state = v;
+}
+
+final compareBypassProvider = NotifierProvider<CompareBypassNotifier, bool>(
+  CompareBypassNotifier.new,
+);
 
 final effectiveParamsProvider = Provider<AdjustmentParams>((ref) {
   if (ref.watch(compareBypassProvider) ||

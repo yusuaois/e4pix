@@ -18,12 +18,12 @@ class DevelopPassCache {
     final existing = _entries.remove(key);
     if (existing != null) {
       _entries[key] = existing; // 重新插入，标记为最新
-      return existing.image;
+      return existing.image.clone();
     }
     final img = await compute();
     _entries[key] = _CachedImage(img, _seq++);
     _evict();
-    return img;
+    return img.clone();
   }
 
   void _evict() {
