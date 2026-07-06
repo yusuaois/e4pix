@@ -2,7 +2,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 
 import 'clone_stamp_model.dart';
 import '../../state/params/params_state.dart';
@@ -56,10 +55,9 @@ class SpotRemoveState {
   );
 }
 
-class SpotRemoveNotifier extends StateNotifier<SpotRemoveState> {
-  final Ref _ref;
-
-  SpotRemoveNotifier(this._ref) : super(const SpotRemoveState());
+class SpotRemoveNotifier extends Notifier<SpotRemoveState> {
+  @override
+  SpotRemoveState build() => const SpotRemoveState();
 
   /// 切换模式
   void setMode(SpotRemoveMode mode) {
@@ -110,7 +108,7 @@ class SpotRemoveNotifier extends StateNotifier<SpotRemoveState> {
   }
 
   void _addSpotRaw(ui.Offset source, ui.Offset target) {
-    final params = _ref.read(currentParamsNotifierProvider);
+    final params = ref.read(currentParamsNotifierProvider);
     final updated = List<SpotMark>.from(params.spots)
       ..add(
         SpotMark(
@@ -120,7 +118,7 @@ class SpotRemoveNotifier extends StateNotifier<SpotRemoveState> {
           hardness: state.brushHardness,
         ),
       );
-    _ref
+    ref
         .read(currentParamsNotifierProvider.notifier)
         .update(params.copyWith(spots: updated));
   }
@@ -128,33 +126,33 @@ class SpotRemoveNotifier extends StateNotifier<SpotRemoveState> {
   /// 批量添加 spots（笔画结束时一次性提交，只触发一次管线重渲染）
   void addSpotsBatch(List<SpotMark> spots) {
     if (spots.isEmpty) return;
-    final params = _ref.read(currentParamsNotifierProvider);
+    final params = ref.read(currentParamsNotifierProvider);
     final updated = List<SpotMark>.from(params.spots)..addAll(spots);
-    _ref
+    ref
         .read(currentParamsNotifierProvider.notifier)
         .update(params.copyWith(spots: updated));
   }
 
   /// 删除指定 index 的 spot
   void removeSpot(int index) {
-    final params = _ref.read(currentParamsNotifierProvider);
+    final params = ref.read(currentParamsNotifierProvider);
     if (index < 0 || index >= params.spots.length) return;
     final updated = List<SpotMark>.from(params.spots)..removeAt(index);
-    _ref
+    ref
         .read(currentParamsNotifierProvider.notifier)
         .update(params.copyWith(spots: updated));
   }
 
   /// 清空所有 spots
   void clearAll() {
-    final params = _ref.read(currentParamsNotifierProvider);
-    _ref
+    final params = ref.read(currentParamsNotifierProvider);
+    ref
         .read(currentParamsNotifierProvider.notifier)
         .update(params.copyWith(spots: const []));
   }
 }
 
 final spotRemoveStateProvider =
-    StateNotifierProvider<SpotRemoveNotifier, SpotRemoveState>(
-      (ref) => SpotRemoveNotifier(ref),
+    NotifierProvider<SpotRemoveNotifier, SpotRemoveState>(
+      SpotRemoveNotifier.new,
     );

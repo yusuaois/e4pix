@@ -30,7 +30,7 @@ class SpotRemovalLayerProvider
   SpotRemovalLayerProvider({required ui.FragmentProgram program})
     : brushProgram = program;
 
-  static const _kMaxSpots = 64;
+  static const _kMaxSpots = 128;
   // uniform 总数：3（uSize + uSpotCount），spot 数据通过 uSpotData 纹理传入
 
   @override

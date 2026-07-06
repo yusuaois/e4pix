@@ -2,7 +2,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 
 import 'healing_model.dart';
 import '../../state/params/params_state.dart';
@@ -56,10 +55,9 @@ class HealingState {
   );
 }
 
-class HealingNotifier extends StateNotifier<HealingState> {
-  final Ref _ref;
-
-  HealingNotifier(this._ref) : super(const HealingState());
+class HealingNotifier extends Notifier<HealingState> {
+  @override
+  HealingState build() => const HealingState();
 
   void setMode(HealingMode mode) {
     state = state.copyWith(
@@ -102,7 +100,7 @@ class HealingNotifier extends StateNotifier<HealingState> {
   }
 
   void _addMarkRaw(ui.Offset source, ui.Offset target) {
-    final params = _ref.read(currentParamsNotifierProvider);
+    final params = ref.read(currentParamsNotifierProvider);
     final updated = List<HealingMark>.from(params.healingMarks)
       ..add(
         HealingMark(
@@ -112,7 +110,7 @@ class HealingNotifier extends StateNotifier<HealingState> {
           hardness: state.brushHardness,
         ),
       );
-    _ref
+    ref
         .read(currentParamsNotifierProvider.notifier)
         .update(params.copyWith(healingMarks: updated));
   }
@@ -120,32 +118,31 @@ class HealingNotifier extends StateNotifier<HealingState> {
   /// 批量添加 marks（笔画结束，触发一次管线重渲染）
   void addMarksBatch(List<HealingMark> marks) {
     if (marks.isEmpty) return;
-    final params = _ref.read(currentParamsNotifierProvider);
+    final params = ref.read(currentParamsNotifierProvider);
     final updated = List<HealingMark>.from(params.healingMarks)..addAll(marks);
-    _ref
+    ref
         .read(currentParamsNotifierProvider.notifier)
         .update(params.copyWith(healingMarks: updated));
   }
 
   void removeMark(int index) {
-    final params = _ref.read(currentParamsNotifierProvider);
+    final params = ref.read(currentParamsNotifierProvider);
     if (index < 0 || index >= params.healingMarks.length) return;
     final updated = List<HealingMark>.from(params.healingMarks)
       ..removeAt(index);
-    _ref
+    ref
         .read(currentParamsNotifierProvider.notifier)
         .update(params.copyWith(healingMarks: updated));
   }
 
   void clearAll() {
-    final params = _ref.read(currentParamsNotifierProvider);
-    _ref
+    final params = ref.read(currentParamsNotifierProvider);
+    ref
         .read(currentParamsNotifierProvider.notifier)
         .update(params.copyWith(healingMarks: const []));
   }
 }
 
-final healingStateProvider =
-    StateNotifierProvider<HealingNotifier, HealingState>(
-      (ref) => HealingNotifier(ref),
-    );
+final healingStateProvider = NotifierProvider<HealingNotifier, HealingState>(
+  HealingNotifier.new,
+);

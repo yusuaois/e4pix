@@ -29,7 +29,7 @@ class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
   HealingLayerProvider({required ui.FragmentProgram program})
     : brushProgram = program;
 
-  static const _kMaxMarks = 64;
+  static const _kMaxMarks = 128;
   // uniform 总数：3（uSize + uMarkCount），mark 数据通过 uMarkData 纹理传入
 
   @override

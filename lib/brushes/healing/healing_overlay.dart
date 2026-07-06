@@ -215,7 +215,7 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
       source = cs;
       _paintOffset = Offset(source.dx - target.dx, source.dy - target.dy);
     }
-    final tracker = PathBrushTracker(spacing: state.brushRadius * 0.5);
+    final tracker = PathBrushTracker(spacing: state.brushRadius * 0.15);
     tracker.start(target);
     _tracker = tracker;
     _cursorPos = pos;
@@ -443,8 +443,48 @@ class _HealingPainter extends CustomPainter {
       return;
     }
 
-    canvas.clipPath(Path()..addOval(rects.fullDstRect));
-    canvas.drawImageRect(img, rects.srcRect, rects.dstRect, _imagePaint);
+    if (mark.hardness >= 0.99) {
+      canvas.clipPath(Path()..addOval(rects.fullDstRect));
+      canvas.drawImageRect(img, rects.srcRect, rects.dstRect, _imagePaint);
+    } else {
+      final t0 = mark.hardness.clamp(0.0, 1.0);
+      final span = 1.0 - t0;
+      double ss(double t) => (3 * t * t - 2 * t * t * t).clamp(0.0, 1.0);
+      final gradient = ui.Gradient.radial(
+        Offset.zero,
+        screenR,
+        [
+          Colors.white,
+          if (span > 0.01) ...{
+            Colors.white,
+            Colors.white.withValues(alpha: 1.0 - ss(0.25)),
+            Colors.white.withValues(alpha: 1.0 - ss(0.5)),
+            Colors.white.withValues(alpha: 1.0 - ss(0.75)),
+          },
+          Colors.transparent,
+        ],
+        [
+          0.0,
+          if (span > 0.01) ...{
+            t0,
+            t0 + span * 0.25,
+            t0 + span * 0.5,
+            t0 + span * 0.75,
+          },
+          1.0,
+        ],
+      );
+
+      canvas.saveLayer(rects.fullDstRect, Paint());
+      canvas.drawImageRect(img, rects.srcRect, rects.dstRect, _imagePaint);
+      canvas.drawRect(
+        rects.fullDstRect,
+        Paint()
+          ..shader = gradient
+          ..blendMode = ui.BlendMode.dstIn,
+      );
+      canvas.restore();
+    }
     canvas.restore();
   }
 
