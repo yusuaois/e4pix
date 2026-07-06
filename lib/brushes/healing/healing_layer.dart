@@ -9,6 +9,7 @@ import '../../render/brush_layer_provider.dart';
 import '../../render/incremental_render_cache.dart';
 import '../shared/brush_hashes.dart';
 import '../shared/brush_layer_mixin.dart';
+import '../shared/spot_data_texture.dart';
 import '../../utils/shader_pass_util.dart';
 
 /// 修复画笔输出层
@@ -29,8 +30,7 @@ class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
     : brushProgram = program;
 
   static const _kMaxMarks = 64;
-  static const _kHealUniformsPerMark = 6; // 每个 mark 的 6 个 uniform 分量
-  // uniform 总数：2 + 1 + 64x6 = 387
+  // uniform 总数：3（uSize + uMarkCount），mark 数据通过 uMarkData 纹理传入
 
   @override
   bool isActive(AdjustmentParams params) => params.healingMarks.isNotEmpty;
@@ -122,34 +122,35 @@ class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
     final w = input.width;
     final h = input.height;
     final count = marks.length.clamp(0, _kMaxMarks);
-    return runSingleShaderPass(
-      shader: brushShader,
-      outputWidth: w,
-      outputHeight: h,
-      samplers: [input],
-      setUniforms: (s) {
-        int i = 0;
-        s.setFloat(i++, w.toDouble());
-        s.setFloat(i++, h.toDouble());
-        s.setFloat(i++, count.toDouble());
-        for (int n = 0; n < _kMaxMarks; n++) {
-          if (n < count) {
-            final mark = marks[n];
-            s.setFloat(i++, mark.source.dx);
-            s.setFloat(i++, mark.source.dy);
-            s.setFloat(i++, mark.target.dx);
-            s.setFloat(i++, mark.target.dy);
-            s.setFloat(i++, mark.radius);
-            s.setFloat(i++, mark.hardness);
-          } else {
-            for (int j = 0; j < _kHealUniformsPerMark; j++) {
-              s.setFloat(i++, 0.0);
-            }
-          }
-        }
-        assert(i == 2 + 1 + _kMaxMarks * _kHealUniformsPerMark);
-      },
+
+    final markTex = await encodeMarksToTexture(
+      count: count,
+      maxSpots: _kMaxMarks,
+      getMarkFloats: (i) => [
+        marks[i].source.dx,
+        marks[i].source.dy,
+        marks[i].target.dx,
+        marks[i].target.dy,
+        marks[i].radius,
+        marks[i].hardness,
+      ],
     );
+
+    try {
+      return await runSingleShaderPass(
+        shader: brushShader,
+        outputWidth: w,
+        outputHeight: h,
+        samplers: [input, markTex],
+        setUniforms: (s) {
+          s.setFloat(0, w.toDouble());
+          s.setFloat(1, h.toDouble());
+          s.setFloat(2, count.toDouble());
+        },
+      );
+    } finally {
+      markTex.dispose();
+    }
   }
 
   @override
@@ -158,8 +159,7 @@ class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
     int targetWidth,
     int targetHeight,
   ) async {
-    // 用 _kMaxMarks 个 dummy mark 填满整个 batch
-    // GPU 驱动对不同循环次数的 shader 生成不同 JIT 变体
+    // 用 _kMaxMarks 个 dummy mark 跑一次 shader pass，触发 GPU PSO 创建
     final dummies = List.generate(
       _kMaxMarks,
       (i) => HealingMark(

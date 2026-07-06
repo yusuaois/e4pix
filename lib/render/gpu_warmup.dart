@@ -68,14 +68,24 @@ Future<void> _warmupComposeShader(
   result.dispose();
 }
 
+/// Session 级守卫——整个 app 生命周期内只预热一次
+bool _warmupDone = false;
+bool _warmupRunning = false;
+
 /// 递归 addPostFrameCallback 链——每帧执行一个任务，与 UI 光栅化错开
-/// [devClone] 在链完成或提前终止时由内部 dispose，[onComplete] 在 dispose 后调用
+/// [devClone] 在链完成或提前终止时由内部 dispose
 void runWarmupChain(
   List<(String, Future<void> Function())> tasks,
   ui.Image devClone, {
   required bool Function() isMounted,
   void Function()? onComplete,
 }) {
+  if (_warmupDone || _warmupRunning) {
+    devClone.dispose();
+    onComplete?.call();
+    return;
+  }
+  _warmupRunning = true;
   _step(tasks, 0, devClone, isMounted: isMounted, onComplete: onComplete);
 }
 
@@ -88,12 +98,21 @@ void _step(
 }) {
   if (!isMounted()) {
     devClone.dispose();
+    _warmupRunning = false;
     onComplete?.call();
     return;
   }
   WidgetsBinding.instance.addPostFrameCallback((_) async {
-    if (!isMounted() || index >= tasks.length) {
+    if (!isMounted()) {
       devClone.dispose();
+      _warmupRunning = false;
+      onComplete?.call();
+      return;
+    }
+    if (index >= tasks.length) {
+      devClone.dispose();
+      _warmupDone = true;
+      _warmupRunning = false;
       onComplete?.call();
       return;
     }

@@ -9,6 +9,7 @@ import '../../render/brush_layer_provider.dart';
 import '../../render/incremental_render_cache.dart';
 import '../shared/brush_hashes.dart';
 import '../shared/brush_layer_mixin.dart';
+import '../shared/spot_data_texture.dart';
 import '../../utils/shader_pass_util.dart';
 
 /// 图章笔刷输出层
@@ -30,8 +31,7 @@ class SpotRemovalLayerProvider
     : brushProgram = program;
 
   static const _kMaxSpots = 64;
-  static const _kSpotUniformsPerSpot = 6; // 每个 spot 的 6 个 uniform 分量
-  // uniform 总数：2 + 1 + 64x6 = 387
+  // uniform 总数：3（uSize + uSpotCount），spot 数据通过 uSpotData 纹理传入
 
   @override
   bool isActive(AdjustmentParams params) => params.spots.isNotEmpty;
@@ -126,34 +126,35 @@ class SpotRemovalLayerProvider
     final w = input.width;
     final h = input.height;
     final count = spots.length.clamp(0, _kMaxSpots);
-    return runSingleShaderPass(
-      shader: brushShader,
-      outputWidth: w,
-      outputHeight: h,
-      samplers: [input],
-      setUniforms: (s) {
-        int i = 0;
-        s.setFloat(i++, w.toDouble());
-        s.setFloat(i++, h.toDouble());
-        s.setFloat(i++, count.toDouble());
-        for (int n = 0; n < _kMaxSpots; n++) {
-          if (n < count) {
-            final spot = spots[n];
-            s.setFloat(i++, spot.source.dx);
-            s.setFloat(i++, spot.source.dy);
-            s.setFloat(i++, spot.target.dx);
-            s.setFloat(i++, spot.target.dy);
-            s.setFloat(i++, spot.radius);
-            s.setFloat(i++, spot.hardness);
-          } else {
-            for (int j = 0; j < _kSpotUniformsPerSpot; j++) {
-              s.setFloat(i++, 0.0);
-            }
-          }
-        }
-        assert(i == 2 + 1 + _kMaxSpots * _kSpotUniformsPerSpot);
-      },
+
+    final spotTex = await encodeMarksToTexture(
+      count: count,
+      maxSpots: _kMaxSpots,
+      getMarkFloats: (i) => [
+        spots[i].source.dx,
+        spots[i].source.dy,
+        spots[i].target.dx,
+        spots[i].target.dy,
+        spots[i].radius,
+        spots[i].hardness,
+      ],
     );
+
+    try {
+      return await runSingleShaderPass(
+        shader: brushShader,
+        outputWidth: w,
+        outputHeight: h,
+        samplers: [input, spotTex],
+        setUniforms: (s) {
+          s.setFloat(0, w.toDouble());
+          s.setFloat(1, h.toDouble());
+          s.setFloat(2, count.toDouble());
+        },
+      );
+    } finally {
+      spotTex.dispose();
+    }
   }
 
   @override
@@ -162,9 +163,7 @@ class SpotRemovalLayerProvider
     int targetWidth,
     int targetHeight,
   ) async {
-    // 用 _kMaxSpots 个 dummy mark 填满整个 batch
-    // GPU 驱动对不同循环次数的 shader 生成不同 JIT 变体——
-    // 1 个 mark（count=1）的预热不会加速 64 个 mark（count=64）的实际使用
+    // 用 _kMaxSpots 个 dummy mark 跑一次 shader pass，触发 GPU PSO 创建
     final dummies = List.generate(
       _kMaxSpots,
       (i) => SpotMark(
