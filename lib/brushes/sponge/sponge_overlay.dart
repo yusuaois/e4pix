@@ -8,20 +8,19 @@ import '../../core/models/crop_params.dart';
 import '../../state/providers.dart';
 import '../../utils/brush_coord_utils.dart';
 import '../../utils/path_brush_tracker.dart';
-import 'dodge_burn_model.dart';
+import 'sponge_model.dart';
 
-/// 加深减淡覆盖层
+/// 海绵工具覆盖层
 ///
-/// 自由绘制提亮（减淡）或压暗（加深）图像区域
-/// 可指定色调范围（阴影/中间调/高光）
-class DodgeBurnOverlay extends ConsumerStatefulWidget {
+/// 自由绘制增加（饱和）或降低（去饱和）图像色彩
+class SpongeOverlay extends ConsumerStatefulWidget {
   final Size imageDisplaySize;
   final CropParams crop;
   final int sourceWidth;
   final int sourceHeight;
   final ui.Image sourceImage;
 
-  const DodgeBurnOverlay({
+  const SpongeOverlay({
     super.key,
     required this.imageDisplaySize,
     required this.crop,
@@ -31,10 +30,10 @@ class DodgeBurnOverlay extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<DodgeBurnOverlay> createState() => _DodgeBurnOverlayState();
+  ConsumerState<SpongeOverlay> createState() => _SpongeOverlayState();
 }
 
-class _DodgeBurnOverlayState extends ConsumerState<DodgeBurnOverlay> {
+class _SpongeOverlayState extends ConsumerState<SpongeOverlay> {
   Offset? _cursorPos;
   bool _isHovering = false;
 
@@ -42,9 +41,8 @@ class _DodgeBurnOverlayState extends ConsumerState<DodgeBurnOverlay> {
   final List<Offset> _strokePoints = [];
   bool _isPainting = false;
 
-  double get _brushNorm =>
-      ref.read(dodgeBurnStateProvider).brushRadius / 1000.0;
-  double get _hardness => ref.read(dodgeBurnStateProvider).brushHardness;
+  double get _brushNorm => ref.read(spongeStateProvider).brushRadius / 1000.0;
+  double get _hardness => ref.read(spongeStateProvider).brushHardness;
 
   Offset _screenToSourceNorm(Offset screen) {
     return screenToSourceNorm(
@@ -80,7 +78,7 @@ class _DodgeBurnOverlayState extends ConsumerState<DodgeBurnOverlay> {
     }
     if (_strokePoints.isNotEmpty) {
       ref
-          .read(dodgeBurnStateProvider.notifier)
+          .read(spongeStateProvider.notifier)
           .addStrokesBatch(_strokePoints, _brushNorm, _hardness);
     }
     _strokePoints.clear();
@@ -96,21 +94,21 @@ class _DodgeBurnOverlayState extends ConsumerState<DodgeBurnOverlay> {
   void _onTapDown(Offset localPosition) {
     final target = _screenToSourceNorm(localPosition);
     ref
-        .read(dodgeBurnStateProvider.notifier)
+        .read(spongeStateProvider.notifier)
         .addMarkAt(target, _brushNorm, _hardness);
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(dodgeBurnStateProvider);
-    if (state.brushMode != DodgeBurnBrushMode.active) {
+    final state = ref.watch(spongeStateProvider);
+    if (state.brushMode != SpongeBrushMode.active) {
       return const SizedBox.shrink();
     }
 
-    // Cursor color reflects current mode (dodge = warm, burn = cool)
-    final cursorColor = state.mode == DodgeBurnMode.dodge
-        ? const Color(0x80FFCC00) // warm gold for dodge
-        : const Color(0x800088FF); // cool blue for burn
+    // 光标颜色反映当前模式（饱和=暖绿，去饱和=冷灰）
+    final cursorColor = state.mode == SpongeMode.saturate
+        ? const Color(0x8066DD66)
+        : const Color(0x80AAAAAA);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -128,7 +126,7 @@ class _DodgeBurnOverlayState extends ConsumerState<DodgeBurnOverlay> {
         onPanCancel: _onPanCancel,
         child: CustomPaint(
           size: widget.imageDisplaySize,
-          painter: _DodgeBurnBrushPainter(
+          painter: _SpongeBrushPainter(
             strokePoints: List<Offset>.from(_strokePoints),
             isPainting: _isPainting,
             cursorPos: _cursorPos,
@@ -146,7 +144,7 @@ class _DodgeBurnOverlayState extends ConsumerState<DodgeBurnOverlay> {
   }
 }
 
-class _DodgeBurnBrushPainter extends CustomPainter {
+class _SpongeBrushPainter extends CustomPainter {
   final List<Offset> strokePoints;
   final bool isPainting;
   final Offset? cursorPos;
@@ -158,7 +156,7 @@ class _DodgeBurnBrushPainter extends CustomPainter {
   final int sourceWidth;
   final int sourceHeight;
 
-  _DodgeBurnBrushPainter({
+  _SpongeBrushPainter({
     required this.strokePoints,
     required this.isPainting,
     this.cursorPos,
@@ -215,7 +213,7 @@ class _DodgeBurnBrushPainter extends CustomPainter {
       canvas.drawCircle(c, brushNorm * imageDisplaySize.width, fillPaint);
     }
 
-    // Draw cursor as colored outline circle
+    // 光标圆圈
     if (isHovering && cursorPos != null && !isPainting) {
       final r = brushNorm * imageDisplaySize.width;
       canvas.drawCircle(
@@ -230,7 +228,7 @@ class _DodgeBurnBrushPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DodgeBurnBrushPainter old) {
+  bool shouldRepaint(covariant _SpongeBrushPainter old) {
     return !listEquals(strokePoints, old.strokePoints) ||
         isPainting != old.isPainting ||
         cursorPos != old.cursorPos ||

@@ -77,6 +77,8 @@ class _VerticalAdjustmentPanelState
         return SpotHealSection(params: params, onChanged: widget.onChanged);
       case DevelopTool.dodgeBurn:
         return DodgeBurnSection(params: params, onChanged: widget.onChanged);
+      case DevelopTool.sponge:
+        return SpongeSection(params: params, onChanged: widget.onChanged);
       default:
         return const SizedBox.shrink();
     }

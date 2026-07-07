@@ -67,6 +67,8 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
         return SpotHealSection(params: params, onChanged: onChanged);
       case DevelopTool.dodgeBurn:
         return DodgeBurnSection(params: params, onChanged: onChanged);
+      case DevelopTool.sponge:
+        return SpongeSection(params: params, onChanged: onChanged);
       case DevelopTool.watermark:
         return const WatermarkSection();
       case DevelopTool.lens:

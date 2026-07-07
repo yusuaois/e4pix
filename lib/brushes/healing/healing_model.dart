@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
+import '../shared/stamp_mark.dart';
+
 /// 修复画笔标记
 ///
 /// 与图章（直接像素复制）不同，修复画笔使用频域分离混合：
@@ -9,17 +11,21 @@ import 'package:flutter/foundation.dart';
 ///
 /// 所有坐标归一化 [0..1]，相对源图（裁剪前）坐标系
 @immutable
-class HealingMark {
+class HealingMark implements StampMark {
   /// 采样源位置（归一化 [0..1]，源图坐标系）
+  @override
   final Offset source;
 
   /// 修复目标位置（归一化 [0..1]，源图坐标系）
+  @override
   final Offset target;
 
   /// 笔刷半径（归一化，相对源图宽度），默认 0.02 = 源图宽度的 2%
+  @override
   final double radius;
 
   /// 边缘硬度 0..1，1=硬边，0=柔边
+  @override
   final double hardness;
 
   const HealingMark({

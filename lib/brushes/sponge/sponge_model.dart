@@ -1,0 +1,94 @@
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
+
+/// 海绵模式
+enum SpongeMode {
+  /// 饱和 — 增加色彩饱和度
+  saturate,
+
+  /// 去饱和 — 降低色彩饱和度
+  desaturate,
+}
+
+/// 海绵工具笔触标记
+///
+/// 每个标记独立存储其渲染参数（模式/流量）
+/// 落笔时冻结当前工具设置，后续切换不影响已有笔画
+@immutable
+class SpongeMark {
+  /// 目标圆心（归一化 [0..1] 全图坐标）
+  final Offset target;
+
+  /// 半径（归一化，相对于源图宽度）
+  final double radius;
+
+  /// 硬度：1=硬边 step，0=柔边 smoothstep 全半径
+  final double hardness;
+
+  /// 饱和/去饱和模式（落笔时冻结）
+  final SpongeMode mode;
+
+  /// 流量强度 0..1（落笔时冻结）
+  final double flow;
+
+  const SpongeMark({
+    required this.target,
+    this.radius = 0.02,
+    this.hardness = 1.0,
+    this.mode = SpongeMode.saturate,
+    this.flow = 0.5,
+  });
+
+  SpongeMark copyWith({
+    Offset? target,
+    double? radius,
+    double? hardness,
+    SpongeMode? mode,
+    double? flow,
+  }) {
+    return SpongeMark(
+      target: target ?? this.target,
+      radius: radius ?? this.radius,
+      hardness: hardness ?? this.hardness,
+      mode: mode ?? this.mode,
+      flow: flow ?? this.flow,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'targetX': target.dx,
+    'targetY': target.dy,
+    'radius': radius,
+    'hardness': hardness,
+    'mode': mode.name,
+    'flow': flow,
+  };
+
+  factory SpongeMark.fromJson(Map<String, dynamic> json) {
+    return SpongeMark(
+      target: Offset(
+        (json['targetX'] as num).toDouble(),
+        (json['targetY'] as num).toDouble(),
+      ),
+      radius: (json['radius'] as num).toDouble(),
+      hardness: (json['hardness'] as num).toDouble(),
+      mode: json['mode'] != null
+          ? SpongeMode.values.byName(json['mode'] as String)
+          : SpongeMode.saturate,
+      flow: (json['flow'] as num?)?.toDouble() ?? 0.5,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is SpongeMark &&
+      other.target == target &&
+      other.radius == radius &&
+      other.hardness == hardness &&
+      other.mode == mode &&
+      other.flow == flow;
+
+  @override
+  int get hashCode => Object.hash(target, radius, hardness, mode, flow);
+}

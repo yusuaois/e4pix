@@ -25,6 +25,7 @@ import 'crop_panel.dart';
 import '../develop/sections/local/local_mask_overlay.dart';
 import '../../brushes/brush_manifest.dart';
 import '../../brushes/healing/healing_overlay.dart';
+import '../../brushes/sponge/sponge_overlay.dart';
 import '../../brushes/spot_heal/spot_heal_overlay.dart';
 import '../../brushes/dodge_burn/dodge_burn_overlay.dart';
 import '../../brushes/clone_stamp/clone_stamp_overlay.dart';
@@ -734,6 +735,16 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
           sourceHeight: state.uiImage.height,
           sourceImage: overlaySource,
         );
+      case 'sponge':
+        final st = ref.watch(spongeStateProvider);
+        if (st.brushMode != SpongeBrushMode.active) return null;
+        return SpongeOverlay(
+          imageDisplaySize: displaySize,
+          crop: params.crop,
+          sourceWidth: state.uiImage.width,
+          sourceHeight: state.uiImage.height,
+          sourceImage: overlaySource,
+        );
       default:
         return null;
     }
@@ -753,7 +764,7 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
       final overlay = _buildOverlayIfActive(m, ref, displaySize, state, params);
       if (overlay != null) {
         // spot_heal 和 dodge_burn 没有 committed preview 生命周期，跳过 watch
-        if (m.id != 'spot_heal' && m.id != 'dodge_burn') {
+        if (m.id != 'spot_heal' && m.id != 'dodge_burn' && m.id != 'sponge') {
           ref.watch(renderedPreviewGenerationProvider);
         }
         content = SizedBox.fromSize(

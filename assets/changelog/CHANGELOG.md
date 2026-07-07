@@ -3,7 +3,7 @@
 * **污点修复 (Spot Heal)**：新增污点修复画笔
 * **Compose 图层化架构**：所有像素画笔接入 Compose 图层系统，新画笔只需注册 BrushLayerProvider 即可自动覆盖预览/导出/水印/分割对比全通路
 * **修复画笔 (Healing Brush)**：新增修复画笔工具，使用边界匹配修复算法——沿笔刷边界采样干净背景色，对克隆像素做全局光照补偿，可消除小面积缺陷
-* **图章改名**：UI 名称从"污点修复/Spot Removal"改为"图章/Clone Stamp"
+* **海绵工具 (Sponge)**：新增海绵工具画笔——使用 HSL 色彩空间调整饱和度，支持饱和/去饱和模式切换、流量控制、羽化遮罩；按 (mode, flow) 分组 GPU 渲染，per-mark 参数冻结
 
 ## ⚡ 性能优化 (Performance)
 * **GPU 着色器预热自动触发**：图片加载后自动预编译所有 brush shader 的 GPU Pipeline State Object，消除首次笔画 7-30s 的 JIT 编译卡顿。预热通过 `addPostFrameCallback` 链逐帧执行，与 UI 光栅化错开
@@ -16,6 +16,14 @@
 * **整体管线简化**：移除所有逐画笔参数传递链（spotRemoveProgram/healingProgram），改为 Compose registry 统一管理
 * **提取 GPU 预热工具**：新增 `lib/render/gpu_warmup.dart`，`buildWarmupTasks()` / `runWarmupChain()` 为 `MultiPassPreview` 和 `PreviewArea` 共用
 * **`_PreviewContent` 迁移**：从 `ConsumerWidget` 改为 `ConsumerStatefulWidget`，以支持 `initState` 预热触发
+
+## 🐛 问题修复 (Bug Fixes)
+* **原型 B 画笔实时预览不刷新**：修复 sponge/dodge_burn/spot_heal 三个 overlay 的 `shouldRepaint` 使用引用相等比较 `List<Offset>` 的 bug——笔画预览因 `_strokePoints` 原地 mutate 而永不刷新。改为 `listEquals` 值比较 + 传递时 `List.from` 拷贝
+
+## 🛠️ 底层改进 (Under the Hood)
+* **共享基础设施扩展**：新增 `StampMark` 接口（`lib/brushes/shared/stamp_mark.dart`）、`stamp_painter_utils.dart`（4 个光标绘制函数 + `kHardEdgeThreshold` 常量）、`base_stamp_painter.dart`（泛型 CustomPainter 基类）、`base_stamp_overlay.dart`（泛型 ConsumerState 基类，封装合成预览、手势、生命周期）
+* **注释风格统一清理**：移除全部 `// ──` 和 `// ═══` 装饰性注释，统一为中文、无句号、精炼简洁风格；删除 `SpotMark.copyWith`（无调用方）、`listenParamsClear`（死代码）
+* **P1 修复顺带完成**：`_compositedPreview != widget.sourceImage` 死代码（→ `_disposeComposited()` 方法）、`hasContent` mutable flag（→ 直接条件）、`kHardEdgeThreshold` 命名常量、`compositedCount` 在 `listenRenderedHashes` 中重置
 
 ## 🐛 问题修复 (Bug Fixes)
 * **已有画笔选区修复**：修复在已有画笔时使用智能选区只能选中底图的问题

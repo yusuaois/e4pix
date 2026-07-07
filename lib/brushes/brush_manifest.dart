@@ -9,6 +9,7 @@ import 'clone_stamp/clone_stamp_layer.dart';
 import 'healing/healing_layer.dart';
 import 'spot_heal/spot_heal_layer.dart';
 import 'dodge_burn/dodge_burn_layer.dart';
+import 'sponge/sponge_layer.dart';
 import 'shared/brush_hashes.dart';
 
 /// Self-describing metadata for a brush tool.
@@ -101,6 +102,17 @@ const brushManifests = <BrushManifest>[
     hashMarks: _hashDodgeBurnMarks,
     tool: DevelopTool.dodgeBurn,
   ),
+  // --- 海绵工具 ---
+  BrushManifest(
+    id: 'sponge',
+    titleKey: 'spongeTitle',
+    icon: Icons.water_drop,
+    shaderAsset: 'assets/shaders/sponge.shader',
+    hasMarks: _hasSpongeMarks,
+    layerFactory: _makeSpongeLayer,
+    hashMarks: _hashSpongeMarks,
+    tool: DevelopTool.sponge,
+  ),
 ];
 
 // 私有辅助函数
@@ -109,6 +121,7 @@ bool _hasSpots(AdjustmentParams p) => p.spots.isNotEmpty;
 bool _hasHealingMarks(AdjustmentParams p) => p.healingMarks.isNotEmpty;
 bool _hasSpotHealMarks(AdjustmentParams p) => p.spotHealMarks.isNotEmpty;
 bool _hasDodgeBurnMarks(AdjustmentParams p) => p.dodgeBurnMarks.isNotEmpty;
+bool _hasSpongeMarks(AdjustmentParams p) => p.spongeMarks.isNotEmpty;
 
 int _hashSpots(AdjustmentParams p) => hashSpots(p.spots);
 int _hashHealingMarks(AdjustmentParams p) => hashHealingMarks(p.healingMarks);
@@ -116,6 +129,7 @@ int _hashSpotHealMarks(AdjustmentParams p) =>
     hashSpotHealMarks(p.spotHealMarks);
 int _hashDodgeBurnMarks(AdjustmentParams p) =>
     hashDodgeBurnMarks(p.dodgeBurnMarks);
+int _hashSpongeMarks(AdjustmentParams p) => hashSpongeMarks(p.spongeMarks);
 
 BrushLayerProvider _makeSpotRemovalLayer(ui.FragmentProgram p) =>
     SpotRemovalLayerProvider(program: p);
@@ -125,6 +139,8 @@ BrushLayerProvider _makeSpotHealLayer(ui.FragmentProgram p) =>
     SpotHealLayerProvider(program: p);
 BrushLayerProvider _makeDodgeBurnLayer(ui.FragmentProgram p) =>
     DodgeBurnLayerProvider(program: p);
+BrushLayerProvider _makeSpongeLayer(ui.FragmentProgram p) =>
+    SpongeLayerProvider(program: p);
 
 /// 按 [order] 排序 manifest 列表（ID 不在 order 中的追加到末尾）
 List<BrushManifest> orderedManifests(List<String> order) {

@@ -4,6 +4,7 @@ import '../clone_stamp/clone_stamp_state.dart';
 import '../healing/healing_state.dart';
 import '../spot_heal/spot_heal_state.dart';
 import '../dodge_burn/dodge_burn_state.dart';
+import '../sponge/sponge_state.dart';
 
 /// Deactivate a brush when the user navigates to another tool.
 ///
@@ -23,5 +24,9 @@ void deactivateBrush(String brushId, WidgetRef ref) {
       ref
           .read(dodgeBurnStateProvider.notifier)
           .setBrushMode(DodgeBurnBrushMode.inactive);
+    case 'sponge':
+      ref
+          .read(spongeStateProvider.notifier)
+          .setBrushMode(SpongeBrushMode.inactive);
   }
 }

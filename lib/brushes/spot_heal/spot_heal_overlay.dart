@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -121,7 +122,7 @@ class _SpotHealOverlayState extends ConsumerState<SpotHealOverlay> {
         child: CustomPaint(
           size: widget.imageDisplaySize,
           painter: _SpotHealBrushPainter(
-            strokePoints: _strokePoints,
+            strokePoints: List<Offset>.from(_strokePoints),
             isPainting: _isPainting,
             cursorPos: _cursorPos,
             isHovering: _isHovering,
@@ -224,7 +225,7 @@ class _SpotHealBrushPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SpotHealBrushPainter old) {
-    return strokePoints != old.strokePoints ||
+    return !listEquals(strokePoints, old.strokePoints) ||
         isPainting != old.isPainting ||
         cursorPos != old.cursorPos ||
         isHovering != old.isHovering ||
