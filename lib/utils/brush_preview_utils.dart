@@ -75,13 +75,37 @@ void canvasApplyCrop(Canvas canvas, Offset center, CropParams crop) {
   return (srcRect: srcRect, dstRect: dstRect, fullDstRect: fullDstRect);
 }
 
+/// 判断 brush mark 的取样圆是否完全在源图外
+///
+/// 用于在 GPU 编码前预过滤——[_packFloat16] 夹持归一化坐标到 [0,1]，
+/// shader OOB 守卫无法区分"真 OOB"和"被夹持到边缘的值"
+///
+/// 使用 AABB 近似（保守检查）：零假阳性，角落假阴性由 shader per-pixel 处理
+/// [sourceX]/[sourceY] 归一化 [0..1] 坐标（可越界）
+/// [radius] 归一化半径，按 [imageWidth] 换算到像素
+bool isMarkSourceFullyOOB({
+  required double sourceX,
+  required double sourceY,
+  required double radius,
+  required double imageWidth,
+  required double imageHeight,
+}) {
+  final pr = (radius * imageWidth).clamp(1.0, imageWidth / 2.0);
+  final sxRaw = sourceX * imageWidth;
+  final syRaw = sourceY * imageHeight;
+  return sxRaw + pr <= 0 ||
+      sxRaw - pr >= imageWidth ||
+      syRaw + pr <= 0 ||
+      syRaw - pr >= imageHeight;
+}
+
 const _kWhite = Color(0xFFFFFFFF);
 const _kTransparent = Color(0x00000000);
 
 /// 绘制带径向渐变柔边的圆形图像 stamp（含硬边快速路径）
 ///
 /// Canvas 需已通过 [canvasApplyCrop] 变换到目标中心
-/// [hardness] 0=最软 1=硬边；≥0.99 走硬边路径
+/// [hardness] 0=最软 1=硬边；≥0.999 走硬边路径
 void drawSoftEdgeStamp({
   required Canvas canvas,
   required Image image,
@@ -90,7 +114,7 @@ void drawSoftEdgeStamp({
   required double screenRadius,
   required Paint imagePaint,
 }) {
-  if (hardness >= 0.99) {
+  if (hardness >= 0.999) {
     canvas.clipPath(Path()..addOval(rects.fullDstRect));
     canvas.drawImageRect(image, rects.srcRect, rects.dstRect, imagePaint);
     return;

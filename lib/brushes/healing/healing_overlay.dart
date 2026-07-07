@@ -8,10 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/crop_params.dart';
 import 'healing_model.dart';
 import '../shared/brush_hashes.dart';
+import '../shared/spot_data_texture.dart';
 import '../../state/providers.dart';
 import '../../utils/brush_coord_utils.dart';
 import '../../utils/brush_preview_utils.dart';
 import '../../utils/path_brush_tracker.dart';
+import '../../utils/shader_pass_util.dart';
 
 /// 修复画笔交互覆盖层
 ///
@@ -44,7 +46,7 @@ class HealingOverlay extends ConsumerStatefulWidget {
 }
 
 class HealingOverlayState extends ConsumerState<HealingOverlay> {
-  // ── 持久化已提交预览（卸载后仍存活）──
+  // 持久化已提交预览（卸载后仍存活）
   static final List<HealingMark> _persistedMarks = [];
   static int _persistedHash = 0;
   static bool _persistedCommitting = false;
@@ -57,13 +59,19 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
   PathBrushTracker? _tracker;
   Offset? _paintOffset;
 
-  // ── 笔画内本地累积（不触发管线）──
+  // 笔画内本地累积（不触发管线）
   final List<HealingMark> _strokeMarks = [];
 
-  // ── 已提交但尚未渲染的预览（防闪烁）──
+  // 已提交但尚未渲染的预览（防闪烁）
   bool _isCommitting = false;
   final List<HealingMark> _committedPreview = [];
   int _committedMarksHash = 0;
+
+  // GPU 增量合成预览
+  ui.Image? _compositedPreview;
+  int _compositedCount = 0; // 已合成 mark 数，_strokeMarks 此前的已处理
+  bool _compositing = false;
+  static const _kCompositeBatchSize = 8;
 
   @override
   void initState() {
@@ -87,6 +95,7 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
       _persistedHash = _committedMarksHash;
       _persistedCommitting = true;
     }
+    _compositedPreview?.dispose();
     _exitDebounce?.cancel();
     super.dispose();
   }
@@ -98,6 +107,15 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
       _paintOffset = null;
       _tracker = null;
       _strokeMarks.clear();
+    }
+    // sourceImage 更新（如清空斑点导致 developOutput 刷新）→ 重置累积合成
+    if (oldWidget.sourceImage != widget.sourceImage) {
+      if (_compositedPreview != null &&
+          _compositedPreview != oldWidget.sourceImage) {
+        _compositedPreview!.dispose();
+      }
+      _compositedPreview = null;
+      _compositedCount = 0;
     }
   }
 
@@ -112,6 +130,29 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
       if (_isCommitting && hash == _committedMarksHash) {
         _committedPreview.clear();
         _isCommitting = false;
+        if (_compositedPreview != null &&
+            _compositedPreview != widget.sourceImage) {
+          _compositedPreview!.dispose();
+        }
+        _compositedPreview = null;
+        if (mounted) setState(() {});
+      }
+    });
+
+    // 外部清空 marks 时立即清理 committed preview + composited
+    // 完全清空时清理 composited 状态
+    ref.listen(currentParamsNotifierProvider, (prev, next) {
+      if ((prev?.healingMarks.isNotEmpty ?? false) &&
+          next.healingMarks.isEmpty) {
+        _committedPreview.clear();
+        _isCommitting = false;
+        if (_compositedPreview != null &&
+            _compositedPreview != widget.sourceImage) {
+          _compositedPreview!.dispose();
+        }
+        _compositedPreview = null;
+        _compositedCount = 0;
+        _compositing = false;
         if (mounted) setState(() {});
       }
     });
@@ -136,6 +177,8 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
         paintOffset: interactive ? _paintOffset : null,
         isPainting: interactive && _tracker != null,
         sourceImage: widget.sourceImage,
+        compositedImage: _compositedPreview,
+        compositedCount: _compositedCount,
         strokeMarks: _strokeMarks,
         committedMarks: _committedPreview,
       ),
@@ -170,6 +213,97 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
         child: painter,
       ),
     );
+  }
+
+  /// 用修复 shader 将 [marks] 合成到 [base] 上，返回新纹理
+  Future<ui.Image> _runCompositePass({
+    required ui.Image base,
+    required List<HealingMark> marks,
+    required ui.FragmentShader shader,
+  }) async {
+    final count = marks.length.clamp(0, 128);
+    final tex = await encodeMarksToTexture(
+      count: count,
+      maxSpots: 128,
+      getMarkFloats: (i) => [
+        marks[i].source.dx,
+        marks[i].source.dy,
+        marks[i].target.dx,
+        marks[i].target.dy,
+        marks[i].radius,
+        marks[i].hardness,
+      ],
+    );
+    try {
+      return await runSingleShaderPass(
+        shader: shader,
+        outputWidth: base.width,
+        outputHeight: base.height,
+        samplers: [base, tex],
+        setUniforms: (s) {
+          s.setFloat(0, base.width.toDouble());
+          s.setFloat(1, base.height.toDouble());
+          s.setFloat(2, count.toDouble());
+          s.setFloat(3, tex.width.toDouble());
+        },
+      );
+    } finally {
+      tex.dispose();
+    }
+  }
+
+  /// 异步触发增量合成，带并发守卫
+  Future<void> _triggerComposite({bool force = false}) async {
+    if (_compositing) return;
+    final newCount = _strokeMarks.length - _compositedCount;
+    if (!force && newCount < _kCompositeBatchSize) return;
+    _compositing = true;
+
+    final allNew = _strokeMarks.sublist(_compositedCount);
+    final validMarks = allNew.where((m) {
+      return !isMarkSourceFullyOOB(
+        sourceX: m.source.dx,
+        sourceY: m.source.dy,
+        radius: m.radius,
+        imageWidth: widget.sourceWidth.toDouble(),
+        imageHeight: widget.sourceHeight.toDouble(),
+      );
+    }).toList();
+
+    if (validMarks.isNotEmpty) {
+      final prog = ref.read(brushShaderProgramsProvider).value?['healing'];
+      final shader = prog?.fragmentShader();
+      final base = _compositedPreview ?? widget.sourceImage;
+      if (shader != null && base != null) {
+        try {
+          final result = await _runCompositePass(
+            base: base,
+            marks: validMarks,
+            shader: shader,
+          );
+          if (!mounted) {
+            result.dispose();
+            _compositedCount += allNew.length;
+            _compositing = false;
+            return;
+          }
+          if (_compositedPreview != null &&
+              _compositedPreview != widget.sourceImage) {
+            _compositedPreview!.dispose();
+          }
+          _compositedPreview = result;
+          _compositedCount += allNew.length;
+        } catch (e) {
+          debugPrint('[HealingOverlay] composite failed: $e');
+          _compositedPreview?.dispose();
+          _compositedPreview = null;
+        }
+      }
+    } else {
+      _compositedCount += allNew.length;
+    }
+    _compositing = false;
+    if (mounted) setState(() {});
   }
 
   Offset _screenToSource(Offset screen) => screenToSourceNorm(
@@ -220,6 +354,15 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
     _tracker = tracker;
     _cursorPos = pos;
 
+    // 新笔画开始：清理上次 GPU 合成预览
+    if (_compositedPreview != null &&
+        _compositedPreview != widget.sourceImage) {
+      _compositedPreview!.dispose();
+    }
+    _compositedPreview = null;
+    _compositedCount = 0;
+    _committedPreview.clear();
+    _isCommitting = false;
     _strokeMarks.clear();
     _strokeMarks.add(
       HealingMark(
@@ -249,6 +392,7 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
       );
     }
     setState(() {});
+    _triggerComposite();
   }
 
   void _onPanEnd() {
@@ -282,9 +426,13 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
       _committedMarksHash = hashHealingMarks(
         ref.read(currentParamsNotifierProvider).healingMarks,
       );
-      _committedPreview.addAll(_strokeMarks);
+      _committedPreview
+        ..clear()
+        ..addAll(_strokeMarks);
       _isCommitting = true;
+      _triggerComposite(force: true); // 强制最终合成，确保所有 mark 都进 compositedPreview
       _strokeMarks.clear();
+      _compositedCount = 0;
     }
     _tracker = null;
     setState(() {});
@@ -292,16 +440,19 @@ class HealingOverlayState extends ConsumerState<HealingOverlay> {
 
   void _onPanCancel() {
     _strokeMarks.clear();
+    _compositedCount = 0;
     _committedPreview.clear();
     _isCommitting = false;
+    _compositing = false;
     _tracker = null;
+    if (_compositedPreview != null &&
+        _compositedPreview != widget.sourceImage) {
+      _compositedPreview!.dispose();
+    }
+    _compositedPreview = null;
     setState(() {});
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// Painter
-// ═══════════════════════════════════════════════════════════
 
 class _HealingPainter extends CustomPainter {
   final Offset? cloneSource;
@@ -317,10 +468,12 @@ class _HealingPainter extends CustomPainter {
   final Offset? paintOffset;
   final bool isPainting;
   final ui.Image? sourceImage;
+  final ui.Image? compositedImage;
+  final int compositedCount;
   final List<HealingMark> strokeMarks;
   final List<HealingMark> committedMarks;
 
-  static final _imagePaint = Paint()..filterQuality = FilterQuality.low;
+  static final _imagePaint = Paint()..filterQuality = FilterQuality.medium;
 
   _HealingPainter({
     required this.cloneSource,
@@ -336,19 +489,61 @@ class _HealingPainter extends CustomPainter {
     this.paintOffset,
     this.isPainting = false,
     this.sourceImage,
+    this.compositedImage,
+    this.compositedCount = 0,
     this.strokeMarks = const [],
     this.committedMarks = const [],
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // ── Draw accumulated stroke pixels (hard-edge instant preview) ──
-    final img = sourceImage;
-    final allPreview = <HealingMark>[...strokeMarks, ...committedMarks];
-    if (allPreview.isNotEmpty && img != null) {
-      for (final mark in allPreview) {
-        _drawStrokeMark(canvas, img, mark);
+    final hasComposited =
+        compositedImage != null && compositedImage != sourceImage;
+    final srcImg = sourceImage;
+
+    // 离屏绘制临时 marks
+    final recorder = ui.PictureRecorder();
+    final offscreen = Canvas(recorder);
+    bool hasContent = false;
+
+    if (hasComposited && compositedImage != null) {
+      // 基底层：shader 权威结果（零误差，包含所有已烘焙 marks）
+      offscreen.drawImageRect(
+        compositedImage!,
+        Rect.fromLTWH(
+          0,
+          0,
+          compositedImage!.width.toDouble(),
+          compositedImage!.height.toDouble(),
+        ),
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        _imagePaint,
+      );
+      hasContent = true;
+
+      // 仅绘制未烘焙尾部（从 composited 采样，看到跨 batch 修改）
+      if (strokeMarks.isNotEmpty) {
+        final start = compositedCount.clamp(0, strokeMarks.length);
+        for (int i = start; i < strokeMarks.length; i++) {
+          _drawStrokeMark(offscreen, compositedImage!, strokeMarks[i]);
+        }
       }
+      // committed 阶段：已全部在基底层中，无需再画
+    } else if (srcImg != null) {
+      // 无 GPU 合成结果：全部从 sourceImage 采样
+      final allPreview = <HealingMark>[...strokeMarks, ...committedMarks];
+      for (final mark in allPreview) {
+        _drawStrokeMark(offscreen, srcImg, mark);
+      }
+      hasContent = true;
+    }
+
+    if (hasContent) {
+      final picture = recorder.endRecording();
+      canvas.drawPicture(picture);
+      picture.dispose();
+    } else {
+      recorder.endRecording().dispose();
     }
 
     if (cursorPos == null || cursorSrc == null) return;
@@ -362,16 +557,19 @@ class _HealingPainter extends CustomPainter {
       sourceHeight: sourceHeight,
     );
 
+    // 实时光标预览：与 marks 使用一致的 base
+    final cursorBase = sourceImage;
+
     if (isSampling) {
       _drawSamplingCursor(canvas, cursorPos!, r);
-    } else if (!isPainting && cloneSource != null && sourceImage != null) {
+    } else if (!isPainting && cloneSource != null && cursorBase != null) {
       final previewSrc = paintOffset != null
           ? Offset(
               cursorSrc!.dx + paintOffset!.dx,
               cursorSrc!.dy + paintOffset!.dy,
             )
           : cloneSource!;
-      _drawPreviewCursor(canvas, cursorPos!, r, previewSrc);
+      _drawPreviewCursor(canvas, cursorPos!, r, previewSrc, cursorBase);
     } else {
       _drawTargetCursor(canvas, cursorPos!, r);
     }
@@ -528,13 +726,14 @@ class _HealingPainter extends CustomPainter {
     Offset screenPos,
     double radius,
     Offset srcNorm,
+    ui.Image baseImage,
   ) {
-    final img = sourceImage;
-    if (img == null) return;
-
-    final srxRaw = srcNorm.dx * img.width;
-    final sryRaw = srcNorm.dy * img.height;
-    final pr = (brushRadius * img.width).clamp(1.0, img.width / 2.0);
+    final srxRaw = srcNorm.dx * baseImage.width;
+    final sryRaw = srcNorm.dy * baseImage.height;
+    final pr = (brushRadius * baseImage.width).clamp(
+      1.0,
+      baseImage.width / 2.0,
+    );
 
     canvas.save();
     canvasApplyCrop(canvas, screenPos, crop);
@@ -544,8 +743,8 @@ class _HealingPainter extends CustomPainter {
       sxRaw: srxRaw,
       syRaw: sryRaw,
       pr: pr,
-      imageW: img.width.toDouble(),
-      imageH: img.height.toDouble(),
+      imageW: baseImage.width.toDouble(),
+      imageH: baseImage.height.toDouble(),
       screenCenterX: 0,
       screenCenterY: 0,
       screenR: radius,
@@ -558,7 +757,7 @@ class _HealingPainter extends CustomPainter {
 
     drawSoftEdgeStamp(
       canvas: canvas,
-      image: img,
+      image: baseImage,
       rects: rects,
       hardness: brushHardness,
       screenRadius: radius,
@@ -587,6 +786,8 @@ class _HealingPainter extends CustomPainter {
       old.isPainting != isPainting ||
       old.paintOffset != paintOffset ||
       old.sourceImage != sourceImage ||
+      old.compositedImage != compositedImage ||
+      old.compositedCount != compositedCount ||
       !listEquals(old.strokeMarks, strokeMarks) ||
       !listEquals(old.committedMarks, committedMarks) ||
       old.imageDisplaySize != imageDisplaySize ||

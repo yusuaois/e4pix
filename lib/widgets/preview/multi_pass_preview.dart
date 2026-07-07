@@ -328,6 +328,12 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     ref.listen(brushLayerOrderProvider, (prev, next) {
       if (prev != next) _runRender();
     });
+    // spots 变化时立即置空 developOutput，关闭旧烘焙图残留窗口
+    ref.listen(currentParamsNotifierProvider, (prev, next) {
+      if (prev == null || next.spots.length != prev.spots.length) {
+        ref.read(developOutputProvider.notifier).update(null);
+      }
+    });
 
     if (_rendered == null) {
       return const Center(

@@ -8,10 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/crop_params.dart';
 import 'clone_stamp_model.dart';
 import '../shared/brush_hashes.dart';
+import '../shared/spot_data_texture.dart';
 import '../../state/providers.dart';
 import '../../utils/brush_coord_utils.dart';
 import '../../utils/brush_preview_utils.dart';
 import '../../utils/path_brush_tracker.dart';
+import '../../utils/shader_pass_util.dart';
 
 /// 图章交互覆盖层
 ///
@@ -42,20 +44,37 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
   bool _isHovering = false;
   Timer? _exitDebounce;
   PathBrushTracker? _tracker;
-  Offset? _paintOffset; // source→target 固定偏移（PS 图章行为）
+  Offset? _paintOffset;
 
-  // ── 笔画内本地累积（不触发管线）──
   final List<SpotMark> _strokeSpots = [];
 
-  // ── 已提交但尚未渲染的预览（防闪烁）──
   bool _isCommitting = false;
   final List<SpotMark> _committedPreview = [];
   int _committedSpotsHash = 0;
 
+  ui.Image? _compositedPreview;
+  int _compositedCount = 0;
+  bool _compositing = false;
+  static const _kCompositeBatchSize = 8;
+
   @override
   void dispose() {
     _exitDebounce?.cancel();
+    _compositedPreview?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(SpotRemoveOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sourceImage != widget.sourceImage) {
+      if (_compositedPreview != null &&
+          _compositedPreview != oldWidget.sourceImage) {
+        _compositedPreview!.dispose();
+      }
+      _compositedPreview = null;
+      _compositedCount = 0;
+    }
   }
 
   @override
@@ -63,13 +82,32 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
     final state = ref.watch(spotRemoveStateProvider);
     final isSampling = state.samplingButtonOn;
 
-    // 管线渲染完已提交的 spots 后清除预览，按 brush id 订阅
-    // 哈希匹配避免无关渲染（如滑块拖动）误清除
     ref.listen<Map<String, int>>(renderedBrushHashesProvider, (prev, next) {
       final hash = next['spot_removal'] ?? 0;
       if (_isCommitting && hash == _committedSpotsHash) {
         _committedPreview.clear();
         _isCommitting = false;
+        if (_compositedPreview != null &&
+            _compositedPreview != widget.sourceImage) {
+          _compositedPreview!.dispose();
+        }
+        _compositedPreview = null;
+        if (mounted) setState(() {});
+      }
+    });
+
+    // 完全清空时清理 composited 状态
+    ref.listen(currentParamsNotifierProvider, (prev, next) {
+      if ((prev?.spots.isNotEmpty ?? false) && next.spots.isEmpty) {
+        _committedPreview.clear();
+        _isCommitting = false;
+        if (_compositedPreview != null &&
+            _compositedPreview != widget.sourceImage) {
+          _compositedPreview!.dispose();
+        }
+        _compositedPreview = null;
+        _compositedCount = 0;
+        _compositing = false;
         if (mounted) setState(() {});
       }
     });
@@ -116,12 +154,103 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
             paintOffset: _paintOffset,
             isPainting: _tracker != null,
             sourceImage: widget.sourceImage,
+            compositedImage: _compositedPreview,
+            compositedCount: _compositedCount,
             strokeSpots: _strokeSpots,
             committedSpots: _committedPreview,
           ),
         ),
       ),
     );
+  }
+
+  Future<ui.Image> _runCompositePass({
+    required ui.Image base,
+    required List<SpotMark> spots,
+    required ui.FragmentShader shader,
+  }) async {
+    final count = spots.length.clamp(0, 128);
+    final tex = await encodeMarksToTexture(
+      count: count,
+      maxSpots: 128,
+      getMarkFloats: (i) => [
+        spots[i].source.dx,
+        spots[i].source.dy,
+        spots[i].target.dx,
+        spots[i].target.dy,
+        spots[i].radius,
+        spots[i].hardness,
+      ],
+    );
+    try {
+      return await runSingleShaderPass(
+        shader: shader,
+        outputWidth: base.width,
+        outputHeight: base.height,
+        samplers: [base, tex],
+        setUniforms: (s) {
+          s.setFloat(0, base.width.toDouble());
+          s.setFloat(1, base.height.toDouble());
+          s.setFloat(2, count.toDouble());
+          s.setFloat(3, tex.width.toDouble());
+        },
+      );
+    } finally {
+      tex.dispose();
+    }
+  }
+
+  Future<void> _triggerComposite({bool force = false}) async {
+    if (_compositing) return;
+    final newCount = _strokeSpots.length - _compositedCount;
+    if (!force && newCount < _kCompositeBatchSize) return;
+    _compositing = true;
+
+    final allNew = _strokeSpots.sublist(_compositedCount);
+    final validSpots = allNew.where((s) {
+      return !isMarkSourceFullyOOB(
+        sourceX: s.source.dx,
+        sourceY: s.source.dy,
+        radius: s.radius,
+        imageWidth: widget.sourceWidth.toDouble(),
+        imageHeight: widget.sourceHeight.toDouble(),
+      );
+    }).toList();
+
+    if (validSpots.isNotEmpty) {
+      final prog = ref.read(brushShaderProgramsProvider).value?['spot_removal'];
+      final shader = prog?.fragmentShader();
+      final base = _compositedPreview ?? widget.sourceImage;
+      if (shader != null && base != null) {
+        try {
+          final result = await _runCompositePass(
+            base: base,
+            spots: validSpots,
+            shader: shader,
+          );
+          if (!mounted) {
+            result.dispose();
+            _compositedCount += allNew.length;
+            _compositing = false;
+            return;
+          }
+          if (_compositedPreview != null &&
+              _compositedPreview != widget.sourceImage) {
+            _compositedPreview!.dispose();
+          }
+          _compositedPreview = result;
+          _compositedCount += allNew.length;
+        } catch (e) {
+          debugPrint('[SpotOverlay] composite failed: $e');
+          _compositedPreview?.dispose();
+          _compositedPreview = null;
+        }
+      }
+    } else {
+      _compositedCount += allNew.length;
+    }
+    _compositing = false;
+    if (mounted) setState(() {});
   }
 
   Offset _screenToSource(Offset screen) => screenToSourceNorm(
@@ -172,6 +301,14 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
     _tracker = tracker;
     _cursorPos = pos;
 
+    if (_compositedPreview != null &&
+        _compositedPreview != widget.sourceImage) {
+      _compositedPreview!.dispose();
+    }
+    _compositedPreview = null;
+    _compositedCount = 0;
+    _committedPreview.clear();
+    _isCommitting = false;
     _strokeSpots.clear();
     _strokeSpots.add(
       SpotMark(
@@ -201,6 +338,7 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
       );
     }
     setState(() {});
+    _triggerComposite();
   }
 
   void _onPanEnd() {
@@ -219,7 +357,6 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
         );
       }
     }
-    // Update clone source (PS behaviour: source follows cursor on release)
     if (offset != null && _cursorPos != null) {
       final cursorSrc = _screenToSource(_cursorPos!);
       ref
@@ -228,7 +365,6 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
             Offset(cursorSrc.dx + offset.dx, cursorSrc.dy + offset.dy),
           );
     }
-    // Batch-commit stroke and keep local preview until pipeline finishes
     if (_strokeSpots.isNotEmpty) {
       ref
           .read(spotRemoveStateProvider.notifier)
@@ -236,9 +372,13 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
       _committedSpotsHash = hashSpots(
         ref.read(currentParamsNotifierProvider).spots,
       );
-      _committedPreview.addAll(_strokeSpots);
+      _committedPreview
+        ..clear()
+        ..addAll(_strokeSpots);
       _isCommitting = true;
+      _triggerComposite(force: true);
       _strokeSpots.clear();
+      _compositedCount = 0;
     }
     _tracker = null;
     setState(() {});
@@ -246,16 +386,19 @@ class _SpotRemoveOverlayState extends ConsumerState<SpotRemoveOverlay> {
 
   void _onPanCancel() {
     _strokeSpots.clear();
+    _compositedCount = 0;
     _committedPreview.clear();
     _isCommitting = false;
+    _compositing = false;
     _tracker = null;
+    if (_compositedPreview != null &&
+        _compositedPreview != widget.sourceImage) {
+      _compositedPreview!.dispose();
+    }
+    _compositedPreview = null;
     setState(() {});
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// Painter
-// ═══════════════════════════════════════════════════════════
 
 class _SpotPainter extends CustomPainter {
   final Offset? cloneSource;
@@ -271,10 +414,12 @@ class _SpotPainter extends CustomPainter {
   final Offset? paintOffset;
   final bool isPainting;
   final ui.Image? sourceImage;
+  final ui.Image? compositedImage;
+  final int compositedCount;
   final List<SpotMark> strokeSpots;
   final List<SpotMark> committedSpots;
 
-  static final _imagePaint = Paint()..filterQuality = FilterQuality.low;
+  static final _imagePaint = Paint()..filterQuality = FilterQuality.medium;
 
   _SpotPainter({
     required this.cloneSource,
@@ -290,19 +435,56 @@ class _SpotPainter extends CustomPainter {
     this.paintOffset,
     this.isPainting = false,
     this.sourceImage,
+    this.compositedImage,
+    this.compositedCount = 0,
     this.strokeSpots = const [],
     this.committedSpots = const [],
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // ── Draw accumulated clone pixels (hard-edge instant preview) ──
-    final img = sourceImage;
-    final allPreview = <SpotMark>[...strokeSpots, ...committedSpots];
-    if (allPreview.isNotEmpty && img != null) {
-      for (final spot in allPreview) {
-        _drawStrokeSpot(canvas, img, spot);
+    final hasComposited =
+        compositedImage != null && compositedImage != sourceImage;
+    final srcImg = sourceImage;
+
+    final recorder = ui.PictureRecorder();
+    final offscreen = Canvas(recorder);
+    bool hasContent = false;
+
+    if (hasComposited && compositedImage != null) {
+      offscreen.drawImageRect(
+        compositedImage!,
+        Rect.fromLTWH(
+          0,
+          0,
+          compositedImage!.width.toDouble(),
+          compositedImage!.height.toDouble(),
+        ),
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        _imagePaint,
+      );
+      hasContent = true;
+
+      if (strokeSpots.isNotEmpty) {
+        final start = compositedCount.clamp(0, strokeSpots.length);
+        for (int i = start; i < strokeSpots.length; i++) {
+          _drawStrokeSpot(offscreen, compositedImage!, strokeSpots[i]);
+        }
       }
+    } else if (srcImg != null) {
+      final allPreview = <SpotMark>[...strokeSpots, ...committedSpots];
+      for (final spot in allPreview) {
+        _drawStrokeSpot(offscreen, srcImg, spot);
+      }
+      hasContent = true;
+    }
+
+    if (hasContent) {
+      final picture = recorder.endRecording();
+      canvas.drawPicture(picture);
+      picture.dispose();
+    } else {
+      recorder.endRecording().dispose();
     }
 
     if (cursorPos == null || cursorSrc == null) return;
@@ -316,42 +498,43 @@ class _SpotPainter extends CustomPainter {
       sourceHeight: sourceHeight,
     );
 
+    // 实时光标预览（目标点圈）始终使用当前最新的 sourceImage
+    // 避免 ClearAll 后 composited 残留导致的鬼影
+    final cursorBase = sourceImage;
+
     if (isSampling) {
       _drawSamplingCursor(canvas, cursorPos!, r);
-    } else if (!isPainting && cloneSource != null && sourceImage != null) {
+    } else if (!isPainting && cloneSource != null && cursorBase != null) {
       final previewSrc = paintOffset != null
           ? Offset(
               cursorSrc!.dx + paintOffset!.dx,
               cursorSrc!.dy + paintOffset!.dy,
             )
           : cloneSource!;
-      _drawPreviewCursor(canvas, cursorPos!, r, previewSrc);
+      _drawPreviewCursor(canvas, cursorPos!, r, previewSrc, cursorBase);
     } else {
       _drawTargetCursor(canvas, cursorPos!, r);
     }
 
     if (!isSampling && cloneSource != null) {
-      final Offset srcScreen;
-      if (paintOffset != null) {
-        srcScreen = sourceToScreenNorm(
-          src: Offset(
-            cursorSrc!.dx + paintOffset!.dx,
-            cursorSrc!.dy + paintOffset!.dy,
-          ),
-          imageDisplaySize: imageDisplaySize,
-          crop: crop,
-          sourceWidth: sourceWidth,
-          sourceHeight: sourceHeight,
-        );
-      } else {
-        srcScreen = sourceToScreenNorm(
-          src: cloneSource!,
-          imageDisplaySize: imageDisplaySize,
-          crop: crop,
-          sourceWidth: sourceWidth,
-          sourceHeight: sourceHeight,
-        );
-      }
+      final Offset srcScreen = paintOffset != null
+          ? sourceToScreenNorm(
+              src: Offset(
+                cursorSrc!.dx + paintOffset!.dx,
+                cursorSrc!.dy + paintOffset!.dy,
+              ),
+              imageDisplaySize: imageDisplaySize,
+              crop: crop,
+              sourceWidth: sourceWidth,
+              sourceHeight: sourceHeight,
+            )
+          : sourceToScreenNorm(
+              src: cloneSource!,
+              imageDisplaySize: imageDisplaySize,
+              crop: crop,
+              sourceWidth: sourceWidth,
+              sourceHeight: sourceHeight,
+            );
       _drawSourceCrosshair(canvas, srcScreen);
     }
   }
@@ -377,11 +560,9 @@ class _SpotPainter extends CustomPainter {
       sourceHeight: sourceHeight,
     );
 
-    // 画布变换到目标中心，后续以原点为参考
     canvas.save();
     canvasApplyCrop(canvas, screenCenter, crop);
 
-    // OOB 映射（原点即画布原点 = 屏幕目标中心）
     final rects = computeOOBRects(
       sxRaw: sxRaw,
       syRaw: syRaw,
@@ -483,24 +664,24 @@ class _SpotPainter extends CustomPainter {
     Offset screenPos,
     double radius,
     Offset srcNorm,
+    ui.Image baseImage,
   ) {
-    final img = sourceImage;
-    if (img == null) return;
-
-    final srxRaw = srcNorm.dx * img.width;
-    final sryRaw = srcNorm.dy * img.height;
-    final pr = (brushRadius * img.width).clamp(1.0, img.width / 2.0);
+    final srxRaw = srcNorm.dx * baseImage.width;
+    final sryRaw = srcNorm.dy * baseImage.height;
+    final pr = (brushRadius * baseImage.width).clamp(
+      1.0,
+      baseImage.width / 2.0,
+    );
 
     canvas.save();
     canvasApplyCrop(canvas, screenPos, crop);
 
-    // OOB 映射（原点即画布原点 = 屏幕光标中心）
     final rects = computeOOBRects(
       sxRaw: srxRaw,
       syRaw: sryRaw,
       pr: pr,
-      imageW: img.width.toDouble(),
-      imageH: img.height.toDouble(),
+      imageW: baseImage.width.toDouble(),
+      imageH: baseImage.height.toDouble(),
       screenCenterX: 0,
       screenCenterY: 0,
       screenR: radius,
@@ -513,7 +694,7 @@ class _SpotPainter extends CustomPainter {
 
     drawSoftEdgeStamp(
       canvas: canvas,
-      image: img,
+      image: baseImage,
       rects: rects,
       hardness: brushHardness,
       screenRadius: radius,
@@ -542,6 +723,8 @@ class _SpotPainter extends CustomPainter {
       old.isPainting != isPainting ||
       old.paintOffset != paintOffset ||
       old.sourceImage != sourceImage ||
+      old.compositedImage != compositedImage ||
+      old.compositedCount != compositedCount ||
       !listEquals(old.strokeSpots, strokeSpots) ||
       !listEquals(old.committedSpots, committedSpots) ||
       old.imageDisplaySize != imageDisplaySize ||

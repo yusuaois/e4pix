@@ -10,6 +10,7 @@ import '../../render/incremental_render_cache.dart';
 import '../shared/brush_hashes.dart';
 import '../shared/brush_layer_mixin.dart';
 import '../shared/spot_data_texture.dart';
+import '../../utils/brush_preview_utils.dart';
 import '../../utils/shader_pass_util.dart';
 
 /// 修复画笔输出层
@@ -47,7 +48,16 @@ class HealingLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
     required int targetWidth,
     required int targetHeight,
   }) async {
-    final marks = params.healingMarks;
+    final marks = params.healingMarks.where((m) {
+      return !isMarkSourceFullyOOB(
+        sourceX: m.source.dx,
+        sourceY: m.source.dy,
+        radius: m.radius,
+        imageWidth: developOutput.width.toDouble(),
+        imageHeight: developOutput.height.toDouble(),
+      );
+    }).toList();
+
     if (marks.isEmpty) {
       return BrushLayer(id: id, active: false);
     }

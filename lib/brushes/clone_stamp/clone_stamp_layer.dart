@@ -10,6 +10,7 @@ import '../../render/incremental_render_cache.dart';
 import '../shared/brush_hashes.dart';
 import '../shared/brush_layer_mixin.dart';
 import '../shared/spot_data_texture.dart';
+import '../../utils/brush_preview_utils.dart';
 import '../../utils/shader_pass_util.dart';
 
 /// 图章笔刷输出层
@@ -47,7 +48,16 @@ class SpotRemovalLayerProvider
     required int targetWidth,
     required int targetHeight,
   }) async {
-    final spots = params.spots;
+    final spots = params.spots.where((s) {
+      return !isMarkSourceFullyOOB(
+        sourceX: s.source.dx,
+        sourceY: s.source.dy,
+        radius: s.radius,
+        imageWidth: developOutput.width.toDouble(),
+        imageHeight: developOutput.height.toDouble(),
+      );
+    }).toList();
+
     if (spots.isEmpty) {
       return BrushLayer(id: id, active: false);
     }
