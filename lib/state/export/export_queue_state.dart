@@ -22,13 +22,12 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
   final Set<String> _cancelled = {};
   final Set<String> _usedNames = {}; // 跨队列文件名去重
 
-  static Future<BrushLayerRegistry?> _buildRegistry(
+  static BrushLayerRegistry? _buildRegistry(
     Map<String, ui.FragmentProgram?> brushPrograms,
-  ) async {
+    List<String> layerOrder,
+  ) {
     final providers = <BrushLayerProvider>[];
-    final saved = await AppSettings.getBrushLayerOrder();
-    final order = saved ?? brushManifests.map((m) => m.id).toList();
-    for (final m in orderedManifests(order)) {
+    for (final m in orderedManifests(layerOrder)) {
       final prog = brushPrograms[m.id];
       if (prog != null) {
         providers.add(m.layerFactory(prog));
@@ -194,6 +193,7 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
     final brushPrograms = ref.read(brushShaderProgramsProvider).value ?? {};
     final composeProgram = ref.read(composeShaderProgramProvider).value;
     final watermarkCfg = ref.read(watermarkConfigProvider);
+    final layerOrder = ref.read(brushLayerOrderProvider);
     final cfg = job.config;
 
     // per-image LUT：按本 job 的 params.lutNameA/B 从缓存加载 texture
@@ -231,7 +231,7 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
         spotRemoveProgram: brushPrograms['spot_removal'],
         healingProgram: brushPrograms['healing'],
         composeProgram: composeProgram,
-        brushLayerRegistry: await _buildRegistry(brushPrograms),
+        brushLayerRegistry: _buildRegistry(brushPrograms, layerOrder),
         denoiseEngine: cfg.denoiseEngine,
         denoiseParallelism: cfg.denoiseParallelism,
         jpegQuality: cfg.jpegQuality,
