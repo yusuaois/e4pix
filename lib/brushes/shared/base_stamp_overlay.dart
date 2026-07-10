@@ -6,16 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
 import '../../state/providers.dart';
-import '../../utils/brush_coord_utils.dart';
-import '../../utils/brush_preview_utils.dart';
-import '../../utils/path_brush_tracker.dart';
-import '../../utils/shader_pass_util.dart';
-import 'spot_data_texture.dart';
+import 'stamp_compositor.dart';
+import 'stamp_gesture_handler.dart';
 import 'stamp_mark.dart';
 
 /// 源-目标型画笔的共享 Overlay State 基类，泛型 [T] 为 mark 类型
 ///
-/// 封装光标、笔画追踪、GPU 增量合成预览、committed preview 生命周期、手势处理
+/// 职责：光标管理、生命周期编排、Riverpod 监听器、手势→合成桥接
+/// 笔画状态委托给 [StampGestureHandler]，GPU 合成委托给 [StampCompositor]
+///
 /// 子类提供 5 个 widget getter + 10 个 brush 配置抽象方法
 /// 可选覆写 [onInitState]/[onCustomDispose]/[interactive]（healing 专用）
 abstract class BaseStampOverlayState<
@@ -28,21 +27,17 @@ abstract class BaseStampOverlayState<
   bool cursorVisible = false;
   Timer? _exitDebounce;
 
-  // 笔画追踪
-  PathBrushTracker? strokeTracker;
-  Offset? paintOffset;
-  final List<T> strokeMarks = [];
+  // 委托对象
+  late final StampGestureHandler<T> _gestureHandler;
+  late final StampCompositor<T> _compositor;
 
-  // 提交预览
-  bool isCommitting = false;
-  final List<T> committedMarks = [];
-  int committedHash = 0;
+  /// 子类可访问笔画状态（build painter、didUpdateWidget、onInitState）
+  @protected
+  StampGestureHandler<T> get gestureHandler => _gestureHandler;
 
-  // GPU 增量合成预览
-  ui.Image? compositedImage;
-  int compositedCount = 0;
-  bool compositing = false;
-  static const _kCompositeBatchSize = 8;
+  /// 子类可访问合成预览（build painter、didUpdateWidget）
+  @protected
+  StampCompositor<T> get compositor => _compositor;
 
   // Widget 参数——子类委托给 widget.*
 
@@ -100,7 +95,7 @@ abstract class BaseStampOverlayState<
   /// initState 钩子，在 [initState] 末尾调用
   void onInitState() {}
 
-  /// dispose 钩子，在 [dispose] 末尾调用（在 compositedPreview dispose 之后）
+  /// dispose 钩子，在 [dispose] 末尾调用（在 compositor dispose 之后）
   void onCustomDispose() {}
 
   /// 是否处于交互模式（healing 覆写以支持非交互模式）
@@ -111,117 +106,60 @@ abstract class BaseStampOverlayState<
   @override
   void initState() {
     super.initState();
+
+    _compositor = StampCompositor<T>(
+      imageDisplaySize: imageDisplaySize,
+      crop: crop,
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+      getSourceImage: () => sourceImage,
+      logTag: logTag,
+      shaderKey: shaderKey,
+      isMounted: () => mounted,
+      onNeedsRebuild: () {
+        if (mounted) setState(() {});
+      },
+    );
+
+    _gestureHandler = StampGestureHandler<T>(
+      createMark: createMark,
+      getBrushRadius: getBrushRadius,
+      getBrushHardness: getBrushHardness,
+      getCloneSource: getCloneSource,
+      getIsSampling: getIsSampling,
+      updateCloneSource: updateCloneSource,
+      addSingleMark: addSingleMark,
+      commitMarksToPipeline: commitMarksToPipeline,
+      computeCommittedHash: computeCommittedHash,
+      renderedHashKey: renderedHashKey,
+      persistMarks: (ref, key, marks, hash) {
+        ref.read(persistedStampProvider.notifier).persist(key, marks, hash);
+      },
+      screenToSource: _compositor.screenToSource,
+      onNeedsSetState: () {
+        if (mounted) setState(() {});
+      },
+      onStrokeStarted: () {
+        _compositor.reset();
+      },
+      onTriggerComposite: ({bool force = false}) {
+        _compositor.triggerComposite(
+          ref,
+          strokeMarks: _gestureHandler.strokeMarks,
+          force: force,
+        );
+      },
+    );
+
     onInitState();
   }
 
   @override
   void dispose() {
     _exitDebounce?.cancel();
-    disposeComposited();
+    _compositor.disposeComposited();
     onCustomDispose();
     super.dispose();
-  }
-
-  // GPU 合成预览
-
-  Offset _screenToSource(Offset screen) => screenToSourceNorm(
-    screen: screen,
-    imageDisplaySize: imageDisplaySize,
-    crop: crop,
-    sourceWidth: sourceWidth,
-    sourceHeight: sourceHeight,
-  );
-
-  void disposeComposited() {
-    compositedImage?.dispose();
-    compositedImage = null;
-  }
-
-  Future<ui.Image> _runCompositePass({
-    required ui.Image base,
-    required List<T> marks,
-    required ui.FragmentShader shader,
-  }) async {
-    final count = marks.length.clamp(0, 128);
-    final tex = await encodeMarksToTexture(
-      count: count,
-      maxSpots: 128,
-      getMarkFloats: (i) => [
-        marks[i].source.dx,
-        marks[i].source.dy,
-        marks[i].target.dx,
-        marks[i].target.dy,
-        marks[i].radius,
-        marks[i].hardness,
-      ],
-    );
-    try {
-      return await runSingleShaderPass(
-        shader: shader,
-        outputWidth: base.width,
-        outputHeight: base.height,
-        samplers: [base, tex],
-        setUniforms: (s) {
-          s.setFloat(0, base.width.toDouble());
-          s.setFloat(1, base.height.toDouble());
-          s.setFloat(2, count.toDouble());
-          s.setFloat(3, tex.width.toDouble());
-        },
-      );
-    } finally {
-      tex.dispose();
-    }
-  }
-
-  /// 异步触发增量合成，带并发守卫
-  Future<void> _triggerComposite({bool force = false}) async {
-    if (compositing) return;
-    final newCount = strokeMarks.length - compositedCount;
-    if (!force && newCount < _kCompositeBatchSize) return;
-    compositing = true;
-
-    final allNew = strokeMarks.sublist(compositedCount);
-    final validMarks = allNew.where((m) {
-      return !isMarkSourceFullyOOB(
-        sourceX: m.source.dx,
-        sourceY: m.source.dy,
-        radius: m.radius,
-        imageWidth: sourceWidth.toDouble(),
-        imageHeight: sourceHeight.toDouble(),
-      );
-    }).toList();
-
-    if (validMarks.isNotEmpty) {
-      final prog = ref.read(brushShaderProgramsProvider).value?[shaderKey];
-      final shader = prog?.fragmentShader();
-      final base = compositedImage ?? sourceImage;
-      if (shader != null && base != null) {
-        try {
-          final result = await _runCompositePass(
-            base: base,
-            marks: validMarks,
-            shader: shader,
-          );
-          if (!mounted) {
-            result.dispose();
-            compositedCount += allNew.length;
-            compositing = false;
-            return;
-          }
-          disposeComposited();
-          compositedImage = result;
-          compositedCount += allNew.length;
-        } catch (e) {
-          debugPrint('$logTag composite failed: $e');
-          disposeComposited();
-          compositedImage = null;
-        }
-      }
-    } else {
-      compositedCount += allNew.length;
-    }
-    compositing = false;
-    if (mounted) setState(() {});
   }
 
   // Riverpod 监听器（子类在 build() 中调用）
@@ -231,11 +169,12 @@ abstract class BaseStampOverlayState<
   void listenRenderedHashes() {
     ref.listen<Map<String, int>>(renderedBrushHashesProvider, (prev, next) {
       final hash = next[renderedHashKey] ?? 0;
-      if (isCommitting && hash == committedHash) {
-        committedMarks.clear();
-        isCommitting = false;
-        disposeComposited();
-        compositedCount = 0;
+      if (_gestureHandler.isCommitting &&
+          hash == _gestureHandler.committedHash) {
+        _gestureHandler.committedMarks.clear();
+        _gestureHandler.isCommitting = false;
+        _compositor.disposeComposited();
+        _compositor.compositedCount = 0;
         ref.read(persistedStampProvider.notifier).clear();
         if (mounted) setState(() {});
       }
@@ -244,146 +183,39 @@ abstract class BaseStampOverlayState<
 
   /// 当外部清空 marks 时的标准清理逻辑
   void handleMarksCleared() {
-    committedMarks.clear();
-    isCommitting = false;
-    disposeComposited();
-    compositedImage = null;
-    compositedCount = 0;
-    compositing = false;
+    _gestureHandler.committedMarks.clear();
+    _gestureHandler.isCommitting = false;
+    _compositor.disposeComposited();
+    _compositor.compositedImage = null;
+    _compositor.compositedCount = 0;
+    _compositor.compositing = false;
     ref.read(persistedStampProvider.notifier).clear();
     if (mounted) setState(() {});
   }
 
-  // 手势处理
+  // 手势处理——委托给 StampGestureHandler
 
   void _onTapDown(Offset pos, WidgetRef ref) {
-    final isSampling = getIsSampling(ref);
-    if (isSampling) {
-      paintOffset = null;
-      updateCloneSource(ref, _screenToSource(pos));
-    } else {
-      final target = _screenToSource(pos);
-      final offset = paintOffset;
-      if (offset != null) {
-        updateCloneSource(
-          ref,
-          Offset(target.dx + offset.dx, target.dy + offset.dy),
-        );
-      }
-      addSingleMark(ref, target);
-    }
+    _gestureHandler.onTapDown(pos, ref);
   }
 
   void _onPanStart(Offset pos, WidgetRef ref) {
-    final isSampling = getIsSampling(ref);
-    if (isSampling) return;
-    final target = _screenToSource(pos);
-    final Offset source;
-    if (paintOffset != null) {
-      source = Offset(target.dx + paintOffset!.dx, target.dy + paintOffset!.dy);
-    } else {
-      final cs = getCloneSource(ref);
-      if (cs == null) return;
-      source = cs;
-      paintOffset = Offset(source.dx - target.dx, source.dy - target.dy);
-    }
-    final radius = getBrushRadius(ref);
-    final hardness = getBrushHardness(ref);
-    final tracker = PathBrushTracker(spacing: radius * 0.15);
-    tracker.start(target);
-    strokeTracker = tracker;
     cursorPos = pos;
-
-    disposeComposited();
-    compositedImage = null;
-    compositedCount = 0;
-    committedMarks.clear();
-    isCommitting = false;
-    strokeMarks.clear();
-    strokeMarks.add(
-      createMark(
-        source: source,
-        target: target,
-        radius: radius,
-        hardness: hardness,
-      ),
-    );
-    setState(() {});
+    _gestureHandler.onPanStart(pos, ref);
   }
 
   void _onPanUpdate(Offset pos, WidgetRef ref) {
-    final tracker = strokeTracker;
-    final offset = paintOffset;
-    if (tracker == null || offset == null) return;
     cursorPos = pos;
-    final radius = getBrushRadius(ref);
-    final hardness = getBrushHardness(ref);
-    for (final t in tracker.move(_screenToSource(pos))) {
-      final s = Offset(t.dx + offset.dx, t.dy + offset.dy);
-      strokeMarks.add(
-        createMark(source: s, target: t, radius: radius, hardness: hardness),
-      );
-    }
-    setState(() {});
-    _triggerComposite();
+    _gestureHandler.onPanUpdate(pos, ref);
   }
 
   void _onPanEnd(WidgetRef ref) {
-    final tracker = strokeTracker;
-    final offset = paintOffset;
-    if (tracker != null && offset != null) {
-      final radius = getBrushRadius(ref);
-      final hardness = getBrushHardness(ref);
-      for (final t in tracker.end()) {
-        strokeMarks.add(
-          createMark(
-            source: Offset(t.dx + offset.dx, t.dy + offset.dy),
-            target: t,
-            radius: radius,
-            hardness: hardness,
-          ),
-        );
-      }
-    }
-    if (offset != null && cursorPos != null) {
-      final cursorSrc = _screenToSource(cursorPos!);
-      updateCloneSource(
-        ref,
-        Offset(cursorSrc.dx + offset.dx, cursorSrc.dy + offset.dy),
-      );
-    }
-    if (strokeMarks.isNotEmpty) {
-      commitMarksToPipeline(ref, List<T>.from(strokeMarks));
-      committedHash = computeCommittedHash(ref);
-      committedMarks
-        ..clear()
-        ..addAll(strokeMarks);
-      isCommitting = true;
-      ref
-          .read(persistedStampProvider.notifier)
-          .persist(
-            renderedHashKey,
-            committedMarks.map<StampMark>((m) => m).toList(),
-            committedHash,
-          );
-      _triggerComposite(force: true);
-      strokeMarks.clear();
-      compositedCount = 0;
-    }
-    strokeTracker = null;
-    setState(() {});
+    _gestureHandler.onPanEnd(ref, cursorPos: cursorPos);
   }
 
   void _onPanCancel() {
-    strokeMarks.clear();
-    compositedCount = 0;
-    committedMarks.clear();
-    isCommitting = false;
-    compositing = false;
-    strokeTracker = null;
-    disposeComposited();
-    compositedImage = null;
-    setState(() {});
+    _gestureHandler.onPanCancel();
+    _compositor.reset();
   }
 
   // build() 辅助
@@ -429,6 +261,7 @@ abstract class BaseStampOverlayState<
   }
 
   /// 获取光标归一化源图坐标（用于 Painter 的 cursorSrc 参数）
-  Offset? get cursorSrc =>
-      (cursorVisible && cursorPos != null) ? _screenToSource(cursorPos!) : null;
+  Offset? get cursorSrc => (cursorVisible && cursorPos != null)
+      ? _compositor.screenToSource(cursorPos!)
+      : null;
 }

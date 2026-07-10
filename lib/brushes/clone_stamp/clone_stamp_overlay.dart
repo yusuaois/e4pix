@@ -52,9 +52,8 @@ class _SpotRemoveOverlayState
   void didUpdateWidget(SpotRemoveOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.sourceImage != oldWidget.sourceImage) {
-      disposeComposited();
-      compositedImage = null;
-      compositedCount = 0;
+      compositor.disposeComposited();
+      compositor.compositedCount = 0;
     }
   }
 
@@ -65,9 +64,9 @@ class _SpotRemoveOverlayState
     if (persisted.isCommitting &&
         persisted.brushId == 'spot_removal' &&
         persisted.marks.isNotEmpty) {
-      committedMarks.addAll(persisted.marks.cast<SpotMark>());
-      committedHash = persisted.hash;
-      isCommitting = true;
+      gestureHandler.committedMarks.addAll(persisted.marks.cast<SpotMark>());
+      gestureHandler.committedHash = persisted.hash;
+      gestureHandler.isCommitting = true;
       ref.read(persistedStampProvider.notifier).clear();
     }
   }
@@ -155,13 +154,13 @@ class _SpotRemoveOverlayState
         cursorPos: cursorVisible ? cursorPos : null,
         cursorSrc: cursorSrc,
         isSampling: isSampling,
-        paintOffset: paintOffset,
-        isPainting: strokeTracker != null,
+        paintOffset: gestureHandler.paintOffset,
+        isPainting: gestureHandler.strokeTracker != null,
         sourceImage: widget.sourceImage,
-        compositedImage: compositedImage,
-        compositedCount: compositedCount,
-        strokeMarks: strokeMarks,
-        committedMarks: committedMarks,
+        compositedImage: compositor.compositedImage,
+        compositedCount: compositor.compositedCount,
+        strokeMarks: gestureHandler.strokeMarks,
+        committedMarks: gestureHandler.committedMarks,
       ),
     );
 

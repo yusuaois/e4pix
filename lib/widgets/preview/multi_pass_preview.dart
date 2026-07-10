@@ -283,6 +283,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     final longest = math.max(src.width, src.height);
     if (longest <= maxEdge) {
       try {
+        if (!mounted) return;
         ref.read(composeGuideProvider.notifier).update(src.clone());
       } catch (e) {
         debugPrint('[MultiPassPreview] Failed to capture compose guide: $e');
@@ -304,6 +305,10 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       final picture = recorder.endRecording();
       final result = await picture.toImage(tw, th);
       picture.dispose();
+      if (!mounted) {
+        result.dispose();
+        return;
+      }
       ref.read(composeGuideProvider.notifier).update(result);
     } catch (e) {
       debugPrint('[MultiPassPreview] Failed to capture compose guide: $e');

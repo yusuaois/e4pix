@@ -67,9 +67,9 @@ class HealingOverlayState
     if (persisted.isCommitting &&
         persisted.brushId == 'healing' &&
         persisted.marks.isNotEmpty) {
-      committedMarks.addAll(persisted.marks.cast<HealingMark>());
-      committedHash = persisted.hash;
-      isCommitting = true;
+      gestureHandler.committedMarks.addAll(persisted.marks.cast<HealingMark>());
+      gestureHandler.committedHash = persisted.hash;
+      gestureHandler.isCommitting = true;
       ref.read(persistedStampProvider.notifier).clear();
     }
   }
@@ -78,14 +78,13 @@ class HealingOverlayState
   void didUpdateWidget(HealingOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.sourceImage != oldWidget.sourceImage) {
-      disposeComposited();
-      compositedImage = null;
-      compositedCount = 0;
+      compositor.disposeComposited();
+      compositor.compositedCount = 0;
     }
     if (oldWidget.interactive && !widget.interactive) {
-      paintOffset = null;
-      strokeTracker = null;
-      strokeMarks.clear();
+      gestureHandler.paintOffset = null;
+      gestureHandler.strokeTracker = null;
+      gestureHandler.strokeMarks.clear();
     }
   }
 
@@ -175,13 +174,13 @@ class HealingOverlayState
         cursorPos: interactive ? (cursorVisible ? cursorPos : null) : null,
         cursorSrc: interactive ? cursorSrc : null,
         isSampling: interactive && isSampling,
-        paintOffset: interactive ? paintOffset : null,
-        isPainting: interactive && strokeTracker != null,
+        paintOffset: interactive ? gestureHandler.paintOffset : null,
+        isPainting: interactive && gestureHandler.strokeTracker != null,
         sourceImage: widget.sourceImage,
-        compositedImage: compositedImage,
-        compositedCount: compositedCount,
-        strokeMarks: strokeMarks,
-        committedMarks: committedMarks,
+        compositedImage: compositor.compositedImage,
+        compositedCount: compositor.compositedCount,
+        strokeMarks: gestureHandler.strokeMarks,
+        committedMarks: gestureHandler.committedMarks,
       ),
     );
 

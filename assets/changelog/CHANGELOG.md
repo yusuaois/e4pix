@@ -18,6 +18,7 @@
 * **`_PreviewContent` 迁移**：从 `ConsumerWidget` 改为 `ConsumerStatefulWidget`，以支持 `initState` 预热触发
 
 ## 🐛 问题修复 (Bug Fixes)
+* **MultiPassPreview ref-after-unmount 崩溃**：`_captureComposeGuide` 以 fire-and-forget 调用，内部 `await picture.toImage()` 后未检查 `mounted` 即调用 `ref.read()`，widget unmount 时抛出 "Using ref when widget has been unmounted" 异常。同步路径和异步路径各加 `if (!mounted) return;` 守卫
 * **原型 B 画笔实时预览不刷新**：修复 sponge/dodge_burn/spot_heal 三个 overlay 的 `shouldRepaint` 使用引用相等比较 `List<Offset>` 的 bug——笔画预览因 `_strokePoints` 原地 mutate 而永不刷新。改为 `listEquals` 值比较 + 传递时 `List.from` 拷贝
 
 ## 🛠️ 底层改进 (Under the Hood)
