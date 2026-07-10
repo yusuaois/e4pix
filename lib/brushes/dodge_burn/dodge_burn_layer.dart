@@ -149,13 +149,13 @@ class DodgeBurnLayerProvider
     int targetWidth,
     int targetHeight,
   ) async {
-    final emptyMask = await createEmptyMask();
+    final warmupMask = await createWarmupMask();
     try {
       final result = await runSingleShaderPass(
         shader: brushShader,
         outputWidth: targetWidth,
         outputHeight: targetHeight,
-        samplers: [developOutput, emptyMask],
+        samplers: [developOutput, warmupMask],
         setUniforms: (s) {
           s.setFloat(0, targetWidth.toDouble());
           s.setFloat(1, targetHeight.toDouble());
@@ -168,7 +168,7 @@ class DodgeBurnLayerProvider
     } catch (e) {
       debugPrint('[Warmup] dodge_burn FAILED: $e');
     }
-    emptyMask.dispose();
+    warmupMask.dispose();
   }
 
   @override

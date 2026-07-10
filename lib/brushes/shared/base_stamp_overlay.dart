@@ -106,8 +106,7 @@ abstract class BaseStampOverlayState<
   /// 是否处于交互模式（healing 覆写以支持非交互模式）
   bool get interactive => true;
 
-  //生命周期
-  // ═══════════════════════════════════════════════════════════
+  // 生命周期
 
   @override
   void initState() {
@@ -118,23 +117,12 @@ abstract class BaseStampOverlayState<
   @override
   void dispose() {
     _exitDebounce?.cancel();
-    _disposeComposited();
+    disposeComposited();
     onCustomDispose();
     super.dispose();
   }
 
-  @override
-  void didUpdateWidget(W oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if ((oldWidget as dynamic).sourceImage != sourceImage) {
-      _disposeComposited();
-      compositedImage = null;
-      compositedCount = 0;
-    }
-  }
-
-  //GPU 合成预览
-  // ═══════════════════════════════════════════════════════════
+  // GPU 合成预览
 
   Offset _screenToSource(Offset screen) => screenToSourceNorm(
     screen: screen,
@@ -144,7 +132,7 @@ abstract class BaseStampOverlayState<
     sourceHeight: sourceHeight,
   );
 
-  void _disposeComposited() {
+  void disposeComposited() {
     compositedImage?.dispose();
     compositedImage = null;
   }
@@ -220,12 +208,12 @@ abstract class BaseStampOverlayState<
             compositing = false;
             return;
           }
-          _disposeComposited();
+          disposeComposited();
           compositedImage = result;
           compositedCount += allNew.length;
         } catch (e) {
           debugPrint('$logTag composite failed: $e');
-          _disposeComposited();
+          disposeComposited();
           compositedImage = null;
         }
       }
@@ -236,8 +224,7 @@ abstract class BaseStampOverlayState<
     if (mounted) setState(() {});
   }
 
-  //Riverpod 监听器（子类在 build() 中调用）
-  // ═══════════════════════════════════════════════════════════
+  // Riverpod 监听器（子类在 build() 中调用）
 
   /// 注册 renderedBrushHashesProvider 监听器
   /// 当管线完成渲染且 hash 匹配时，清除 committed preview
@@ -247,8 +234,9 @@ abstract class BaseStampOverlayState<
       if (isCommitting && hash == committedHash) {
         committedMarks.clear();
         isCommitting = false;
-        _disposeComposited();
+        disposeComposited();
         compositedCount = 0;
+        ref.read(persistedStampProvider.notifier).clear();
         if (mounted) setState(() {});
       }
     });
@@ -258,15 +246,15 @@ abstract class BaseStampOverlayState<
   void handleMarksCleared() {
     committedMarks.clear();
     isCommitting = false;
-    _disposeComposited();
+    disposeComposited();
     compositedImage = null;
     compositedCount = 0;
     compositing = false;
+    ref.read(persistedStampProvider.notifier).clear();
     if (mounted) setState(() {});
   }
 
-  //手势处理
-  // ═══════════════════════════════════════════════════════════
+  // 手势处理
 
   void _onTapDown(Offset pos, WidgetRef ref) {
     final isSampling = getIsSampling(ref);
@@ -306,7 +294,7 @@ abstract class BaseStampOverlayState<
     strokeTracker = tracker;
     cursorPos = pos;
 
-    _disposeComposited();
+    disposeComposited();
     compositedImage = null;
     compositedCount = 0;
     committedMarks.clear();
@@ -371,6 +359,13 @@ abstract class BaseStampOverlayState<
         ..clear()
         ..addAll(strokeMarks);
       isCommitting = true;
+      ref
+          .read(persistedStampProvider.notifier)
+          .persist(
+            renderedHashKey,
+            committedMarks.map<StampMark>((m) => m).toList(),
+            committedHash,
+          );
       _triggerComposite(force: true);
       strokeMarks.clear();
       compositedCount = 0;
@@ -386,13 +381,12 @@ abstract class BaseStampOverlayState<
     isCommitting = false;
     compositing = false;
     strokeTracker = null;
-    _disposeComposited();
+    disposeComposited();
     compositedImage = null;
     setState(() {});
   }
 
-  //build() 辅助
-  // ═══════════════════════════════════════════════════════════
+  // build() 辅助
 
   /// 构建标准的 MouseRegion + GestureDetector 包装
   ///

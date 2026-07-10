@@ -693,7 +693,8 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     switch (m.id) {
       case 'spot_removal':
         final st = ref.watch(spotRemoveStateProvider);
-        if (st.mode != SpotRemoveMode.active) return null;
+        final hasPending = hasPendingStampPreview(ref, 'spot_removal');
+        if (st.mode != SpotRemoveMode.active && !hasPending) return null;
         return SpotRemoveOverlay(
           imageDisplaySize: displaySize,
           crop: params.crop,
@@ -704,7 +705,7 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
       case 'healing':
         final st = ref.watch(healingStateProvider);
         if (st.mode != HealingMode.active &&
-            !HealingOverlayState.hasPendingPreview) {
+            !hasPendingStampPreview(ref, 'healing')) {
           return null;
         }
         return HealingOverlay(

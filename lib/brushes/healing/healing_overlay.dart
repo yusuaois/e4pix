@@ -42,16 +42,6 @@ class HealingOverlay extends ConsumerStatefulWidget {
 
 class HealingOverlayState
     extends BaseStampOverlayState<HealingMark, HealingOverlay> {
-  // 持久化已提交预览（跨 widget 卸载/重挂载保持）
-  // 静态字段是设计需求：工具切换时 widget 被卸载，
-  // 管线尚未完成渲染，需在下次挂载时恢复 committed preview
-  static final List<HealingMark> _persistedMarks = [];
-  static int _persistedHash = 0;
-  static bool _persistedCommitting = false;
-
-  /// 是否有未渲染 marks 需要保持覆盖层存活
-  static bool get hasPendingPreview => _persistedCommitting;
-
   // Widget 参数
 
   @override
@@ -73,31 +63,25 @@ class HealingOverlayState
   @override
   void onInitState() {
     super.onInitState();
-    if (_persistedCommitting && _persistedMarks.isNotEmpty) {
-      committedMarks.addAll(_persistedMarks);
-      committedHash = _persistedHash;
+    final persisted = ref.read(persistedStampProvider);
+    if (persisted.isCommitting &&
+        persisted.brushId == 'healing' &&
+        persisted.marks.isNotEmpty) {
+      committedMarks.addAll(persisted.marks.cast<HealingMark>());
+      committedHash = persisted.hash;
       isCommitting = true;
-      _persistedMarks.clear();
-      _persistedHash = 0;
-      _persistedCommitting = false;
-    }
-  }
-
-  @override
-  void onCustomDispose() {
-    super.onCustomDispose();
-    if (isCommitting && committedMarks.isNotEmpty) {
-      _persistedMarks
-        ..clear()
-        ..addAll(committedMarks);
-      _persistedHash = committedHash;
-      _persistedCommitting = true;
+      ref.read(persistedStampProvider.notifier).clear();
     }
   }
 
   @override
   void didUpdateWidget(HealingOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.sourceImage != oldWidget.sourceImage) {
+      disposeComposited();
+      compositedImage = null;
+      compositedCount = 0;
+    }
     if (oldWidget.interactive && !widget.interactive) {
       paintOffset = null;
       strokeTracker = null;

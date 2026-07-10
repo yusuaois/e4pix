@@ -121,15 +121,13 @@ class SpotHealLayerProvider
     int targetWidth,
     int targetHeight,
   ) async {
-    // 创建一个空 mask 纹理（全零 = 无填充区域）
-    // 着色器仍然会执行完整的渲染流程，触发 PSO 创建
-    final emptyMask = await createEmptyMask();
+    final warmupMask = await createWarmupMask();
     try {
       final result = await runSingleShaderPass(
         shader: brushShader,
         outputWidth: targetWidth,
         outputHeight: targetHeight,
-        samplers: [developOutput, emptyMask],
+        samplers: [developOutput, warmupMask],
         setUniforms: (s) {
           s.setFloat(0, targetWidth.toDouble());
           s.setFloat(1, targetHeight.toDouble());
@@ -140,7 +138,7 @@ class SpotHealLayerProvider
     } catch (e) {
       debugPrint('[Warmup] spot_heal FAILED: $e');
     }
-    emptyMask.dispose();
+    warmupMask.dispose();
   }
 
   @override

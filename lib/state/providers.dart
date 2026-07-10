@@ -38,6 +38,7 @@ export '../brushes/healing/healing_state.dart';
 export '../brushes/spot_heal/spot_heal_state.dart';
 export '../brushes/dodge_burn/dodge_burn_state.dart';
 export '../brushes/sponge/sponge_state.dart';
+export '../brushes/shared/persisted_stamp_state.dart';
 
 // 水印
 export 'watermark/watermark_state.dart';

@@ -48,6 +48,30 @@ class _SpotRemoveOverlayState
   @override
   ui.Image? get sourceImage => widget.sourceImage;
 
+  @override
+  void didUpdateWidget(SpotRemoveOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.sourceImage != oldWidget.sourceImage) {
+      disposeComposited();
+      compositedImage = null;
+      compositedCount = 0;
+    }
+  }
+
+  @override
+  void onInitState() {
+    super.onInitState();
+    final persisted = ref.read(persistedStampProvider);
+    if (persisted.isCommitting &&
+        persisted.brushId == 'spot_removal' &&
+        persisted.marks.isNotEmpty) {
+      committedMarks.addAll(persisted.marks.cast<SpotMark>());
+      committedHash = persisted.hash;
+      isCommitting = true;
+      ref.read(persistedStampProvider.notifier).clear();
+    }
+  }
+
   // Brush 配置
   @override
   String get shaderKey => 'spot_removal';
