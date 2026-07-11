@@ -97,8 +97,18 @@ class StampCompositor<T extends StampMark> {
     if (validMarks.isNotEmpty) {
       final prog = ref.read(brushShaderProgramsProvider).value?[shaderKey];
       final shader = prog?.fragmentShader();
-      final base = compositedImage ?? getSourceImage();
-      if (shader != null && base != null) {
+      final src =
+          compositedImage ??
+          ref.read(developOutputProvider) ??
+          getSourceImage();
+      if (src == null) {
+        compositedCount += allNew.length;
+        compositing = false;
+        onNeedsRebuild();
+        return;
+      }
+      final base = src.clone();
+      if (shader != null) {
         try {
           final result = await _runCompositePass(
             base: base,
@@ -117,6 +127,12 @@ class StampCompositor<T extends StampMark> {
         } catch (e) {
           debugPrint('$logTag composite failed: $e');
           disposeComposited();
+          compositedCount = 0; // 失败时重置，确保下次从 base 全量重试
+        } finally {
+          // clone 的生命周期仅限于本次 GPU pass
+          try {
+            base.dispose();
+          } catch (_) {}
         }
       }
     } else {

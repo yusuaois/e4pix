@@ -19,10 +19,19 @@ Future<ui.Image> runSingleShaderPass({
   required List<ui.Image> samplers,
 }) async {
   for (int i = 0; i < samplers.length; i++) {
+    final img = samplers[i];
     try {
-      shader.setImageSampler(i, samplers[i]);
-    } on AssertionError {
-      throw DisposedImageException('sampler[$i] disposed');
+      shader.setImageSampler(i, img);
+    } on AssertionError catch (e) {
+      int? w, h;
+      try {
+        w = img.width;
+        h = img.height;
+      } catch (_) {}
+      throw DisposedImageException(
+        'sampler[$i] hash=${identityHashCode(img)} w=${w ?? '?'} h=${h ?? '?'} '
+        'msg=${e.message}',
+      );
     }
   }
   setUniforms(shader);

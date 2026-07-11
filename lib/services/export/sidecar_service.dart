@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../../brushes/brush_manifest.dart';
+import '../../brushes/shared/stamp/stamp_mark.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/tethered_shot.dart';
 
@@ -21,8 +23,12 @@ class SidecarService {
       final f = File(sidecarPath(rawPath));
       if (!await f.exists()) return null;
       final j = jsonDecode(await f.readAsString()) as Map<String, dynamic>;
-      final params = j['params'] != null
-          ? AdjustmentParams.fromJson(j['params'] as Map<String, dynamic>)
+      final paramsJson = j['params'] as Map<String, dynamic>?;
+      final params = paramsJson != null
+          ? AdjustmentParams.fromJson(
+              paramsJson,
+              brushMarks: _parseBrushMarks(paramsJson['brushMarks']),
+            )
           : AdjustmentParams.neutral;
       final rating = (j['rating'] as num?)?.toInt() ?? 0;
       final flag = _flagFromString(j['flag'] as String?);
@@ -70,6 +76,26 @@ class SidecarService {
       debugPrint('[Sidecar] Failed to write $rawPath: $e');
       return false;
     }
+  }
+
+  /// 从 JSON 反序列化 brushMarks map
+  static Map<String, List<StampMark>>? _parseBrushMarks(dynamic raw) {
+    if (raw == null || raw is! Map) return null;
+    final result = <String, List<StampMark>>{};
+    for (final entry in raw.entries) {
+      if (entry.key is! String || entry.value is! List) continue;
+      final manifest = brushManifests.cast<BrushManifest?>().firstWhere(
+        (m) => m?.id == entry.key,
+        orElse: () => null,
+      );
+      if (manifest?.marksFromJson == null) continue;
+      final jsonList = (entry.value as List)
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      if (jsonList.isEmpty) continue;
+      result[entry.key as String] = manifest!.marksFromJson!(jsonList);
+    }
+    return result;
   }
 
   static String _flagToString(ShotFlag f) => switch (f) {

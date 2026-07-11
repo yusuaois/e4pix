@@ -25,7 +25,7 @@
 │ State: healing_state.dart                        │
 │   ├── HealingMode { inactive, active }           │
 │   ├── HealingState (cloneSource, radius, hardness)│
-│   └── HealingNotifier → params.healingMarks      │
+│   └── HealingNotifier → params.brushMarks['healing'] │
 ├──────────────────────────────────────────────────┤
 │ Model: healing_mark.dart                         │
 │   └── HealingMark { source, target, radius, hardness } │
@@ -125,7 +125,7 @@ cp build/flutter_assets/assets/shaders/healing.frag ../assets/shaders/healing.sh
 | 文件 | 职责 |
 |------|------|
 | `lib/core/models/healing_mark.dart` | HealingMark 数据模型 |
-| `lib/core/models/adjustment_params.dart` | healingMarks 字段 (序列化/undo) |
+| `lib/core/models/adjustment_params.dart` | brushMarks map（统一聚合，key='healing'）(序列化/undo) |
 | `lib/state/tools/healing_state.dart` | HealingNotifier + HealingState + healingStateProvider |
 | `lib/state/render/render_state.dart` | healingShaderProgramProvider + renderedHealingHashProvider |
 | `lib/render/healing_cache.dart` | 两级缓存 (marks hash + 增量滚动) |
