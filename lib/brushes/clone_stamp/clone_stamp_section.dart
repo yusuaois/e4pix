@@ -1,3 +1,4 @@
+import 'clone_stamp_model.dart';
 import "clone_stamp_state.dart";
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +32,8 @@ class SpotRemoveSection extends ConsumerWidget {
     final notifier = ref.read(spotRemoveStateProvider.notifier);
     final isActive = state.mode == SpotRemoveMode.active;
     final isSampling = state.samplingButtonOn;
+    final marks =
+        (params.brushMarks['spot_removal']?.cast<SpotMark>()) ?? const [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -103,7 +106,7 @@ class SpotRemoveSection extends ConsumerWidget {
         ],
 
         // ── 清除全部 ──
-        if (isActive)
+        if (isActive && marks.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Align(

@@ -1,3 +1,4 @@
+import 'healing_model.dart';
 import "healing_state.dart";
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +32,8 @@ class HealingSection extends ConsumerWidget {
     final notifier = ref.read(healingStateProvider.notifier);
     final isActive = state.mode == HealingMode.active;
     final isSampling = state.samplingButtonOn;
+    final marks =
+        (params.brushMarks['healing']?.cast<HealingMark>()) ?? const [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -101,7 +104,7 @@ class HealingSection extends ConsumerWidget {
         ],
 
         // ── Clear All ──
-        if (isActive)
+        if (isActive && marks.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Align(
