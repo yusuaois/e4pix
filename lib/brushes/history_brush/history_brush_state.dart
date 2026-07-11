@@ -5,23 +5,37 @@ import '../shared/stamp/stamp_mark.dart';
 import '../../state/params/params_state.dart';
 import 'history_brush_model.dart';
 
+/// 历史画笔激活模式
+enum HistoryBrushMode { inactive, active }
+
 @immutable
 class HistoryBrushState {
+  final HistoryBrushMode mode;
   final double brushRadius;
   final double brushHardness;
 
-  const HistoryBrushState({this.brushRadius = 0.02, this.brushHardness = 1.0});
+  const HistoryBrushState({
+    this.mode = HistoryBrushMode.inactive,
+    this.brushRadius = 0.02,
+    this.brushHardness = 1.0,
+  });
 
-  HistoryBrushState copyWith({double? brushRadius, double? brushHardness}) =>
-      HistoryBrushState(
-        brushRadius: brushRadius ?? this.brushRadius,
-        brushHardness: brushHardness ?? this.brushHardness,
-      );
+  HistoryBrushState copyWith({
+    HistoryBrushMode? mode,
+    double? brushRadius,
+    double? brushHardness,
+  }) => HistoryBrushState(
+    mode: mode ?? this.mode,
+    brushRadius: brushRadius ?? this.brushRadius,
+    brushHardness: brushHardness ?? this.brushHardness,
+  );
 }
 
 class HistoryBrushNotifier extends Notifier<HistoryBrushState> {
   @override
   HistoryBrushState build() => const HistoryBrushState();
+
+  void setMode(HistoryBrushMode mode) => state = state.copyWith(mode: mode);
 
   List<T> _marks<T extends StampMark>() =>
       ref

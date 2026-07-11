@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 import '../../widgets/develop/sections/shared.dart';
+import 'history_brush_model.dart';
 
 class HistoryBrushSection extends ConsumerWidget {
   final AdjustmentParams params;
@@ -23,11 +24,34 @@ class HistoryBrushSection extends ConsumerWidget {
     final state = ref.watch(historyBrushStateProvider);
     final notifier = ref.read(historyBrushStateProvider.notifier);
     final brushSourceIndex = ref.watch(historyPanelProvider).brushSourceIndex;
+    final isActive = state.mode == HistoryBrushMode.active;
+    final marks =
+        (params.brushMarks['history_brush']?.cast<HistoryMark>()) ?? const [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionLabel(title: 'historyBrushTitle'),
+        SectionLabel(title: 'historyBrush'),
+
+        // 激活按钮
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              PillChip(
+                icon: Icons.history,
+                label: tr('historyBrushTitle'),
+                isActive: isActive,
+                onTap: () => notifier.setMode(
+                  isActive
+                      ? HistoryBrushMode.inactive
+                      : HistoryBrushMode.active,
+                ),
+              ),
+              const Spacer(),
+            ],
+          ),
+        ),
 
         // 画笔源状态
         Padding(
@@ -46,45 +70,48 @@ class HistoryBrushSection extends ConsumerWidget {
 
         const SizedBox(height: 4),
 
-        // 半径滑块
-        DevelopSliderTile(
-          label: tr('historyBrushRadius'),
-          value: state.brushRadius * 1000,
-          min: 2,
-          max: 100,
-          fractionDigits: 0,
-          suffix: '‰',
-          onChanged: (v) => notifier.setBrushRadius(v / 1000),
-        ),
+        if (isActive) ...[
+          // 半径滑块
+          DevelopSliderTile(
+            label: tr('historyBrushRadius'),
+            value: state.brushRadius * 1000,
+            min: 2,
+            max: 100,
+            fractionDigits: 0,
+            suffix: '‰',
+            onChanged: (v) => notifier.setBrushRadius(v / 1000),
+          ),
 
-        // 硬度滑块
-        DevelopSliderTile(
-          label: tr('historyBrushHardness'),
-          value: state.brushHardness * 100,
-          min: 0,
-          max: 100,
-          fractionDigits: 0,
-          suffix: '%',
-          onChanged: (v) => notifier.setBrushHardness(v / 100),
-        ),
+          // 硬度滑块
+          DevelopSliderTile(
+            label: tr('historyBrushHardness'),
+            value: state.brushHardness * 100,
+            min: 0,
+            max: 100,
+            fractionDigits: 0,
+            suffix: '%',
+            onChanged: (v) => notifier.setBrushHardness(v / 100),
+          ),
+        ],
 
         // 清除全部
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: notifier.clearAll,
-              icon: const Icon(Icons.delete_outline, size: 16),
-              label: Text(tr('ClearAll')),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.semanticError,
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+        if (isActive && marks.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: notifier.clearAll,
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: Text(tr('ClearAll')),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.semanticError,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }

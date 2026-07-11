@@ -5,11 +5,9 @@ import '../healing/healing_state.dart';
 import '../spot_heal/spot_heal_state.dart';
 import '../dodge_burn/dodge_burn_state.dart';
 import '../sponge/sponge_state.dart';
+import '../history_brush/history_brush_state.dart';
 
-/// Deactivate a brush when the user navigates to another tool.
-///
-/// Each brush has a different state shape — dispatches by manifest [id].
-/// Lives separately from [brush_manifest.dart] to avoid a circular import.
+/// 切换工具时停用画笔，按 manifest [id] 分发
 void deactivateBrush(String brushId, WidgetRef ref) {
   switch (brushId) {
     case 'spot_removal':
@@ -28,5 +26,9 @@ void deactivateBrush(String brushId, WidgetRef ref) {
       ref
           .read(spongeStateProvider.notifier)
           .setBrushMode(SpongeBrushMode.inactive);
+    case 'history_brush':
+      ref
+          .read(historyBrushStateProvider.notifier)
+          .setMode(HistoryBrushMode.inactive);
   }
 }

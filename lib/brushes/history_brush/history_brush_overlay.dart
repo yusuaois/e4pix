@@ -10,10 +10,7 @@ import '../shared/stamp/base_stamp_painter.dart';
 import '../shared/brush_hashes.dart';
 import 'history_brush_model.dart';
 
-/// 历史记录画笔交互覆盖层
-///
-/// 从 History 面板选中的冻结快照恢复像素到当前画面
-/// 无取样模式，始终处于绘画状态
+/// 历史记录画笔——从冻结快照恢复像素，通过按钮激活
 class HistoryBrushOverlay extends ConsumerStatefulWidget {
   final Size imageDisplaySize;
   final CropParams crop;

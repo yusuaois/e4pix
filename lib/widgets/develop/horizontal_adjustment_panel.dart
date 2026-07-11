@@ -158,119 +158,123 @@ class _ToolRail extends ConsumerWidget {
     return Container(
       width: 46,
       decoration: const BoxDecoration(color: AppColors.surfaceBg),
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          // 固定顶部：info / crop / 图层 / 历史 / reset
+          _RailItem(
+            icon: Icons.info_outline,
+            tooltip: tr('info'),
+            selected: selected == DevelopTool.info,
+            onTap: () => onSelect(DevelopTool.info),
+          ),
+          if (onEnterCrop != null)
             _RailItem(
-              icon: Icons.info_outline,
-              tooltip: tr('info'),
-              selected: selected == DevelopTool.info,
-              onTap: () => onSelect(DevelopTool.info),
+              icon: Icons.crop,
+              tooltip: tr('crop'),
+              onTap: onEnterCrop!,
             ),
-            if (onEnterCrop != null)
-              _RailItem(
-                icon: Icons.crop,
-                tooltip: tr('crop'),
-                onTap: onEnterCrop!,
+          _RailItem(
+            icon: Icons.layers,
+            tooltip: tr('brushLayerOrder'),
+            onTap: () => showBrushLayerOrderSheet(context, ref),
+          ),
+          _RailItem(
+            icon: Icons.history,
+            tooltip: tr('history'),
+            onTap: () => showHistoryPanelSheet(context, ref),
+          ),
+          _RailItem(icon: Icons.refresh, tooltip: tr("reset"), onTap: onReset),
+          Divider(
+            height: 14,
+            indent: 10,
+            endIndent: 10,
+            color: AppColors.faintBorder,
+          ),
+          // 可滚动 develop 工具区
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _RailItem(
+                    icon: Icons.light_mode_outlined,
+                    tooltip: tr('light'),
+                    selected: selected == DevelopTool.light,
+                    onTap: () => onSelect(DevelopTool.light),
+                  ),
+                  _RailItem(
+                    icon: Icons.palette_outlined,
+                    tooltip: tr('color'),
+                    selected: selected == DevelopTool.color,
+                    onTap: () => onSelect(DevelopTool.color),
+                  ),
+                  _RailItem(
+                    icon: Icons.show_chart,
+                    tooltip: tr('curve'),
+                    selected: selected == DevelopTool.curve,
+                    onTap: () => onSelect(DevelopTool.curve),
+                  ),
+                  _RailItem(
+                    icon: Icons.gradient,
+                    tooltip: tr('hsl'),
+                    selected: selected == DevelopTool.hsl,
+                    onTap: () => onSelect(DevelopTool.hsl),
+                  ),
+                  _RailItem(
+                    icon: Icons.view_in_ar_outlined,
+                    tooltip: 'LUT',
+                    selected: selected == DevelopTool.lut,
+                    onTap: () => onSelect(DevelopTool.lut),
+                  ),
+                  _RailItem(
+                    icon: Icons.bookmarks_outlined,
+                    tooltip: tr('preset'),
+                    selected: selected == DevelopTool.preset,
+                    onTap: () => onSelect(DevelopTool.preset),
+                  ),
+                  _RailItem(
+                    icon: Icons.deblur,
+                    tooltip: tr('detail'),
+                    selected: selected == DevelopTool.detail,
+                    onTap: () => onSelect(DevelopTool.detail),
+                  ),
+                  _RailItem(
+                    icon: Icons.brush_outlined,
+                    tooltip: tr('local'),
+                    selected: selected == DevelopTool.local,
+                    onTap: () => onSelect(DevelopTool.local),
+                  ),
+                  for (final m in brushManifests)
+                    _RailItem(
+                      icon: m.icon,
+                      tooltip: tr(m.titleKey),
+                      selected: selected == m.tool,
+                      onTap: () => onSelect(m.tool),
+                    ),
+                  _RailItem(
+                    icon: Icons.camera_outlined,
+                    tooltip: tr('lens'),
+                    selected: selected == DevelopTool.lens,
+                    onTap: () => onSelect(DevelopTool.lens),
+                  ),
+                  _RailItem(
+                    icon: Icons.auto_awesome,
+                    tooltip: tr('superResolution'),
+                    selected: selected == DevelopTool.sr,
+                    onTap: () => onSelect(DevelopTool.sr),
+                  ),
+                  _RailItem(
+                    icon: Icons.border_style,
+                    tooltip: tr('watermark'),
+                    selected: selected == DevelopTool.watermark,
+                    onTap: () => onSelect(DevelopTool.watermark),
+                  ),
+                  const SizedBox(height: 8),
+                ],
               ),
-            _RailItem(
-              icon: Icons.layers,
-              tooltip: tr('brushLayerOrder'),
-              onTap: () => showBrushLayerOrderSheet(context, ref),
             ),
-            _RailItem(
-              icon: Icons.history,
-              tooltip: tr('history'),
-              onTap: () => showHistoryPanelSheet(context, ref),
-            ),
-            _RailItem(
-              icon: Icons.refresh,
-              tooltip: tr("reset"),
-              onTap: onReset,
-            ),
-            Divider(
-              height: 14,
-              indent: 10,
-              endIndent: 10,
-              color: AppColors.faintBorder,
-            ),
-            _RailItem(
-              icon: Icons.light_mode_outlined,
-              tooltip: tr('light'),
-              selected: selected == DevelopTool.light,
-              onTap: () => onSelect(DevelopTool.light),
-            ),
-            _RailItem(
-              icon: Icons.palette_outlined,
-              tooltip: tr('color'),
-              selected: selected == DevelopTool.color,
-              onTap: () => onSelect(DevelopTool.color),
-            ),
-            _RailItem(
-              icon: Icons.show_chart, // 或 Icons.timeline
-              tooltip: tr('curve'),
-              selected: selected == DevelopTool.curve,
-              onTap: () => onSelect(DevelopTool.curve),
-            ),
-            _RailItem(
-              icon: Icons.gradient,
-              tooltip: tr('hsl'),
-              selected: selected == DevelopTool.hsl,
-              onTap: () => onSelect(DevelopTool.hsl),
-            ),
-            _RailItem(
-              icon: Icons.view_in_ar_outlined,
-              tooltip: 'LUT',
-              selected: selected == DevelopTool.lut,
-              onTap: () => onSelect(DevelopTool.lut),
-            ),
-            _RailItem(
-              icon: Icons.bookmarks_outlined,
-              tooltip: tr('preset'),
-              selected: selected == DevelopTool.preset,
-              onTap: () => onSelect(DevelopTool.preset),
-            ),
-            _RailItem(
-              icon: Icons.deblur,
-              tooltip: tr('detail'),
-              selected: selected == DevelopTool.detail,
-              onTap: () => onSelect(DevelopTool.detail),
-            ),
-            _RailItem(
-              icon: Icons.brush_outlined,
-              tooltip: tr('local'),
-              selected: selected == DevelopTool.local,
-              onTap: () => onSelect(DevelopTool.local),
-            ),
-            for (final m in brushManifests)
-              _RailItem(
-                icon: m.icon,
-                tooltip: tr(m.titleKey),
-                selected: selected == m.tool,
-                onTap: () => onSelect(m.tool),
-              ),
-            _RailItem(
-              icon: Icons.camera_outlined,
-              tooltip: tr('lens'),
-              selected: selected == DevelopTool.lens,
-              onTap: () => onSelect(DevelopTool.lens),
-            ),
-            _RailItem(
-              icon: Icons.auto_awesome,
-              tooltip: tr('superResolution'),
-              selected: selected == DevelopTool.sr,
-              onTap: () => onSelect(DevelopTool.sr),
-            ),
-            _RailItem(
-              icon: Icons.border_style,
-              tooltip: tr('watermark'),
-              selected: selected == DevelopTool.watermark,
-              onTap: () => onSelect(DevelopTool.watermark),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

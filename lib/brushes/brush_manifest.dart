@@ -279,7 +279,7 @@ Widget? _makeSpongeOverlay(OverlayFactoryParams p) {
 }
 
 Widget? _makeHistoryBrushOverlay(OverlayFactoryParams p) {
-  if (p.ref.watch(developToolProvider) != DevelopTool.historyBrush) {
+  if (p.ref.watch(historyBrushStateProvider).mode != HistoryBrushMode.active) {
     return null;
   }
   return HistoryBrushOverlay(
