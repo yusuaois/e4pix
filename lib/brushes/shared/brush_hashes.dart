@@ -1,4 +1,4 @@
-import 'stamp_mark.dart';
+import 'stamp/stamp_mark.dart';
 
 /// 图章 marks 哈希，用于缓存键和 committed-preview 匹配
 int hashSpots(List<StampMark> marks) =>

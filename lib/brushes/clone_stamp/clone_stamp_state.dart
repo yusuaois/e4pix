@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'clone_stamp_model.dart';
-import '../shared/stamp_mark.dart';
+import '../shared/stamp/stamp_mark.dart';
 import '../../state/params/params_state.dart';
 
 /// 污点修复交互模式
@@ -61,7 +61,9 @@ class SpotRemoveNotifier extends Notifier<SpotRemoveState> {
   SpotRemoveState build() => const SpotRemoveState();
 
   List<T> _marks<T extends StampMark>() =>
-      ref.read(currentParamsNotifierProvider).brushMarks['spot_removal']
+      ref
+          .read(currentParamsNotifierProvider)
+          .brushMarks['spot_removal']
           ?.cast<T>() ??
       const [];
 

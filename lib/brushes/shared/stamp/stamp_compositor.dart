@@ -3,11 +3,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/models/crop_params.dart';
-import '../../state/providers.dart';
-import '../../utils/brush_coord_utils.dart';
-import '../../utils/brush_preview_utils.dart';
-import '../../utils/shader_pass_util.dart';
+import '../../../core/models/crop_params.dart';
+import '../../../state/providers.dart';
+import '../../../utils/brush_coord_utils.dart';
+import '../../../utils/brush_preview_utils.dart';
+import '../../../utils/shader_pass_util.dart';
 import 'spot_data_texture.dart';
 import 'stamp_mark.dart';
 

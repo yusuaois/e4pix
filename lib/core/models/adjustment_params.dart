@@ -5,7 +5,7 @@ import 'package:e4pix/core/models/lens_correction_params.dart';
 import 'package:e4pix/core/models/perspective_params.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../brushes/shared/stamp_mark.dart';
+import '../../brushes/shared/stamp/stamp_mark.dart';
 import 'local_adjustment.dart';
 import 'rgb_curves.dart';
 

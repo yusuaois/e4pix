@@ -4,8 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/models/crop_params.dart';
-import '../../state/providers.dart';
+import '../../../core/models/crop_params.dart';
+import '../../../state/providers.dart';
 import 'stamp_compositor.dart';
 import 'stamp_gesture_handler.dart';
 import 'stamp_mark.dart';

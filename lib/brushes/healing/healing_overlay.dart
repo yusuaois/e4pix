@@ -6,8 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/crop_params.dart';
 import 'healing_model.dart';
 import '../shared/brush_hashes.dart';
-import '../shared/base_stamp_painter.dart';
-import '../shared/base_stamp_overlay.dart';
+import '../shared/stamp/base_stamp_painter.dart';
+import '../shared/stamp/base_stamp_overlay.dart';
 import '../../state/providers.dart';
 
 /// 修复画笔交互覆盖层

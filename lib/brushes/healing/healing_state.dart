@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'healing_model.dart';
-import '../shared/stamp_mark.dart';
+import '../shared/stamp/stamp_mark.dart';
 import '../../state/params/params_state.dart';
 
 /// 修复画笔交互模式

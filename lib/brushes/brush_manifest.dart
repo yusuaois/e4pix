@@ -19,7 +19,7 @@ import 'sponge/sponge_layer.dart';
 import 'sponge/sponge_overlay.dart';
 import 'history_brush/history_brush_layer.dart';
 import 'history_brush/history_brush_overlay.dart';
-import 'shared/stamp_mark.dart';
+import 'shared/stamp/stamp_mark.dart';
 import 'clone_stamp/clone_stamp_model.dart';
 import 'healing/healing_model.dart';
 import 'spot_heal/spot_heal_model.dart';

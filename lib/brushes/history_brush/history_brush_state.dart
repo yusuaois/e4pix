@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../shared/stamp_mark.dart';
+import '../shared/stamp/stamp_mark.dart';
 import '../../state/params/params_state.dart';
 import 'history_brush_model.dart';
 

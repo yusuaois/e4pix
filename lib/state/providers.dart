@@ -40,7 +40,7 @@ export '../brushes/spot_heal/spot_heal_state.dart';
 export '../brushes/dodge_burn/dodge_burn_state.dart';
 export '../brushes/sponge/sponge_state.dart';
 export '../brushes/history_brush/history_brush_state.dart';
-export '../brushes/shared/persisted_stamp_state.dart';
+export '../brushes/shared/stamp/persisted_stamp_state.dart';
 
 // 水印
 export 'watermark/watermark_state.dart';

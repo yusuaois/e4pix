@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
-import '../../brushes/shared/stamp_mark.dart';
+import '../shared/stamp/stamp_mark.dart';
 
 /// 污点修复标记（真正的 Spot Healing Brush）
 ///

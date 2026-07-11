@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
-import '../shared/stamp_mark.dart';
+import '../shared/stamp/stamp_mark.dart';
 
 /// Dodge/Burn 模式
 enum DodgeBurnMode {

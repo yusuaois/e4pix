@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
-import '../shared/stamp_mark.dart';
+import '../shared/stamp/stamp_mark.dart';
 
 /// 污点修复标记（仿制图章）
 ///

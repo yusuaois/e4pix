@@ -3,9 +3,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/models/crop_params.dart';
-import '../../utils/brush_coord_utils.dart';
-import '../../utils/brush_preview_utils.dart';
+import '../../../core/models/crop_params.dart';
+import '../../../utils/brush_coord_utils.dart';
+import '../../../utils/brush_preview_utils.dart';
 import 'stamp_mark.dart';
 import 'stamp_painter_utils.dart';
 

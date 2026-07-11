@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../utils/path_brush_tracker.dart';
+import '../../../utils/path_brush_tracker.dart';
 import 'stamp_mark.dart';
 
 /// 源-目标型画笔的手势与笔画状态管理器

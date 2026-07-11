@@ -9,7 +9,7 @@ import '../../render/incremental_render_cache.dart';
 import '../../state/params/history_panel_state.dart';
 import '../shared/brush_hashes.dart';
 import '../shared/brush_layer_mixin.dart';
-import '../shared/spot_data_texture.dart';
+import '../shared/stamp/spot_data_texture.dart';
 import '../../utils/shader_pass_util.dart';
 import 'history_brush_model.dart';
 

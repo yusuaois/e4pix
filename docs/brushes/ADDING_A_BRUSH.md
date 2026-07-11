@@ -1,20 +1,48 @@
 # 如何新增画笔 — 开发者指南
 
-> 当前已提取公共工具层（坐标变换、路径采样、纹理生命周期）和 BrushManifest 单点注册机制。
+> 当前已提取公共工具层（坐标变换、路径采样、纹理生命周期）、A/B 两类 Overlay 基类委托模式，和 BrushManifest 单点注册机制。
 > 新增画笔只需创建 **6 个自包含文件** + 在 **4 个注册点** 添加少量胶水代码。
+> B 类（原地修改）overlay 继承 `BaseEffectOverlayState`，~40 行即可。
 >
-> 以污点修复（`spot_heal`）为最简模板，加深减淡（`dodge_burn`）为复杂模板。
+> 以污点修复（`spot_heal`）为 B 类最简模板，加深减淡（`dodge_burn`）为 B 类复杂模板。
 
 ---
 
 ## 1. 架构概览
 
 ```
-lib/brushes/<my_brush>/
+lib/brushes/
+├── shared/
+│   ├── stamp/                     # A 类（源-目标型）基类
+│   │   ├── base_stamp_overlay.dart
+│   │   ├── base_stamp_painter.dart
+│   │   ├── stamp_compositor.dart
+│   │   ├── stamp_gesture_handler.dart
+│   │   ├── stamp_mark.dart
+│   │   ├── stamp_painter_utils.dart
+│   │   ├── persisted_stamp_state.dart
+│   │   └── spot_data_texture.dart
+│   ├── effect/                    # B 类（原地修改型）基类
+│   │   ├── base_effect_overlay.dart
+│   │   ├── base_effect_painter.dart
+│   │   └── effect_gesture_handler.dart
+│   ├── brush_hashes.dart          # 所有画笔的 hash 函数
+│   ├── brush_layer_mixin.dart     # ShaderCacheMixin
+│   ├── brush_warmup_utils.dart    # GPU 预热工具
+│   └── brush_deactivate.dart      # 画笔退出调度
+├── brush_manifest.dart            # 单点注册
+├── clone_stamp/                   # A 类示例
+├── healing/                       # A 类示例
+├── history_brush/                 # A 类示例
+├── spot_heal/                     # B 类示例（最简模板）
+├── dodge_burn/                    # B 类示例
+└── sponge/                        # B 类示例
+
+<my_brush>/
 ├── my_brush_model.dart    # 数据模型：Mark 类 + 工具级枚举
 ├── my_brush_state.dart    # 状态管理：Notifier<MyBrushState>
 ├── my_brush_layer.dart    # Compose 图层：实现 BrushLayerProvider
-├── my_brush_overlay.dart  # 手势交互：GestureDetector + CustomPainter
+├── my_brush_overlay.dart  # 手势交互：继承 BaseEffectOverlayState（B 类）或 BaseStampOverlayState（A 类）
 ├── my_brush_section.dart  # UI 面板：SectionLabel + PillChip + DevelopSliderTile
 └── my_brush.frag          # Fragment Shader
 ```
@@ -23,15 +51,17 @@ lib/brushes/<my_brush>/
 
 | | 原型 A：源-目标转移 | 原型 B：原地修改 |
 |---|---|---|
-| 示例 | 图章、修复画笔 | 污点修复、加深减淡 |
+| 示例 | 图章、修复画笔、历史画笔 | 污点修复、加深减淡、海绵 |
 | 是否需要 Alt+取样 | 是 | **否** |
 | 是否有 clone source | 是 | **否** |
 | committed preview 生命周期 | 有（hash 匹配） | **无** |
-| 渲染方式 | 逐 mark shader pass（max 64） | **mask 光栅化 + 单 pass** |
-| StateNotifier / Notifier | `Notifier<X>` | `Notifier<X>` |
+| 渲染方式 | 逐 mark shader pass | mask 光栅化 + 单 pass |
+| Overlay 基类 | **`BaseStampOverlayState`** | **`BaseEffectOverlayState`** |
+| Gesture Handler | **`StampGestureHandler`** | **`EffectGestureHandler`** |
+| Painter 基类 | **`BaseStampPainter`** | **`BaseEffectPainter`** |
 | 参考模板 | `clone_stamp/`、`healing/` | **`spot_heal/`（最简）** |
 
-**建议**：如果是原地修改型（涂抹即生效），选择原型 B，从 `spot_heal/` 复制起步。
+**建议**：如果是原地修改型（涂抹即生效），选择原型 B，从 `spot_heal/` 复制起步，overlay 只需 ~40 行（继承 `BaseEffectOverlayState`）。
 
 ---
 
@@ -101,7 +131,45 @@ final myBrushStateProvider =
 
 ### Step 3：Overlay Widget（`my_brush_overlay.dart`）
 
-这是最复杂的文件（200-600 行），包含手势处理和 Canvas 预览。
+**原型 B（推荐：继承 `BaseEffectOverlayState`，~40 行）**：
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/models/crop_params.dart';
+import '../../state/providers.dart';
+import '../shared/effect/base_effect_overlay.dart';
+
+class MyBrushOverlay extends ConsumerStatefulWidget { /* ... same as before ... */ }
+
+class _MyBrushOverlayState extends BaseEffectOverlayState<MyBrushOverlay> {
+  // ── Widget properties ──
+  @override Size get imageDisplaySize => widget.imageDisplaySize;
+  @override CropParams get crop => widget.crop;
+  @override int get sourceWidth => widget.sourceWidth;
+  @override int get sourceHeight => widget.sourceHeight;
+
+  // ── Brush configuration ──
+  @override double get brushNorm => ref.read(myBrushStateProvider).brushRadius / 1000.0;
+  @override double get hardness => ref.read(myBrushStateProvider).brushHardness;
+  @override Color get cursorColor => const Color(0xFFFFFFFF);
+  @override bool get isActive => ref.watch(myBrushStateProvider).mode == MyBrushMode.active;
+
+  // ── Callbacks ──
+  @override
+  void onAddMarkAt(Offset target, double radius, double hardness) {
+    ref.read(myBrushStateProvider.notifier).addMarkAt(target, radius, hardness);
+  }
+  @override
+  void onAddStrokesBatch(List<Offset> targets, double radius, double hardness) {
+    ref.read(myBrushStateProvider.notifier).addStrokesBatch(targets, radius, hardness);
+  }
+}
+```
+
+基类已自动处理：光标 hover/exit、`MouseRegion` + `GestureDetector`、`PathBrushTracker` 笔画采样、`CustomPaint`（笔画路径 + 单点圆 + 光标环）。
+
+**原型 A（继承 `BaseStampOverlayState`）**：参考 `clone_stamp_overlay.dart`（~200 行）。需额外提供 shader key、clone source、sampling、compositor 相关配置。
 
 复用工具层（无需手写）：
 
@@ -112,50 +180,6 @@ final myBrushStateProvider =
 | `sourceRadiusToScreen` | `brush_coord_utils.dart` | 源图半径 → 屏幕半径 |
 | `PathBrushTracker` | `path_brush_tracker.dart` | 路径均匀采样 |
 | `computeOOBRects` | `brush_preview_utils.dart` | OOB 采样预览（仅原型 A） |
-
-必须手写的结构：
-
-```dart
-class MyBrushOverlay extends ConsumerStatefulWidget { ... }
-
-class _MyBrushOverlayState extends ConsumerState<MyBrushOverlay> {
-  // 笔画积攒
-  final _tracker = PathBrushTracker(spacing: 0.005);
-  final _strokePoints = <Offset>[];
-
-  // 手势处理
-  void _onPanStart(DragStartDetails d) { ... }
-  void _onPanUpdate(DragUpdateDetails d) { ... }
-  void _onPanEnd(DragEndDetails d) {
-    // 松手：批量提交 marks → 管道渲染
-    ref.read(myBrushStateProvider.notifier)
-        .addStrokesBatch(_strokePoints, _radiusNorm, _hardness);
-    _strokePoints.clear();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(myBrushStateProvider);
-    if (state.mode != MyBrushMode.active) return const SizedBox.shrink();
-    return Listener(                    // 或 MouseRegion + GestureDetector
-      onPointerDown: ...,
-      onPointerMove: ...,
-      onPointerUp: ...,
-      child: CustomPaint(
-        painter: _MyBrushPainter(...),  // Canvas 预览
-      ),
-    );
-  }
-}
-
-class _MyBrushPainter extends CustomPainter {
-  // void paint(Canvas canvas, Size size) { ... }   // 绘制光标 + 笔画预览
-  // bool shouldRepaint(...) { ... }
-}
-```
-
-**原型 B 模板**（最简单）：`spot_heal_overlay.dart`（~235 行）
-**原型 A 模板**（完整 committed preview）：`clone_stamp_overlay.dart`（~570 行）
 
 ---
 
@@ -419,6 +443,13 @@ enum DevelopTool {
 | 想看什么 | 去哪个文件 |
 |----------|-----------|
 | **最简模板**（原型 B） | `lib/brushes/spot_heal/` 全部 6 文件 |
+| **B 类 overlay 基类** | `lib/brushes/shared/effect/base_effect_overlay.dart` |
+| **B 类 painter 基类** | `lib/brushes/shared/effect/base_effect_painter.dart` |
+| **B 类 gesture handler** | `lib/brushes/shared/effect/effect_gesture_handler.dart` |
+| **A 类 overlay 基类** | `lib/brushes/shared/stamp/base_stamp_overlay.dart` |
+| **A 类 painter 基类** | `lib/brushes/shared/stamp/base_stamp_painter.dart` |
+| **A 类 gesture handler** | `lib/brushes/shared/stamp/stamp_gesture_handler.dart` |
+| **A 类 compositor** | `lib/brushes/shared/stamp/stamp_compositor.dart` |
 | **复杂模板**（原型 B + per-mark 参数） | `lib/brushes/dodge_burn/` |
 | **完整 committed preview**（原型 A） | `lib/brushes/clone_stamp/` |
 | BrushLayerProvider 接口 | `lib/render/brush_layer_provider.dart` |

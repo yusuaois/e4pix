@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../shared/stamp_mark.dart';
+import '../shared/stamp/stamp_mark.dart';
 import 'dodge_burn_model.dart';
 import '../../state/providers.dart';
 

@@ -2,8 +2,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../../core/models/crop_params.dart';
-import '../../utils/brush_preview_utils.dart';
+import '../../../core/models/crop_params.dart';
+import '../../../utils/brush_preview_utils.dart';
 
 /// 硬度阈值，≥此值时用 step 替代 smoothstep
 const kHardEdgeThreshold = 0.999;
