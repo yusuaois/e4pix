@@ -4,6 +4,9 @@
 * **Compose 图层化架构**：所有像素画笔接入 Compose 图层系统，新画笔只需注册 BrushLayerProvider 即可自动覆盖预览/导出/水印/分割对比全通路
 * **修复画笔 (Healing Brush)**：新增修复画笔工具，使用边界匹配修复算法——沿笔刷边界采样干净背景色，对克隆像素做全局光照补偿，可消除小面积缺陷
 * **海绵工具 (Sponge)**：新增海绵工具画笔——使用 HSL 色彩空间调整饱和度，支持饱和/去饱和模式切换、流量控制、羽化遮罩；按 (mode, flow) 分组 GPU 渲染，per-mark 参数冻结
+* **历史记录画笔 (History Brush)**：从 History 面板选中的冻结快照恢复像素、3-sampler GPU 着色器（当前画面+历史快照+mark 纹理）、无取样模式始终处于绘画状态。
+* **历史记录面板 (History Panel)**：参数调整和笔画结束自动捕获条目、120×80 缩略图事件驱动惰性生成、点击回退完整编辑状态、长按设为 History Brush 取样源、Bottom Sheet UI 集成到横/竖屏按钮
+
 
 ## ⚡ 性能优化 (Performance)
 * **GPU 着色器预热自动触发**：图片加载后自动预编译所有 brush shader 的 GPU Pipeline State Object，消除首次笔画 7-30s 的 JIT 编译卡顿。预热通过 `addPostFrameCallback` 链逐帧执行，与 UI 光栅化错开

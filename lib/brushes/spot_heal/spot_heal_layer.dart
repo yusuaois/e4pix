@@ -34,11 +34,13 @@ class SpotHealLayerProvider
     : brushProgram = program;
 
   @override
-  bool isActive(AdjustmentParams params) => params.spotHealMarks.isNotEmpty;
+  bool isActive(AdjustmentParams params) =>
+      (params.brushMarks['spot_heal']?.isNotEmpty ?? false);
 
   @override
-  int computeMarksHash(AdjustmentParams params) =>
-      hashSpotHealMarks(params.spotHealMarks);
+  int computeMarksHash(AdjustmentParams params) => hashSpotHealMarks(
+    params.brushMarks['spot_heal']?.cast<SpotHealMark>() ?? const [],
+  );
 
   @override
   Future<BrushLayer> render({
@@ -48,7 +50,8 @@ class SpotHealLayerProvider
     required int targetWidth,
     required int targetHeight,
   }) async {
-    final marks = params.spotHealMarks;
+    final marks =
+        params.brushMarks['spot_heal']?.cast<SpotHealMark>() ?? const [];
     if (marks.isEmpty) return BrushLayer(id: id, active: false);
 
     final texture = await _renderMask(

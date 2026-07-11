@@ -9,6 +9,7 @@ import '../../core/models/adjustment_params.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
 import 'sections/brush_layer_order_sheet.dart';
+import 'sections/history_panel_sheet.dart';
 import 'sections/preset_section.dart';
 
 /// 退出画笔/智能/主体工具
@@ -69,6 +70,8 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
         return DodgeBurnSection(params: params, onChanged: onChanged);
       case DevelopTool.sponge:
         return SpongeSection(params: params, onChanged: onChanged);
+      case DevelopTool.historyBrush:
+        return HistoryBrushSection(params: params, onChanged: onChanged);
       case DevelopTool.watermark:
         return const WatermarkSection();
       case DevelopTool.lens:
@@ -175,6 +178,11 @@ class _ToolRail extends ConsumerWidget {
               icon: Icons.layers,
               tooltip: tr('brushLayerOrder'),
               onTap: () => showBrushLayerOrderSheet(context, ref),
+            ),
+            _RailItem(
+              icon: Icons.history,
+              tooltip: tr('history'),
+              onTap: () => showHistoryPanelSheet(context, ref),
             ),
             _RailItem(
               icon: Icons.refresh,

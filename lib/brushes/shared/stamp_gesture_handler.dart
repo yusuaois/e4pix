@@ -26,6 +26,7 @@ class StampGestureHandler<T extends StampMark> {
     required this.onNeedsSetState,
     required this.onStrokeStarted,
     required this.onTriggerComposite,
+    this.onStrokeCommitted,
   });
 
   // --- 注入的 brush 配置读取 ---
@@ -67,6 +68,9 @@ class StampGestureHandler<T extends StampMark> {
   final VoidCallback onNeedsSetState;
   final VoidCallback onStrokeStarted;
   final void Function({bool force}) onTriggerComposite;
+
+  /// 笔画提交完成回调（用于 history panel 等外部监听）
+  final VoidCallback? onStrokeCommitted;
 
   // --- 笔画状态 ---
   PathBrushTracker? strokeTracker;
@@ -191,6 +195,7 @@ class StampGestureHandler<T extends StampMark> {
       strokeMarks.clear();
     }
     strokeTracker = null;
+    onStrokeCommitted?.call();
     onNeedsSetState();
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'healing_model.dart';
+import '../shared/stamp_mark.dart';
 import '../../state/params/params_state.dart';
 
 /// 修复画笔交互模式
@@ -59,6 +60,22 @@ class HealingNotifier extends Notifier<HealingState> {
   @override
   HealingState build() => const HealingState();
 
+  List<T> _marks<T extends StampMark>() =>
+      ref
+          .read(currentParamsNotifierProvider)
+          .brushMarks['healing']
+          ?.cast<T>() ??
+      const [];
+
+  void _setMarks(List<StampMark> marks) {
+    final params = ref.read(currentParamsNotifierProvider);
+    ref
+        .read(currentParamsNotifierProvider.notifier)
+        .update(
+          params.copyWith(brushMarks: {...params.brushMarks, 'healing': marks}),
+        );
+  }
+
   void setMode(HealingMode mode) {
     state = state.copyWith(
       mode: mode,
@@ -100,46 +117,33 @@ class HealingNotifier extends Notifier<HealingState> {
   }
 
   void _addMarkRaw(ui.Offset source, ui.Offset target) {
-    final params = ref.read(currentParamsNotifierProvider);
-    final updated = List<HealingMark>.from(params.healingMarks)
-      ..add(
-        HealingMark(
-          source: source,
-          target: target,
-          radius: state.brushRadius,
-          hardness: state.brushHardness,
-        ),
-      );
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(healingMarks: updated));
+    final updated = <StampMark>[
+      ..._marks<HealingMark>(),
+      HealingMark(
+        source: source,
+        target: target,
+        radius: state.brushRadius,
+        hardness: state.brushHardness,
+      ),
+    ];
+    _setMarks(updated);
   }
 
   /// 批量添加 marks（笔画结束，触发一次管线重渲染）
   void addMarksBatch(List<HealingMark> marks) {
     if (marks.isEmpty) return;
-    final params = ref.read(currentParamsNotifierProvider);
-    final updated = List<HealingMark>.from(params.healingMarks)..addAll(marks);
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(healingMarks: updated));
+    final updated = <StampMark>[..._marks<HealingMark>(), ...marks];
+    _setMarks(updated);
   }
 
   void removeMark(int index) {
-    final params = ref.read(currentParamsNotifierProvider);
-    if (index < 0 || index >= params.healingMarks.length) return;
-    final updated = List<HealingMark>.from(params.healingMarks)
-      ..removeAt(index);
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(healingMarks: updated));
+    if (index < 0 || index >= _marks<HealingMark>().length) return;
+    final updated = <StampMark>[..._marks<HealingMark>()]..removeAt(index);
+    _setMarks(updated);
   }
 
   void clearAll() {
-    final params = ref.read(currentParamsNotifierProvider);
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(healingMarks: const []));
+    _setMarks(const []);
   }
 }
 

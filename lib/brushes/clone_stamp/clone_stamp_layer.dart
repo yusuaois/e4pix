@@ -35,10 +35,13 @@ class SpotRemovalLayerProvider
   // uniform 总数：3（uSize + uSpotCount），spot 数据通过 uSpotData 纹理传入
 
   @override
-  bool isActive(AdjustmentParams params) => params.spots.isNotEmpty;
+  bool isActive(AdjustmentParams params) =>
+      (params.brushMarks['spot_removal']?.isNotEmpty ?? false);
 
   @override
-  int computeMarksHash(AdjustmentParams params) => hashSpots(params.spots);
+  int computeMarksHash(AdjustmentParams params) => hashSpots(
+    params.brushMarks['spot_removal']?.cast<SpotMark>() ?? const [],
+  );
 
   @override
   Future<BrushLayer> render({
@@ -48,15 +51,18 @@ class SpotRemovalLayerProvider
     required int targetWidth,
     required int targetHeight,
   }) async {
-    final spots = params.spots.where((s) {
-      return !isMarkSourceFullyOOB(
-        sourceX: s.source.dx,
-        sourceY: s.source.dy,
-        radius: s.radius,
-        imageWidth: developOutput.width.toDouble(),
-        imageHeight: developOutput.height.toDouble(),
-      );
-    }).toList();
+    final spots =
+        (params.brushMarks['spot_removal']?.cast<SpotMark>() ?? const []).where(
+          (s) {
+            return !isMarkSourceFullyOOB(
+              sourceX: s.source.dx,
+              sourceY: s.source.dy,
+              radius: s.radius,
+              imageWidth: developOutput.width.toDouble(),
+              imageHeight: developOutput.height.toDouble(),
+            );
+          },
+        ).toList();
 
     if (spots.isEmpty) {
       return BrushLayer(id: id, active: false);

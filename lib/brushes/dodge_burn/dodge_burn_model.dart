@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
+import '../shared/stamp_mark.dart';
+
 /// Dodge/Burn 模式
 enum DodgeBurnMode {
   /// 减淡 — 提亮像素
@@ -28,14 +30,21 @@ enum DodgeBurnRange {
 /// 每个标记独立存储其渲染参数（模式/范围/曝光）
 /// 落笔时冻结当前工具设置，后续切换不影响已有笔画
 @immutable
-class DodgeBurnMark {
+class DodgeBurnMark implements StampMark {
+  /// 无源点偏移：效果类画笔从同位置处理
+  @override
+  Offset get source => target;
+
   /// 目标圆心（归一化 [0..1] 全图坐标）
+  @override
   final Offset target;
 
   /// 半径（归一化，相对于源图宽度）
+  @override
   final double radius;
 
   /// 硬度：1=硬边 step，0=软边 smoothstep 全半径
+  @override
   final double hardness;
 
   /// 减淡/加深模式（落笔时冻结）
@@ -74,6 +83,7 @@ class DodgeBurnMark {
     );
   }
 
+  @override
   Map<String, dynamic> toJson() => {
     'targetX': target.dx,
     'targetY': target.dy,

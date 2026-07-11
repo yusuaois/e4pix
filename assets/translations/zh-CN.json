@@ -567,5 +567,18 @@
   "brushLayerOrder": "画笔图层顺序",
   "brushLayerOrderHint": "上层画笔覆盖下层画笔的修改",
   "brushLayerOrderTop": "最顶层",
-  "brushLayerOrderBottom": "最底层"
+  "brushLayerOrderBottom": "最底层",
+  "history": "历史记录",
+  "historyEmpty": "暂无历史记录",
+  "historyHint": "点击回退，长按设为画笔源",
+  "historySetBrushSource": "设为画笔源",
+  "historyBrushSourceActive": "清除画笔源",
+  "historyBrushTitle": "历史记录画笔",
+  "historyBrushRadius": "画笔半径",
+  "historyBrushHardness": "边缘硬度",
+  "historyBrushNoSource": "在历史面板中选择源",
+  "timeSAgo": "{}秒前",
+  "timeMAgo": "{}分钟前",
+  "timeHAgo": "{}小时前",
+  "timeDAgo": "{}天前"
 }

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../shared/stamp_mark.dart';
 import 'spot_heal_model.dart';
 import '../../state/providers.dart';
 
@@ -45,6 +46,24 @@ class SpotHealNotifier extends Notifier<SpotHealState> {
   @override
   SpotHealState build() => const SpotHealState();
 
+  List<T> _marks<T extends StampMark>() =>
+      ref
+          .read(currentParamsNotifierProvider)
+          .brushMarks['spot_heal']
+          ?.cast<T>() ??
+      const [];
+
+  void _setMarks(List<StampMark> marks) {
+    final params = ref.read(currentParamsNotifierProvider);
+    ref
+        .read(currentParamsNotifierProvider.notifier)
+        .update(
+          params.copyWith(
+            brushMarks: {...params.brushMarks, 'spot_heal': marks},
+          ),
+        );
+  }
+
   void setMode(SpotHealMode mode) => state = state.copyWith(mode: mode);
   void setBrushRadius(double r) => state = state.copyWith(brushRadius: r);
   void setBrushHardness(double h) => state = state.copyWith(brushHardness: h);
@@ -69,42 +88,30 @@ class SpotHealNotifier extends Notifier<SpotHealState> {
     double hardness,
   ) {
     if (targets.isEmpty) return;
-    final params = ref.read(currentParamsNotifierProvider);
-    final updated = List<SpotHealMark>.from(params.spotHealMarks);
+    final updated = <StampMark>[..._marks<SpotHealMark>()];
     for (final t in targets) {
       updated.add(
         SpotHealMark(target: t, radius: radiusNorm, hardness: hardness),
       );
     }
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(spotHealMarks: updated));
+    _setMarks(updated);
   }
 
   void removeMark(int index) {
-    final params = ref.read(currentParamsNotifierProvider);
-    final updated = List<SpotHealMark>.from(params.spotHealMarks);
-    if (index >= 0 && index < updated.length) {
-      updated.removeAt(index);
-      ref
-          .read(currentParamsNotifierProvider.notifier)
-          .update(params.copyWith(spotHealMarks: updated));
+    final marks = _marks<SpotHealMark>();
+    if (index >= 0 && index < marks.length) {
+      final updated = <StampMark>[...marks]..removeAt(index);
+      _setMarks(updated);
     }
   }
 
   void clearAll() {
-    final params = ref.read(currentParamsNotifierProvider);
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(spotHealMarks: const []));
+    _setMarks(const []);
   }
 
   void _addMarkRaw(SpotHealMark mark) {
-    final params = ref.read(currentParamsNotifierProvider);
-    final updated = List<SpotHealMark>.from(params.spotHealMarks)..add(mark);
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(spotHealMarks: updated));
+    final updated = <StampMark>[..._marks<SpotHealMark>(), mark];
+    _setMarks(updated);
   }
 }
 

@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
+import '../shared/stamp_mark.dart';
+
 /// 海绵模式
 enum SpongeMode {
   /// 饱和 — 增加色彩饱和度
@@ -16,14 +18,21 @@ enum SpongeMode {
 /// 每个标记独立存储其渲染参数（模式/流量）
 /// 落笔时冻结当前工具设置，后续切换不影响已有笔画
 @immutable
-class SpongeMark {
+class SpongeMark implements StampMark {
+  /// 无源点偏移：效果类画笔从同位置处理
+  @override
+  Offset get source => target;
+
   /// 目标圆心（归一化 [0..1] 全图坐标）
+  @override
   final Offset target;
 
   /// 半径（归一化，相对于源图宽度）
+  @override
   final double radius;
 
   /// 硬度：1=硬边 step，0=柔边 smoothstep 全半径
+  @override
   final double hardness;
 
   /// 饱和/去饱和模式（落笔时冻结）
@@ -56,6 +65,7 @@ class SpongeMark {
     );
   }
 
+  @override
   Map<String, dynamic> toJson() => {
     'targetX': target.dx,
     'targetY': target.dy,

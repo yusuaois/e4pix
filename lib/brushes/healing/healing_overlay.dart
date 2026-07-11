@@ -116,8 +116,13 @@ class HealingOverlayState
   }
 
   @override
-  int computeCommittedHash(WidgetRef ref) =>
-      hashHealingMarks(ref.read(currentParamsNotifierProvider).healingMarks);
+  int computeCommittedHash(WidgetRef ref) => hashHealingMarks(
+    (ref
+            .read(currentParamsNotifierProvider)
+            .brushMarks['healing']
+            ?.cast<HealingMark>()) ??
+        const [],
+  );
 
   @override
   void addSingleMark(WidgetRef ref, Offset target) {
@@ -155,8 +160,8 @@ class HealingOverlayState
     listenRenderedHashes();
 
     ref.listen(currentParamsNotifierProvider, (prev, next) {
-      if ((prev?.healingMarks.isNotEmpty ?? false) &&
-          next.healingMarks.isEmpty) {
+      if ((prev?.brushMarks['healing']?.isNotEmpty ?? false) &&
+          (next.brushMarks['healing']?.isEmpty ?? true)) {
         handleMarksCleared();
       }
     });

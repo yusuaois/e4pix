@@ -333,10 +333,19 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
     ref.listen(brushLayerOrderProvider, (prev, next) {
       if (prev != next) _runRender();
     });
-    // spots 变化时立即置空 developOutput，关闭旧烘焙图残留窗口
+    // 任意画笔 marks 数量变化时立即置空 developOutput，关闭旧烘焙图残留窗口
     ref.listen(currentParamsNotifierProvider, (prev, next) {
-      if (prev == null || next.spots.length != prev.spots.length) {
+      if (prev == null) {
         ref.read(developOutputProvider.notifier).update(null);
+        return;
+      }
+      for (final m in brushManifests) {
+        final nextLen = next.brushMarks[m.id]?.length ?? 0;
+        final prevLen = prev.brushMarks[m.id]?.length ?? 0;
+        if (nextLen != prevLen) {
+          ref.read(developOutputProvider.notifier).update(null);
+          return;
+        }
       }
     });
 

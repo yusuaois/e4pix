@@ -31,7 +31,7 @@ class SpongeSection extends ConsumerWidget {
     final state = ref.watch(spongeStateProvider);
     final notifier = ref.read(spongeStateProvider.notifier);
     final isActive = state.brushMode == SpongeBrushMode.active;
-    final marks = params.spongeMarks;
+    final marks = (params.brushMarks['sponge']?.cast<SpongeMark>()) ?? const [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

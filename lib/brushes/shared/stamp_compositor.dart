@@ -26,6 +26,7 @@ class StampCompositor<T extends StampMark> {
     required this.shaderKey,
     required this.isMounted,
     required this.onNeedsRebuild,
+    this.getHistorySourceImage,
   });
 
   final Size imageDisplaySize;
@@ -37,6 +38,10 @@ class StampCompositor<T extends StampMark> {
   final String shaderKey;
   final bool Function() isMounted;
   final VoidCallback onNeedsRebuild;
+
+  /// History Brush 专用：历史快照采样源（默认 null，不影响现有画笔）
+  /// 非 final，子类可在 onInitState 中设置
+  ui.Image? Function()? getHistorySourceImage;
 
   ui.Image? compositedImage;
   int compositedCount = 0;
@@ -140,11 +145,18 @@ class StampCompositor<T extends StampMark> {
       ],
     );
     try {
+      // History Brush shader 固定 3 sampler（uImage / uHistory / uSpotData）
+      // 其他画笔 shader 固定 2 sampler（uImage / uSpotData）
+      // 通过 getHistorySourceImage 是否为 null 区分——不是返回值，是回调本身
+      final samplers = getHistorySourceImage != null
+          ? <ui.Image>[base, getHistorySourceImage!() ?? base, tex]
+          : <ui.Image>[base, tex];
+
       return await runSingleShaderPass(
         shader: shader,
         outputWidth: base.width,
         outputHeight: base.height,
-        samplers: [base, tex],
+        samplers: samplers,
         setUniforms: (s) {
           s.setFloat(0, base.width.toDouble());
           s.setFloat(1, base.height.toDouble());

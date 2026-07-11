@@ -1,3 +1,4 @@
+import 'spot_heal_model.dart';
 import 'spot_heal_state.dart';
 
 import 'package:easy_localization/easy_localization.dart';
@@ -32,7 +33,8 @@ class SpotHealSection extends ConsumerWidget {
     final state = ref.watch(spotHealStateProvider);
     final notifier = ref.read(spotHealStateProvider.notifier);
     final isActive = state.mode == SpotHealMode.active;
-    final marks = params.spotHealMarks;
+    final marks =
+        (params.brushMarks['spot_heal']?.cast<SpotHealMark>()) ?? const [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

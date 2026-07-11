@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../shared/stamp_mark.dart';
 import 'dodge_burn_model.dart';
 import '../../state/providers.dart';
 
@@ -57,6 +58,24 @@ class DodgeBurnNotifier extends Notifier<DodgeBurnState> {
   @override
   DodgeBurnState build() => const DodgeBurnState();
 
+  List<T> _marks<T extends StampMark>() =>
+      ref
+          .read(currentParamsNotifierProvider)
+          .brushMarks['dodge_burn']
+          ?.cast<T>() ??
+      const [];
+
+  void _setMarks(List<StampMark> marks) {
+    final params = ref.read(currentParamsNotifierProvider);
+    ref
+        .read(currentParamsNotifierProvider.notifier)
+        .update(
+          params.copyWith(
+            brushMarks: {...params.brushMarks, 'dodge_burn': marks},
+          ),
+        );
+  }
+
   void setBrushMode(DodgeBurnBrushMode m) =>
       state = state.copyWith(brushMode: m);
   void setMode(DodgeBurnMode m) => state = state.copyWith(mode: m);
@@ -92,8 +111,7 @@ class DodgeBurnNotifier extends Notifier<DodgeBurnState> {
   ) {
     if (targets.isEmpty) return;
     final s = state;
-    final params = ref.read(currentParamsNotifierProvider);
-    final updated = List<DodgeBurnMark>.from(params.dodgeBurnMarks);
+    final updated = <StampMark>[..._marks<DodgeBurnMark>()];
     for (final t in targets) {
       updated.add(
         DodgeBurnMark(
@@ -106,35 +124,24 @@ class DodgeBurnNotifier extends Notifier<DodgeBurnState> {
         ),
       );
     }
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(dodgeBurnMarks: updated));
+    _setMarks(updated);
   }
 
   void removeMark(int index) {
-    final params = ref.read(currentParamsNotifierProvider);
-    final updated = List<DodgeBurnMark>.from(params.dodgeBurnMarks);
-    if (index >= 0 && index < updated.length) {
-      updated.removeAt(index);
-      ref
-          .read(currentParamsNotifierProvider.notifier)
-          .update(params.copyWith(dodgeBurnMarks: updated));
+    final marks = _marks<DodgeBurnMark>();
+    if (index >= 0 && index < marks.length) {
+      final updated = <StampMark>[...marks]..removeAt(index);
+      _setMarks(updated);
     }
   }
 
   void clearAll() {
-    final params = ref.read(currentParamsNotifierProvider);
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(dodgeBurnMarks: const []));
+    _setMarks(const []);
   }
 
   void _addMarkRaw(DodgeBurnMark mark) {
-    final params = ref.read(currentParamsNotifierProvider);
-    final updated = List<DodgeBurnMark>.from(params.dodgeBurnMarks)..add(mark);
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(dodgeBurnMarks: updated));
+    final updated = <StampMark>[..._marks<DodgeBurnMark>(), mark];
+    _setMarks(updated);
   }
 }
 

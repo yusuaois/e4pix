@@ -567,5 +567,18 @@
   "brushLayerOrder": "Brush Layer Order",
   "brushLayerOrderHint": "Upper layers overwrite lower layer modifications",
   "brushLayerOrderTop": "Top",
-  "brushLayerOrderBottom": "Bottom"
+  "brushLayerOrderBottom": "Bottom",
+  "history": "History",
+  "historyEmpty": "No history yet",
+  "historyHint": "Tap to revert, long press to set brush source",
+  "historySetBrushSource": "Set as brush source",
+  "historyBrushSourceActive": "Clear brush source",
+  "historyBrushTitle": "History Brush",
+  "historyBrushRadius": "Brush Radius",
+  "historyBrushHardness": "Brush Hardness",
+  "historyBrushNoSource": "Select source in History panel",
+  "timeSAgo": "{}s ago",
+  "timeMAgo": "{}m ago",
+  "timeHAgo": "{}h ago",
+  "timeDAgo": "{}d ago"
 }

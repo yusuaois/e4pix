@@ -10,6 +10,7 @@ import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
 import 'sections/brush_layer_order_sheet.dart';
+import 'sections/history_panel_sheet.dart';
 import 'sections/preset_section.dart';
 
 /// 退出画笔/智能/主体工具
@@ -79,6 +80,8 @@ class _VerticalAdjustmentPanelState
         return DodgeBurnSection(params: params, onChanged: widget.onChanged);
       case DevelopTool.sponge:
         return SpongeSection(params: params, onChanged: widget.onChanged);
+      case DevelopTool.historyBrush:
+        return HistoryBrushSection(params: params, onChanged: widget.onChanged);
       default:
         return const SizedBox.shrink();
     }
@@ -138,6 +141,11 @@ class _VerticalAdjustmentPanelState
                   icon: const Icon(Icons.layers, size: 18),
                   tooltip: tr('brushLayerOrder'),
                   onPressed: () => showBrushLayerOrderSheet(context, ref),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.history, size: 18),
+                  tooltip: tr('history'),
+                  onPressed: () => showHistoryPanelSheet(context, ref),
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh, size: 18),

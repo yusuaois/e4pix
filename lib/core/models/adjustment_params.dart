@@ -5,14 +5,9 @@ import 'package:e4pix/core/models/lens_correction_params.dart';
 import 'package:e4pix/core/models/perspective_params.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../brushes/healing/healing_model.dart';
+import '../../brushes/shared/stamp_mark.dart';
 import 'local_adjustment.dart';
 import 'rgb_curves.dart';
-import '../../brushes/spot_heal/spot_heal_model.dart';
-import '../../brushes/clone_stamp/clone_stamp_model.dart';
-import '../../brushes/dodge_burn/dodge_burn_model.dart';
-import '../../brushes/sponge/sponge_model.dart';
-import 'tone_curve.dart';
 
 @immutable
 class AdjustmentParams {
@@ -49,20 +44,9 @@ class AdjustmentParams {
   /// 超分辨率放大倍数（目前固定 2，后续可扩展）
   final int srScale;
 
-  /// 污点修复标记列表
-  final List<SpotMark> spots;
-
-  /// 修复画笔标记列表
-  final List<HealingMark> healingMarks;
-
-  /// 污点修复标记列表（圈中自动修复）
-  final List<SpotHealMark> spotHealMarks;
-
-  /// 加深减淡标记列表
-  final List<DodgeBurnMark> dodgeBurnMarks;
-
-  /// 海绵工具标记列表
-  final List<SpongeMark> spongeMarks;
+  /// 聚合所有画笔 marks，按 [BrushManifest.id] 索引
+  /// 值类型为 [List<StampMark>]，读取时由各画笔 state cast 到具体类型
+  final Map<String, List<StampMark>> brushMarks;
 
   const AdjustmentParams({
     this.exposure = 0.0,
@@ -93,11 +77,7 @@ class AdjustmentParams {
     this.perspective = PerspectiveParams.identity,
     this.srEnabled = false,
     this.srScale = 2,
-    this.spots = const [],
-    this.healingMarks = const [],
-    this.spotHealMarks = const [],
-    this.dodgeBurnMarks = const [],
-    this.spongeMarks = const [],
+    this.brushMarks = const {},
   });
 
   static const neutral = AdjustmentParams();
@@ -131,11 +111,7 @@ class AdjustmentParams {
     PerspectiveParams? perspective,
     bool? srEnabled,
     int? srScale,
-    List<SpotMark>? spots,
-    List<HealingMark>? healingMarks,
-    List<SpotHealMark>? spotHealMarks,
-    List<DodgeBurnMark>? dodgeBurnMarks,
-    List<SpongeMark>? spongeMarks,
+    Map<String, List<StampMark>>? brushMarks,
   }) => AdjustmentParams(
     exposure: exposure ?? this.exposure,
     temperature: temperature ?? this.temperature,
@@ -165,11 +141,7 @@ class AdjustmentParams {
     perspective: perspective ?? this.perspective,
     srEnabled: srEnabled ?? this.srEnabled,
     srScale: srScale ?? this.srScale,
-    spots: spots ?? this.spots,
-    healingMarks: healingMarks ?? this.healingMarks,
-    spotHealMarks: spotHealMarks ?? this.spotHealMarks,
-    dodgeBurnMarks: dodgeBurnMarks ?? this.dodgeBurnMarks,
-    spongeMarks: spongeMarks ?? this.spongeMarks,
+    brushMarks: brushMarks ?? this.brushMarks,
   );
 
   @override
@@ -204,11 +176,7 @@ class AdjustmentParams {
           srEnabled == other.srEnabled &&
           srScale == other.srScale &&
           listEquals(locals, other.locals) &&
-          listEquals(spots, other.spots) &&
-          listEquals(healingMarks, other.healingMarks) &&
-          listEquals(spotHealMarks, other.spotHealMarks) &&
-          listEquals(dodgeBurnMarks, other.dodgeBurnMarks) &&
-          listEquals(spongeMarks, other.spongeMarks);
+          _mapEquals(brushMarks, other.brushMarks);
 
   @override
   int get hashCode => Object.hashAll([
@@ -235,17 +203,29 @@ class AdjustmentParams {
     hsl,
     grain,
     crop,
+    Object.hashAll(locals),
     lensCorrection,
     perspective,
     srEnabled,
     srScale,
-    locals,
-    spots,
-    healingMarks,
-    spotHealMarks,
-    dodgeBurnMarks,
-    spongeMarks,
+    Object.hashAll(
+      brushMarks.entries.map(
+        (e) => Object.hash(e.key, Object.hashAll(e.value)),
+      ),
+    ),
   ]);
+
+  static bool _mapEquals(
+    Map<String, List<StampMark>> a,
+    Map<String, List<StampMark>> b,
+  ) {
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key)) return false;
+      if (!listEquals(a[key], b[key])) return false;
+    }
+    return true;
+  }
 
   Map<String, dynamic> toJson() => {
     'exposure': exposure,
@@ -271,95 +251,68 @@ class AdjustmentParams {
     'hsl': hsl.toJson(),
     'grain': grain.toJson(),
     'crop': crop.toJson(),
+    'locals': locals.map((e) => e.toJson()).toList(),
     'lensCorrection': lensCorrection.toJson(),
     'perspective': perspective.toJson(),
     'srEnabled': srEnabled,
     'srScale': srScale,
-    'locals': locals.map((e) => e.toJson()).toList(),
-    'spots': spots.map((e) => e.toJson()).toList(),
-    'healingMarks': healingMarks.map((e) => e.toJson()).toList(),
-    'spotHealMarks': spotHealMarks.map((e) => e.toJson()).toList(),
-    'dodgeBurnMarks': dodgeBurnMarks.map((e) => e.toJson()).toList(),
-    'spongeMarks': spongeMarks.map((e) => e.toJson()).toList(),
+    'brushMarks': brushMarks.map(
+      (key, value) => MapEntry(key, value.map((m) => m.toJson()).toList()),
+    ),
   };
 
-  factory AdjustmentParams.fromJson(Map<String, dynamic> j) => AdjustmentParams(
-    exposure: (j['exposure'] as num?)?.toDouble() ?? 0.0,
-    temperature: (j['temperature'] as num?)?.toInt() ?? 5500,
-    tint: (j['tint'] as num?)?.toDouble() ?? 0.0,
-    contrast: (j['contrast'] as num?)?.toDouble() ?? 0.0,
-    highlights: (j['highlights'] as num?)?.toDouble() ?? 0.0,
-    shadows: (j['shadows'] as num?)?.toDouble() ?? 0.0,
-    whites: (j['whites'] as num?)?.toDouble() ?? 0.0,
-    blacks: (j['blacks'] as num?)?.toDouble() ?? 0.0,
-    saturation: (j['saturation'] as num?)?.toDouble() ?? 0.0,
-    vibrance: (j['vibrance'] as num?)?.toDouble() ?? 0.0,
-    sharpenAmount: (j['sharpenAmount'] as num?)?.toDouble() ?? 0.0,
-    sharpenRadius: (j['sharpenRadius'] as num?)?.toDouble() ?? 1.0,
-    sharpenMasking: (j['sharpenMasking'] as num?)?.toDouble() ?? 0.0,
-    denoiseLuma: (j['denoiseLuma'] as num?)?.toDouble() ?? 0.0,
-    denoiseColor: (j['denoiseColor'] as num?)?.toDouble() ?? 0.0,
-    lutNameA: j['lutNameA'] as String? ?? '',
-    lutIntensity: (j['lutIntensity'] as num?)?.toDouble() ?? 1.0,
-    lutNameB: j['lutNameB'] as String? ?? '',
-    lutIntensityB: (j['lutIntensityB'] as num?)?.toDouble() ?? 1.0,
-    curves: j['curves'] != null
-        ? RgbCurves.fromJson(j['curves'] as Map<String, dynamic>)
-        : (j['toneCurve'] != null
-              ? RgbCurves(
-                  master: ToneCurve.fromJson(
-                    j['toneCurve'] as Map<String, dynamic>,
-                  ),
-                )
-              : RgbCurves.identity),
-    hsl: j['hsl'] != null
-        ? HslBands.fromJson(j['hsl'] as Map<String, dynamic>)
-        : HslBands.neutral,
-    grain: j['grain'] != null
-        ? GrainParams.fromJson(j['grain'] as Map<String, dynamic>)
-        : GrainParams.neutral,
-    crop: j['crop'] != null
-        ? CropParams.fromJson(j['crop'] as Map<String, dynamic>)
-        : CropParams.identity,
-    locals:
-        (j['locals'] as List?)
-            ?.map((e) => LocalAdjustment.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        const [],
-    lensCorrection: j['lensCorrection'] != null
-        ? LensCorrectionParams.fromJson(
-            j['lensCorrection'] as Map<String, dynamic>,
-          )
-        : LensCorrectionParams.neutral,
-    perspective: j['perspective'] != null
-        ? PerspectiveParams.fromJson(j['perspective'] as Map<String, dynamic>)
-        : PerspectiveParams.identity,
-    srEnabled: j['srEnabled'] as bool? ?? false,
-    srScale: (j['srScale'] as num?)?.toInt() ?? 2,
-    spots:
-        (j['spots'] as List?)
-            ?.map((e) => SpotMark.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        const [],
-    healingMarks:
-        (j['healingMarks'] as List?)
-            ?.map((e) => HealingMark.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        const [],
-    spotHealMarks:
-        (j['spotHealMarks'] as List?)
-            ?.map((e) => SpotHealMark.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        const [],
-    dodgeBurnMarks:
-        (j['dodgeBurnMarks'] as List?)
-            ?.map((e) => DodgeBurnMark.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        const [],
-    spongeMarks:
-        (j['spongeMarks'] as List?)
-            ?.map((e) => SpongeMark.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        const [],
-  );
+  factory AdjustmentParams.fromJson(
+    Map<String, dynamic> j, {
+    Map<String, List<StampMark>>? brushMarks,
+  }) {
+    return AdjustmentParams(
+      exposure: (j['exposure'] as num?)?.toDouble() ?? 0.0,
+      temperature: (j['temperature'] as num?)?.toInt() ?? 5500,
+      tint: (j['tint'] as num?)?.toDouble() ?? 0.0,
+      contrast: (j['contrast'] as num?)?.toDouble() ?? 0.0,
+      highlights: (j['highlights'] as num?)?.toDouble() ?? 0.0,
+      shadows: (j['shadows'] as num?)?.toDouble() ?? 0.0,
+      whites: (j['whites'] as num?)?.toDouble() ?? 0.0,
+      blacks: (j['blacks'] as num?)?.toDouble() ?? 0.0,
+      saturation: (j['saturation'] as num?)?.toDouble() ?? 0.0,
+      vibrance: (j['vibrance'] as num?)?.toDouble() ?? 0.0,
+      sharpenAmount: (j['sharpenAmount'] as num?)?.toDouble() ?? 0.0,
+      sharpenRadius: (j['sharpenRadius'] as num?)?.toDouble() ?? 1.0,
+      sharpenMasking: (j['sharpenMasking'] as num?)?.toDouble() ?? 0.0,
+      denoiseLuma: (j['denoiseLuma'] as num?)?.toDouble() ?? 0.0,
+      denoiseColor: (j['denoiseColor'] as num?)?.toDouble() ?? 0.0,
+      lutNameA: j['lutNameA'] as String? ?? '',
+      lutIntensity: (j['lutIntensity'] as num?)?.toDouble() ?? 1.0,
+      lutNameB: j['lutNameB'] as String? ?? '',
+      lutIntensityB: (j['lutIntensityB'] as num?)?.toDouble() ?? 1.0,
+      curves: j['curves'] != null
+          ? RgbCurves.fromJson(j['curves'] as Map<String, dynamic>)
+          : RgbCurves.identity,
+      hsl: j['hsl'] != null
+          ? HslBands.fromJson(j['hsl'] as Map<String, dynamic>)
+          : HslBands.neutral,
+      grain: j['grain'] != null
+          ? GrainParams.fromJson(j['grain'] as Map<String, dynamic>)
+          : GrainParams.neutral,
+      crop: j['crop'] != null
+          ? CropParams.fromJson(j['crop'] as Map<String, dynamic>)
+          : CropParams.identity,
+      locals:
+          (j['locals'] as List?)
+              ?.map((e) => LocalAdjustment.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      lensCorrection: j['lensCorrection'] != null
+          ? LensCorrectionParams.fromJson(
+              j['lensCorrection'] as Map<String, dynamic>,
+            )
+          : LensCorrectionParams.neutral,
+      perspective: j['perspective'] != null
+          ? PerspectiveParams.fromJson(j['perspective'] as Map<String, dynamic>)
+          : PerspectiveParams.identity,
+      srEnabled: j['srEnabled'] as bool? ?? false,
+      srScale: (j['srScale'] as num?)?.toInt() ?? 2,
+      brushMarks: brushMarks ?? const {},
+    );
+  }
 }

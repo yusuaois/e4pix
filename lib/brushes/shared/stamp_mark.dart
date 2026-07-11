@@ -17,4 +17,7 @@ abstract class StampMark {
 
   /// 边缘硬度 0..1，1=硬边，0=柔边
   double get hardness;
+
+  /// 序列化为 JSON 兼容的 Map
+  Map<String, dynamic> toJson();
 }

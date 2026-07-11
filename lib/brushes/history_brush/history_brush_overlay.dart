@@ -4,24 +4,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
-import 'clone_stamp_model.dart';
-import '../shared/brush_hashes.dart';
-import '../shared/base_stamp_painter.dart';
-import '../shared/base_stamp_overlay.dart';
 import '../../state/providers.dart';
+import '../shared/base_stamp_overlay.dart';
+import '../shared/base_stamp_painter.dart';
+import '../shared/brush_hashes.dart';
+import 'history_brush_model.dart';
 
-/// 图章交互覆盖层
+/// 历史记录画笔交互覆盖层
 ///
-/// 点击或拖拽绘制图章 marks，源点通过取样按钮设置
-/// 拖拽期间在 Canvas 上绘制硬边预览，松手后提交管线做柔边混合
-class SpotRemoveOverlay extends ConsumerStatefulWidget {
+/// 从 History 面板选中的冻结快照恢复像素到当前画面
+/// 无取样模式，始终处于绘画状态
+class HistoryBrushOverlay extends ConsumerStatefulWidget {
   final Size imageDisplaySize;
   final CropParams crop;
   final int sourceWidth;
   final int sourceHeight;
   final ui.Image? sourceImage;
 
-  const SpotRemoveOverlay({
+  const HistoryBrushOverlay({
     super.key,
     required this.imageDisplaySize,
     required this.crop,
@@ -31,12 +31,12 @@ class SpotRemoveOverlay extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<SpotRemoveOverlay> createState() => _SpotRemoveOverlayState();
+  ConsumerState<HistoryBrushOverlay> createState() =>
+      _HistoryBrushOverlayState();
 }
 
-class _SpotRemoveOverlayState
-    extends BaseStampOverlayState<SpotMark, SpotRemoveOverlay> {
-  // Widget 参数
+class _HistoryBrushOverlayState
+    extends BaseStampOverlayState<HistoryMark, HistoryBrushOverlay> {
   @override
   Size get imageDisplaySize => widget.imageDisplaySize;
   @override
@@ -49,7 +49,7 @@ class _SpotRemoveOverlayState
   ui.Image? get sourceImage => widget.sourceImage;
 
   @override
-  void didUpdateWidget(SpotRemoveOverlay oldWidget) {
+  void didUpdateWidget(HistoryBrushOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.sourceImage != oldWidget.sourceImage) {
       compositor.disposeComposited();
@@ -57,109 +57,98 @@ class _SpotRemoveOverlayState
     }
   }
 
-  @override
-  void onInitState() {
-    super.onInitState();
-    final persisted = ref.read(persistedStampProvider);
-    if (persisted.isCommitting &&
-        persisted.brushId == 'spot_removal' &&
-        persisted.marks.isNotEmpty) {
-      gestureHandler.committedMarks.addAll(persisted.marks.cast<SpotMark>());
-      gestureHandler.committedHash = persisted.hash;
-      gestureHandler.isCommitting = true;
-      ref.read(persistedStampProvider.notifier).clear();
-    }
-  }
-
-  // Brush 配置
-  @override
-  String get shaderKey => 'spot_removal';
-  @override
-  String get logTag => '[SpotOverlay]';
-  @override
-  String get renderedHashKey => 'spot_removal';
+  // ── Brush 配置 ──
 
   @override
-  SpotMark createMark({
+  String get shaderKey => 'history_brush';
+  @override
+  String get logTag => '[HistoryBrush]';
+  @override
+  String get renderedHashKey => 'history_brush';
+
+  @override
+  HistoryMark createMark({
     required Offset source,
     required Offset target,
     required double radius,
     required double hardness,
-  }) => SpotMark(
-    source: source,
-    target: target,
-    radius: radius,
-    hardness: hardness,
-  );
+  }) => HistoryMark(target: target, radius: radius, hardness: hardness);
 
   @override
-  void commitMarksToPipeline(WidgetRef ref, List<SpotMark> marks) {
-    ref.read(spotRemoveStateProvider.notifier).addSpotsBatch(marks);
+  void commitMarksToPipeline(WidgetRef ref, List<HistoryMark> marks) {
+    ref.read(historyBrushStateProvider.notifier).addMarksBatch(marks);
   }
 
   @override
-  int computeCommittedHash(WidgetRef ref) => hashSpots(
+  int computeCommittedHash(WidgetRef ref) => hashHistoryMarks(
     (ref
             .read(currentParamsNotifierProvider)
-            .brushMarks['spot_removal']
-            ?.cast<SpotMark>()) ??
+            .brushMarks['history_brush']
+            ?.cast<HistoryMark>()) ??
         const [],
   );
 
   @override
   void addSingleMark(WidgetRef ref, Offset target) {
-    ref.read(spotRemoveStateProvider.notifier).addSpot(target);
+    ref.read(historyBrushStateProvider.notifier).addMark(target);
   }
 
   @override
   void updateCloneSource(WidgetRef ref, Offset source) {
-    ref.read(spotRemoveStateProvider.notifier).setCloneSource(source);
+    // History Brush 不需要 clone source——no-op
   }
 
   @override
   double getBrushRadius(WidgetRef ref) =>
-      ref.read(spotRemoveStateProvider).brushRadius;
+      ref.read(historyBrushStateProvider).brushRadius;
 
   @override
   double getBrushHardness(WidgetRef ref) =>
-      ref.read(spotRemoveStateProvider).brushHardness;
+      ref.read(historyBrushStateProvider).brushHardness;
+
+  /// 返回 Offset.zero 而非 null，允许 onPanStart 进入绘画流程
+  /// HistoryMark.createMark 忽略 source 参数（始终 source == target）
+  @override
+  Offset? getCloneSource(WidgetRef ref) => Offset.zero;
 
   @override
-  Offset? getCloneSource(WidgetRef ref) =>
-      ref.read(spotRemoveStateProvider).cloneSource;
+  bool getIsSampling(WidgetRef ref) => false;
+
+  // ── History snapshot ──
 
   @override
-  bool getIsSampling(WidgetRef ref) =>
-      ref.read(spotRemoveStateProvider).samplingButtonOn;
+  void onInitState() {
+    super.onInitState();
+    // 设置 history snapshot 源到 compositor
+    compositor.getHistorySourceImage = () => historyBrushSnapshot.value;
+  }
 
-  // build
+  // ── build ──
+
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(spotRemoveStateProvider);
-    final isSampling = state.samplingButtonOn;
-
     listenRenderedHashes();
 
     ref.listen(currentParamsNotifierProvider, (prev, next) {
-      if ((prev?.brushMarks['spot_removal']?.isNotEmpty ?? false) &&
-          (next.brushMarks['spot_removal']?.isEmpty ?? true)) {
+      if ((prev?.brushMarks['history_brush']?.isNotEmpty ?? false) &&
+          (next.brushMarks['history_brush']?.isEmpty ?? true)) {
         handleMarksCleared();
       }
     });
 
     final painter = CustomPaint(
       size: widget.imageDisplaySize,
-      painter: _SpotPainter(
-        cloneSource: state.cloneSource,
-        brushRadius: state.brushRadius,
-        brushHardness: state.brushHardness,
+      painter: _HistoryPainter(
+        cloneSource: null,
+        brushRadius: getBrushRadius(ref),
+        brushHardness: getBrushHardness(ref),
         imageDisplaySize: widget.imageDisplaySize,
         crop: widget.crop,
         sourceWidth: widget.sourceWidth,
         sourceHeight: widget.sourceHeight,
         cursorPos: cursorVisible ? cursorPos : null,
         cursorSrc: cursorSrc,
-        isSampling: isSampling,
+        isSampling: false,
         paintOffset: gestureHandler.paintOffset,
         isPainting: gestureHandler.strokeTracker != null,
         sourceImage: widget.sourceImage,
@@ -174,8 +163,8 @@ class _SpotRemoveOverlayState
   }
 }
 
-class _SpotPainter extends BaseStampPainter<SpotMark> {
-  _SpotPainter({
+class _HistoryPainter extends BaseStampPainter<HistoryMark> {
+  _HistoryPainter({
     required super.cloneSource,
     required super.brushRadius,
     required super.brushHardness,

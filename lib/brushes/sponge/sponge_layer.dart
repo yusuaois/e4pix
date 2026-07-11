@@ -33,11 +33,13 @@ class SpongeLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
     : brushProgram = program;
 
   @override
-  bool isActive(AdjustmentParams params) => params.spongeMarks.isNotEmpty;
+  bool isActive(AdjustmentParams params) =>
+      (params.brushMarks['sponge']?.isNotEmpty ?? false);
 
   @override
-  int computeMarksHash(AdjustmentParams params) =>
-      hashSpongeMarks(params.spongeMarks);
+  int computeMarksHash(AdjustmentParams params) => hashSpongeMarks(
+    params.brushMarks['sponge']?.cast<SpongeMark>() ?? const [],
+  );
 
   @override
   Future<BrushLayer> render({
@@ -47,7 +49,7 @@ class SpongeLayerProvider with ShaderCacheMixin implements BrushLayerProvider {
     required int targetWidth,
     required int targetHeight,
   }) async {
-    final marks = params.spongeMarks;
+    final marks = params.brushMarks['sponge']?.cast<SpongeMark>() ?? const [];
     if (marks.isEmpty) return BrushLayer(id: id, active: false);
 
     final texture = await _renderMask(

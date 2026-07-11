@@ -149,6 +149,10 @@ abstract class BaseStampOverlayState<
           force: force,
         );
       },
+      onStrokeCommitted: () {
+        // 通知 History 面板捕获新的笔画条目
+        ref.read(historyPanelProvider.notifier).captureStroke(logTag);
+      },
     );
 
     onInitState();

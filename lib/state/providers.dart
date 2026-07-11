@@ -13,6 +13,7 @@ export 'lut/lut_library_state.dart';
 // 参数
 export 'params/params_state.dart';
 export 'params/history_state.dart';
+export 'params/history_panel_state.dart';
 export 'params/preset_state.dart';
 export 'params/sidecar_writer.dart';
 
@@ -38,6 +39,7 @@ export '../brushes/healing/healing_state.dart';
 export '../brushes/spot_heal/spot_heal_state.dart';
 export '../brushes/dodge_burn/dodge_burn_state.dart';
 export '../brushes/sponge/sponge_state.dart';
+export '../brushes/history_brush/history_brush_state.dart';
 export '../brushes/shared/persisted_stamp_state.dart';
 
 // 水印

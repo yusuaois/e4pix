@@ -35,13 +35,15 @@ class DodgeBurnLayerProvider
     : brushProgram = program;
 
   @override
-  bool isActive(AdjustmentParams params) => params.dodgeBurnMarks.isNotEmpty;
+  bool isActive(AdjustmentParams params) =>
+      (params.brushMarks['dodge_burn']?.isNotEmpty ?? false);
 
   /// marks 哈希已包含每个 mark 的 mode/range/exposure
   /// 切换工具参数不改变哈希，仅绘制新 mark 才会
   @override
-  int computeMarksHash(AdjustmentParams params) =>
-      hashDodgeBurnMarks(params.dodgeBurnMarks);
+  int computeMarksHash(AdjustmentParams params) => hashDodgeBurnMarks(
+    params.brushMarks['dodge_burn']?.cast<DodgeBurnMark>() ?? const [],
+  );
 
   @override
   Future<BrushLayer> render({
@@ -51,7 +53,8 @@ class DodgeBurnLayerProvider
     required int targetWidth,
     required int targetHeight,
   }) async {
-    final marks = params.dodgeBurnMarks;
+    final marks =
+        params.brushMarks['dodge_burn']?.cast<DodgeBurnMark>() ?? const [];
     if (marks.isEmpty) return BrushLayer(id: id, active: false);
 
     final texture = await _renderMask(

@@ -24,11 +24,6 @@ import 'crop_overlay.dart';
 import 'crop_panel.dart';
 import '../develop/sections/local/local_mask_overlay.dart';
 import '../../brushes/brush_manifest.dart';
-import '../../brushes/healing/healing_overlay.dart';
-import '../../brushes/sponge/sponge_overlay.dart';
-import '../../brushes/spot_heal/spot_heal_overlay.dart';
-import '../../brushes/dodge_burn/dodge_burn_overlay.dart';
-import '../../brushes/clone_stamp/clone_stamp_overlay.dart';
 import 'multi_pass_preview.dart';
 import 'split_compare_view.dart';
 import 'sr_preview_overlay.dart';
@@ -679,9 +674,7 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
   }
 
   /// 若画笔活跃则构建 overlay widget，否则返回 null
-  ///
-  /// 每支画笔有独立的状态形状和 overlay 类，按 [BrushManifest.id] 分发
-  /// 新增画笔在此添加 case
+  /// 通过 manifest 的 [overlayFactory] 创建 overlay，活跃检查内聚在工厂中
   Widget? _buildOverlayIfActive(
     BrushManifest m,
     WidgetRef ref,
@@ -690,65 +683,16 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     AdjustmentParams params,
   ) {
     final overlaySource = ref.watch(developOutputProvider) ?? state.uiImage;
-    switch (m.id) {
-      case 'spot_removal':
-        final st = ref.watch(spotRemoveStateProvider);
-        final hasPending = hasPendingStampPreview(ref, 'spot_removal');
-        if (st.mode != SpotRemoveMode.active && !hasPending) return null;
-        return SpotRemoveOverlay(
-          imageDisplaySize: displaySize,
-          crop: params.crop,
-          sourceWidth: state.uiImage.width,
-          sourceHeight: state.uiImage.height,
-          sourceImage: overlaySource,
-        );
-      case 'healing':
-        final st = ref.watch(healingStateProvider);
-        if (st.mode != HealingMode.active &&
-            !hasPendingStampPreview(ref, 'healing')) {
-          return null;
-        }
-        return HealingOverlay(
-          imageDisplaySize: displaySize,
-          crop: params.crop,
-          sourceWidth: state.uiImage.width,
-          sourceHeight: state.uiImage.height,
-          sourceImage: overlaySource,
-          interactive: st.mode == HealingMode.active,
-        );
-      case 'spot_heal':
-        final st = ref.watch(spotHealStateProvider);
-        if (st.mode != SpotHealMode.active) return null;
-        return SpotHealOverlay(
-          imageDisplaySize: displaySize,
-          crop: params.crop,
-          sourceWidth: state.uiImage.width,
-          sourceHeight: state.uiImage.height,
-          sourceImage: overlaySource,
-        );
-      case 'dodge_burn':
-        final st = ref.watch(dodgeBurnStateProvider);
-        if (st.brushMode != DodgeBurnBrushMode.active) return null;
-        return DodgeBurnOverlay(
-          imageDisplaySize: displaySize,
-          crop: params.crop,
-          sourceWidth: state.uiImage.width,
-          sourceHeight: state.uiImage.height,
-          sourceImage: overlaySource,
-        );
-      case 'sponge':
-        final st = ref.watch(spongeStateProvider);
-        if (st.brushMode != SpongeBrushMode.active) return null;
-        return SpongeOverlay(
-          imageDisplaySize: displaySize,
-          crop: params.crop,
-          sourceWidth: state.uiImage.width,
-          sourceHeight: state.uiImage.height,
-          sourceImage: overlaySource,
-        );
-      default:
-        return null;
-    }
+    return m.overlayFactory(
+      OverlayFactoryParams(
+        ref: ref,
+        imageDisplaySize: displaySize,
+        crop: params.crop,
+        sourceWidth: state.uiImage.width,
+        sourceHeight: state.uiImage.height,
+        sourceImage: overlaySource,
+      ),
+    );
   }
 
   Widget _wrapPreviewContent(

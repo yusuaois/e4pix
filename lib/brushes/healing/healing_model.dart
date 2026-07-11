@@ -35,6 +35,7 @@ class HealingMark implements StampMark {
     this.hardness = 1.0,
   });
 
+  @override
   Map<String, dynamic> toJson() => {
     'source': [source.dx, source.dy],
     'target': [target.dx, target.dy],

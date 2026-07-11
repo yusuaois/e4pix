@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../shared/stamp_mark.dart';
 import 'sponge_model.dart';
 import '../../state/providers.dart';
 
@@ -53,6 +54,19 @@ class SpongeNotifier extends Notifier<SpongeState> {
   @override
   SpongeState build() => const SpongeState();
 
+  List<T> _marks<T extends StampMark>() =>
+      ref.read(currentParamsNotifierProvider).brushMarks['sponge']?.cast<T>() ??
+      const [];
+
+  void _setMarks(List<StampMark> marks) {
+    final params = ref.read(currentParamsNotifierProvider);
+    ref
+        .read(currentParamsNotifierProvider.notifier)
+        .update(
+          params.copyWith(brushMarks: {...params.brushMarks, 'sponge': marks}),
+        );
+  }
+
   void setBrushMode(SpongeBrushMode m) => state = state.copyWith(brushMode: m);
   void setMode(SpongeMode m) => state = state.copyWith(mode: m);
   void setFlow(double f) => state = state.copyWith(flow: f);
@@ -85,8 +99,7 @@ class SpongeNotifier extends Notifier<SpongeState> {
   ) {
     if (targets.isEmpty) return;
     final s = state;
-    final params = ref.read(currentParamsNotifierProvider);
-    final updated = List<SpongeMark>.from(params.spongeMarks);
+    final updated = <StampMark>[..._marks<SpongeMark>()];
     for (final t in targets) {
       updated.add(
         SpongeMark(
@@ -98,35 +111,24 @@ class SpongeNotifier extends Notifier<SpongeState> {
         ),
       );
     }
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(spongeMarks: updated));
+    _setMarks(updated);
   }
 
   void removeMark(int index) {
-    final params = ref.read(currentParamsNotifierProvider);
-    final updated = List<SpongeMark>.from(params.spongeMarks);
-    if (index >= 0 && index < updated.length) {
-      updated.removeAt(index);
-      ref
-          .read(currentParamsNotifierProvider.notifier)
-          .update(params.copyWith(spongeMarks: updated));
+    final marks = _marks<SpongeMark>();
+    if (index >= 0 && index < marks.length) {
+      final updated = <StampMark>[...marks]..removeAt(index);
+      _setMarks(updated);
     }
   }
 
   void clearAll() {
-    final params = ref.read(currentParamsNotifierProvider);
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(spongeMarks: const []));
+    _setMarks(const []);
   }
 
   void _addMarkRaw(SpongeMark mark) {
-    final params = ref.read(currentParamsNotifierProvider);
-    final updated = List<SpongeMark>.from(params.spongeMarks)..add(mark);
-    ref
-        .read(currentParamsNotifierProvider.notifier)
-        .update(params.copyWith(spongeMarks: updated));
+    final updated = <StampMark>[..._marks<SpongeMark>(), mark];
+    _setMarks(updated);
   }
 }
 

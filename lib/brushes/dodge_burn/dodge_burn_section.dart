@@ -32,7 +32,8 @@ class DodgeBurnSection extends ConsumerWidget {
     final state = ref.watch(dodgeBurnStateProvider);
     final notifier = ref.read(dodgeBurnStateProvider.notifier);
     final isActive = state.brushMode == DodgeBurnBrushMode.active;
-    final marks = params.dodgeBurnMarks;
+    final marks =
+        (params.brushMarks['dodge_burn']?.cast<DodgeBurnMark>()) ?? const [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -135,6 +135,12 @@ class HistoryNotifier extends Notifier<HistoryState> {
       _isApplying = false;
     });
   }
+
+  /// 外部应用参数（History 面板回退等），不触发历史 push
+  void applyWithoutHistory(AdjustmentParams params) {
+    _debouncer.cancel();
+    _applyInternal(params);
+  }
 }
 
 final historyNotifierProvider = NotifierProvider<HistoryNotifier, HistoryState>(
