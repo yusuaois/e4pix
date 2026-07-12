@@ -29,10 +29,28 @@ e4pix 是一款跨平台的 RAW 照片编辑与联机拍摄工具。它从联机
 - **RGB 曲线**：主曲线 + 红/绿/蓝/亮度四个独立通道，控制点拖拽编辑
 - **LUT 色彩查找表**：支持 `.cube` / `.vlt` 格式，A、B 双槽串联，每张图独立记忆
 
-#### 降噪与锐化
+#### 降噪、锐化与颗粒
+
 - **降噪**：明度 / 颜色两路独立控制。预览用 GPU 实时降噪，导出可选 CPU 多线程并行（双边滤波）或 GPU
 - **锐化**：USM（Unsharp Mask），可控数量、半径、蒙版阈值
+- **超分辨率**：基于 ONNX Runtime 的 AI 放大，支持 2× 倍率
 - **胶片颗粒**：可控数量、大小、阴影/高光阈值与强度、R/B 通道比、相关性、色彩保护
+
+#### 镜头与几何校正
+
+- **镜头校正**：畸变（K1-K5）、倍率色差（R/B 通道）、暗角补偿，基于 LensFun 镜头数据库（`assets/lensfun/`）
+- **透视校正**：四点透视变换，自由拖拽四角
+
+#### 像素画笔（6 工具）
+
+- **仿制图章**：Alt+取样 → 涂抹克隆，源点随目标同步移动
+- **修复画笔**：图章 + 频域混合，保留目标纹理与亮度上下文
+- **污点修复**：涂抹选区 → 16 向射线搜索边界 → IDW 反距离加权填充，无需手动取样
+- **加深减淡**：Screen / Multiply 混合模式 + 三色调范围遮罩（Shadows / Midtones / Highlights），对标 PS 行为
+- **海绵工具**：HSL 饱和度 ±，saturate / desaturate 双模式，per-mark 参数冻结
+- **历史记录画笔**：从 History 面板选中快照恢复像素到当前画面
+- **时间排序渲染**：跨画笔按笔画创建顺序自动合成，交替绘制按实际顺序叠加
+- 所有画笔接入 Compose 图层系统，预览 / 导出 / 水印 / 分割对比全通路自动生效
 
 #### 局部调整
 - **三种蒙版**：线性渐变、径向渐变、画笔
@@ -85,16 +103,16 @@ e4pix 是一款跨平台的 RAW 照片编辑与联机拍摄工具。它从联机
 - **自定义键位**：几乎所有操作都能重新绑定快捷键
 - **中英文**：完整国际化支持
 
-### 性能优化（v1.4）
+### 性能优化
 
+- 12 个自定义 Fragment Shader，GPU 实时渲染全管线
+- Shader 预编译（warmup），消除首帧卡顿
+- Develop Pass LRU 缓存，撤销/重做秒切
+- 画笔增量渲染缓存（IncrementalRenderCache），matching marks 零 GPU pass
 - 自动蒙版引导图回读带宽减少 ~90%，大面积涂抹不掉帧
-- 曲线编辑器加入拖拽节流，手指跟随更灵敏
-- 水印导出模糊背景 GPU 轮次从 3 次降至 2 次
-- 手机底部面板拖拽去抖，减少不必要重绘
+- 水印导出模糊背景 GPU 轮次优化
 - 手机 TabBarView 懒加载，首次打开面板速度提升 50-70%
-- 局部调整蒙版缓存限制 8 条目，防止长时间使用内存增长
-- Shader 预编译，消除首帧卡顿
-- Develop Pass 缓存 3 条目 LRU，撤销重做秒切
+- 局部调整蒙版缓存限制，防止长时间使用内存增长
 
 ### 技术架构
 
@@ -103,7 +121,7 @@ e4pix 是一款跨平台的 RAW 照片编辑与联机拍摄工具。它从联机
 | UI 框架 | Flutter 3.x，响应式布局（桌面侧栏 / 手机底部 Tab） |
 | 状态管理 | Riverpod（Notifier + Provider） |
 | RAW 引擎 | LibRaw（C++），通过 `dart:ffi` 在后台 Isolate 中解码 |
-| 渲染管线 | Flutter FragmentProgram（SkSL 着色器），多 pass GPU 渲染 |
+| 渲染管线 | Flutter FragmentProgram（12 个自定义着色器），链式 GPU 管线：降噪→镜头校正→调色→画笔链式合成→透视→裁剪→蒙版→锐化 |
 | AI 分割 | EdgeSAM（ONNX Runtime），智能区域（颜色连通 + 导向滤波） |
 | 持久化 | `.e4pix.json` 边车文件 + `.xmp` 兼容格式 |
 | 联机 | gPhoto2（USB 控制）+ 热文件夹监控 |
@@ -165,10 +183,28 @@ Under the hood: **LibRaw** (C++ via FFI) for RAW decoding, a custom **GPU shader
 - **RGB curves**: Master curve + independent R/G/B/luminance channels with draggable control points
 - **LUTs**: `.cube` / `.vlt` format, dual slots (A/B) in series, remembered per image
 
-#### Denoise & Sharpen
+#### Denoise, Sharpen & Grain
+
 - **Denoise**: Luma and color channels independently controlled. GPU for preview; CPU multi-isolate parallel (bilateral filter) or GPU for export
 - **Sharpen**: Unsharp Mask with amount, radius, and masking threshold
+- **Super Resolution**: ONNX Runtime AI upscaling at 2× scale
 - **Film grain**: Amount, size, shadow/highlight thresholds & strengths, R/B channel ratios, correlation, color preservation
+
+#### Lens & Geometry
+
+- **Lens correction**: Distortion (K1-K5), lateral CA (R/B channels), vignetting; powered by LensFun database (`assets/lensfun/`)
+- **Perspective correction**: Four-point perspective warp with free-drag corners
+
+#### Pixel Brushes (6 tools)
+
+- **Clone Stamp**: Alt+sample → paint to clone, source tracking in sync with target
+- **Healing Brush**: Clone stamp + frequency-domain blending, preserving target texture and luminance context
+- **Spot Heal**: Paint a stroke → 16-ray boundary search → IDW fill; no manual sampling needed
+- **Dodge & Burn**: Screen/Multiply blend + 3-tone range mask (Shadows/Midtones/Highlights), PS-calibrated
+- **Sponge**: HSL saturation ±, saturate/desaturate modes, per-mark parameter freeze
+- **History Brush**: Restore pixels from a frozen history snapshot to the current image
+- **Time-sorted rendering**: Automatic cross-brush compositing by creation order; alternating strokes stack in actual paint sequence
+- All brushes plug into the Compose layer system — preview, export, watermark, and split comparison all work automatically
 
 #### Local Adjustments
 - **Three mask types**: Linear gradient, radial gradient, brush
@@ -228,7 +264,7 @@ Under the hood: **LibRaw** (C++ via FFI) for RAW decoding, a custom **GPU shader
 | UI | Flutter 3.x, responsive (desktop sidebar / mobile bottom tabs) |
 | State | Riverpod (Notifier + Provider) |
 | RAW engine | LibRaw (C++) via `dart:ffi`, background isolates |
-| Render pipeline | Flutter FragmentProgram (SkSL shaders), multi-pass GPU |
+| Render pipeline | Flutter FragmentProgram (12 custom shaders), chained GPU pipeline: denoise→lens correction→develop→brush chain→perspective→crop→mask→sharpen |
 | AI segmentation | EdgeSAM (ONNX Runtime), smart region (color connectivity + guided filter) |
 | Persistence | `.e4pix.json` sidecar + `.xmp` compatible |
 | Tethering | gPhoto2 (USB) + hot folder watcher |

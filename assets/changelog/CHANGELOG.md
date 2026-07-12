@@ -7,7 +7,6 @@
 * **历史记录画笔 (History Brush)**：从 History 面板选中的冻结快照恢复像素、3-sampler GPU 着色器（当前画面+历史快照+mark 纹理）、无取样模式始终处于绘画状态。
 * **历史记录面板 (History Panel)**：参数调整和笔画结束自动捕获条目、120×80 缩略图事件驱动惰性生成、点击回退完整编辑状态、长按设为 History Brush 取样源、Bottom Sheet UI 集成到横/竖屏按钮
 
-
 ## ⚡ 性能优化 (Performance)
 * **GPU 着色器预热自动触发**：图片加载后自动预编译所有 brush shader 的 GPU Pipeline State Object，消除首次笔画 7-30s 的 JIT 编译卡顿。预热通过 `addPostFrameCallback` 链逐帧执行，与 UI 光栅化错开
 * **Compose pass 替代内联渲染**：所有画笔通过单一 Compose pass 混合
@@ -26,8 +25,6 @@
 
 ## 🛠️ 底层改进 (Under the Hood)
 * **共享基础设施扩展**：新增 `StampMark` 接口（`lib/brushes/shared/stamp_mark.dart`）、`stamp_painter_utils.dart`（4 个光标绘制函数 + `kHardEdgeThreshold` 常量）、`base_stamp_painter.dart`（泛型 CustomPainter 基类）、`base_stamp_overlay.dart`（泛型 ConsumerState 基类，封装合成预览、手势、生命周期）
-* **注释风格统一清理**：移除全部 `// ──` 和 `// ═══` 装饰性注释，统一为中文、无句号、精炼简洁风格；删除 `SpotMark.copyWith`（无调用方）、`listenParamsClear`（死代码）
-* **P1 修复顺带完成**：`_compositedPreview != widget.sourceImage` 死代码（→ `_disposeComposited()` 方法）、`hasContent` mutable flag（→ 直接条件）、`kHardEdgeThreshold` 命名常量、`compositedCount` 在 `listenRenderedHashes` 中重置
 
 ## 🐛 问题修复 (Bug Fixes)
 * **已有画笔选区修复**：修复在已有画笔时使用智能选区只能选中底图的问题
