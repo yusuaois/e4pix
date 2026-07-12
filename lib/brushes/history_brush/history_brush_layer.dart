@@ -180,6 +180,7 @@ class HistoryBrushLayerProvider
         target: ui.Offset(i * 0.0001, i * 0.0001),
         radius: 0.0001,
         hardness: 1.0,
+        createdAt: DateTime.now(),
       ),
     );
     try {

@@ -9,6 +9,7 @@ import '../../state/providers.dart';
 import '../../widgets/develop/sections/history_panel_sheet.dart';
 import '../../widgets/develop/sections/shared.dart';
 import 'history_brush_model.dart';
+import 'history_brush_state.dart';
 
 class HistoryBrushSection extends ConsumerWidget {
   final AdjustmentParams params;

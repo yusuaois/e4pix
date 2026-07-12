@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
 import 'clone_stamp_model.dart';
+import 'clone_stamp_state.dart';
 import '../shared/brush_hashes.dart';
 import '../shared/stamp/base_stamp_painter.dart';
 import '../shared/stamp/base_stamp_overlay.dart';
@@ -85,11 +86,13 @@ class _SpotRemoveOverlayState
     required Offset target,
     required double radius,
     required double hardness,
+    required DateTime createdAt,
   }) => SpotMark(
     source: source,
     target: target,
     radius: radius,
     hardness: hardness,
+    createdAt: createdAt,
   );
 
   @override

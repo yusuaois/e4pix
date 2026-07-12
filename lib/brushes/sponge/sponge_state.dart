@@ -86,6 +86,7 @@ class SpongeNotifier extends Notifier<SpongeState> {
       hardness: hardness,
       mode: s.mode,
       flow: s.flow,
+      createdAt: DateTime.now(),
     );
     _addMarkRaw(mark);
   }
@@ -99,6 +100,7 @@ class SpongeNotifier extends Notifier<SpongeState> {
   ) {
     if (targets.isEmpty) return;
     final s = state;
+    final ts = DateTime.now();
     final updated = <StampMark>[..._marks<SpongeMark>()];
     for (final t in targets) {
       updated.add(
@@ -108,6 +110,7 @@ class SpongeNotifier extends Notifier<SpongeState> {
           hardness: hardness,
           mode: s.mode,
           flow: s.flow,
+          createdAt: ts,
         ),
       );
     }

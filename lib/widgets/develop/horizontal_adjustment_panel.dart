@@ -8,7 +8,6 @@ import '../../brushes/shared/brush_deactivate.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
-import 'sections/brush_layer_order_sheet.dart';
 import 'sections/history_panel_sheet.dart';
 import 'sections/preset_section.dart';
 
@@ -40,6 +39,8 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
   });
 
   Widget _section(DevelopTool tool) {
+    final m = manifestForTool(tool);
+    if (m != null) return m.sectionFactory(params, onChanged);
     switch (tool) {
       case DevelopTool.light:
         return LightSection(params: params, onChanged: onChanged);
@@ -60,18 +61,6 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
         return const PresetGrid();
       case DevelopTool.local:
         return const LocalPanel();
-      case DevelopTool.spotRemove:
-        return SpotRemoveSection(params: params, onChanged: onChanged);
-      case DevelopTool.healing:
-        return HealingSection(params: params, onChanged: onChanged);
-      case DevelopTool.spotHeal:
-        return SpotHealSection(params: params, onChanged: onChanged);
-      case DevelopTool.dodgeBurn:
-        return DodgeBurnSection(params: params, onChanged: onChanged);
-      case DevelopTool.sponge:
-        return SpongeSection(params: params, onChanged: onChanged);
-      case DevelopTool.historyBrush:
-        return HistoryBrushSection(params: params, onChanged: onChanged);
       case DevelopTool.watermark:
         return const WatermarkSection();
       case DevelopTool.lens:
@@ -80,6 +69,8 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
         return SrSection(params: params, onChanged: onChanged);
       case DevelopTool.info:
         return info ?? const SizedBox.shrink();
+      default:
+        return const SizedBox.shrink();
     }
   }
 
@@ -174,11 +165,6 @@ class _ToolRail extends ConsumerWidget {
               tooltip: tr('crop'),
               onTap: onEnterCrop!,
             ),
-          _RailItem(
-            icon: Icons.layers,
-            tooltip: tr('brushLayerOrder'),
-            onTap: () => showBrushLayerOrderSheet(context, ref),
-          ),
           _RailItem(
             icon: Icons.history,
             tooltip: tr('history'),

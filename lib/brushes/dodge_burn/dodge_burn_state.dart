@@ -98,6 +98,7 @@ class DodgeBurnNotifier extends Notifier<DodgeBurnState> {
       mode: s.mode,
       range: s.range,
       exposure: s.exposure,
+      createdAt: DateTime.now(),
     );
     _addMarkRaw(mark);
   }
@@ -111,6 +112,7 @@ class DodgeBurnNotifier extends Notifier<DodgeBurnState> {
   ) {
     if (targets.isEmpty) return;
     final s = state;
+    final ts = DateTime.now();
     final updated = <StampMark>[..._marks<DodgeBurnMark>()];
     for (final t in targets) {
       updated.add(
@@ -121,6 +123,7 @@ class DodgeBurnNotifier extends Notifier<DodgeBurnState> {
           mode: s.mode,
           range: s.range,
           exposure: s.exposure,
+          createdAt: ts,
         ),
       );
     }

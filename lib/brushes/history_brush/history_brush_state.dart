@@ -70,6 +70,7 @@ class HistoryBrushNotifier extends Notifier<HistoryBrushState> {
         target: target,
         radius: state.brushRadius,
         hardness: state.brushHardness,
+        createdAt: DateTime.now(),
       ),
     ];
     _setMarks(updated);

@@ -9,6 +9,7 @@ int hashHealingMarks(List<StampMark> marks) =>
     Object.hashAll(marks.map((m) => m.hashCode));
 
 /// 污点修复 marks 哈希，用于缓存键匹配
+/// 排除 createdAt：timestamp 不影响像素输出，允许缓存跨时间排序复用
 int hashSpotHealMarks(List<StampMark> marks) => Object.hashAll(
   marks.map((m) => Object.hash(m.target, m.radius, m.hardness)),
 );

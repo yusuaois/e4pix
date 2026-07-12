@@ -23,8 +23,12 @@ class HistoryMark implements StampMark {
   @override
   final double hardness;
 
+  @override
+  final DateTime createdAt;
+
   const HistoryMark({
     required this.target,
+    required this.createdAt,
     this.radius = 0.02,
     this.hardness = 1.0,
   });
@@ -34,16 +38,19 @@ class HistoryMark implements StampMark {
     'target': [target.dx, target.dy],
     'radius': radius,
     'hardness': hardness,
+    'createdAt': createdAt.toUtc().toIso8601String(),
   };
 
   factory HistoryMark.fromJson(Map<String, dynamic> j) {
     final tgt = j['target'] as List?;
+    final createdAt = StampMark.parseCreatedAt(j);
     return HistoryMark(
       target: tgt != null && tgt.length >= 2
           ? Offset((tgt[0] as num).toDouble(), (tgt[1] as num).toDouble())
           : Offset.zero,
       radius: (j['radius'] as num?)?.toDouble() ?? 0.02,
       hardness: (j['hardness'] as num?)?.toDouble() ?? 1.0,
+      createdAt: createdAt,
     );
   }
 
@@ -53,12 +60,13 @@ class HistoryMark implements StampMark {
       (other is HistoryMark &&
           target == other.target &&
           radius == other.radius &&
-          hardness == other.hardness);
+          hardness == other.hardness &&
+          createdAt == other.createdAt);
 
   @override
-  int get hashCode => Object.hash(target, radius, hardness);
+  int get hashCode => Object.hash(target, radius, hardness, createdAt);
 
   @override
   String toString() =>
-      'HistoryMark(target: $target, radius: $radius, hardness: $hardness)';
+      'HistoryMark(target: $target, radius: $radius, hardness: $hardness, createdAt: $createdAt)';
 }

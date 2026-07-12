@@ -134,6 +134,7 @@ class SpotRemoveNotifier extends Notifier<SpotRemoveState> {
         target: target,
         radius: state.brushRadius,
         hardness: state.brushHardness,
+        createdAt: DateTime.now(),
       ),
     ];
     _setMarks(updated);

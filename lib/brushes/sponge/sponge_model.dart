@@ -41,8 +41,12 @@ class SpongeMark implements StampMark {
   /// 流量强度 0..1（落笔时冻结）
   final double flow;
 
+  @override
+  final DateTime createdAt;
+
   const SpongeMark({
     required this.target,
+    required this.createdAt,
     this.radius = 0.02,
     this.hardness = 1.0,
     this.mode = SpongeMode.saturate,
@@ -55,6 +59,7 @@ class SpongeMark implements StampMark {
     double? hardness,
     SpongeMode? mode,
     double? flow,
+    DateTime? createdAt,
   }) {
     return SpongeMark(
       target: target ?? this.target,
@@ -62,6 +67,7 @@ class SpongeMark implements StampMark {
       hardness: hardness ?? this.hardness,
       mode: mode ?? this.mode,
       flow: flow ?? this.flow,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
@@ -73,20 +79,23 @@ class SpongeMark implements StampMark {
     'hardness': hardness,
     'mode': mode.name,
     'flow': flow,
+    'createdAt': createdAt.toUtc().toIso8601String(),
   };
 
   factory SpongeMark.fromJson(Map<String, dynamic> json) {
+    final createdAt = StampMark.parseCreatedAt(json);
     return SpongeMark(
       target: Offset(
-        (json['targetX'] as num).toDouble(),
-        (json['targetY'] as num).toDouble(),
+        (json['targetX'] as num?)?.toDouble() ?? 0.0,
+        (json['targetY'] as num?)?.toDouble() ?? 0.0,
       ),
-      radius: (json['radius'] as num).toDouble(),
-      hardness: (json['hardness'] as num).toDouble(),
+      radius: (json['radius'] as num?)?.toDouble() ?? 0.02,
+      hardness: (json['hardness'] as num?)?.toDouble() ?? 1.0,
       mode: json['mode'] != null
           ? SpongeMode.values.byName(json['mode'] as String)
           : SpongeMode.saturate,
       flow: (json['flow'] as num?)?.toDouble() ?? 0.5,
+      createdAt: createdAt,
     );
   }
 
@@ -97,8 +106,10 @@ class SpongeMark implements StampMark {
       other.radius == radius &&
       other.hardness == hardness &&
       other.mode == mode &&
-      other.flow == flow;
+      other.flow == flow &&
+      other.createdAt == createdAt;
 
   @override
-  int get hashCode => Object.hash(target, radius, hardness, mode, flow);
+  int get hashCode =>
+      Object.hash(target, radius, hardness, mode, flow, createdAt);
 }

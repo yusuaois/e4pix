@@ -124,6 +124,7 @@ class HealingNotifier extends Notifier<HealingState> {
         target: target,
         radius: state.brushRadius,
         hardness: state.brushHardness,
+        createdAt: DateTime.now(),
       ),
     ];
     _setMarks(updated);

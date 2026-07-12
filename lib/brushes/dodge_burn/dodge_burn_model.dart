@@ -56,8 +56,12 @@ class DodgeBurnMark implements StampMark {
   /// 曝光强度 0..1（落笔时冻结）
   final double exposure;
 
+  @override
+  final DateTime createdAt;
+
   const DodgeBurnMark({
     required this.target,
+    required this.createdAt,
     this.radius = 0.02,
     this.hardness = 1.0,
     this.mode = DodgeBurnMode.dodge,
@@ -72,6 +76,7 @@ class DodgeBurnMark implements StampMark {
     DodgeBurnMode? mode,
     DodgeBurnRange? range,
     double? exposure,
+    DateTime? createdAt,
   }) {
     return DodgeBurnMark(
       target: target ?? this.target,
@@ -80,6 +85,7 @@ class DodgeBurnMark implements StampMark {
       mode: mode ?? this.mode,
       range: range ?? this.range,
       exposure: exposure ?? this.exposure,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
@@ -92,16 +98,18 @@ class DodgeBurnMark implements StampMark {
     'mode': mode.name,
     'range': range.name,
     'exposure': exposure,
+    'createdAt': createdAt.toUtc().toIso8601String(),
   };
 
   factory DodgeBurnMark.fromJson(Map<String, dynamic> json) {
+    final createdAt = StampMark.parseCreatedAt(json);
     return DodgeBurnMark(
       target: Offset(
-        (json['targetX'] as num).toDouble(),
-        (json['targetY'] as num).toDouble(),
+        (json['targetX'] as num?)?.toDouble() ?? 0.0,
+        (json['targetY'] as num?)?.toDouble() ?? 0.0,
       ),
-      radius: (json['radius'] as num).toDouble(),
-      hardness: (json['hardness'] as num).toDouble(),
+      radius: (json['radius'] as num?)?.toDouble() ?? 0.02,
+      hardness: (json['hardness'] as num?)?.toDouble() ?? 1.0,
       mode: json['mode'] != null
           ? DodgeBurnMode.values.byName(json['mode'] as String)
           : DodgeBurnMode.dodge,
@@ -109,6 +117,7 @@ class DodgeBurnMark implements StampMark {
           ? DodgeBurnRange.values.byName(json['range'] as String)
           : DodgeBurnRange.midtones,
       exposure: (json['exposure'] as num?)?.toDouble() ?? 0.5,
+      createdAt: createdAt,
     );
   }
 
@@ -120,9 +129,10 @@ class DodgeBurnMark implements StampMark {
       other.hardness == hardness &&
       other.mode == mode &&
       other.range == range &&
-      other.exposure == exposure;
+      other.exposure == exposure &&
+      other.createdAt == createdAt;
 
   @override
   int get hashCode =>
-      Object.hash(target, radius, hardness, mode, range, exposure);
+      Object.hash(target, radius, hardness, mode, range, exposure, createdAt);
 }

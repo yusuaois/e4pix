@@ -24,10 +24,9 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
 
   static BrushLayerRegistry? _buildRegistry(
     Map<String, ui.FragmentProgram?> brushPrograms,
-    List<String> layerOrder,
   ) {
     final providers = <BrushLayerProvider>[];
-    for (final m in orderedManifests(layerOrder)) {
+    for (final m in brushManifests) {
       final prog = brushPrograms[m.id];
       if (prog != null) {
         providers.add(m.layerFactory(prog));
@@ -192,7 +191,6 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
     final denoiseProgram = ref.read(denoiseShaderProgramProvider).value;
     final brushPrograms = ref.read(brushShaderProgramsProvider).value ?? {};
     final watermarkCfg = ref.read(watermarkConfigProvider);
-    final layerOrder = ref.read(brushLayerOrderProvider);
     final cfg = job.config;
 
     // per-image LUT：按本 job 的 params.lutNameA/B 从缓存加载 texture
@@ -227,7 +225,7 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
         lutSizeB: lutB?.size ?? 0,
         sharpenProgram: sharpenProgram,
         denoiseProgram: denoiseProgram,
-        brushLayerRegistry: _buildRegistry(brushPrograms, layerOrder),
+        brushLayerRegistry: _buildRegistry(brushPrograms),
         denoiseEngine: cfg.denoiseEngine,
         denoiseParallelism: cfg.denoiseParallelism,
         jpegQuality: cfg.jpegQuality,

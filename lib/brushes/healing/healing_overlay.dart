@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
 import 'healing_model.dart';
+import 'healing_state.dart';
 import '../shared/brush_hashes.dart';
 import '../shared/stamp/base_stamp_painter.dart';
 import '../shared/stamp/base_stamp_overlay.dart';
@@ -103,11 +104,13 @@ class HealingOverlayState
     required Offset target,
     required double radius,
     required double hardness,
+    required DateTime createdAt,
   }) => HealingMark(
     source: source,
     target: target,
     radius: radius,
     hardness: hardness,
+    createdAt: createdAt,
   );
 
   @override

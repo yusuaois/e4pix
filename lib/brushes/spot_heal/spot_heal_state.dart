@@ -77,6 +77,7 @@ class SpotHealNotifier extends Notifier<SpotHealState> {
       target: target,
       radius: radiusNorm,
       hardness: hardness,
+      createdAt: DateTime.now(),
     );
     _addMarkRaw(mark);
   }
@@ -88,10 +89,16 @@ class SpotHealNotifier extends Notifier<SpotHealState> {
     double hardness,
   ) {
     if (targets.isEmpty) return;
+    final ts = DateTime.now();
     final updated = <StampMark>[..._marks<SpotHealMark>()];
     for (final t in targets) {
       updated.add(
-        SpotHealMark(target: t, radius: radiusNorm, hardness: hardness),
+        SpotHealMark(
+          target: t,
+          radius: radiusNorm,
+          hardness: hardness,
+          createdAt: ts,
+        ),
       );
     }
     _setMarks(updated);

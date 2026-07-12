@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
-import '../../state/providers.dart';
 import 'dodge_burn_model.dart';
 import '../shared/effect/base_effect_overlay.dart';
+import 'dodge_burn_state.dart';
 
 /// 加深减淡覆盖层——Screen/Multiply 混合 + 三色调范围
 class DodgeBurnOverlay extends ConsumerStatefulWidget {

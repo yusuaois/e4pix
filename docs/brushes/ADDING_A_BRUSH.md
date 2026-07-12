@@ -1,7 +1,7 @@
 # 如何新增画笔 — 开发者指南
 
-> 当前已提取公共工具层（坐标变换、路径采样、纹理生命周期）、A/B 两类 Overlay 基类委托模式，和 BrushManifest 单点注册机制。
-> 新增画笔只需创建 **6 个自包含文件** + 在 **4 个注册点** 添加少量胶水代码。
+> 当前已提取公共工具层（坐标变换、路径采样、纹理生命周期）、A/B 两类 Overlay 基类委托模式、BrushManifest 单点注册机制、和跨画笔时间排序渲染。
+> 新增画笔只需创建 **6 个自包含文件** + 在 **3 个代码注册点**（+ 翻译）添加少量胶水代码。
 > B 类（原地修改）overlay 继承 `BaseEffectOverlayState`，~40 行即可。
 >
 > 以污点修复（`spot_heal`）为 B 类最简模板，加深减淡（`dodge_burn`）为 B 类复杂模板。
@@ -52,13 +52,15 @@ lib/brushes/
 | | 原型 A：源-目标转移 | 原型 B：原地修改 |
 |---|---|---|
 | 示例 | 图章、修复画笔、历史画笔 | 污点修复、加深减淡、海绵 |
-| 是否需要 Alt+取样 | 是 | **否** |
-| 是否有 clone source | 是 | **否** |
+| 是否需要 Alt+取样 | 是（历史画笔除外） | **否** |
+| 是否有 clone source | 是（历史画笔除外） | **否** |
 | committed preview 生命周期 | 有（hash 匹配） | **无** |
 | 渲染方式 | 逐 mark shader pass | mask 光栅化 + 单 pass |
 | Overlay 基类 | **`BaseStampOverlayState`** | **`BaseEffectOverlayState`** |
 | Gesture Handler | **`StampGestureHandler`** | **`EffectGestureHandler`** |
 | Painter 基类 | **`BaseStampPainter`** | **`BaseEffectPainter`** |
+| Mark 接口 | `implements StampMark` | `implements StampMark` |
+| createdAt 来源 | `_strokeTimestamp` 共享 | `DateTime.now()` per stroke |
 | 参考模板 | `clone_stamp/`、`healing/` | **`spot_heal/`（最简）** |
 
 **建议**：如果是原地修改型（涂抹即生效），选择原型 B，从 `spot_heal/` 复制起步，overlay 只需 ~40 行（继承 `BaseEffectOverlayState`）。
@@ -69,25 +71,43 @@ lib/brushes/
 
 ### Step 1：数据模型（`my_brush_model.dart`）
 
-创建 `@immutable` mark 类，至少包含：
+创建 `@immutable` mark 类，**必须实现 `StampMark` 接口**，至少包含：
 
 ```dart
+import '../shared/stamp/stamp_mark.dart';
+
 @immutable
-class MyBrushMark {
-  final Offset target;    // 归一化源图坐标 [0..1]
-  final double radius;    // 归一化半径
-  final double hardness;  // 0..1，1=硬边
+class MyBrushMark implements StampMark {
+  @override final Offset target;    // 归一化源图坐标 [0..1]
+  @override final double radius;    // 归一化半径
+  @override final double hardness;  // 0..1，1=硬边
+  @override final DateTime createdAt; // 创建时间戳，用于跨画笔时间排序
   // 按需添加画笔特有参数（如 mode、opacity、flow）
 
-  const MyBrushMark({...});
+  const MyBrushMark({
+    required this.target,
+    required this.createdAt,
+    this.radius = 0.02,
+    this.hardness = 1.0,
+  });
 
-  // 必须实现：copyWith、==、hashCode、toJson、fromJson
+  // 必须实现：==、hashCode、toJson、fromJson
+  // fromJson 中解析 createdAt 用 StampMark.parseCreatedAt(json)
 }
 ```
 
+**关键规则**：
+
+- **`createdAt` 为 required**（未发版，无需向后兼容）
+- **构造器为 `const`**（纯数据对象）
+- **`fromJson` 解析用 `StampMark.parseCreatedAt(json)`**：已提取为 static helper
+- **`source` getter**：A 类需存储并返回 source 坐标；B 类返回 `target` 即可（`Offset get source => target`）
+- **`toJson` 序列化**：`createdAt.toUtc().toIso8601String()` 统一格式
+
 需要的枚举也在此定义。
 
-**参考**：`spot_heal_model.dart`（最简，3 字段）、`dodge_burn_model.dart`（复杂，6 字段 + 2 枚举）
+**参考**：`spot_heal_model.dart`（最简，3 字段 + createdAt）、`dodge_burn_model.dart`（复杂，6 字段 + 2 枚举 + createdAt）
+
 
 ---
 
@@ -109,23 +129,55 @@ class MyBrushNotifier extends Notifier<MyBrushState> {
 
   double get radiusNorm => state.brushRadius / 1000.0;
 
-  // 必须实现的核心方法：
-  //   addMarkAt(Offset target, double radiusNorm, double hardness)
-  //   addStrokesBatch(List<Offset> targets, double radiusNorm, double hardness)
-  //   removeMark(int index)
-  //   clearAll()
-  //
-  // 这些方法内部通过 ref.read(currentParamsNotifierProvider) 修改
-  // AdjustmentParams 中你的 marks list
+  // 读取 marks——通过 params.brushMasks['my_brush'] 泛型 map
+  List<T> _marks<T extends StampMark>() =>
+      ref.read(currentParamsNotifierProvider).brushMarks['my_brush']?.cast<T>() ??
+      const [];
+
+  void _setMarks(List<StampMark> marks) {
+    final params = ref.read(currentParamsNotifierProvider);
+    ref.read(currentParamsNotifierProvider.notifier)
+        .update(params.copyWith(brushMarks: {...params.brushMarks, 'my_brush': marks}));
+  }
+
+  // 必须实现：addMarkAt / addStrokesBatch（含 createdAt）
+  void addMarkAt(Offset target, double radiusNorm, double hardness) {
+    final mark = MyBrushMark(
+      target: target, radius: radiusNorm, hardness: hardness,
+      createdAt: DateTime.now(),  // ← 单点标记独立时间戳
+    );
+    _addMarkRaw(mark);
+  }
+
+  void addStrokesBatch(List<Offset> targets, double radiusNorm, double hardness) {
+    if (targets.isEmpty) return;
+    final ts = DateTime.now();  // ← 笔画内共享时间戳
+    final updated = <StampMark>[..._marks<MyBrushMark>()];
+    for (final t in targets) {
+      updated.add(MyBrushMark(
+        target: t, radius: radiusNorm, hardness: hardness, createdAt: ts,
+      ));
+    }
+    _setMarks(updated);
+  }
+
+  void removeMark(int index) { ... }
+  void clearAll() { ... }
 }
 
 final myBrushStateProvider =
     NotifierProvider<MyBrushNotifier, MyBrushState>(MyBrushNotifier.new);
 ```
 
-**关键模式**：`addMarkAt` 和 `addStrokesBatch` 通过 `ref.read(currentParamsNotifierProvider.notifier).update(...)` 写入 marks，管道自动检测变化并重渲染。
+**关键规则**：
 
-**参考**：`spot_heal_state.dart`（~100 行，最简模板）
+- **`addMarkAt` → `DateTime.now()`**：单点标记各自取当前时间
+- **`addStrokesBatch` → `final ts = DateTime.now()`**：笔画内所有 marks 共享同一时间戳，时间排序按笔画粒度
+- **marks 存储在 `params.brushMarks['my_brush']`**：泛型 Map 统一管理，无需在 `adjustment_params.dart` 添加 per-brush 字段
+- **读 marks 用 `?.cast<T>()`** 而非 `as List<T>?`
+
+**参考**：`spot_heal_state.dart`（~120 行，最简 B 类模板）、`healing_state.dart`（A 类模板）
+
 
 ---
 
@@ -304,32 +356,20 @@ class MyBrushSection extends ConsumerWidget {
 
 ---
 
-## 3. 注册（4 处）
+## 3. 注册（3 处代码 + 1 处翻译）
 
-### 3.1 `lib/brushes/shared/brush_hashes.dart`（1 行）
+### 3.1 `lib/brushes/shared/brush_hashes.dart`（3 行）
 
-添加 hash 函数：
+添加 hash 函数（用于 `IncrementalRenderCache` 缓存键和 committed-preview 匹配）：
 
 ```dart
-int hashMyBrushMarks(List<MyBrushMark> marks) =>
+int hashMyBrushMarks(List<StampMark> marks) =>
     Object.hashAll(marks.map((m) => m.hashCode));
 ```
 
-### 3.2 `lib/core/models/adjustment_params.dart`（9 处）
+> **注意**：如果 marks 的渲染输出与 `createdAt` 无关（缓存可跨时间排序复用），可排除 `createdAt` 手动构造 hash，如 `hashSpotHealMarks`。
 
-| 位置 | 代码 |
-|------|------|
-| import | `import '../../brushes/my_brush/my_brush_model.dart';` |
-| field | `final List<MyBrushMark> myBrushMarks;` |
-| constructor default | `this.myBrushMarks = const [],` |
-| copyWith param | `List<MyBrushMark>? myBrushMarks,` |
-| copyWith body | `myBrushMarks: myBrushMarks ?? this.myBrushMarks,` |
-| == operator | `listEquals(myBrushMarks, other.myBrushMarks) &&` |
-| hashCode | `Object.hash(..., myBrushMarks, ...)` |
-| toJson | `'myBrushMarks': myBrushMarks.map((e) => e.toJson()).toList(),` |
-| fromJson | `myBrushMarks: (json['myBrushMarks'] as List<dynamic>?)?.map((e) => MyBrushMark.fromJson(e as Map<String, dynamic>)).toList() ?? const [],` |
-
-### 3.3 `lib/brushes/brush_manifest.dart`（~8 行）
+### 3.2 `lib/brushes/brush_manifest.dart`（~25 行）
 
 在 `brushManifests` 列表末尾添加：
 
@@ -343,19 +383,43 @@ BrushManifest(
   layerFactory: _makeMyBrushLayer,
   hashMarks: _hashMyBrushMarks,
   tool: DevelopTool.myBrush,
+  overlayFactory: _makeMyBrushOverlay,
+  marksFromJson: (list) => list.map((j) => MyBrushMark.fromJson(j)).toList(),
+  deactivate: (ref) => ref.read(myBrushStateProvider.notifier).setMode(MyBrushMode.inactive),
+  sectionFactory: (p, oc) => MyBrushSection(params: p, onChanged: oc),
 ),
 ```
 
-并在文件底部添加对应的 3 个 private helper：
+并在文件底部添加对应的 5 个 private helper：
 
 ```dart
-bool _hasMyBrushMarks(AdjustmentParams p) => p.myBrushMarks.isNotEmpty;
-int _hashMyBrushMarks(AdjustmentParams p) => hashMyBrushMarks(p.myBrushMarks);
+// hasMarks / hashMarks
+bool _hasMyBrushMarks(AdjustmentParams p) =>
+    (p.brushMarks['my_brush'] ?? const []).isNotEmpty;
+int _hashMyBrushMarks(AdjustmentParams p) =>
+    Object.hashAll((p.brushMarks['my_brush'] ?? const []).map((m) => m.hashCode));
+
+// layerFactory
 BrushLayerProvider _makeMyBrushLayer(ui.FragmentProgram p) =>
     MyBrushLayerProvider(program: p);
+
+// overlayFactory
+Widget? _makeMyBrushOverlay(OverlayFactoryParams p) {
+  final st = p.ref.watch(myBrushStateProvider);
+  if (st.mode != MyBrushMode.active) return null;
+  return MyBrushOverlay(
+    imageDisplaySize: p.imageDisplaySize,
+    crop: p.crop,
+    sourceWidth: p.sourceWidth,
+    sourceHeight: p.sourceHeight,
+    sourceImage: p.sourceImage,
+  );
+}
 ```
 
-### 3.4 `lib/state/tools/develop_tool_state.dart`（1 行）
+> **重要**：不再需要在 `adjustment_params.dart` 中添加 per-brush 字段。marks 统一存储在 `Map<String, List<StampMark>> brushMarks` 中，以 brush ID 为 key。`marksFromJson` 回调负责从 JSON 反序列化为具体类型。
+
+### 3.3 `lib/state/tools/develop_tool_state.dart`（1 行）
 
 在 `DevelopTool` enum 中添加（注意位置——影响 vertical panel tab 顺序）：
 
@@ -363,7 +427,9 @@ BrushLayerProvider _makeMyBrushLayer(ui.FragmentProgram p) =>
 enum DevelopTool {
   // ... existing ...
   dodgeBurn,
+  sponge,
   myBrush,    // ← 新增
+  historyBrush,
   watermark,
   // ...
 }
@@ -380,14 +446,16 @@ enum DevelopTool {
 | Pass 判断 | `pass_config.dart` | `brushManifests.any((m) => m.hasMarks(p))` |
 | Shader 加载 | `render_state.dart` | `brushShaderProgramsProvider` 动态加载 |
 | Compose 图层 | `multi_pass_preview.dart` | `brushManifests` 循环创建 layer |
+| 时间排序渲染 | `full_pipeline_renderer.dart` | `_renderTimeOrderedStamps()` 泛型排序+合并 |
 | 导出 | `export_queue_state.dart` | `brushManifests` 循环创建 registry |
 | GPU 预热 | `gpu_warmup.dart` | `brushManifests` 循环创建 warmup 任务 |
 | Overlay Stack | `preview_area.dart` | `_buildOverlayIfActive` + manifest 循环 |
 | 横向面板 rail | `horizontal_adjustment_panel.dart` | `brushManifests` 循环生成 |
 | 纵向面板 tabs | `vertical_adjustment_panel.dart` | `brushManifests` 循环生成 |
-| Exit listener | 两个面板文件 | `deactivateBrush(m.id, ref)` 统一退出 |
-| State 导出 | `providers.dart` | 你的 `my_brush_state.dart` 中的 provider 在此添加 export |
-| Section 导出 | `develop_sections.dart` | 你的 section 类在此添加 export |
+| 纵向面板 section | `vertical_adjustment_panel.dart` | `manifest.sectionFactory` 泛型生成 |
+| 横向面板 section | `horizontal_adjustment_panel.dart` | `manifest.sectionFactory` 泛型生成 |
+| Exit listener | 两个面板文件 | `manifest.deactivate` 泛型退出 |
+| Sidecar 反序列化 | `sidecar_service.dart` | `manifest.marksFromJson` 统一入口 |
 
 ---
 
@@ -411,13 +479,15 @@ enum DevelopTool {
 - [ ] `flutter analyze` 零错误零警告
 - [ ] 激活画笔后 overlay 显示，停用后隐藏
 - [ ] 笔画渲染正确（预览 + 管线产出一致）
+- [ ] 跨画笔时间排序正常（多画笔交替绘制时按实际顺序叠加）
 - [ ] 切换工具时画笔自动退出
-- [ ] Compose 叠加顺序正确（最后注册 = 最上层）
+- [ ] Compose 叠加顺序正确（最后注册 = 最上层，由时间排序统一管理）
 - [ ] Shader 预热无报错（首笔不卡顿）
 - [ ] 导出含画笔标记的图像
-- [ ] 移动端纵向面板 tab 正常
-- [ ] 桌面端横向面板 rail 正常
+- [ ] 移动端纵向面板 tab 正常（自动从 manifest 生成）
+- [ ] 桌面端横向面板 rail 正常（自动从 manifest 生成）
 - [ ] 翻译文本正确显示（中/英）
+- [ ] Sidecar 文件序列化/反序列化正确（含 `createdAt`）
 - [ ] 更新 `NEXT_SESSION_PROMPT.md` 中的关键数字速查表
 
 ---
@@ -427,14 +497,18 @@ enum DevelopTool {
 | # | 文件 | 行数 | 性质 |
 |---|------|------|------|
 | 1 | `brush_hashes.dart` | 3 | 添加 hash 函数 |
-| 2 | `adjustment_params.dart` | ~9 | 类型安全的 marks list 声明 |
-| 3 | `brush_manifest.dart` | ~11 | 元数据注册 + 3 个 helper |
-| 4 | `develop_tool_state.dart` | 1 | Dart enum |
-| 5 | `providers.dart` | 1 | export state provider |
-| 6 | `develop_sections.dart` | 1 | export section |
-| 7 | `en-US.json` + `zh-CN.json` | ~10 | 翻译文本 |
+| 2 | `brush_manifest.dart` | ~25 | manifest 条目 + helpers（含 marksFromJson、deactivate、sectionFactory） |
+| 3 | `develop_tool_state.dart` | 1 | Dart enum 值 |
+| 4 | `en-US.json` + `zh-CN.json` | ~10 | 翻译文本 |
 
-**6 个自包含文件 + 7 处胶水代码**。其中 4/7 处只有 1 行。
+**6 个自包含文件 + 3 处代码胶水 + 1 处翻译**。其中 2/3 代码处只有 1~3 行。
+
+> **不再需要改 `adjustment_params.dart`**：marks 统一存储在 `Map<String, List<StampMark>> brushMarks` 中。
+> **不再需要改 `providers.dart`**：overlay + section 直接 import state 文件，无需 barrel export。
+> **不再需要改 `develop_sections.dart`**：`manifest.sectionFactory` 泛型生成面板。
+> **不再需要改 `brush_deactivate.dart`**：`manifest.deactivate` 泛型退出。
+> **不再需要改 `full_pipeline_renderer.dart`**：`_renderTimeOrderedStamps()` 完全泛型。
+> **不再需要改两个面板文件**：section + deactivate 通过 manifest 回调泛型分发。
 
 ---
 
@@ -450,13 +524,22 @@ enum DevelopTool {
 | **A 类 painter 基类** | `lib/brushes/shared/stamp/base_stamp_painter.dart` |
 | **A 类 gesture handler** | `lib/brushes/shared/stamp/stamp_gesture_handler.dart` |
 | **A 类 compositor** | `lib/brushes/shared/stamp/stamp_compositor.dart` |
-| **复杂模板**（原型 B + per-mark 参数） | `lib/brushes/dodge_burn/` |
-| **完整 committed preview**（原型 A） | `lib/brushes/clone_stamp/` |
+| **StampMark 接口 + parseCreatedAt** | `lib/brushes/shared/stamp/stamp_mark.dart` |
+| **复杂模板**（原型 B + per-mark 参数） | `lib/brushes/dodge_burn/`、`lib/brushes/sponge/` |
+| **完整 committed preview**（原型 A） | `lib/brushes/clone_stamp/`、`lib/brushes/healing/` |
+| **A 类特殊：快照源** | `lib/brushes/history_brush/` |
 | BrushLayerProvider 接口 | `lib/render/brush_layer_provider.dart` |
 | IncrementalRenderCache | `lib/render/incremental_render_cache.dart` |
 | 坐标变换 API | `lib/utils/brush_coord_utils.dart` |
 | OOB 预览 API | `lib/utils/brush_preview_utils.dart` |
 | 路径采样 API | `lib/utils/path_brush_tracker.dart` |
 | 纹理生命周期 API | `lib/state/utils/texture_notifier.dart` |
+| **技术文档** | |
+| 图章 (Clone Stamp) | `docs/brushes/SPOT_REMOVAL.md` |
+| 修复画笔 (Healing) | `docs/brushes/HEALING_BRUSH.md` |
+| 污点修复 (Spot Heal) | `docs/brushes/SPOT_HEAL.md` |
+| 加深减淡 (Dodge & Burn) | `docs/brushes/DODGE_BURN.md` |
+| 海绵工具 (Sponge) | `docs/brushes/SPONGE.md` |
+| 历史画笔 (History Brush) | `docs/brushes/HISTORY_BRUSH.md` |
 | Shader 编译流程 | `docs/rendering/RENDERING_RULES.md` |
 | 项目整体架构 | `NEXT_SESSION_PROMPT.md` |

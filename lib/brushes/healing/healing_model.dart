@@ -28,9 +28,13 @@ class HealingMark implements StampMark {
   @override
   final double hardness;
 
+  @override
+  final DateTime createdAt;
+
   const HealingMark({
     required this.source,
     required this.target,
+    required this.createdAt,
     this.radius = 0.02,
     this.hardness = 1.0,
   });
@@ -41,11 +45,13 @@ class HealingMark implements StampMark {
     'target': [target.dx, target.dy],
     'radius': radius,
     'hardness': hardness,
+    'createdAt': createdAt.toUtc().toIso8601String(),
   };
 
   factory HealingMark.fromJson(Map<String, dynamic> j) {
     final src = j['source'] as List?;
     final tgt = j['target'] as List?;
+    final createdAt = StampMark.parseCreatedAt(j);
     return HealingMark(
       source: src != null && src.length >= 2
           ? Offset((src[0] as num).toDouble(), (src[1] as num).toDouble())
@@ -55,6 +61,7 @@ class HealingMark implements StampMark {
           : Offset.zero,
       radius: (j['radius'] as num?)?.toDouble() ?? 0.02,
       hardness: (j['hardness'] as num?)?.toDouble() ?? 1.0,
+      createdAt: createdAt,
     );
   }
 
@@ -65,12 +72,13 @@ class HealingMark implements StampMark {
           source == other.source &&
           target == other.target &&
           radius == other.radius &&
-          hardness == other.hardness);
+          hardness == other.hardness &&
+          createdAt == other.createdAt);
 
   @override
-  int get hashCode => Object.hash(source, target, radius, hardness);
+  int get hashCode => Object.hash(source, target, radius, hardness, createdAt);
 
   @override
   String toString() =>
-      'HealingMark(source: $source, target: $target, radius: $radius, hardness: $hardness)';
+      'HealingMark(source: $source, target: $target, radius: $radius, hardness: $hardness, createdAt: $createdAt)';
 }

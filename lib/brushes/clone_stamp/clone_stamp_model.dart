@@ -27,9 +27,13 @@ class SpotMark implements StampMark {
   @override
   final double hardness;
 
+  @override
+  final DateTime createdAt;
+
   const SpotMark({
     required this.source,
     required this.target,
+    required this.createdAt,
     this.radius = 0.02,
     this.hardness = 1.0,
   });
@@ -40,11 +44,13 @@ class SpotMark implements StampMark {
     'target': [target.dx, target.dy],
     'radius': radius,
     'hardness': hardness,
+    'createdAt': createdAt.toUtc().toIso8601String(),
   };
 
   factory SpotMark.fromJson(Map<String, dynamic> j) {
     final src = j['source'] as List?;
     final tgt = j['target'] as List?;
+    final createdAt = StampMark.parseCreatedAt(j);
     return SpotMark(
       source: src != null && src.length >= 2
           ? Offset((src[0] as num).toDouble(), (src[1] as num).toDouble())
@@ -54,6 +60,7 @@ class SpotMark implements StampMark {
           : Offset.zero,
       radius: (j['radius'] as num?)?.toDouble() ?? 0.02,
       hardness: (j['hardness'] as num?)?.toDouble() ?? 1.0,
+      createdAt: createdAt,
     );
   }
 
@@ -64,12 +71,13 @@ class SpotMark implements StampMark {
           source == other.source &&
           target == other.target &&
           radius == other.radius &&
-          hardness == other.hardness);
+          hardness == other.hardness &&
+          createdAt == other.createdAt);
 
   @override
-  int get hashCode => Object.hash(source, target, radius, hardness);
+  int get hashCode => Object.hash(source, target, radius, hardness, createdAt);
 
   @override
   String toString() =>
-      'SpotMark(source: $source, target: $target, radius: $radius, hardness: $hardness)';
+      'SpotMark(source: $source, target: $target, radius: $radius, hardness: $hardness, createdAt: $createdAt)';
 }

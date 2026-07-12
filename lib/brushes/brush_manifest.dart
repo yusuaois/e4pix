@@ -26,6 +26,18 @@ import 'spot_heal/spot_heal_model.dart';
 import 'dodge_burn/dodge_burn_model.dart';
 import 'sponge/sponge_model.dart';
 import 'history_brush/history_brush_model.dart';
+import 'clone_stamp/clone_stamp_state.dart';
+import 'healing/healing_state.dart';
+import 'spot_heal/spot_heal_state.dart';
+import 'dodge_burn/dodge_burn_state.dart';
+import 'sponge/sponge_state.dart';
+import 'history_brush/history_brush_state.dart';
+import 'clone_stamp/clone_stamp_section.dart';
+import 'healing/healing_section.dart';
+import 'spot_heal/spot_heal_section.dart';
+import 'dodge_burn/dodge_burn_section.dart';
+import 'sponge/sponge_section.dart';
+import 'history_brush/history_brush_section.dart';
 
 /// overlay 工厂的参数打包
 class OverlayFactoryParams {
@@ -68,6 +80,16 @@ class BrushManifest {
   final List<StampMark> Function(List<Map<String, dynamic>> json)?
   marksFromJson;
 
+  /// 停用画笔回调（切换工具时自动退出）
+  final void Function(WidgetRef ref) deactivate;
+
+  /// UI 面板工厂（参数面板中显示画笔设置）
+  final Widget Function(
+    AdjustmentParams params,
+    ValueChanged<AdjustmentParams> onChanged,
+  )
+  sectionFactory;
+
   const BrushManifest({
     required this.id,
     required this.titleKey,
@@ -79,6 +101,8 @@ class BrushManifest {
     required this.tool,
     required this.overlayFactory,
     this.marksFromJson,
+    required this.deactivate,
+    required this.sectionFactory,
   });
 }
 
@@ -98,6 +122,10 @@ final brushManifests = <BrushManifest>[
     tool: DevelopTool.spotRemove,
     overlayFactory: _makeSpotRemovalOverlay,
     marksFromJson: (list) => list.map((j) => SpotMark.fromJson(j)).toList(),
+    deactivate: (ref) => ref
+        .read(spotRemoveStateProvider.notifier)
+        .setMode(SpotRemoveMode.inactive),
+    sectionFactory: (p, oc) => SpotRemoveSection(params: p, onChanged: oc),
   ),
   // --- 修复画笔 ---
   BrushManifest(
@@ -111,6 +139,9 @@ final brushManifests = <BrushManifest>[
     tool: DevelopTool.healing,
     overlayFactory: _makeHealingOverlay,
     marksFromJson: (list) => list.map((j) => HealingMark.fromJson(j)).toList(),
+    deactivate: (ref) =>
+        ref.read(healingStateProvider.notifier).setMode(HealingMode.inactive),
+    sectionFactory: (p, oc) => HealingSection(params: p, onChanged: oc),
   ),
   // --- 污点修复 ---
   BrushManifest(
@@ -124,6 +155,9 @@ final brushManifests = <BrushManifest>[
     tool: DevelopTool.spotHeal,
     overlayFactory: _makeSpotHealOverlay,
     marksFromJson: (list) => list.map((j) => SpotHealMark.fromJson(j)).toList(),
+    deactivate: (ref) =>
+        ref.read(spotHealStateProvider.notifier).setMode(SpotHealMode.inactive),
+    sectionFactory: (p, oc) => SpotHealSection(params: p, onChanged: oc),
   ),
   // --- 加深减淡 ---
   BrushManifest(
@@ -138,6 +172,10 @@ final brushManifests = <BrushManifest>[
     overlayFactory: _makeDodgeBurnOverlay,
     marksFromJson: (list) =>
         list.map((j) => DodgeBurnMark.fromJson(j)).toList(),
+    deactivate: (ref) => ref
+        .read(dodgeBurnStateProvider.notifier)
+        .setBrushMode(DodgeBurnBrushMode.inactive),
+    sectionFactory: (p, oc) => DodgeBurnSection(params: p, onChanged: oc),
   ),
   // --- 海绵工具 ---
   BrushManifest(
@@ -151,6 +189,10 @@ final brushManifests = <BrushManifest>[
     tool: DevelopTool.sponge,
     overlayFactory: _makeSpongeOverlay,
     marksFromJson: (list) => list.map((j) => SpongeMark.fromJson(j)).toList(),
+    deactivate: (ref) => ref
+        .read(spongeStateProvider.notifier)
+        .setBrushMode(SpongeBrushMode.inactive),
+    sectionFactory: (p, oc) => SpongeSection(params: p, onChanged: oc),
   ),
   // --- 历史记录画笔 ---
   BrushManifest(
@@ -164,6 +206,10 @@ final brushManifests = <BrushManifest>[
     tool: DevelopTool.historyBrush,
     overlayFactory: _makeHistoryBrushOverlay,
     marksFromJson: (list) => list.map((j) => HistoryMark.fromJson(j)).toList(),
+    deactivate: (ref) => ref
+        .read(historyBrushStateProvider.notifier)
+        .setMode(HistoryBrushMode.inactive),
+    sectionFactory: (p, oc) => HistoryBrushSection(params: p, onChanged: oc),
   ),
 ];
 
@@ -291,19 +337,18 @@ Widget? _makeHistoryBrushOverlay(OverlayFactoryParams p) {
   );
 }
 
-// ── 工具函数 ──
-
-/// 按 [order] 排序 manifest 列表（ID 不在 order 中的追加到末尾）
-List<BrushManifest> orderedManifests(List<String> order) {
-  final sorted = brushManifests.toList()
-    ..sort((a, b) => order.indexOf(a.id).compareTo(order.indexOf(b.id)));
-  return sorted;
-}
-
 /// 按 [DevelopTool] 枚举值查找 [BrushManifest]
 BrushManifest? manifestForTool(DevelopTool tool) {
   for (final m in brushManifests) {
     if (m.tool == tool) return m;
+  }
+  return null;
+}
+
+/// 按 brush ID 字符串查找 [BrushManifest]
+BrushManifest? manifestForId(String id) {
+  for (final m in brushManifests) {
+    if (m.id == id) return m;
   }
   return null;
 }

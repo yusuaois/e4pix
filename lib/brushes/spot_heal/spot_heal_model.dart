@@ -26,17 +26,27 @@ class SpotHealMark implements StampMark {
   @override
   final double hardness;
 
+  @override
+  final DateTime createdAt;
+
   const SpotHealMark({
     required this.target,
+    required this.createdAt,
     this.radius = 0.02,
     this.hardness = 1.0,
   });
 
-  SpotHealMark copyWith({Offset? target, double? radius, double? hardness}) {
+  SpotHealMark copyWith({
+    Offset? target,
+    double? radius,
+    double? hardness,
+    DateTime? createdAt,
+  }) {
     return SpotHealMark(
       target: target ?? this.target,
       radius: radius ?? this.radius,
       hardness: hardness ?? this.hardness,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
@@ -46,16 +56,19 @@ class SpotHealMark implements StampMark {
     'targetY': target.dy,
     'radius': radius,
     'hardness': hardness,
+    'createdAt': createdAt.toUtc().toIso8601String(),
   };
 
   factory SpotHealMark.fromJson(Map<String, dynamic> json) {
+    final createdAt = StampMark.parseCreatedAt(json);
     return SpotHealMark(
       target: Offset(
-        (json['targetX'] as num).toDouble(),
-        (json['targetY'] as num).toDouble(),
+        (json['targetX'] as num?)?.toDouble() ?? 0.0,
+        (json['targetY'] as num?)?.toDouble() ?? 0.0,
       ),
-      radius: (json['radius'] as num).toDouble(),
-      hardness: (json['hardness'] as num).toDouble(),
+      radius: (json['radius'] as num?)?.toDouble() ?? 0.02,
+      hardness: (json['hardness'] as num?)?.toDouble() ?? 1.0,
+      createdAt: createdAt,
     );
   }
 
@@ -64,8 +77,9 @@ class SpotHealMark implements StampMark {
       other is SpotHealMark &&
       other.target == target &&
       other.radius == radius &&
-      other.hardness == hardness;
+      other.hardness == hardness &&
+      other.createdAt == createdAt;
 
   @override
-  int get hashCode => Object.hash(target, radius, hardness);
+  int get hashCode => Object.hash(target, radius, hardness, createdAt);
 }

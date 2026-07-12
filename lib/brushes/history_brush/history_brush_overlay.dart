@@ -9,6 +9,7 @@ import '../shared/stamp/base_stamp_overlay.dart';
 import '../shared/stamp/base_stamp_painter.dart';
 import '../shared/brush_hashes.dart';
 import 'history_brush_model.dart';
+import 'history_brush_state.dart';
 
 /// 历史记录画笔——从冻结快照恢复像素，通过按钮激活
 class HistoryBrushOverlay extends ConsumerStatefulWidget {
@@ -69,7 +70,13 @@ class _HistoryBrushOverlayState
     required Offset target,
     required double radius,
     required double hardness,
-  }) => HistoryMark(target: target, radius: radius, hardness: hardness);
+    required DateTime createdAt,
+  }) => HistoryMark(
+    target: target,
+    radius: radius,
+    hardness: hardness,
+    createdAt: createdAt,
+  );
 
   @override
   void commitMarksToPipeline(WidgetRef ref, List<HistoryMark> marks) {

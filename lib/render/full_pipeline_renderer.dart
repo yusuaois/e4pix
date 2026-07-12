@@ -3,9 +3,12 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 
+import '../brushes/shared/stamp/stamp_mark.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
+import '../utils/shader_pass_util.dart';
+import 'brush_layer_provider.dart';
 import 'brush_layer_registry.dart';
 import 'brush_rasterizer.dart';
 import 'crop_transform.dart';
@@ -13,7 +16,6 @@ import 'homography.dart';
 import 'mask_cache.dart';
 import 'pass_config.dart';
 import 'render_engine.dart';
-import '../utils/shader_pass_util.dart';
 
 /// 完整管线渲染结果
 class PipelineRenderResult {
@@ -238,7 +240,7 @@ class FullPipelineRenderer {
     ui.Image current = develop;
     bool currentOwned = developOwned;
 
-    // 合成趟：链式渲染画笔图层（按注册顺序叠加，后层基于前层输出）
+    // 合成趟：多画笔按时间排序链式渲染，单画笔顺序迭代
     if (brushLayerRegistry != null) {
       final activeProviders = brushLayerRegistry.activeProviders(params);
       if (activeProviders.isNotEmpty) {
@@ -249,24 +251,42 @@ class FullPipelineRenderer {
               p.invalidate();
             }
           }
-          for (final provider in activeProviders) {
-            try {
-              final layer = await provider.render(
-                params: params,
-                developOutput: current,
-                developKey: developKey,
-                targetWidth: current.width,
-                targetHeight: current.height,
-              );
-              if (layer.active && layer.texture != null) {
-                // clone：provider render 内可能已缓存此纹理，取安全副本
-                final next = layer.texture!.clone();
-                if (currentOwned) current.dispose();
-                current = next;
-                currentOwned = true;
+
+          // 多画笔活跃时走时间排序路径，单画笔走原有路径
+          if (activeProviders.length >= 2) {
+            // 时间排序路径：按笔画 createdAt 排序，全部画笔 marks 链式渲染
+            final result = await _renderTimeOrderedStamps(
+              developOutput: current,
+              params: params,
+              activeProviders: activeProviders,
+              developKey: developKey,
+              targetWidth: current.width,
+              targetHeight: current.height,
+            );
+            if (currentOwned) current.dispose();
+            current = result;
+            currentOwned = true;
+          } else {
+            // 原有路径：单画笔活跃，顺序迭代
+            for (final provider in activeProviders) {
+              try {
+                final layer = await provider.render(
+                  params: params,
+                  developOutput: current,
+                  developKey: developKey,
+                  targetWidth: current.width,
+                  targetHeight: current.height,
+                );
+                if (layer.active && layer.texture != null) {
+                  // clone：provider render 内可能已缓存此纹理，取安全副本
+                  final next = layer.texture!.clone();
+                  if (currentOwned) current.dispose();
+                  current = next;
+                  currentOwned = true;
+                }
+              } catch (e) {
+                debugPrint('[Pipeline] Layer ${provider.id} render failed: $e');
               }
-            } catch (e) {
-              debugPrint('[Pipeline] Layer ${provider.id} render failed: $e');
             }
           }
         } catch (e) {
@@ -666,5 +686,90 @@ class FullPipelineRenderer {
         s.setFloat(i++, masking);
       },
     );
+  }
+
+  /// 按笔画时间戳排序合并渲染
+  ///
+  /// 先按 [StampMark.createdAt] 拆分笔画（Dart sort 不稳定不能直接全量排序），
+  /// 再按笔画时间戳排序、合并相邻同类型批次，逐组调用 [BrushLayerProvider.render]。
+  /// 每组前 [invalidate] 缓存：[_renderTimeOrderedStamps] 不走 [IncrementalRenderCache]
+  /// 的 count 匹配路径，必须清空避免读到旧纹理
+  static Future<ui.Image> _renderTimeOrderedStamps({
+    required ui.Image developOutput,
+    required AdjustmentParams params,
+    required List<BrushLayerProvider> activeProviders,
+    required int developKey,
+    required int targetWidth,
+    required int targetHeight,
+  }) async {
+    // 收集 marks，按笔画拆分
+    final strokes =
+        <({String brushId, List<StampMark> marks, DateTime createdAt})>[];
+    for (final p in activeProviders) {
+      final raw = params.brushMarks[p.id] ?? const [];
+      if (raw.isNotEmpty) _buildStrokes(strokes, raw.toList(), p.id);
+    }
+    if (strokes.isEmpty) return developOutput.clone();
+
+    strokes.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    // 合并相邻同类型笔画，逐组渲染
+    ui.Image current = developOutput;
+    bool currentOwned = false;
+
+    for (int si = 0; si < strokes.length;) {
+      final bid = strokes[si].brushId;
+      final batch = <StampMark>[];
+      while (si < strokes.length && strokes[si].brushId == bid) {
+        batch.addAll(strokes[si].marks);
+        si++;
+      }
+
+      final provider = activeProviders.firstWhere((p) => p.id == bid);
+      final subsetParams = params.copyWith(brushMarks: {bid: batch});
+
+      provider.invalidate();
+      try {
+        final layer = await provider.render(
+          params: subsetParams,
+          developOutput: current,
+          developKey: developKey,
+          targetWidth: targetWidth,
+          targetHeight: targetHeight,
+        );
+        if (layer.active && layer.texture != null) {
+          final next = layer.texture!.clone();
+          if (currentOwned) current.dispose();
+          current = next;
+          currentOwned = true;
+        }
+      } catch (e) {
+        if (currentOwned) current.dispose();
+        debugPrint('[TimeOrder] batch $bid failed: $e');
+        rethrow;
+      }
+    }
+
+    return current;
+  }
+
+  /// 按相同 createdAt 拆分笔画，保持笔画内 marks 原始顺序
+  static void _buildStrokes(
+    List<({String brushId, List<StampMark> marks, DateTime createdAt})> out,
+    List<StampMark> marks,
+    String brushId,
+  ) {
+    if (marks.isEmpty) return;
+    int start = 0;
+    for (int i = 1; i <= marks.length; i++) {
+      if (i == marks.length || marks[i].createdAt != marks[start].createdAt) {
+        out.add((
+          brushId: brushId,
+          marks: marks.sublist(start, i),
+          createdAt: marks[start].createdAt,
+        ));
+        start = i;
+      }
+    }
   }
 }

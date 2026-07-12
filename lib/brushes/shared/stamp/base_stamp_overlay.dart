@@ -64,6 +64,7 @@ abstract class BaseStampOverlayState<
     required Offset target,
     required double radius,
     required double hardness,
+    required DateTime createdAt,
   });
 
   /// 批量提交 marks 到管线

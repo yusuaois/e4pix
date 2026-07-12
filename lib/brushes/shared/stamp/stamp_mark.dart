@@ -18,6 +18,13 @@ abstract class StampMark {
   /// 边缘硬度 0..1，1=硬边，0=柔边
   double get hardness;
 
+  /// 创建时间戳，用于跨画笔时间排序渲染
+  DateTime get createdAt;
+
   /// 序列化为 JSON 兼容的 Map
   Map<String, dynamic> toJson();
+
+  /// 从 JSON 解析 createdAt
+  static DateTime parseCreatedAt(Map<String, dynamic> json) =>
+      DateTime.parse(json['createdAt'] as String).toLocal();
 }

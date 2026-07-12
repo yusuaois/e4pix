@@ -35,6 +35,7 @@ class StampGestureHandler<T extends StampMark> {
     required Offset target,
     required double radius,
     required double hardness,
+    required DateTime createdAt,
   })
   createMark;
 
@@ -79,6 +80,7 @@ class StampGestureHandler<T extends StampMark> {
   bool isCommitting = false;
   final List<T> committedMarks = [];
   int committedHash = 0;
+  DateTime? _strokeTimestamp;
 
   /// 点击：取样模式更新 clone source，绘画模式放置单点
   void onTapDown(Offset pos, WidgetRef ref) {
@@ -103,6 +105,8 @@ class StampGestureHandler<T extends StampMark> {
   void onPanStart(Offset pos, WidgetRef ref) {
     final isSampling = getIsSampling(ref);
     if (isSampling) return;
+    final ts = DateTime.now();
+    _strokeTimestamp = ts;
     final target = screenToSource(pos);
     final Offset source;
     if (paintOffset != null) {
@@ -129,6 +133,7 @@ class StampGestureHandler<T extends StampMark> {
         target: target,
         radius: radius,
         hardness: hardness,
+        createdAt: ts,
       ),
     );
     onNeedsSetState();
@@ -138,13 +143,20 @@ class StampGestureHandler<T extends StampMark> {
   void onPanUpdate(Offset pos, WidgetRef ref) {
     final tracker = strokeTracker;
     final offset = paintOffset;
-    if (tracker == null || offset == null) return;
+    final ts = _strokeTimestamp;
+    if (tracker == null || offset == null || ts == null) return;
     final radius = getBrushRadius(ref);
     final hardness = getBrushHardness(ref);
     for (final t in tracker.move(screenToSource(pos))) {
       final s = Offset(t.dx + offset.dx, t.dy + offset.dy);
       strokeMarks.add(
-        createMark(source: s, target: t, radius: radius, hardness: hardness),
+        createMark(
+          source: s,
+          target: t,
+          radius: radius,
+          hardness: hardness,
+          createdAt: ts,
+        ),
       );
     }
     onNeedsSetState();
@@ -157,7 +169,8 @@ class StampGestureHandler<T extends StampMark> {
   void onPanEnd(WidgetRef ref, {Offset? cursorPos}) {
     final tracker = strokeTracker;
     final offset = paintOffset;
-    if (tracker != null && offset != null) {
+    final ts = _strokeTimestamp;
+    if (tracker != null && offset != null && ts != null) {
       final radius = getBrushRadius(ref);
       final hardness = getBrushHardness(ref);
       for (final t in tracker.end()) {
@@ -167,6 +180,7 @@ class StampGestureHandler<T extends StampMark> {
             target: t,
             radius: radius,
             hardness: hardness,
+            createdAt: ts,
           ),
         );
       }
@@ -178,7 +192,8 @@ class StampGestureHandler<T extends StampMark> {
         Offset(cursorSrc.dx + offset.dx, cursorSrc.dy + offset.dy),
       );
     }
-    if (strokeMarks.isNotEmpty) {
+    final hadMarks = strokeMarks.isNotEmpty;
+    if (hadMarks) {
       commitMarksToPipeline(ref, List<T>.from(strokeMarks));
       committedHash = computeCommittedHash(ref);
       committedMarks
@@ -195,7 +210,7 @@ class StampGestureHandler<T extends StampMark> {
       strokeMarks.clear();
     }
     strokeTracker = null;
-    onStrokeCommitted?.call();
+    if (hadMarks) onStrokeCommitted?.call();
     onNeedsSetState();
   }
 

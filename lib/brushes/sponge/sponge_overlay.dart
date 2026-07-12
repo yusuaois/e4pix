@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
-import '../../state/providers.dart';
 import 'sponge_model.dart';
 import '../shared/effect/base_effect_overlay.dart';
+import 'sponge_state.dart';
 
 /// 海绵工具覆盖层——自由绘制饱和/去饱和
 class SpongeOverlay extends ConsumerStatefulWidget {

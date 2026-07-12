@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/crop_params.dart';
-import '../../state/providers.dart';
 import '../shared/effect/base_effect_overlay.dart';
+import 'spot_heal_state.dart';
 
 /// 污点修复覆盖层——IDW 采样填充缺陷，笔画转为密集重叠圆形 marks
 class SpotHealOverlay extends ConsumerStatefulWidget {
