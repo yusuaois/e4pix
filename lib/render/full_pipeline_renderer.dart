@@ -6,12 +6,10 @@ import 'package:flutter/foundation.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
-import '../core/models/brush_layer.dart';
 import 'brush_layer_registry.dart';
 import 'brush_rasterizer.dart';
 import 'crop_transform.dart';
 import 'homography.dart';
-import 'incremental_render_cache.dart';
 import 'mask_cache.dart';
 import 'pass_config.dart';
 import 'render_engine.dart';
@@ -116,9 +114,6 @@ class FullPipelineRenderer {
     ui.FragmentProgram? denoiseProgram,
     ui.FragmentProgram? perspectiveProgram,
     ui.FragmentProgram? lensCorrectProgram,
-    ui.FragmentProgram? spotRemoveProgram,
-    ui.FragmentProgram? healingProgram,
-    ui.FragmentProgram? composeProgram,
     BrushLayerRegistry? brushLayerRegistry,
     PerspectiveMatrixCache? perspectiveCache,
     required ui.Image sourceImage,
@@ -133,8 +128,6 @@ class FullPipelineRenderer {
     DevelopPassCache? developCache,
     BrushMaskCache? brushCache,
     bool allowStaleAutoMask = false,
-    IncrementalRenderCache? spotRemovalCache,
-    IncrementalRenderCache? healingCache,
   }) async {
     final enabledLocals = activeLocals(params);
     final hasEnabledMasks = enabledLocals.isNotEmpty;
@@ -249,97 +242,42 @@ class FullPipelineRenderer {
     if (brushLayerRegistry != null) {
       final activeProviders = brushLayerRegistry.activeProviders(params);
       if (activeProviders.isNotEmpty) {
-        final multiLayer = activeProviders.length > 1;
         try {
-          if (multiLayer) {
-            // 多图层：失效全部缓存，链式串联渲染
+          // 多图层时失效全部缓存：链式中后层输入来自前层输出，developKey 缓存无效
+          if (activeProviders.length > 1) {
             for (final p in activeProviders) {
               p.invalidate();
             }
-            for (final provider in activeProviders) {
-              try {
-                final layer = await provider.render(
-                  params: params,
-                  developOutput: current,
-                  developKey: developKey,
-                  targetWidth: current.width,
-                  targetHeight: current.height,
-                );
-                if (layer.active && layer.texture != null) {
-                  // clone：provider render 内可能已缓存此纹理，取安全副本
-                  final next = layer.texture!.clone();
-                  if (currentOwned) current.dispose();
-                  current = next;
-                  currentOwned = true;
-                }
-              } catch (e) {
-                debugPrint('[Pipeline] Layer ${provider.id} render failed: $e');
-              }
-            }
-          } else {
-            // 单图层：保持原有 compose pass 行为
-            if (composeProgram != null) {
-              final layers = <BrushLayer>[];
-              for (final provider in activeProviders) {
-                try {
-                  final layer = await provider.render(
-                    params: params,
-                    developOutput: current,
-                    developKey: developKey,
-                    targetWidth: current.width,
-                    targetHeight: current.height,
-                  );
-                  if (layer.active) layers.add(layer);
-                } catch (e) {
-                  debugPrint(
-                    '[Pipeline] Layer ${provider.id} render failed: $e',
-                  );
-                }
-              }
-              if (layers.isNotEmpty) {
-                final composed = await _runComposePass(
-                  program: composeProgram,
-                  base: current,
-                  layers: layers,
-                );
+          }
+          for (final provider in activeProviders) {
+            try {
+              final layer = await provider.render(
+                params: params,
+                developOutput: current,
+                developKey: developKey,
+                targetWidth: current.width,
+                targetHeight: current.height,
+              );
+              if (layer.active && layer.texture != null) {
+                // clone：provider render 内可能已缓存此纹理，取安全副本
+                final next = layer.texture!.clone();
                 if (currentOwned) current.dispose();
-                current = composed;
+                current = next;
                 currentOwned = true;
               }
-            } else {
-              // 无 compose shader 回退：直接取 provider 输出
-              for (final provider in activeProviders) {
-                try {
-                  final layer = await provider.render(
-                    params: params,
-                    developOutput: current,
-                    developKey: developKey,
-                    targetWidth: current.width,
-                    targetHeight: current.height,
-                  );
-                  if (layer.active && layer.texture != null) {
-                    final next = layer.texture!.clone();
-                    if (currentOwned) current.dispose();
-                    current = next;
-                    currentOwned = true;
-                  }
-                } catch (e) {
-                  debugPrint(
-                    '[Pipeline] Layer ${provider.id} render failed: $e',
-                  );
-                }
-              }
+            } catch (e) {
+              debugPrint('[Pipeline] Layer ${provider.id} render failed: $e');
             }
           }
         } catch (e) {
-          debugPrint('[Pipeline] Compose pass failed: $e');
+          debugPrint('[Pipeline] Brush pass failed: $e');
         }
       }
     }
 
     // 捕获 compose 之后的图像供 overlay 笔画预览
     ui.Image? developOutput;
-    if (hasEnabledMasks || needsComposePass(params)) {
+    if (hasEnabledMasks || (brushLayerRegistry?.hasActive(params) ?? false)) {
       try {
         developOutput = current.clone();
       } catch (e) {
@@ -538,49 +476,6 @@ class FullPipelineRenderer {
         s.setFloat(i++, targetHeight.toDouble());
         s.setFloat(i++, luma);
         s.setFloat(i++, color);
-      },
-    );
-  }
-
-  // 合成趟：将画笔图层混合到基底图上，各图层独立渲染
-  // 未修改像素等于底图，顺序替换可正确工作
-  static const _kMaxComposeLayers = 8;
-  // 采样器槽位总数：uBase + 8 图层 = 9（GPU 兼容要求全部绑定）
-  static const _kComposeSamplerSlots = 9;
-
-  static Future<ui.Image> _runComposePass({
-    required ui.FragmentProgram program,
-    required ui.Image base,
-    required List<BrushLayer> layers,
-  }) async {
-    final w = base.width;
-    final h = base.height;
-    final count = layers.length.clamp(0, _kMaxComposeLayers);
-
-    // 构建包含全部 9 个槽位的采样器列表，未使用槽位复用底图
-    final samplers = <ui.Image>[base]; // slot 0: uBase
-    for (int n = 0; n < _kMaxComposeLayers; n++) {
-      if (n < layers.length && layers[n].texture != null) {
-        samplers.add(layers[n].texture!);
-      } else {
-        samplers.add(base); // bind dummy for unused layer slots
-      }
-    }
-    assert(samplers.length == _kComposeSamplerSlots);
-
-    return runSingleShaderPass(
-      shader: program.fragmentShader(),
-      outputWidth: w,
-      outputHeight: h,
-      samplers: samplers,
-      setUniforms: (s) {
-        int i = 0;
-        s.setFloat(i++, w.toDouble());
-        s.setFloat(i++, h.toDouble());
-        s.setFloat(i++, count.toDouble());
-        for (int n = 0; n < _kMaxComposeLayers; n++) {
-          s.setFloat(i++, (n < count) ? 1.0 : 0.0);
-        }
       },
     );
   }

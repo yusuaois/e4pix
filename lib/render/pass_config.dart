@@ -43,6 +43,3 @@ bool needsFullPipeline(AdjustmentParams p) =>
     needsLensCorrectionPass(p) ||
     needsPerspectivePass(p) ||
     _anyBrushActive(p);
-
-/// 是否需要合成趟（有画笔含活跃标记）
-bool needsComposePass(AdjustmentParams p) => _anyBrushActive(p);

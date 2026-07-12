@@ -31,8 +31,6 @@ class MultiPassPreview extends ConsumerStatefulWidget {
   final ui.FragmentProgram? denoiseProgram;
   final ui.FragmentProgram? perspectiveProgram;
   final ui.FragmentProgram? lensCorrectProgram;
-  final ui.FragmentProgram? spotRemoveProgram;
-  final ui.FragmentProgram? healingProgram;
   final int idleMaxEdge;
   final int draggingMaxEdge;
 
@@ -51,8 +49,6 @@ class MultiPassPreview extends ConsumerStatefulWidget {
     this.denoiseProgram,
     this.perspectiveProgram,
     this.lensCorrectProgram,
-    this.spotRemoveProgram,
-    this.healingProgram,
     this.idleMaxEdge = 2400,
     this.draggingMaxEdge = 800,
   });
@@ -102,7 +98,6 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         old.denoiseProgram != widget.denoiseProgram ||
         old.perspectiveProgram != widget.perspectiveProgram ||
         old.lensCorrectProgram != widget.lensCorrectProgram ||
-        old.spotRemoveProgram != widget.spotRemoveProgram ||
         old.idleMaxEdge != widget.idleMaxEdge ||
         old.draggingMaxEdge != widget.draggingMaxEdge ||
         old.params != widget.params) {
@@ -139,25 +134,22 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       final tw = (src.width * scale).round();
       final th = (src.height * scale).round();
 
-      // Compose pass：从可用画笔 shader 构建 layer registry
+      // 从可用画笔 shader 构建 layer registry
       // provider 惰性初始化，每次渲染重建 registry
-      final composeProgram = ref.read(composeShaderProgramProvider).value;
+      final brushPrograms = ref.read(brushShaderProgramsProvider).value ?? {};
       BrushLayerRegistry? layerReg;
-      if (composeProgram != null) {
-        final brushPrograms = ref.read(brushShaderProgramsProvider).value ?? {};
-        final providers = <BrushLayerProvider>[];
-        final layerOrder = ref.read(brushLayerOrderProvider);
-        for (final m in orderedManifests(layerOrder)) {
-          final prog = brushPrograms[m.id];
-          if (prog != null) {
-            _brushLayers.putIfAbsent(m.id, () => m.layerFactory(prog));
-            providers.add(_brushLayers[m.id]!);
-          }
+      final providers = <BrushLayerProvider>[];
+      final layerOrder = ref.read(brushLayerOrderProvider);
+      for (final m in orderedManifests(layerOrder)) {
+        final prog = brushPrograms[m.id];
+        if (prog != null) {
+          _brushLayers.putIfAbsent(m.id, () => m.layerFactory(prog));
+          providers.add(_brushLayers[m.id]!);
         }
-        if (providers.isNotEmpty) {
-          _layerRegistry = BrushLayerRegistry(providers: providers);
-          layerReg = _layerRegistry;
-        }
+      }
+      if (providers.isNotEmpty) {
+        _layerRegistry = BrushLayerRegistry(providers: providers);
+        layerReg = _layerRegistry;
       }
 
       final result = await FullPipelineRenderer.render(
@@ -174,9 +166,6 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         denoiseProgram: widget.denoiseProgram,
         perspectiveProgram: widget.perspectiveProgram,
         lensCorrectProgram: widget.lensCorrectProgram,
-        spotRemoveProgram: widget.spotRemoveProgram,
-        healingProgram: widget.healingProgram,
-        composeProgram: composeProgram,
         brushLayerRegistry: layerReg,
         perspectiveCache: _perspectiveCache,
         targetWidth: tw,
@@ -259,11 +248,9 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       }
 
       final brushProgs = ref.read(brushShaderProgramsProvider).value ?? {};
-      final composeProg = ref.read(composeShaderProgramProvider).value;
 
       final tasks = buildWarmupTasks(
         brushPrograms: brushProgs,
-        composeProgram: composeProg,
         developOutput: devClone,
         targetWidth: tw,
         targetHeight: th,

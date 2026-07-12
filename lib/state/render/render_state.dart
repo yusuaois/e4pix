@@ -19,7 +19,6 @@ class _ShaderBundle {
   final ui.FragmentProgram denoise;
   final ui.FragmentProgram perspective;
   final ui.FragmentProgram lensCorrect;
-  final ui.FragmentProgram compose;
   const _ShaderBundle({
     required this.develop,
     required this.mask,
@@ -27,7 +26,6 @@ class _ShaderBundle {
     required this.denoise,
     required this.perspective,
     required this.lensCorrect,
-    required this.compose,
   });
 }
 
@@ -40,7 +38,6 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     ui.FragmentProgram.fromAsset('assets/shaders/denoise.frag'),
     ui.FragmentProgram.fromAsset('assets/shaders/perspective.frag'),
     ui.FragmentProgram.fromAsset('assets/shaders/lens_correct.frag'),
-    ui.FragmentProgram.fromAsset('assets/shaders/compose.frag'),
   ]);
   for (final p in results) {
     p.fragmentShader(); // 预热编译
@@ -52,7 +49,6 @@ final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
     denoise: results[3],
     perspective: results[4],
     lensCorrect: results[5],
-    compose: results[6],
   );
 });
 
@@ -91,12 +87,6 @@ final lensCorrectShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
   return (await ref.watch(_allShadersProvider.future)).lensCorrect;
 });
 
-final composeShaderProgramProvider = FutureProvider<ui.FragmentProgram>((
-  ref,
-) async {
-  return (await ref.watch(_allShadersProvider.future)).compose;
-});
-
 /// Brush shader programs, keyed by [BrushManifest.id].
 ///
 /// Loads shaders for all registered brushes in [brushManifests] order.
@@ -121,37 +111,6 @@ final brushShaderProgramsProvider =
       }
       return result;
     });
-
-// Deprecated per-brush shader providers — kept for backward compatibility.
-// Prefer [brushShaderProgramsProvider] for new code.
-
-@Deprecated('Use brushShaderProgramsProvider instead')
-final spotRemoveShaderProgramProvider = FutureProvider<ui.FragmentProgram?>((
-  ref,
-) async {
-  return (await ref.watch(brushShaderProgramsProvider.future))['spot_removal'];
-});
-
-@Deprecated('Use brushShaderProgramsProvider instead')
-final spotHealShaderProgramProvider = FutureProvider<ui.FragmentProgram?>((
-  ref,
-) async {
-  return (await ref.watch(brushShaderProgramsProvider.future))['spot_heal'];
-});
-
-@Deprecated('Use brushShaderProgramsProvider instead')
-final dodgeBurnShaderProgramProvider = FutureProvider<ui.FragmentProgram?>((
-  ref,
-) async {
-  return (await ref.watch(brushShaderProgramsProvider.future))['dodge_burn'];
-});
-
-@Deprecated('Use brushShaderProgramsProvider instead')
-final healingShaderProgramProvider = FutureProvider<ui.FragmentProgram?>((
-  ref,
-) async {
-  return (await ref.watch(brushShaderProgramsProvider.future))['healing'];
-});
 
 /// 启动时预加载所有 shader 文件到内存（CPU 侧），不执行 GPU PSO 创建
 /// GPU 预热由 [MultiPassPreview] 在首次渲染后按帧触发

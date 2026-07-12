@@ -6,6 +6,7 @@ import '../../core/models/adjustment_params.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
+import '../../widgets/develop/sections/history_panel_sheet.dart';
 import '../../widgets/develop/sections/shared.dart';
 import 'history_brush_model.dart';
 
@@ -42,11 +43,16 @@ class HistoryBrushSection extends ConsumerWidget {
                 icon: Icons.history,
                 label: tr('historyBrushTitle'),
                 isActive: isActive,
-                onTap: () => notifier.setMode(
-                  isActive
-                      ? HistoryBrushMode.inactive
-                      : HistoryBrushMode.active,
-                ),
+                onTap: () {
+                  if (isActive) {
+                    notifier.setMode(HistoryBrushMode.inactive);
+                  } else {
+                    notifier.setMode(HistoryBrushMode.active);
+                    if (brushSourceIndex == null) {
+                      showHistoryPanelSheet(context, ref);
+                    }
+                  }
+                },
               ),
               const Spacer(),
             ],
@@ -56,14 +62,20 @@ class HistoryBrushSection extends ConsumerWidget {
         // 画笔源状态
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-          child: Text(
-            brushSourceIndex != null
-                ? tr('historyBrushSourceActive')
-                : tr('historyBrushNoSource'),
-            style: AppTypography.labelSmall.copyWith(
-              color: brushSourceIndex != null
-                  ? AppColors.semanticSuccess
-                  : AppColors.disabledText,
+          child: GestureDetector(
+            onTap: brushSourceIndex != null
+                ? () =>
+                      ref.read(historyPanelProvider.notifier).clearBrushSource()
+                : () => showHistoryPanelSheet(context, ref),
+            child: Text(
+              brushSourceIndex != null
+                  ? tr('historyBrushSourceActive')
+                  : tr('historyBrushNoSource'),
+              style: AppTypography.labelSmall.copyWith(
+                color: brushSourceIndex != null
+                    ? AppColors.semanticSuccess
+                    : AppColors.disabledText,
+              ),
             ),
           ),
         ),

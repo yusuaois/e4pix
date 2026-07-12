@@ -142,9 +142,8 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     if (needsFullPipeline(params)) return;
 
     final brushProgs = ref.read(brushShaderProgramsProvider).value ?? {};
-    final composeProg = ref.read(composeShaderProgramProvider).value;
 
-    if (brushProgs.values.every((p) => p == null) && composeProg == null) {
+    if (brushProgs.values.every((p) => p == null)) {
       return;
     }
 
@@ -164,7 +163,6 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
 
     final tasks = buildWarmupTasks(
       brushPrograms: brushProgs,
-      composeProgram: composeProg,
       developOutput: clone,
       targetWidth: tw,
       targetHeight: th,
@@ -347,12 +345,6 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
                             lensCorrectProgram: ref
                                 .watch(lensCorrectShaderProgramProvider)
                                 .value,
-                            spotRemoveProgram: ref
-                                .watch(spotRemoveShaderProgramProvider)
-                                .value,
-                            healingProgram: ref
-                                .watch(healingShaderProgramProvider)
-                                .value,
                             idleMaxEdge: 2400,
                             draggingMaxEdge: 800,
                           ),
@@ -438,8 +430,6 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
             lensCorrectProgram: ref
                 .watch(lensCorrectShaderProgramProvider)
                 .value,
-            spotRemoveProgram: ref.watch(spotRemoveShaderProgramProvider).value,
-            healingProgram: ref.watch(healingShaderProgramProvider).value,
             idleMaxEdge: idle,
             draggingMaxEdge: dragging,
           );

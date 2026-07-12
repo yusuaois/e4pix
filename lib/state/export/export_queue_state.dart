@@ -191,7 +191,6 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
     final sharpenProgram = ref.read(sharpenShaderProgramProvider).value;
     final denoiseProgram = ref.read(denoiseShaderProgramProvider).value;
     final brushPrograms = ref.read(brushShaderProgramsProvider).value ?? {};
-    final composeProgram = ref.read(composeShaderProgramProvider).value;
     final watermarkCfg = ref.read(watermarkConfigProvider);
     final layerOrder = ref.read(brushLayerOrderProvider);
     final cfg = job.config;
@@ -228,9 +227,6 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
         lutSizeB: lutB?.size ?? 0,
         sharpenProgram: sharpenProgram,
         denoiseProgram: denoiseProgram,
-        spotRemoveProgram: brushPrograms['spot_removal'],
-        healingProgram: brushPrograms['healing'],
-        composeProgram: composeProgram,
         brushLayerRegistry: _buildRegistry(brushPrograms, layerOrder),
         denoiseEngine: cfg.denoiseEngine,
         denoiseParallelism: cfg.denoiseParallelism,

@@ -3,15 +3,12 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 
 import '../brushes/brush_manifest.dart';
-import '../utils/shader_pass_util.dart';
 
 /// 构建所有 brush shader 的有序预热任务列表
 ///
 /// [brushPrograms] 以 [BrushManifest.id] 为键，null 条目跳过
-/// [composeProgram] 单独传入，因 compose 非画笔但仍需预热
 List<(String, Future<void> Function())> buildWarmupTasks({
   required Map<String, ui.FragmentProgram?> brushPrograms,
-  required ui.FragmentProgram? composeProgram,
   required ui.Image developOutput,
   required int targetWidth,
   required int targetHeight,
@@ -29,43 +26,7 @@ List<(String, Future<void> Function())> buildWarmupTasks({
     }
   }
 
-  if (composeProgram != null) {
-    tasks.add((
-      'compose',
-      () => _warmupComposeShader(
-        composeProgram,
-        developOutput,
-        targetWidth,
-        targetHeight,
-      ),
-    ));
-  }
-
   return tasks;
-}
-
-/// 用 0 active layers 执行一次 compose shader，预编译 PSO（9 samplers）
-Future<void> _warmupComposeShader(
-  ui.FragmentProgram compose,
-  ui.Image base,
-  int tw,
-  int th,
-) async {
-  final result = await runSingleShaderPass(
-    shader: compose.fragmentShader(),
-    outputWidth: tw,
-    outputHeight: th,
-    samplers: List.filled(9, base),
-    setUniforms: (s) {
-      s.setFloat(0, tw.toDouble());
-      s.setFloat(1, th.toDouble());
-      s.setFloat(2, 0.0);
-      for (int i = 3; i < 11; i++) {
-        s.setFloat(i, 0.0);
-      }
-    },
-  );
-  result.dispose();
 }
 
 /// Session 级守卫——整个 app 生命周期内只预热一次

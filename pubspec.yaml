@@ -96,7 +96,6 @@ flutter:
     - assets/shaders/sharpen.frag
     - assets/shaders/perspective.frag
     - assets/shaders/lens_correct.frag
-    - assets/shaders/compose.frag
     - assets/shaders/brushes/spot_remove.frag
     - assets/shaders/brushes/healing.frag
     - assets/shaders/brushes/spot_heal.frag

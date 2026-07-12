@@ -93,8 +93,6 @@ class WatermarkPreview extends ConsumerWidget {
           denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
           perspectiveProgram: ref.watch(perspectiveShaderProgramProvider).value,
           lensCorrectProgram: ref.watch(lensCorrectShaderProgramProvider).value,
-          spotRemoveProgram: ref.watch(spotRemoveShaderProgramProvider).value,
-          healingProgram: ref.watch(healingShaderProgramProvider).value,
           geometry: geometry,
         ),
         backgroundLayer: _buildBackground(
@@ -415,8 +413,6 @@ class _ComplexImageLayer extends ConsumerWidget {
   final ui.FragmentProgram? denoiseProgram;
   final ui.FragmentProgram? perspectiveProgram;
   final ui.FragmentProgram? lensCorrectProgram;
-  final ui.FragmentProgram? spotRemoveProgram;
-  final ui.FragmentProgram? healingProgram;
   final WatermarkGeometry geometry;
 
   const _ComplexImageLayer({
@@ -433,8 +429,6 @@ class _ComplexImageLayer extends ConsumerWidget {
     this.denoiseProgram,
     this.perspectiveProgram,
     this.lensCorrectProgram,
-    this.spotRemoveProgram,
-    this.healingProgram,
     required this.geometry,
   });
 
@@ -465,8 +459,6 @@ class _ComplexImageLayer extends ConsumerWidget {
         denoiseProgram: denoiseProgram,
         perspectiveProgram: perspectiveProgram,
         lensCorrectProgram: lensCorrectProgram,
-        spotRemoveProgram: spotRemoveProgram,
-        healingProgram: healingProgram,
         idleMaxEdge: slotLongest,
         draggingMaxEdge: (slotLongest * 0.5).ceil().clamp(200, dragging),
       ),
