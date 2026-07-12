@@ -48,8 +48,11 @@ Future<ui.Image> encodeMarksToTexture({
   return completer.future;
 }
 
-/// 归一化 [0..1] 浮点数 → 16-bit 定点数（0..65535）
+/// 将浮点数映射到 16-bit 定点数（0..65535）
+///
+/// 范围 [-1.0, 2.0] 覆盖 brush 半径（max 1.0）越界延伸，保证 OOB 坐标连续采样
+/// 逆映射见各 shader 的 unpack16 函数
 int _packFloat16(double value) {
-  final clamped = value.clamp(0.0, 1.0);
-  return (clamped * 65535.0).round();
+  final clamped = value.clamp(-1.0, 2.0);
+  return ((clamped + 1.0) / 3.0 * 65535.0).round();
 }

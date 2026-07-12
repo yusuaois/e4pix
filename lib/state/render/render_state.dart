@@ -34,13 +34,13 @@ class _ShaderBundle {
 // 并行加载全部核心 shader（非画笔），首个访问触发批量加载
 final _allShadersProvider = FutureProvider<_ShaderBundle>((ref) async {
   final results = await Future.wait([
-    ui.FragmentProgram.fromAsset('assets/shaders/develop.shader'),
-    ui.FragmentProgram.fromAsset('assets/shaders/develop_mask.shader'),
-    ui.FragmentProgram.fromAsset('assets/shaders/sharpen.shader'),
-    ui.FragmentProgram.fromAsset('assets/shaders/denoise.shader'),
-    ui.FragmentProgram.fromAsset('assets/shaders/perspective.shader'),
-    ui.FragmentProgram.fromAsset('assets/shaders/lens_correct.shader'),
-    ui.FragmentProgram.fromAsset('assets/shaders/compose.shader'),
+    ui.FragmentProgram.fromAsset('assets/shaders/develop.frag'),
+    ui.FragmentProgram.fromAsset('assets/shaders/develop_mask.frag'),
+    ui.FragmentProgram.fromAsset('assets/shaders/sharpen.frag'),
+    ui.FragmentProgram.fromAsset('assets/shaders/denoise.frag'),
+    ui.FragmentProgram.fromAsset('assets/shaders/perspective.frag'),
+    ui.FragmentProgram.fromAsset('assets/shaders/lens_correct.frag'),
+    ui.FragmentProgram.fromAsset('assets/shaders/compose.frag'),
   ]);
   for (final p in results) {
     p.fragmentShader(); // 预热编译

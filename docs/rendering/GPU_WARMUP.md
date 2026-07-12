@@ -57,4 +57,3 @@ GPU 预热（首帧渲染后，addPostFrameCallback 链）
 - `encodeMarksToTexture()` 创建的纹理必须在 pass 完成后 dispose（`try/finally`）
 - 启动时不碰 GPU——推迟到首帧渲染后通过 addPostFrameCallback 执行
 - FragmentShader 对象跨帧复用，不要每帧 `fragmentShader()`
-- 修改 `.frag` 后在 `e4pix_shader/` 中 `flutter build bundle`，复制到 `assets/shaders/` 重命名为 `.shader`

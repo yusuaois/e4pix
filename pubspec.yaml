@@ -84,11 +84,25 @@ flutter:
     - assets/changelog/
     - assets/translations/
     - assets/models/
-    - assets/shaders/
     - assets/presets/
     - assets/borders/logos/dark/
     - assets/borders/logos/light/
     - assets/lensfun/data/db/
+
+  shaders:
+    - assets/shaders/denoise.frag
+    - assets/shaders/develop.frag
+    - assets/shaders/develop_mask.frag
+    - assets/shaders/sharpen.frag
+    - assets/shaders/perspective.frag
+    - assets/shaders/lens_correct.frag
+    - assets/shaders/compose.frag
+    - assets/shaders/brushes/spot_remove.frag
+    - assets/shaders/brushes/healing.frag
+    - assets/shaders/brushes/spot_heal.frag
+    - assets/shaders/brushes/dodge_burn.frag
+    - assets/shaders/brushes/sponge.frag
+    - assets/shaders/brushes/history_brush.frag
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

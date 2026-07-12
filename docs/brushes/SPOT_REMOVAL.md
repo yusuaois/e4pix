@@ -15,8 +15,8 @@
 | 交互覆盖层 | `lib/widgets/develop/sections/spot_remove_overlay.dart` | 手势处理（取样/绘画）、Canvas 即时预览、坐标变换 |
 | 设置面板 | `lib/widgets/develop/sections/spot_remove_section.dart` | 画笔半径/硬度滑块、取样按钮 |
 | 画笔工具 | `lib/utils/path_brush_tracker.dart` | 路径均匀采样，间距 = radius × 0.5 |
-| Shader 源码 | `e4pix_shader/assets/shaders/spot_remove.frag` | GLSL Fragment Shader，每 spot 6 uniform（srcX/Y, tgtX/Y, r, h） |
-| Shader 编译产物 | `assets/shaders/spot_remove.shader` | Flutter runtime effect 编译输出 |
+| Shader 源码 | `assets/shaders/brushes/spot_remove.frag` | GLSL Fragment Shader，每 spot 6 uniform（srcX/Y, tgtX/Y, r, h），编译：主项目 `flutter build bundle` |
+| Shader 编译产物 | `build/flutter_assets/assets/shaders/brushes/spot_remove.frag` | IPLR 二进制，需重命名为 `.shader` 部署 |
 | 渲染缓存 | `lib/render/spot_removal_cache.dart` | 两级缓存：spots-hash + 增量滚动 |
 | 管线渲染 | `lib/render/full_pipeline_renderer.dart` | 管线中 spot removal pass 的执行与循环 |
 | 渲染状态 | `lib/state/render/render_state.dart` | developOutputProvider、renderedSpotsHashProvider 等 |
@@ -274,14 +274,14 @@ Develop → Mask（局部调整） → Spot Removal → 透视 → 裁剪 → �
 
 ### 10.1 Shader 编译
 
-- 修改 `e4pix_shader/assets/shaders/spot_remove.frag` 后，必须在 `e4pix_shader/` 目录执行：
+- 修改 `assets/shaders/brushes/spot_remove.frag` 后，在主项目根目录执行：
   ```bash
-  flutter clean && flutter pub get && flutter build bundle
+  flutter build bundle
   ```
-- 将编译产物复制到主项目：
+- 将编译产物复制并重命名：
   ```bash
-  cp e4pix_shader/build/flutter_assets/assets/shaders/spot_remove.frag \
-     assets/shaders/spot_remove.shader
+  cp build/flutter_assets/assets/shaders/brushes/spot_remove.frag \
+     assets/shaders/brushes/spot_remove.shader
   ```
 - **⚠️ 不要用 `impellerc` 直接编译**
 

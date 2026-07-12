@@ -47,7 +47,7 @@
 │   ├── 每组光栅化 mask → 单 shader pass            │
 │   └── 链式叠加各组输出                             │
 ├──────────────────────────────────────────────────┤
-│ Shader: dodge_burn.frag → dodge_burn.shader      │
+│ Shader: dodge_burn.frag                  │
 │   ├── 输入: uImage + uMask + uSize + uMode       │
 │   │        + uExposure + uRange                  │
 │   ├── 亮度遮罩（range mask）限制色调范围            │
@@ -73,8 +73,7 @@
 | `lib/brushes/dodge_burn/dodge_burn_section.dart` | UI 面板（激活/模式/范围/曝光/半径/硬度/清除） |
 | `lib/brushes/dodge_burn/dodge_burn_layer.dart` | Compose 图层：分组 mask 光栅化 + 链式 shader |
 | `lib/brushes/dodge_burn/dodge_burn_cache.dart` | hash 函数（含 per-mark 参数） |
-| `e4pix_shader/assets/shaders/dodge_burn.frag` | Shader 源码 |
-| `assets/shaders/dodge_burn.shader` | 编译二进制 |
+| `assets/shaders/brushes/dodge_burn.frag` | Shader 源码（编译：`flutter build bundle` → `build/flutter_assets/assets/shaders/brushes/dodge_burn.frag` → 重命名为 `.shader`） |
 
 ## 3. Shader 算法
 

@@ -35,7 +35,7 @@
 │   ├── Healing inline section (Spot Removal 之后) │
 │   └── HealingCache (两级缓存)                     │
 ├──────────────────────────────────────────────────┤
-│ Shader: healing.frag → healing.shader            │
+│ Shader: healing.frag                       │
 │   ├── 64 marks × 6 uniforms = 387 floats         │
 │   └── applyHeal() — 频率分离 / 边界引导          │
 └──────────────────────────────────────────────────┘
@@ -104,21 +104,18 @@
 
 ## 4. Shader 编译流程
 
-**关键规则**：编译必须在 `e4pix_shader/` 子项目中执行，然后在主项目中重命名。
+**关键规则**：编译在主项目根目录执行，`pubspec.yaml` 的 `shaders:` 段已声明全部 `.frag` 文件。
 
 ```bash
-cd e4pix_shader
 flutter build bundle
-cp build/flutter_assets/assets/shaders/healing.frag ../assets/shaders/healing.shader
+cp build/flutter_assets/assets/shaders/brushes/healing.frag assets/shaders/brushes/healing.shader
 ```
 
-- `.frag` 源码：`e4pix_shader/assets/shaders/healing.frag`
-- 编译产物：`e4pix_shader/build/flutter_assets/assets/shaders/healing.frag`（IPLR 二进制，魔数 `IPLR`）
-- 部署路径：主项目 `assets/shaders/healing.shader`
-- `e4pix_shader/pubspec.yaml` 中需声明 `shaders: - assets/shaders/healing.frag`
-- 运行时加载：`healingShaderProgramProvider` (独立 Provider，失败时静默返回 null)
-
-**不要在 `assets/shaders/` 中放 `.frag` 源文件**——它们只应在 `e4pix_shader/` 中。
+- `.frag` 源码：`assets/shaders/brushes/healing.frag`（git 追踪）
+- 编译产物：`build/flutter_assets/assets/shaders/brushes/healing.frag`（IPLR 二进制，魔数 `IPLR`）
+- 部署：手动重命名 `.frag` → `.shader` 后放入 `assets/shaders/brushes/`
+- 运行时加载：`brushShaderProgramsProvider`（统一管理所有 brush shader）
+- **不要用 `impellerc`**——直接编译产出的格式与 `FragmentProgram.fromAsset` 不兼容
 
 ## 5. 文件清单
 
@@ -140,8 +137,7 @@ cp build/flutter_assets/assets/shaders/healing.frag ../assets/shaders/healing.sh
 | `lib/state/tools/develop_tool_state.dart` | DevelopTool.healing 枚举 |
 | `lib/state/providers.dart` | 导出 healing_state.dart |
 | `lib/widgets/develop/develop_sections.dart` | 导出 healing_section.dart |
-| `e4pix_shader/assets/shaders/healing.frag` | Shader GLSL 源码 |
-| `assets/shaders/healing.shader` | 编译后二进制 |
+| `assets/shaders/brushes/healing.frag` | Shader GLSL 源码（编译：主项目 `flutter build bundle`） |
 | `assets/translations/en-US.json` | 英文翻译 (healing* 前缀) |
 | `assets/translations/zh-CN.json` | 中文翻译 |
 

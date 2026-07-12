@@ -44,7 +44,7 @@ lib/brushes/
 ├── my_brush_layer.dart    # Compose 图层：实现 BrushLayerProvider
 ├── my_brush_overlay.dart  # 手势交互：继承 BaseEffectOverlayState（B 类）或 BaseStampOverlayState（A 类）
 ├── my_brush_section.dart  # UI 面板：SectionLabel + PillChip + DevelopSliderTile
-└── my_brush.frag          # Fragment Shader
+└── my_brush.frag          # Fragment Shader（放 assets/shaders/brushes/，pubspec.yaml shaders: 段注册）
 ```
 
 ### 1.1 两类画笔原型
@@ -185,7 +185,7 @@ class _MyBrushOverlayState extends BaseEffectOverlayState<MyBrushOverlay> {
 
 ### Step 4：Shader 编写（`my_brush.frag`）
 
-在 `e4pix_shader/assets/shaders/` 中创建 GLSL Fragment Shader。
+在 `assets/shaders/brushes/` 中创建 GLSL Fragment Shader，并在 `pubspec.yaml` 的 `shaders:` 段中注册。
 
 ```glsl
 #version 460 core
@@ -338,7 +338,7 @@ BrushManifest(
   id: 'my_brush',
   titleKey: 'myBrushTitle',
   icon: Icons.brush,
-  shaderAsset: 'assets/shaders/my_brush.shader',
+  shaderAsset: 'assets/shaders/brushes/my_brush.frag',
   hasMarks: _hasMyBrushMarks,
   layerFactory: _makeMyBrushLayer,
   hashMarks: _hashMyBrushMarks,

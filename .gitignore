@@ -143,7 +143,6 @@ version
 .buildlog/
 /build_native
 migrate_working_dir/
-e4pix_shader/
 
 # Ignore root-level dotfiles but keep .github for CI/CD
 .**/

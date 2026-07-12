@@ -245,35 +245,91 @@ class FullPipelineRenderer {
     ui.Image current = develop;
     bool currentOwned = developOwned;
 
-    // 合成趟：将已注册画笔图层混合到调色输出上
-    if (composeProgram != null && brushLayerRegistry != null) {
+    // 合成趟：链式渲染画笔图层（按注册顺序叠加，后层基于前层输出）
+    if (brushLayerRegistry != null) {
       final activeProviders = brushLayerRegistry.activeProviders(params);
       if (activeProviders.isNotEmpty) {
+        final multiLayer = activeProviders.length > 1;
         try {
-          final layers = <BrushLayer>[];
-          for (final provider in activeProviders) {
-            try {
-              final layer = await provider.render(
-                params: params,
-                developOutput: current,
-                developKey: developKey,
-                targetWidth: current.width,
-                targetHeight: current.height,
-              );
-              if (layer.active) layers.add(layer);
-            } catch (e) {
-              debugPrint('[Pipeline] Layer ${provider.id} render failed: $e');
+          if (multiLayer) {
+            // 多图层：失效全部缓存，链式串联渲染
+            for (final p in activeProviders) {
+              p.invalidate();
             }
-          }
-          if (layers.isNotEmpty) {
-            final composed = await _runComposePass(
-              program: composeProgram,
-              base: current,
-              layers: layers,
-            );
-            if (currentOwned) current.dispose();
-            current = composed;
-            currentOwned = true;
+            for (final provider in activeProviders) {
+              try {
+                final layer = await provider.render(
+                  params: params,
+                  developOutput: current,
+                  developKey: developKey,
+                  targetWidth: current.width,
+                  targetHeight: current.height,
+                );
+                if (layer.active && layer.texture != null) {
+                  // clone：provider render 内可能已缓存此纹理，取安全副本
+                  final next = layer.texture!.clone();
+                  if (currentOwned) current.dispose();
+                  current = next;
+                  currentOwned = true;
+                }
+              } catch (e) {
+                debugPrint('[Pipeline] Layer ${provider.id} render failed: $e');
+              }
+            }
+          } else {
+            // 单图层：保持原有 compose pass 行为
+            if (composeProgram != null) {
+              final layers = <BrushLayer>[];
+              for (final provider in activeProviders) {
+                try {
+                  final layer = await provider.render(
+                    params: params,
+                    developOutput: current,
+                    developKey: developKey,
+                    targetWidth: current.width,
+                    targetHeight: current.height,
+                  );
+                  if (layer.active) layers.add(layer);
+                } catch (e) {
+                  debugPrint(
+                    '[Pipeline] Layer ${provider.id} render failed: $e',
+                  );
+                }
+              }
+              if (layers.isNotEmpty) {
+                final composed = await _runComposePass(
+                  program: composeProgram,
+                  base: current,
+                  layers: layers,
+                );
+                if (currentOwned) current.dispose();
+                current = composed;
+                currentOwned = true;
+              }
+            } else {
+              // 无 compose shader 回退：直接取 provider 输出
+              for (final provider in activeProviders) {
+                try {
+                  final layer = await provider.render(
+                    params: params,
+                    developOutput: current,
+                    developKey: developKey,
+                    targetWidth: current.width,
+                    targetHeight: current.height,
+                  );
+                  if (layer.active && layer.texture != null) {
+                    final next = layer.texture!.clone();
+                    if (currentOwned) current.dispose();
+                    current = next;
+                    currentOwned = true;
+                  }
+                } catch (e) {
+                  debugPrint(
+                    '[Pipeline] Layer ${provider.id} render failed: $e',
+                  );
+                }
+              }
+            }
           }
         } catch (e) {
           debugPrint('[Pipeline] Compose pass failed: $e');

@@ -40,7 +40,7 @@
 │   ├── mask 纹理光栅化                              │
 │   └── 单 shader pass（mask + 原图）               │
 ├──────────────────────────────────────────────────┤
-│ Shader: spot_heal.frag → spot_heal.shader        │
+│ Shader: spot_heal.frag                      │
 │   ├── 输入: uImage + uMask + uSize + uHardness    │
 │   ├── 16 向射线搜索 mask 边界                      │
 │   └── IDW (1/d²) 加权填充                         │
@@ -64,8 +64,7 @@
 | `lib/brushes/spot_heal/spot_heal_section.dart` | UI 面板（激活/半径/硬度/清除） |
 | `lib/brushes/spot_heal/spot_heal_layer.dart` | Compose 图层：mask 光栅化 + shader 调用 |
 | `lib/brushes/spot_heal/spot_heal_cache.dart` | 两级缓存（marks hash + 增量滚动） |
-| `e4pix_shader/assets/shaders/spot_heal.frag` | Shader 源码 |
-| `assets/shaders/spot_heal.shader` | 编译二进制 |
+| `assets/shaders/brushes/spot_heal.frag` | Shader 源码（编译：主项目 `flutter build bundle`） |
 
 ## 3. Shader 算法
 
