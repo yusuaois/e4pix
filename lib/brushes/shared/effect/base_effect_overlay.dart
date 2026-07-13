@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/crop_params.dart';
 import '../../../utils/brush_coord_utils.dart';
+import '../widgets/single_pointer_gesture_detector.dart';
 import 'base_effect_painter.dart';
 import 'effect_gesture_handler.dart';
 
@@ -116,8 +117,7 @@ abstract class BaseEffectOverlayState<W extends ConsumerStatefulWidget>
         _isHovering = true;
         _cursorPos = e.localPosition;
       }),
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
+      child: SinglePointerGestureDetector(
         onTapDown: (d) => _onTapDown(d.localPosition),
         onPanStart: _onPanStart,
         onPanUpdate: _onPanUpdate,

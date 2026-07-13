@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/crop_params.dart';
 import '../../../state/providers.dart';
+import '../widgets/single_pointer_gesture_detector.dart';
 import 'stamp_compositor.dart';
 import 'stamp_gesture_handler.dart';
 import 'stamp_mark.dart';
@@ -253,13 +254,12 @@ abstract class BaseStampOverlayState<
           if (mounted) setState(() => cursorVisible = false);
         });
       },
-      child: GestureDetector(
+      child: SinglePointerGestureDetector(
         onTapDown: (d) => _onTapDown(d.localPosition, ref),
         onPanStart: (d) => _onPanStart(d.localPosition, ref),
         onPanUpdate: (d) => _onPanUpdate(d.localPosition, ref),
         onPanEnd: (_) => _onPanEnd(ref),
         onPanCancel: _onPanCancel,
-        behavior: HitTestBehavior.translucent,
         child: painter,
       ),
     );
