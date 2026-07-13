@@ -152,19 +152,13 @@ class _ToolRail extends ConsumerWidget {
       child: Column(
         children: [
           const SizedBox(height: 8),
-          // 固定顶部：info / crop / 图层 / 历史 / reset
+          // 固定顶部：info / 图层 / 历史 / reset
           _RailItem(
             icon: Icons.info_outline,
             tooltip: tr('info'),
             selected: selected == DevelopTool.info,
             onTap: () => onSelect(DevelopTool.info),
           ),
-          if (onEnterCrop != null)
-            _RailItem(
-              icon: Icons.crop,
-              tooltip: tr('crop'),
-              onTap: onEnterCrop!,
-            ),
           _RailItem(
             icon: Icons.history,
             tooltip: tr('history'),
