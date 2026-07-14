@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/crop_params.dart';
 import '../../../utils/brush_coord_utils.dart';
+import '../single_pointer_gesture_detector.dart';
 import 'base_effect_painter.dart';
 import 'effect_gesture_handler.dart';
 
@@ -47,7 +48,6 @@ abstract class BaseEffectOverlayState<W extends ConsumerStatefulWidget>
 
   Offset? _cursorPos;
   bool _isHovering = false;
-  int _activePointerCount = 0;
   late final EffectGestureHandler _gestureHandler;
 
   @override
@@ -123,29 +123,13 @@ abstract class BaseEffectOverlayState<W extends ConsumerStatefulWidget>
         _isHovering = true;
         _cursorPos = e.localPosition;
       }),
-      child: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (_) {
-          if (_activePointerCount == 1) _onPanCancel();
-          setState(() => _activePointerCount++);
-        },
-        onPointerUp: (_) {
-          if (_activePointerCount > 0) setState(() => _activePointerCount--);
-        },
-        onPointerCancel: (_) {
-          if (_activePointerCount > 0) setState(() => _activePointerCount--);
-        },
-        child: _activePointerCount >= 2
-            ? IgnorePointer(child: buildPainter())
-            : GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTapDown: (d) => _onTapDown(d.localPosition),
-                onPanStart: _onPanStart,
-                onPanUpdate: _onPanUpdate,
-                onPanEnd: _onPanEnd,
-                onPanCancel: _onPanCancel,
-                child: buildPainter(),
-              ),
+      child: SinglePointerGestureDetector(
+        onTapDown: (d) => _onTapDown(d.localPosition),
+        onPanStart: _onPanStart,
+        onPanUpdate: _onPanUpdate,
+        onPanEnd: _onPanEnd,
+        onPanCancel: _onPanCancel,
+        child: buildPainter(),
       ),
     );
   }
