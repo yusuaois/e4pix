@@ -220,6 +220,7 @@ abstract class BaseStampOverlayState<
   void _onPanUpdate(Offset pos, WidgetRef ref) {
     cursorPos = pos;
     _gestureHandler.onPanUpdate(pos, ref);
+    if (mounted) setState(() {});
   }
 
   void _onPanEnd(WidgetRef ref) {
