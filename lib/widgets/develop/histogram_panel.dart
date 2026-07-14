@@ -269,54 +269,75 @@ class _HistogramPainter extends CustomPainter {
 
   // RGB：三通道叠加
   void _paintRgb(Canvas canvas, Size size) {
+    _drawSubtleGrid(canvas, size);
     int peak = 1;
-    for (int i = 1; i < 255; i++) {
+    for (int i = 0; i < 256; i++) {
       if (h.red[i] > peak) peak = h.red[i];
       if (h.green[i] > peak) peak = h.green[i];
       if (h.blue[i] > peak) peak = h.blue[i];
     }
-    final norm = (peak * 1.15).toDouble();
+    final norm = (peak * 1.25).toDouble();
 
-    void line(Int32List data, Color color) {
+    const fillAlpha = 0.20;
+    canvas.drawPath(
+      _fillPath(h.blue, size, norm),
+      Paint()..color = AppColors.histBlue.withValues(alpha: fillAlpha),
+    );
+    canvas.drawPath(
+      _fillPath(h.green, size, norm),
+      Paint()..color = AppColors.histGreen.withValues(alpha: fillAlpha),
+    );
+    canvas.drawPath(
+      _fillPath(h.red, size, norm),
+      Paint()..color = AppColors.histRed.withValues(alpha: fillAlpha),
+    );
+
+    const strokeAlpha = 0.95;
+    const strokeWidth = 1.6;
+
+    void drawStroke(Int32List data, Color color) {
       canvas.drawPath(
         _strokePath(data, size, norm),
         Paint()
-          ..color = color
+          ..color = color.withValues(alpha: strokeAlpha)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1
+          ..strokeWidth = strokeWidth
           ..isAntiAlias = true,
       );
     }
 
-    line(h.red, AppColors.histRed.withValues(alpha: 0.9));
-    line(h.green, AppColors.histGreen.withValues(alpha: 0.9));
-    line(h.blue, AppColors.histBlue.withValues(alpha: 0.9));
+    drawStroke(h.red, AppColors.histRed);
+    drawStroke(h.green, AppColors.histGreen);
+    drawStroke(h.blue, AppColors.histBlue);
+
     _clipWarn(canvas, size);
   }
 
   // Luma：单亮度填充
   void _paintLuma(Canvas canvas, Size size) {
+    _drawSubtleGrid(canvas, size);
     int peak = 1;
-    for (int i = 1; i < 255; i++) {
+    for (int i = 0; i < 256; i++) {
       if (h.luma[i] > peak) peak = h.luma[i];
     }
-    final norm = (peak * 1.15).toDouble();
+    final norm = (peak * 1.25).toDouble();
     canvas.drawPath(
       _fillPath(h.luma, size, norm),
-      Paint()..color = AppColors.faintText,
+      Paint()..color = AppColors.faintText.withValues(alpha: 0.7),
     );
     canvas.drawPath(
       _strokePath(h.luma, size, norm),
       Paint()
         ..color = AppColors.prominentText
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
+        ..strokeWidth = 1.4,
     );
     _clipWarn(canvas, size);
   }
 
   // Color：Hue 分布，每个柱用对应色相的颜色
   void _paintColor(Canvas canvas, Size size) {
+    _drawSubtleGrid(canvas, size);
     int peak = 1;
     for (int i = 0; i < 360; i++) {
       if (h.hue[i] > peak) peak = h.hue[i];
@@ -328,10 +349,36 @@ class _HistogramPainter extends CustomPainter {
       if (v <= 0) continue;
       final barH = v * (size.height - 4);
       final color = HSVColor.fromAHSV(1.0, deg.toDouble(), 0.8, 0.95).toColor();
+      final darkColor = HSVColor.fromAHSV(
+        1.0,
+        deg.toDouble(),
+        0.9,
+        0.4,
+      ).toColor();
       canvas.drawRect(
         Rect.fromLTWH(deg * barW, size.height - barH, barW + 0.5, barH),
-        Paint()..color = color.withValues(alpha: 0.85),
+        Paint()
+          ..color = color.withValues(alpha: 0.85)
+          ..style = PaintingStyle.fill,
       );
+      canvas.drawRect(
+        Rect.fromLTWH(deg * barW, size.height - barH, barW + 0.5, barH),
+        Paint()
+          ..color = darkColor.withValues(alpha: 0.6)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.5,
+      );
+    }
+  }
+
+  void _drawSubtleGrid(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.06)
+      ..strokeWidth = 0.6;
+
+    for (final frac in [0.25, 0.5, 0.75]) {
+      final x = frac * size.width;
+      canvas.drawLine(Offset(x, 2), Offset(x, size.height - 2), gridPaint);
     }
   }
 
