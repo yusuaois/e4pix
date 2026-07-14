@@ -11,6 +11,7 @@ class BaseEffectPainter extends CustomPainter {
   final Offset? cursorPos;
   final bool isHovering;
   final double brushNorm;
+  final double zoomScale;
   final Color cursorColor;
   final Size imageDisplaySize;
   final CropParams crop;
@@ -23,6 +24,7 @@ class BaseEffectPainter extends CustomPainter {
     this.cursorPos,
     required this.isHovering,
     required this.brushNorm,
+    this.zoomScale = 1.0,
     required this.cursorColor,
     required this.imageDisplaySize,
     required this.crop,
@@ -76,13 +78,13 @@ class BaseEffectPainter extends CustomPainter {
 
     // 光标环
     if (isHovering && cursorPos != null && !isPainting) {
-      final r = brushNorm * imageDisplaySize.width;
+      final r = brushNorm * imageDisplaySize.width / zoomScale;
       canvas.drawCircle(
         cursorPos!,
         r,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5
+          ..strokeWidth = 1.5 / zoomScale
           ..color = cursorColor,
       );
     }
@@ -95,6 +97,7 @@ class BaseEffectPainter extends CustomPainter {
         cursorPos != old.cursorPos ||
         isHovering != old.isHovering ||
         brushNorm != old.brushNorm ||
+        zoomScale != old.zoomScale ||
         cursorColor != old.cursorColor ||
         imageDisplaySize != old.imageDisplaySize;
   }

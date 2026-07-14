@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/crop_params.dart';
 import '../../../state/providers.dart';
 import '../single_pointer_gesture_detector.dart';
+import 'base_stamp_painter.dart';
 import 'stamp_compositor.dart';
 import 'stamp_gesture_handler.dart';
 import 'stamp_mark.dart';
@@ -237,13 +238,17 @@ abstract class BaseStampOverlayState<
 
   /// 构建标准的 MouseRegion + GestureDetector 包装
   ///
-  /// [painter] 是 CustomPaint widget，[isSampling] 控制手势行为
+  /// [painter] 是 CustomPaint widget，[ref] 用于注入 zoomScale
   /// [interactiveOverride] 为 false 时返回 IgnorePointer（非交互模式）
   Widget buildInteractionWrapper({
     required Widget painter,
     required WidgetRef ref,
     bool interactiveOverride = true,
   }) {
+    final z = zoomScale;
+    final p = (painter as CustomPaint).painter;
+    if (p is BaseStampPainter) p.zoomScale = z;
+
     if (!interactiveOverride) return IgnorePointer(child: painter);
 
     return MouseRegion(
@@ -278,4 +283,8 @@ abstract class BaseStampOverlayState<
   /// 获取光标归一化源图坐标（用于 Painter 的 cursorSrc 参数）
   Offset? get cursorSrc =>
       cursorPos != null ? _compositor.screenToSource(cursorPos!) : null;
+
+  /// 当前画面缩放比例，用于光标绘制时抵消 InteractiveViewer 的缩放
+  @protected
+  double get zoomScale => ref.watch(zoomScaleProvider);
 }

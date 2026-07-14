@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/crop_params.dart';
+import '../../../state/providers.dart';
 import '../../../utils/brush_coord_utils.dart';
 import '../single_pointer_gesture_detector.dart';
 import 'base_effect_painter.dart';
@@ -137,6 +138,7 @@ abstract class BaseEffectOverlayState<W extends ConsumerStatefulWidget>
   /// 覆写以定制 Painter，默认构建 [BaseEffectPainter]
   @protected
   Widget buildPainter() {
+    final zoomScale = ref.watch(zoomScaleProvider);
     return CustomPaint(
       size: imageDisplaySize,
       painter: BaseEffectPainter(
@@ -145,6 +147,7 @@ abstract class BaseEffectOverlayState<W extends ConsumerStatefulWidget>
         cursorPos: _cursorPos,
         isHovering: _isHovering,
         brushNorm: brushNorm,
+        zoomScale: zoomScale,
         cursorColor: cursorColor,
         imageDisplaySize: imageDisplaySize,
         crop: crop,

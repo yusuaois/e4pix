@@ -17,6 +17,9 @@ abstract class BaseStampPainter<T extends StampMark> extends CustomPainter {
   final Offset? cloneSource;
   final double brushRadius;
   final double brushHardness;
+
+  /// 当前画面缩放比例，由 overlay 基类在 [buildInteractionWrapper] 中统一注入
+  double zoomScale = 1.0;
   final Size imageDisplaySize;
   final CropParams crop;
   final int sourceWidth;
@@ -38,6 +41,7 @@ abstract class BaseStampPainter<T extends StampMark> extends CustomPainter {
     required this.cloneSource,
     required this.brushRadius,
     required this.brushHardness,
+    this.zoomScale = 1.0,
     required this.imageDisplaySize,
     required this.crop,
     required this.sourceWidth,
@@ -112,7 +116,7 @@ abstract class BaseStampPainter<T extends StampMark> extends CustomPainter {
     final cursorBase = sourceImage;
 
     if (isSampling) {
-      drawSamplingUI(canvas, cursorPos!, r);
+      drawSamplingUI(canvas, cursorPos!, r, zoomScale);
     } else if (!isPainting && cloneSource != null && cursorBase != null) {
       final previewSrc = paintOffset != null
           ? Offset(
@@ -132,9 +136,10 @@ abstract class BaseStampPainter<T extends StampMark> extends CustomPainter {
         sourceWidth: sourceWidth,
         sourceHeight: sourceHeight,
         imagePaint: _imagePaint,
+        zoomScale: zoomScale,
       );
     } else {
-      drawTargetCursor(canvas, cursorPos!, r);
+      drawTargetCursor(canvas, cursorPos!, r, zoomScale);
     }
     if (!isSampling && isPainting && cloneSource != null) {
       final Offset srcScreen = paintOffset != null
@@ -155,7 +160,7 @@ abstract class BaseStampPainter<T extends StampMark> extends CustomPainter {
               sourceWidth: sourceWidth,
               sourceHeight: sourceHeight,
             );
-      drawSourceCrosshair(canvas, srcScreen);
+      drawSourceCrosshair(canvas, srcScreen, zoomScale);
     }
   }
 
@@ -214,6 +219,7 @@ abstract class BaseStampPainter<T extends StampMark> extends CustomPainter {
       old.cloneSource != cloneSource ||
       old.brushRadius != brushRadius ||
       old.brushHardness != brushHardness ||
+      old.zoomScale != zoomScale ||
       old.cursorPos != cursorPos ||
       old.cursorSrc != cursorSrc ||
       old.isSampling != isSampling ||

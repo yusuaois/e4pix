@@ -765,6 +765,7 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
           child: _ZoomableView(
             onTapNoZoom: () =>
                 ref.read(fullscreenPreviewProvider.notifier).set(true),
+            ref: ref,
             child: content,
           ),
         ),
@@ -974,7 +975,12 @@ class _CenterMessage extends ConsumerWidget {
 class _ZoomableView extends StatefulWidget {
   final Widget child;
   final VoidCallback onTapNoZoom; // 未缩放时单击 → 全屏
-  const _ZoomableView({required this.child, required this.onTapNoZoom});
+  final WidgetRef ref;
+  const _ZoomableView({
+    required this.child,
+    required this.onTapNoZoom,
+    required this.ref,
+  });
 
   @override
   State<_ZoomableView> createState() => _ZoomableViewState();
@@ -986,6 +992,19 @@ class _ZoomableViewState extends State<_ZoomableView> {
   static const _max = 8.0;
 
   double get _scale => _tc.value.getMaxScaleOnAxis();
+
+  @override
+  void initState() {
+    super.initState();
+    _tc.addListener(_onZoomChanged);
+  }
+
+  void _onZoomChanged() {
+    final s = _scale;
+    if (s >= 1.0) {
+      widget.ref.read(zoomScaleProvider.notifier).set(s);
+    }
+  }
 
   void _handleScroll(PointerScrollEvent e, Size viewport) {
     // 以鼠标位置为中心缩放

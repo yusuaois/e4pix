@@ -15,10 +15,16 @@ const kHardEdgeThreshold = 0.999;
 /// 3. 小黑色圆圈：半径 R/3（stroke，与白色圆环内径重合）
 /// 4. 黑色十字线
 /// 5. 白色小圆点
-void drawSamplingUI(Canvas canvas, Offset pos, double radius) {
-  const r = 9.0; // 黑色圆圈半径，与 drawSourceCrosshair 一致
-  const innerR = r / 3; // 白色圆环内径 / 小黑色圆圈半径
-  const outerR = r + 1; // 白色圆环外径
+void drawSamplingUI(
+  Canvas canvas,
+  Offset pos,
+  double radius,
+  double zoomScale,
+) {
+  final R = 9.0 / zoomScale;
+  final r = 0.7 / zoomScale;
+  final innerR = R / 3;
+  final outerR = R + (1.0 / zoomScale);
   final ringCenterR = (innerR + outerR) / 2; // 白色圆环绘制半径
 
   // 1. 白色圆环（最底层）：内径 R/4，外径 R+R/4
@@ -34,11 +40,11 @@ void drawSamplingUI(Canvas canvas, Offset pos, double radius) {
   // 2. 黑色圆圈：半径 R
   canvas.drawCircle(
     pos,
-    r,
+    R,
     Paint()
       ..color = Colors.black
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5,
+      ..strokeWidth = 0.5 / zoomScale,
   );
 
   // 3. 小黑色圆圈：半径 R/4，位于白色圆环最内层上方
@@ -48,29 +54,29 @@ void drawSamplingUI(Canvas canvas, Offset pos, double radius) {
     Paint()
       ..color = Colors.black
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5,
+      ..strokeWidth = 0.5 / zoomScale,
   );
 
   // 4. 黑色十字线
   final crossPaint = Paint()
     ..color = Colors.black.withValues(alpha: 0.9)
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.0;
+    ..strokeWidth = 1.0 / zoomScale;
   canvas.drawLine(
-    Offset(pos.dx - r, pos.dy),
-    Offset(pos.dx + r, pos.dy),
+    Offset(pos.dx - R, pos.dy),
+    Offset(pos.dx + R, pos.dy),
     crossPaint,
   );
   canvas.drawLine(
-    Offset(pos.dx, pos.dy - r),
-    Offset(pos.dx, pos.dy + r),
+    Offset(pos.dx, pos.dy - R),
+    Offset(pos.dx, pos.dy + R),
     crossPaint,
   );
 
   // 5. 白色小圆点（中心）
   canvas.drawCircle(
     pos,
-    0.7,
+    r,
     Paint()
       ..color = Colors.white.withValues(alpha: 0.7)
       ..style = PaintingStyle.fill,
@@ -78,25 +84,30 @@ void drawSamplingUI(Canvas canvas, Offset pos, double radius) {
 }
 
 /// 目标光标：白色圆环
-void drawTargetCursor(Canvas canvas, Offset pos, double radius) {
+void drawTargetCursor(
+  Canvas canvas,
+  Offset pos,
+  double radius,
+  double zoomScale,
+) {
   canvas.drawCircle(
     pos,
-    radius,
+    radius / zoomScale,
     Paint()
       ..color = Colors.white.withValues(alpha: 0.7)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5,
+      ..strokeWidth = 1.5 / zoomScale,
   );
 }
 
 /// 源点十字线指示器
-void drawSourceCrosshair(Canvas canvas, Offset pos) {
-  const size = 9.0;
-  const gap = 2.0;
+void drawSourceCrosshair(Canvas canvas, Offset pos, double zoomScale) {
+  final size = 9.0 / zoomScale;
+  final gap = 2.0 / zoomScale;
   final p = Paint()
     ..color = Colors.white.withValues(alpha: 0.9)
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.5;
+    ..strokeWidth = 1.5 / zoomScale;
   canvas.drawLine(
     Offset(pos.dx - size, pos.dy),
     Offset(pos.dx - gap, pos.dy),
@@ -132,6 +143,7 @@ void drawPreviewCursor({
   required int sourceWidth,
   required int sourceHeight,
   required Paint imagePaint,
+  required double zoomScale,
 }) {
   final sxRaw = srcNorm.dx * baseImage.width;
   final syRaw = srcNorm.dy * baseImage.height;
@@ -148,11 +160,11 @@ void drawPreviewCursor({
     imageH: baseImage.height.toDouble(),
     screenCenterX: 0,
     screenCenterY: 0,
-    screenR: screenRadius,
+    screenR: screenRadius / zoomScale,
   );
   if (rects == null) {
     canvas.restore();
-    drawTargetCursor(canvas, screenPos, screenRadius);
+    drawTargetCursor(canvas, screenPos, screenRadius, zoomScale);
     return;
   }
 
@@ -161,17 +173,17 @@ void drawPreviewCursor({
     image: baseImage,
     rects: rects,
     hardness: brushHardness,
-    screenRadius: screenRadius,
+    screenRadius: screenRadius / zoomScale,
     imagePaint: imagePaint,
   );
   canvas.restore();
 
   canvas.drawCircle(
     screenPos,
-    screenRadius,
+    screenRadius / zoomScale,
     Paint()
       ..color = Colors.white.withValues(alpha: 0.8)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5,
+      ..strokeWidth = 1.5 / zoomScale,
   );
 }
