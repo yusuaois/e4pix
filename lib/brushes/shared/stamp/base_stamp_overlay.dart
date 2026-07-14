@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/crop_params.dart';
 import '../../../state/providers.dart';
-import '../widgets/single_pointer_gesture_detector.dart';
 import 'stamp_compositor.dart';
 import 'stamp_gesture_handler.dart';
 import 'stamp_mark.dart';
@@ -26,6 +25,7 @@ abstract class BaseStampOverlayState<
   // 光标/悬停
   Offset? cursorPos;
   bool cursorVisible = false;
+  int _activePointerCount = 0;
   Timer? _exitDebounce;
 
   // 委托对象
@@ -202,10 +202,17 @@ abstract class BaseStampOverlayState<
   // 手势处理——委托给 StampGestureHandler
 
   void _onTapDown(Offset pos, WidgetRef ref) {
+    cursorVisible = true;
+    cursorPos = pos;
     _gestureHandler.onTapDown(pos, ref);
   }
 
+  void _onTapUp(_, WidgetRef ref) {
+    _gestureHandler.onTapUp(ref);
+  }
+
   void _onPanStart(Offset pos, WidgetRef ref) {
+    cursorVisible = true;
     cursorPos = pos;
     _gestureHandler.onPanStart(pos, ref);
   }
@@ -217,6 +224,7 @@ abstract class BaseStampOverlayState<
 
   void _onPanEnd(WidgetRef ref) {
     _gestureHandler.onPanEnd(ref, cursorPos: cursorPos);
+    cursorVisible = false;
   }
 
   void _onPanCancel() {
@@ -254,19 +262,35 @@ abstract class BaseStampOverlayState<
           if (mounted) setState(() => cursorVisible = false);
         });
       },
-      child: SinglePointerGestureDetector(
-        onTapDown: (d) => _onTapDown(d.localPosition, ref),
-        onPanStart: (d) => _onPanStart(d.localPosition, ref),
-        onPanUpdate: (d) => _onPanUpdate(d.localPosition, ref),
-        onPanEnd: (_) => _onPanEnd(ref),
-        onPanCancel: _onPanCancel,
-        child: painter,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) {
+          if (_activePointerCount == 1) _onPanCancel();
+          setState(() => _activePointerCount++);
+        },
+        onPointerUp: (_) {
+          if (_activePointerCount > 0) setState(() => _activePointerCount--);
+        },
+        onPointerCancel: (_) {
+          if (_activePointerCount > 0) setState(() => _activePointerCount--);
+        },
+        child: _activePointerCount >= 2
+            ? IgnorePointer(child: painter)
+            : GestureDetector(
+                onTapDown: (d) => _onTapDown(d.localPosition, ref),
+                onTapUp: (d) => _onTapUp(d, ref),
+                onPanStart: (d) => _onPanStart(d.localPosition, ref),
+                onPanUpdate: (d) => _onPanUpdate(d.localPosition, ref),
+                onPanEnd: (_) => _onPanEnd(ref),
+                onPanCancel: _onPanCancel,
+                behavior: HitTestBehavior.translucent,
+                child: painter,
+              ),
       ),
     );
   }
 
   /// 获取光标归一化源图坐标（用于 Painter 的 cursorSrc 参数）
-  Offset? get cursorSrc => (cursorVisible && cursorPos != null)
-      ? _compositor.screenToSource(cursorPos!)
-      : null;
+  Offset? get cursorSrc =>
+      cursorPos != null ? _compositor.screenToSource(cursorPos!) : null;
 }

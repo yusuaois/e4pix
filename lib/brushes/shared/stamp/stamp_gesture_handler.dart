@@ -81,8 +81,8 @@ class StampGestureHandler<T extends StampMark> {
   final List<T> committedMarks = [];
   int committedHash = 0;
   DateTime? _strokeTimestamp;
+  Offset? _pendingTapTarget;
 
-  /// 点击：取样模式更新 clone source，绘画模式放置单点
   void onTapDown(Offset pos, WidgetRef ref) {
     final isSampling = getIsSampling(ref);
     if (isSampling) {
@@ -97,14 +97,21 @@ class StampGestureHandler<T extends StampMark> {
           Offset(target.dx + offset.dx, target.dy + offset.dy),
         );
       }
-      addSingleMark(ref, target);
+      _pendingTapTarget = target;
     }
+  }
+
+  void onTapUp(WidgetRef ref) {
+    final target = _pendingTapTarget;
+    _pendingTapTarget = null;
+    if (target != null) addSingleMark(ref, target);
   }
 
   /// 笔画开始：初始化 tracker、计算 paintOffset、创建首 mark
   void onPanStart(Offset pos, WidgetRef ref) {
     final isSampling = getIsSampling(ref);
     if (isSampling) return;
+    _pendingTapTarget = null; // 丢弃缓冲的单点，笔画第一个 mark 覆盖它
     final ts = DateTime.now();
     _strokeTimestamp = ts;
     final target = screenToSource(pos);

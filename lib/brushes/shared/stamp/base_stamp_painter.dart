@@ -112,7 +112,7 @@ abstract class BaseStampPainter<T extends StampMark> extends CustomPainter {
     final cursorBase = sourceImage;
 
     if (isSampling) {
-      drawSamplingCursor(canvas, cursorPos!, r);
+      drawSamplingUI(canvas, cursorPos!, r);
     } else if (!isPainting && cloneSource != null && cursorBase != null) {
       final previewSrc = paintOffset != null
           ? Offset(
@@ -136,8 +136,7 @@ abstract class BaseStampPainter<T extends StampMark> extends CustomPainter {
     } else {
       drawTargetCursor(canvas, cursorPos!, r);
     }
-
-    if (!isSampling && cloneSource != null) {
+    if (!isSampling && isPainting && cloneSource != null) {
       final Offset srcScreen = paintOffset != null
           ? sourceToScreenNorm(
               src: Offset(

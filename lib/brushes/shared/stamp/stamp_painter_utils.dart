@@ -8,34 +8,72 @@ import '../../../utils/brush_preview_utils.dart';
 /// 硬度阈值，≥此值时用 step 替代 smoothstep
 const kHardEdgeThreshold = 0.999;
 
-/// 取样光标：白色圆圈 + 十字准星
-void drawSamplingCursor(Canvas canvas, Offset pos, double radius) {
-  final p = Paint()
-    ..color = Colors.white.withValues(alpha: 0.9)
+/// 取样光标：十字准星 + 采样点
+/// 从底到顶：
+/// 1. 白色圆环：内径 R/3，外径 R+1
+/// 2. 黑色圆圈：半径 R（stroke）
+/// 3. 小黑色圆圈：半径 R/3（stroke，与白色圆环内径重合）
+/// 4. 黑色十字线
+/// 5. 白色小圆点
+void drawSamplingUI(Canvas canvas, Offset pos, double radius) {
+  const r = 9.0; // 黑色圆圈半径，与 drawSourceCrosshair 一致
+  const innerR = r / 3; // 白色圆环内径 / 小黑色圆圈半径
+  const outerR = r + 1; // 白色圆环外径
+  final ringCenterR = (innerR + outerR) / 2; // 白色圆环绘制半径
+
+  // 1. 白色圆环（最底层）：内径 R/4，外径 R+R/4
+  canvas.drawCircle(
+    pos,
+    ringCenterR,
+    Paint()
+      ..color = Colors.white.withValues(alpha: 0.7)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = outerR - innerR,
+  );
+
+  // 2. 黑色圆圈：半径 R
+  canvas.drawCircle(
+    pos,
+    r,
+    Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5,
+  );
+
+  // 3. 小黑色圆圈：半径 R/4，位于白色圆环最内层上方
+  canvas.drawCircle(
+    pos,
+    innerR,
+    Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5,
+  );
+
+  // 4. 黑色十字线
+  final crossPaint = Paint()
+    ..color = Colors.black.withValues(alpha: 0.9)
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.5;
-  canvas.drawCircle(pos, radius, p);
-  final len = radius * 0.6;
-  final gap = radius * 0.15;
+    ..strokeWidth = 1.0;
   canvas.drawLine(
-    Offset(pos.dx - len, pos.dy),
-    Offset(pos.dx - gap, pos.dy),
-    p,
+    Offset(pos.dx - r, pos.dy),
+    Offset(pos.dx + r, pos.dy),
+    crossPaint,
   );
   canvas.drawLine(
-    Offset(pos.dx + gap, pos.dy),
-    Offset(pos.dx + len, pos.dy),
-    p,
+    Offset(pos.dx, pos.dy - r),
+    Offset(pos.dx, pos.dy + r),
+    crossPaint,
   );
-  canvas.drawLine(
-    Offset(pos.dx, pos.dy - len),
-    Offset(pos.dx, pos.dy - gap),
-    p,
-  );
-  canvas.drawLine(
-    Offset(pos.dx, pos.dy + gap),
-    Offset(pos.dx, pos.dy + len),
-    p,
+
+  // 5. 白色小圆点（中心）
+  canvas.drawCircle(
+    pos,
+    0.7,
+    Paint()
+      ..color = Colors.white.withValues(alpha: 0.7)
+      ..style = PaintingStyle.fill,
   );
 }
 
@@ -53,7 +91,7 @@ void drawTargetCursor(Canvas canvas, Offset pos, double radius) {
 
 /// 源点十字线指示器
 void drawSourceCrosshair(Canvas canvas, Offset pos) {
-  const size = 8.0;
+  const size = 9.0;
   const gap = 2.0;
   final p = Paint()
     ..color = Colors.white.withValues(alpha: 0.9)

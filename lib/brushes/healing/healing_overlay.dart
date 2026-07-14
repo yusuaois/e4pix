@@ -179,7 +179,7 @@ class HealingOverlayState
         crop: widget.crop,
         sourceWidth: widget.sourceWidth,
         sourceHeight: widget.sourceHeight,
-        cursorPos: interactive ? (cursorVisible ? cursorPos : null) : null,
+        cursorPos: interactive ? cursorPos : null,
         cursorSrc: interactive ? cursorSrc : null,
         isSampling: interactive && isSampling,
         paintOffset: interactive ? gestureHandler.paintOffset : null,

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/crop_params.dart';
 import '../../../utils/brush_coord_utils.dart';
-import '../widgets/single_pointer_gesture_detector.dart';
 import 'base_effect_painter.dart';
 import 'effect_gesture_handler.dart';
 
@@ -48,6 +47,7 @@ abstract class BaseEffectOverlayState<W extends ConsumerStatefulWidget>
 
   Offset? _cursorPos;
   bool _isHovering = false;
+  int _activePointerCount = 0;
   late final EffectGestureHandler _gestureHandler;
 
   @override
@@ -78,23 +78,29 @@ abstract class BaseEffectOverlayState<W extends ConsumerStatefulWidget>
   // 手势处理
 
   void _onTapDown(Offset localPosition) {
+    _cursorPos = localPosition;
+    _isHovering = true;
     final target = _screenToSourceNorm(localPosition);
     _gestureHandler.tap(target, brushNorm, hardness);
   }
 
   void _onPanStart(DragStartDetails details) {
+    _cursorPos = details.localPosition;
+    _isHovering = true;
     final pos = _screenToSourceNorm(details.localPosition);
     _gestureHandler.panStart(pos);
     setState(() {});
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
+    _cursorPos = details.localPosition;
     final pos = _screenToSourceNorm(details.localPosition);
     _gestureHandler.panUpdate(pos);
     setState(() {});
   }
 
   void _onPanEnd(DragEndDetails details) {
+    _isHovering = false;
     _gestureHandler.panEnd(brushNorm, hardness);
     setState(() {});
   }
@@ -117,13 +123,29 @@ abstract class BaseEffectOverlayState<W extends ConsumerStatefulWidget>
         _isHovering = true;
         _cursorPos = e.localPosition;
       }),
-      child: SinglePointerGestureDetector(
-        onTapDown: (d) => _onTapDown(d.localPosition),
-        onPanStart: _onPanStart,
-        onPanUpdate: _onPanUpdate,
-        onPanEnd: _onPanEnd,
-        onPanCancel: _onPanCancel,
-        child: buildPainter(),
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) {
+          if (_activePointerCount == 1) _onPanCancel();
+          setState(() => _activePointerCount++);
+        },
+        onPointerUp: (_) {
+          if (_activePointerCount > 0) setState(() => _activePointerCount--);
+        },
+        onPointerCancel: (_) {
+          if (_activePointerCount > 0) setState(() => _activePointerCount--);
+        },
+        child: _activePointerCount >= 2
+            ? IgnorePointer(child: buildPainter())
+            : GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTapDown: (d) => _onTapDown(d.localPosition),
+                onPanStart: _onPanStart,
+                onPanUpdate: _onPanUpdate,
+                onPanEnd: _onPanEnd,
+                onPanCancel: _onPanCancel,
+                child: buildPainter(),
+              ),
       ),
     );
   }

@@ -150,7 +150,7 @@ class _HistoryBrushOverlayState
         crop: widget.crop,
         sourceWidth: widget.sourceWidth,
         sourceHeight: widget.sourceHeight,
-        cursorPos: cursorVisible ? cursorPos : null,
+        cursorPos: cursorPos,
         cursorSrc: cursorSrc,
         isSampling: false,
         paintOffset: gestureHandler.paintOffset,
