@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/crop_params.dart';
+import '../../services/app/assets_init.dart';
 import '../../services/export/xmp_export.dart';
 import '../../services/export/xmp_import.dart';
 import '../providers.dart';
@@ -33,7 +33,6 @@ class Preset {
 class PresetNotifier extends AsyncNotifier<List<Preset>> {
   String? _dir;
   static const _spKey = 'e4pix_deleted_presets';
-  static const _spReleasedKey = 'e4pix_released_presets';
 
   Future<String> get _presetsDir async {
     if (_dir != null) return _dir!;
@@ -46,8 +45,15 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
   @override
   Future<List<Preset>> build() async {
     final dir = await _presetsDir;
-    // 首次启动将 assets/presets/*.xmp 释放到用户目录
-    await _releaseBuiltins(dir);
+    // 首次启动或升级时将 assets/presets/*.xmp 释放到用户目录
+    final deleted = await _loadDeleted();
+    await AssetsInit.releaseIfNeeded(
+      namespace: 'presets',
+      assetPrefix: 'assets/presets/',
+      fileExtension: '.xmp',
+      targetDirPath: dir,
+      deletedBasenames: deleted,
+    );
     return [
       Preset(
         id: 'origin',
@@ -57,34 +63,6 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
       ),
       ...await _loadFromDir(dir),
     ];
-  }
-
-  /// 首次启动时将 assets/presets/*.xmp 释放到用户目录（跳过用户已删除的）
-  Future<void> _releaseBuiltins(String dir) async {
-    final deleted = await _loadDeleted();
-    final released = await _loadReleased();
-    try {
-      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-      for (final key in manifest.listAssets()) {
-        if (!key.startsWith('assets/presets/') || !key.endsWith('.xmp')) {
-          continue;
-        }
-        final name = p.basenameWithoutExtension(key);
-        if (deleted.contains(name)) continue;
-        if (released.contains(name)) continue;
-        final dest = p.join(dir, '$name.xmp');
-        if (await File(dest).exists()) continue;
-        try {
-          final xmp = await rootBundle.loadString(key);
-          await File(dest).writeAsString(xmp);
-          await _markReleased(name);
-        } catch (e) {
-          debugPrint('[PresetNotifier] XMP save failed: $e');
-        }
-      }
-    } catch (e) {
-      debugPrint('[PresetNotifier] Save failed: $e');
-    }
   }
 
   /// 从用户目录加载 .xmp
@@ -157,24 +135,6 @@ class PresetNotifier extends AsyncNotifier<List<Preset>> {
     set.add(id);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_spKey, jsonEncode(set.toList()));
-  }
-
-  Future<Set<String>> _loadReleased() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_spReleasedKey);
-    if (raw == null) return {};
-    try {
-      return Set<String>.from(jsonDecode(raw) as List);
-    } catch (_) {
-      return {};
-    }
-  }
-
-  Future<void> _markReleased(String id) async {
-    final set = await _loadReleased();
-    set.add(id);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_spReleasedKey, jsonEncode(set.toList()));
   }
 
   void apply(String id) {

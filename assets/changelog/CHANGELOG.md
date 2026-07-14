@@ -3,10 +3,12 @@
 * **立方图**：优化立方图显示效果
 
 ## 🚀 新功能 (New Features)
+* **LensFun 运行时自动更新**：应用启动时自动检查 lensfun 数据库更新并静默下载替换，设置页显示版本信息并支持手动更新
 
 ## ⚡ 性能优化 (Performance)
 
 ## 🛠️ 底层改进 (Under the Hood)
+* **AssetsInit 统一资源释放**：提取 preset/lensfun 等内置资源首次启动/升级释放逻辑为共用类，去除旧的 `_released` 跟踪机制
 * **画笔 UI 缩放补偿**：画笔光标（圆圈、取样十字、源点十字）现在随画面缩放保持固定屏幕像素大小，不再随 InteractiveViewer 等比放大/缩小
 
 ## 🐛 问题修复 (Bug Fixes)

@@ -29,6 +29,7 @@ import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
 import '../services/lens/lensfun_database.dart';
+import '../services/lens/lensfun_update_service.dart';
 import '../services/app/app_settings.dart';
 import '../services/app/update_service.dart';
 import '../state/providers.dart';
@@ -93,6 +94,11 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   }
 
   Future<void> _silentUpdateCheck() async {
+    _silentAppUpdateCheck();
+    _silentLensfunUpdateCheck();
+  }
+
+  Future<void> _silentAppUpdateCheck() async {
     try {
       final info = await UpdateService.check();
       if (info == null || !info.hasUpdate || !mounted) return;
@@ -104,6 +110,33 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         builder: (_) => UpdateDialog(info: info, showIgnore: true),
       );
     } catch (_) {}
+  }
+
+  Future<void> _silentLensfunUpdateCheck() async {
+    try {
+      final latestSha = await LensfunUpdateService.fetchLatestSha();
+      if (latestSha == null) {
+        debugPrint('[LensfunDB] Startup check: failed to fetch latest SHA');
+        return;
+      }
+      debugPrint('[LensfunDB] Startup check: latest SHA=$latestSha');
+      final localSha = await LensfunUpdateService.localSha();
+      if (localSha == latestSha) {
+        debugPrint('[LensfunDB] Startup check: already up to date ($localSha)');
+        return;
+      }
+      debugPrint(
+        '[LensfunDB] Startup check: updating from ${localSha ?? "none"} to $latestSha',
+      );
+      final ok = await LensfunUpdateService.downloadAndExtract(latestSha);
+      if (ok) {
+        debugPrint('[LensfunDB] Startup check: updated to $latestSha');
+      } else {
+        debugPrint('[LensfunDB] Startup check: download failed');
+      }
+    } catch (e) {
+      debugPrint('[LensfunDB] Startup check error: $e');
+    }
   }
 
   Future<void> _startFolderTether() async {

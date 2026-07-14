@@ -9,6 +9,7 @@ import '../../core/constants/app_info.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../services/app/update_service.dart';
+import '../../services/lens/lensfun_update_service.dart';
 
 class AboutTiles extends StatelessWidget {
   final BorderRadius? tileBorderRadius;
@@ -24,32 +25,8 @@ class AboutTiles extends StatelessWidget {
             : '...';
         return Column(
           children: [
-            ListTile(
-              leading: const Icon(Icons.info_outline, size: 20),
-              title: Text(tr("version"), style: AppTypography.titleMedium),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    ver,
-                    style: AppTypography.bodySmall.copyWith(
-                      fontFamily: 'monospace',
-                      color: AppColors.mediumText,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_forward_ios, size: 14),
-                ],
-              ),
-              onTap: () {
-                final version = snap.hasData ? snap.data!.version : '';
-                showDialog(
-                  context: context,
-                  builder: (_) => ChangelogDialog(version: version),
-                );
-              },
-            ),
-            const CheckUpdateTile(),
+            _VersionTile(version: ver),
+            const LensfunDatabaseTile(),
             ListTile(
               shape: tileBorderRadius != null
                   ? RoundedRectangleBorder(borderRadius: tileBorderRadius!)
@@ -74,13 +51,17 @@ class AboutTiles extends StatelessWidget {
   }
 }
 
-class CheckUpdateTile extends StatefulWidget {
-  const CheckUpdateTile({super.key});
+// ── Version 行（单击检查更新 / 长按变更日志）────────────────────────
+
+class _VersionTile extends StatefulWidget {
+  final String version;
+  const _VersionTile({required this.version});
+
   @override
-  State<CheckUpdateTile> createState() => _CheckUpdateTileState();
+  State<_VersionTile> createState() => _VersionTileState();
 }
 
-class _CheckUpdateTileState extends State<CheckUpdateTile> {
+class _VersionTileState extends State<_VersionTile> {
   bool _busy = false;
 
   Future<void> _check() async {
@@ -116,19 +97,136 @@ class _CheckUpdateTileState extends State<CheckUpdateTile> {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: const Icon(Icons.system_update_alt, size: 20),
-      title: Text(tr("checkUpdate"), style: AppTypography.titleMedium),
-      trailing: _busy
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.arrow_forward_ios, size: 14),
+      leading: const Icon(Icons.info_outline, size: 20),
+      title: Text(tr("version"), style: AppTypography.titleMedium),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.version,
+            style: AppTypography.bodySmall.copyWith(
+              fontFamily: 'monospace',
+              color: AppColors.mediumText,
+            ),
+          ),
+          const SizedBox(width: 4),
+          _busy
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.arrow_forward_ios, size: 14),
+        ],
+      ),
+      onTap: _busy ? null : _check,
+      onLongPress: () {
+        showDialog(
+          context: context,
+          builder: (_) => ChangelogDialog(version: widget.version),
+        );
+      },
+    );
+  }
+}
+
+// ── LensFun 数据库行 ───────────────────────────────────────────────
+
+class LensfunDatabaseTile extends StatefulWidget {
+  const LensfunDatabaseTile({super.key});
+
+  @override
+  State<LensfunDatabaseTile> createState() => _LensfunDatabaseTileState();
+}
+
+class _LensfunDatabaseTileState extends State<LensfunDatabaseTile> {
+  bool _busy = false;
+  String? _sha;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSha();
+  }
+
+  Future<void> _loadSha() async {
+    final sha = await LensfunUpdateService.localSha();
+    if (mounted) setState(() => _sha = sha);
+  }
+
+  Future<void> _check() async {
+    setState(() => _busy = true);
+    try {
+      final latest = await LensfunUpdateService.fetchLatestSha();
+      if (latest == null) {
+        debugPrint('[LensfunDB] Manual check: fetchLatestSha returned null');
+        _showSnack(tr("updateCheckFailed"));
+        return;
+      }
+      debugPrint(
+        '[LensfunDB] Manual check: latest SHA=$latest, local SHA=${_sha ?? "none"}',
+      );
+      if (latest == _sha) {
+        debugPrint('[LensfunDB] Manual check: already up to date');
+        _showSnack(tr("lensfunUpToDate"));
+        return;
+      }
+      debugPrint('[LensfunDB] Manual check: downloading $latest');
+      final ok = await LensfunUpdateService.downloadAndExtract(latest);
+      if (ok) {
+        setState(() => _sha = latest);
+        debugPrint('[LensfunDB] Manual check: updated to $latest');
+        _showSnack(tr("lensfunUpdated"));
+      } else {
+        debugPrint('[LensfunDB] Manual check: downloadAndExtract failed');
+        _showSnack(tr("updateCheckFailed"));
+      }
+    } catch (e) {
+      debugPrint('[LensfunDB] Manual check error: $e');
+      _showSnack(tr("updateCheckFailed"));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shortSha = _sha != null && _sha!.length >= 7
+        ? _sha!.substring(0, 7)
+        : (_sha ?? '--');
+    return ListTile(
+      leading: const Icon(Icons.camera_alt_outlined, size: 20),
+      title: Text(tr("lensfunDatabase"), style: AppTypography.titleMedium),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            shortSha,
+            style: AppTypography.bodySmall.copyWith(
+              fontFamily: 'monospace',
+              color: AppColors.mediumText,
+            ),
+          ),
+          const SizedBox(width: 4),
+          _busy
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.arrow_forward_ios, size: 14),
+        ],
+      ),
       onTap: _busy ? null : _check,
     );
   }
 }
+
+// ── UpdateDialog ───────────────────────────────────────────────────
 
 class UpdateDialog extends StatelessWidget {
   final UpdateInfo info;
@@ -235,6 +333,8 @@ class UpdateDialog extends StatelessWidget {
     );
   }
 }
+
+// ── ChangelogDialog ────────────────────────────────────────────────
 
 class ChangelogDialog extends StatelessWidget {
   final String version;

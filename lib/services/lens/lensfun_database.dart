@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:xml/xml.dart';
+
+import '../app/assets_init.dart';
 
 /// Lensfun XML 解析结果 —— 单组校正系数
 class LensfunCalibration {
@@ -275,33 +279,50 @@ class LensfunDatabase {
   // 加载
   Future<void> ensureLoaded() async {
     if (_loaded) return;
-    await _loadAll();
+
+    final dir = await _lensfunDir();
+
+    // 首次启动/升级时将 assets/lensfun/data/db/*.xml 释放到可写目录
+    await AssetsInit.releaseIfNeeded(
+      namespace: 'lensfun',
+      assetPrefix: 'assets/lensfun/data/db/',
+      fileExtension: '.xml',
+      targetDirPath: dir,
+    );
+
+    await _loadFromDir(dir);
     _loaded = true;
   }
 
-  Future<void> _loadAll() async {
-    // 读取所有 XML 文件为字符串
-    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final keys = manifest
-        .listAssets()
-        .where(
-          (k) => k.startsWith('assets/lensfun/data/db/') && k.endsWith('.xml'),
-        )
-        .toList();
+  Future<String> _lensfunDir() async {
+    final base = await getApplicationSupportDirectory();
+    return p.join(base.path, 'lensfun');
+  }
 
+  Future<void> _loadFromDir(String dir) async {
     final xmlStrings = <String>[];
-    for (final key in keys) {
-      try {
-        xmlStrings.add(await rootBundle.loadString(key));
-      } catch (e) {
-        debugPrint('[LensfunDB] Failed to load $key: $e');
+    final lensfunDir = Directory(dir);
+    if (await lensfunDir.exists()) {
+      final files = lensfunDir.listSync().whereType<File>().where(
+        (f) => f.path.endsWith('.xml'),
+      );
+      for (final file in files) {
+        try {
+          xmlStrings.add(await file.readAsString());
+        } catch (e) {
+          debugPrint('[LensfunDB] Failed to load ${file.path}: $e');
+        }
       }
+    }
+
+    if (xmlStrings.isEmpty) {
+      debugPrint('[LensfunDB] No XML files found in $dir');
+      return;
     }
 
     // 后台解析
     final result = await Isolate.run(() => _parseAllXml(xmlStrings));
 
-    // 挂载结果
     _cameras.addAll(result.cameras);
     _camByMount.addAll(result.camByMount);
     _byCameraLens.addAll(result.byCameraLens);
