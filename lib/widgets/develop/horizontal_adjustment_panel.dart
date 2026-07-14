@@ -23,18 +23,16 @@ void _exitLocalTool(WidgetRef ref) {
 class HorizontalAdjustmentPanel extends ConsumerWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
-  final Widget? histogram;
+  final Widget? histogramInfoCombo;
   final Widget? presetBar;
-  final Widget? info;
   final VoidCallback? onEnterCrop;
 
   const HorizontalAdjustmentPanel({
     super.key,
     required this.params,
     required this.onChanged,
-    this.histogram,
+    this.histogramInfoCombo,
     this.presetBar,
-    this.info,
     this.onEnterCrop,
   });
 
@@ -67,8 +65,6 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
         return const LensSection();
       case DevelopTool.sr:
         return SrSection(params: params, onChanged: onChanged);
-      case DevelopTool.info:
-        return info ?? const SizedBox.shrink();
       default:
         return const SizedBox.shrink();
     }
@@ -103,13 +99,7 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
               decoration: const BoxDecoration(color: Colors.transparent),
               child: Column(
                 children: [
-                  if (histogram != null)
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height / 3,
-                      ),
-                      child: histogram!,
-                    ),
+                  ?histogramInfoCombo,
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.only(top: 8, bottom: 24),
@@ -152,13 +142,7 @@ class _ToolRail extends ConsumerWidget {
       child: Column(
         children: [
           const SizedBox(height: 8),
-          // 固定顶部：info / 图层 / 历史 / reset
-          _RailItem(
-            icon: Icons.info_outline,
-            tooltip: tr('info'),
-            selected: selected == DevelopTool.info,
-            onTap: () => onSelect(DevelopTool.info),
-          ),
+          // 固定顶部：历史 / reset
           _RailItem(
             icon: Icons.history,
             tooltip: tr('history'),

@@ -225,6 +225,7 @@
   "localBrushSubjectExcludeAdd": "Add",
   "localBrushSubjectExcludeSubtract": "Subtract",
   "info": "Info",
+  "histogram": "Histogram",
   "settingsTheme": "Theme",
   "settingsDynamicColor": "Dynamic Color (Material You)",
   "settingsDynamicColorHint": "Follow system wallpaper / accent color",

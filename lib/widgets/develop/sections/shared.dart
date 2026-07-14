@@ -83,7 +83,7 @@ class SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
       child: Row(
         children: [
           Text(

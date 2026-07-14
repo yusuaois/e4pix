@@ -225,6 +225,7 @@
   "localBrushSubjectExcludeAdd": "加入",
   "localBrushSubjectExcludeSubtract": "排除",
   "info": "信息",
+  "histogram": "直方图",
   "settingsTheme": "主题",
   "settingsDynamicColor": "动态取色 (Material You)",
   "settingsDynamicColorHint": "跟随系统壁纸 / 强调色",

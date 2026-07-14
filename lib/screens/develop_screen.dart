@@ -45,6 +45,7 @@ import '../widgets/preview/preview_area.dart';
 import '../core/keybindings/develop_key_handler.dart';
 import 'folder_import_screen.dart';
 import '../widgets/develop/histogram_panel.dart';
+import '../widgets/develop/histogram_info_combo.dart';
 import '../widgets/app/image_info_bar.dart';
 import '../widgets/develop/vertical_adjustment_panel.dart';
 import '../widgets/develop/sections/preset_section.dart';
@@ -727,6 +728,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   Widget _buildHorizontalLayout() {
     final d = _buildLayoutData();
     final params = ref.watch(currentParamsNotifierProvider);
+    final maskProgram = ref.watch(maskShaderProgramProvider);
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -782,11 +784,15 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     child: HorizontalAdjustmentPanel(
                       params: params,
                       onChanged: _onParamsChanged,
-                      histogram: d.program == null
+                      histogramInfoCombo: d.program == null
                           ? null
-                          : _buildHistogram(d.program!, d.image!),
+                          : HistogramInfoCombo(
+                              program: d.program!,
+                              maskProgram: maskProgram.value!,
+                              sourceImage: d.image!.uiImage,
+                              onImport: _importImages,
+                            ),
                       presetBar: const PresetBar(),
-                      info: ImageInfoBar(onImport: _importImages),
                       onEnterCrop: () => enterCropMode(ref),
                     ),
                   ),

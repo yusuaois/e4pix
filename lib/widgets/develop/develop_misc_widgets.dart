@@ -9,7 +9,8 @@ import '../../state/providers.dart';
 
 // 星级 + 旗标条
 class RatingFlagBar extends ConsumerWidget {
-  const RatingFlagBar({super.key});
+  final bool compact;
+  const RatingFlagBar({super.key, this.compact = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,69 +29,78 @@ class RatingFlagBar extends ConsumerWidget {
           .writeNow(active.path, s.params, s.rating, s.flag);
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // 5 颗星
-        for (int i = 1; i <= 5; i++)
-          GestureDetector(
-            onTap: () {
-              notifier.updateRating(
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 5 颗星
+          for (int i = 1; i <= 5; i++)
+            GestureDetector(
+              onTap: () {
+                notifier.updateRating(
+                  active.path,
+                  active.rating == i ? i - 1 : i,
+                );
+                writeSidecar();
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: compact ? 2.0 : 8.0,
+                ),
+                child: Icon(
+                  i <= active.rating ? Icons.star : Icons.star_border,
+                  size: 18,
+                  color: i <= active.rating
+                      ? AppColors.semanticWarning
+                      : AppColors.disabledText,
+                ),
+              ),
+            ),
+          const SizedBox(width: 8),
+          // 旗标
+          IconButton(
+            icon: Icon(
+              Icons.flag,
+              size: 16,
+              color: active.flag == ShotFlag.pick
+                  ? AppColors.semanticSuccess
+                  : AppColors.disabledText,
+            ),
+            tooltip: tr('flagPick'),
+            visualDensity: VisualDensity.compact,
+            onPressed: () {
+              notifier.updateFlag(
                 active.path,
-                active.rating == i ? i - 1 : i,
+                active.flag == ShotFlag.pick ? ShotFlag.none : ShotFlag.pick,
               );
               writeSidecar();
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              child: Icon(
-                i <= active.rating ? Icons.star : Icons.star_border,
-                size: 18,
-                color: i <= active.rating
-                    ? AppColors.semanticWarning
-                    : AppColors.disabledText,
-              ),
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.block,
+              size: 16,
+              color: active.flag == ShotFlag.reject
+                  ? AppColors.semanticError
+                  : AppColors.disabledText,
             ),
+            tooltip: tr('flagReject'),
+            visualDensity: VisualDensity.compact,
+            onPressed: () {
+              notifier.updateFlag(
+                active.path,
+                active.flag == ShotFlag.reject
+                    ? ShotFlag.none
+                    : ShotFlag.reject,
+              );
+              writeSidecar();
+            },
           ),
-        const SizedBox(width: 8),
-        // 旗标
-        IconButton(
-          icon: Icon(
-            Icons.flag,
-            size: 16,
-            color: active.flag == ShotFlag.pick
-                ? AppColors.semanticSuccess
-                : AppColors.disabledText,
-          ),
-          tooltip: tr('flagPick'),
-          visualDensity: VisualDensity.compact,
-          onPressed: () {
-            notifier.updateFlag(
-              active.path,
-              active.flag == ShotFlag.pick ? ShotFlag.none : ShotFlag.pick,
-            );
-            writeSidecar();
-          },
-        ),
-        IconButton(
-          icon: Icon(
-            Icons.block,
-            size: 16,
-            color: active.flag == ShotFlag.reject
-                ? AppColors.semanticError
-                : AppColors.disabledText,
-          ),
-          tooltip: tr('flagReject'),
-          visualDensity: VisualDensity.compact,
-          onPressed: () {
-            notifier.updateFlag(
-              active.path,
-              active.flag == ShotFlag.reject ? ShotFlag.none : ShotFlag.reject,
-            );
-            writeSidecar();
-          },
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

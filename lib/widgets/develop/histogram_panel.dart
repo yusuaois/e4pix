@@ -81,6 +81,8 @@ class LiveHistogramPanel extends ConsumerStatefulWidget {
   final ui.Image? lutTextureB;
   final int lutSizeB;
   final ui.Image? curveTexture;
+  final double? height;
+  final EdgeInsetsGeometry? margin;
 
   const LiveHistogramPanel({
     super.key,
@@ -93,6 +95,8 @@ class LiveHistogramPanel extends ConsumerStatefulWidget {
     this.lutTextureB,
     this.lutSizeB = 0,
     this.curveTexture,
+    this.height,
+    this.margin,
   });
 
   @override
@@ -105,7 +109,7 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
   Timer? _debounce;
   bool _computing = false;
   ProviderSubscription<bool>? _dragSub;
-  // 128px 缩略图足够直方图统计（256 bins × 128px = 2px/bin 平均），
+  // 128px 缩略图足够直方图统计（256 bins × 128px = 2px/bin 平均）
   // 相比 256px 减少 4× 像素数，大幅降低渲染和回读开销
   static const _thumbDim = 128;
   // develop pass 缓存：同一组基础参数下直方图只需重跑 mask/sharpen 等后续 pass
@@ -208,9 +212,10 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
             .values[(_mode.index + 1) % HistogramMode.values.length];
       }),
       child: Container(
-        height: 110,
+        clipBehavior: Clip.antiAlias,
+        height: widget.height ?? 110,
         width: double.infinity,
-        margin: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+        margin: widget.margin ?? const EdgeInsets.fromLTRB(16, 14, 16, 6),
         decoration: BoxDecoration(
           color: AppColors.scaffoldBg,
           borderRadius: BorderRadius.circular(6),
