@@ -608,7 +608,6 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
         child: Center(child: content),
       );
     }
-    final picked = ref.watch(pickedColorProvider);
     return Container(
       color: Colors.black,
       child: Center(
@@ -633,41 +632,73 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
                   displaySize: displaySize,
                 ),
               ),
-              if (picked != null)
-                Builder(
-                  builder: (_) {
-                    final zoomScale = ref.watch(zoomScaleProvider);
-                    const readoutW = 140.0;
-                    const readoutH = 56.0;
-                    const gap = 16.0;
-                    final scaledGap = gap / zoomScale;
-                    final scaledW = readoutW / zoomScale;
-                    final scaledH = readoutH / zoomScale;
-                    final cursorX = picked.nx * displaySize.width;
-                    final cursorY = picked.ny * displaySize.height;
-                    final placeLeft = cursorX > displaySize.width / 2;
-                    final placeAbove = cursorY > displaySize.height / 2;
-                    final left = placeLeft
-                        ? cursorX - scaledGap - scaledW
-                        : cursorX + scaledGap;
-                    final top = placeAbove
-                        ? cursorY - scaledGap - scaledH
-                        : cursorY + scaledGap;
-                    return Positioned(
-                      left: left.clamp(0.0, displaySize.width - scaledW),
-                      top: top.clamp(0.0, displaySize.height - scaledH),
-                      child: Transform.scale(
-                        scale: 1.0 / zoomScale,
-                        alignment: Alignment.topLeft,
-                        child: _ColorReadout(picked: picked),
-                      ),
-                    );
-                  },
-                ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _withViewportReadout(
+    WidgetRef ref,
+    Widget zoomableView,
+    Size displaySize,
+  ) {
+    final colorPickerOn = ref.watch(colorPickerModeProvider);
+    if (!colorPickerOn) return zoomableView;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewport = Size(constraints.maxWidth, constraints.maxHeight);
+        final picked = ref.watch(pickedColorProvider);
+        return Stack(
+          children: [
+            Positioned.fill(child: zoomableView),
+            if (picked != null)
+              _buildViewportReadout(ref, picked, displaySize, viewport),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildViewportReadout(
+    WidgetRef ref,
+    PickedColor picked,
+    Size displaySize,
+    Size viewport,
+  ) {
+    final matrix = ref.watch(viewportTransformProvider);
+    const readoutW = 140.0;
+    const readoutH = 56.0;
+    const gap = 16.0;
+
+    final imageX = picked.nx * displaySize.width;
+    final imageY = picked.ny * displaySize.height;
+    final centerDx = (viewport.width - displaySize.width) / 2;
+    final centerDy = (viewport.height - displaySize.height) / 2;
+
+    final vp = MatrixUtils.transformPoint(
+      matrix,
+      Offset(centerDx + imageX, centerDy + imageY),
+    );
+
+    final rightOk = vp.dx + gap + readoutW <= viewport.width;
+    final topOk = vp.dy - gap - readoutH >= 0;
+
+    final left = (rightOk ? vp.dx + gap : vp.dx - gap - readoutW).clamp(
+      0.0,
+      viewport.width - readoutW,
+    );
+    final top = (topOk ? vp.dy - gap - readoutH : vp.dy + gap).clamp(
+      0.0,
+      viewport.height - readoutH,
+    );
+
+    return Positioned(
+      left: left,
+      top: top,
+      child: _ColorReadout(picked: picked),
     );
   }
 
@@ -751,25 +782,20 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     );
     // 渲染范围延伸至黑底
     final contentChild = picker ?? result;
-    return _withSrOverlay(
-      ref,
-      Container(
-        color: Colors.black,
-        child: SizedBox.expand(
-          child: _ZoomableView(
-            onTapNoZoom: () =>
-                ref.read(fullscreenPreviewProvider.notifier).set(true),
-            ref: ref,
-            child: Center(
-              child: SizedBox.fromSize(size: displaySize, child: contentChild),
-            ),
-          ),
-        ),
+    final zoomableView = _ZoomableView(
+      onTapNoZoom: () => ref.read(fullscreenPreviewProvider.notifier).set(true),
+      ref: ref,
+      child: Center(
+        child: SizedBox.fromSize(size: displaySize, child: contentChild),
       ),
-      params,
-      displaySize,
-      state.uiImage,
     );
+    final inner = Container(
+      color: Colors.black,
+      child: SizedBox.expand(
+        child: _withViewportReadout(ref, zoomableView, displaySize),
+      ),
+    );
+    return _withSrOverlay(ref, inner, params, displaySize, state.uiImage);
   }
 
   /// 超分辨率预览小窗
@@ -1002,6 +1028,7 @@ class _ZoomableViewState extends State<_ZoomableView> {
     if (s >= 1.0) {
       widget.ref.read(zoomScaleProvider.notifier).set(s);
     }
+    widget.ref.read(viewportTransformProvider.notifier).set(_tc.value.clone());
   }
 
   void _handleScroll(PointerScrollEvent e, Size viewport) {

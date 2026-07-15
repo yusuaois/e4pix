@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 用户是否正在拖滑块
@@ -36,3 +37,15 @@ class ZoomScaleNotifier extends Notifier<double> {
 final zoomScaleProvider = NotifierProvider<ZoomScaleNotifier, double>(
   ZoomScaleNotifier.new,
 );
+
+/// InteractiveViewer 变换矩阵，取色笔浮窗用于 image→viewport 坐标转换
+class ViewportTransformNotifier extends Notifier<Matrix4> {
+  @override
+  Matrix4 build() => Matrix4.identity();
+  void set(Matrix4 v) => state = v;
+}
+
+final viewportTransformProvider =
+    NotifierProvider<ViewportTransformNotifier, Matrix4>(
+      ViewportTransformNotifier.new,
+    );
