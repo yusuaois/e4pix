@@ -13,6 +13,7 @@ import '../../../../render/brush_rasterizer.dart';
 import '../../../../services/local/smart_region_service.dart';
 import '../../../../services/local/segmentation_service.dart';
 import '../../../../state/providers.dart';
+import '../../../../utils/single_pointer_gesture_detector.dart';
 import 'local_mask_painter.dart';
 
 enum _Handle {
@@ -238,9 +239,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
 
     if (locals.isEmpty) return const SizedBox.shrink();
 
-    final gesture = GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onPanDown: (d) {
+    final gesture = SinglePointerGestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTapDown: (d) {
         _interactionWasBrush = isBrush && !isWand && !isSubject;
         _interactionWasWand = isWand;
         _interactionWasSubject = isSubject;

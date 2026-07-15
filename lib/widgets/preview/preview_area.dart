@@ -636,23 +636,31 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
               if (picked != null)
                 Builder(
                   builder: (_) {
+                    final zoomScale = ref.watch(zoomScaleProvider);
                     const readoutW = 140.0;
                     const readoutH = 56.0;
                     const gap = 16.0;
+                    final scaledGap = gap / zoomScale;
+                    final scaledW = readoutW / zoomScale;
+                    final scaledH = readoutH / zoomScale;
                     final cursorX = picked.nx * displaySize.width;
                     final cursorY = picked.ny * displaySize.height;
                     final placeLeft = cursorX > displaySize.width / 2;
                     final placeAbove = cursorY > displaySize.height / 2;
                     final left = placeLeft
-                        ? cursorX - gap - readoutW
-                        : cursorX + gap;
+                        ? cursorX - scaledGap - scaledW
+                        : cursorX + scaledGap;
                     final top = placeAbove
-                        ? cursorY - gap - readoutH
-                        : cursorY + gap;
+                        ? cursorY - scaledGap - scaledH
+                        : cursorY + scaledGap;
                     return Positioned(
-                      left: left.clamp(0.0, displaySize.width - readoutW),
-                      top: top.clamp(0.0, displaySize.height - readoutH),
-                      child: _ColorReadout(picked: picked),
+                      left: left.clamp(0.0, displaySize.width - scaledW),
+                      top: top.clamp(0.0, displaySize.height - scaledH),
+                      child: Transform.scale(
+                        scale: 1.0 / zoomScale,
+                        alignment: Alignment.topLeft,
+                        child: _ColorReadout(picked: picked),
+                      ),
                     );
                   },
                 ),
@@ -694,11 +702,10 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     LutState lut,
     bool lutEnabled,
   ) {
-    // 画笔 overlays — 通过 manifest 循环，统一的 Stack 包裹模式
+    // 画笔 overlay
     for (final m in brushManifests) {
       final overlay = _buildOverlayIfActive(m, ref, displaySize, state, params);
       if (overlay != null) {
-        // spot_heal / dodge_burn / sponge 没有 committed preview 生命周期，跳过 watch
         if (m.id != 'spot_heal' && m.id != 'dodge_burn' && m.id != 'sponge') {
           ref.watch(renderedPreviewGenerationProvider);
         }
@@ -716,57 +723,46 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
 
     final selectedLocalId = ref.watch(selectedLocalIdProvider);
     final cropEditMode = ref.watch(cropEditModeProvider);
+
+    Widget result;
     if (selectedLocalId != null && !cropEditMode) {
-      return _withSrOverlay(
-        ref,
-        Container(
-          color: Colors.black,
-          child: Center(
-            child: GestureDetector(
-              onTap: () =>
-                  ref.read(fullscreenPreviewProvider.notifier).set(true),
-              child: SizedBox.fromSize(
-                size: displaySize,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    content,
-                    Positioned.fill(
-                      child: LocalMaskOverlay(imageDisplaySize: displaySize),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+      result = Stack(
+        fit: StackFit.expand,
+        children: [
+          content,
+          Positioned.fill(
+            child: LocalMaskOverlay(imageDisplaySize: displaySize),
           ),
-        ),
-        params,
-        displaySize,
-        state.uiImage,
+        ],
       );
+    } else {
+      result = content;
     }
+
+    // 检查是否有颜色拾取器模式
     final picker = _wrapColorPicker(
       ref,
-      content,
+      result,
       displaySize,
       state,
       params,
       lut,
       lutEnabled,
     );
-    if (picker != null) {
-      return _withSrOverlay(ref, picker, params, displaySize, state.uiImage);
-    }
+    // 渲染范围延伸至黑底
+    final contentChild = picker ?? result;
     return _withSrOverlay(
       ref,
       Container(
         color: Colors.black,
-        child: Center(
+        child: SizedBox.expand(
           child: _ZoomableView(
             onTapNoZoom: () =>
                 ref.read(fullscreenPreviewProvider.notifier).set(true),
             ref: ref,
-            child: content,
+            child: Center(
+              child: SizedBox.fromSize(size: displaySize, child: contentChild),
+            ),
           ),
         ),
       ),
@@ -993,6 +989,8 @@ class _ZoomableViewState extends State<_ZoomableView> {
 
   double get _scale => _tc.value.getMaxScaleOnAxis();
 
+  bool get _panEnabled => widget.ref.read(selectedLocalIdProvider) == null;
+
   @override
   void initState() {
     super.initState();
@@ -1051,7 +1049,7 @@ class _ZoomableViewState extends State<_ZoomableView> {
               transformationController: _tc,
               minScale: _min,
               maxScale: _max,
-              panEnabled: true,
+              panEnabled: _panEnabled,
               scaleEnabled: true,
               clipBehavior: Clip.hardEdge,
               onInteractionEnd: (_) => setState(() {}),

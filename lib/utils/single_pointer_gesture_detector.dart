@@ -8,7 +8,7 @@ class SinglePointerGestureDetector extends StatefulWidget {
     super.key,
     required this.child,
     this.onTapDown,
-    this.onTapUp,       // stamp 专用，effect 不传
+    this.onTapUp,
     this.onPanStart,
     this.onPanUpdate,
     this.onPanEnd,
@@ -17,19 +17,21 @@ class SinglePointerGestureDetector extends StatefulWidget {
   });
 
   final Widget child;
-  final GestureTapDownCallback?   onTapDown;
-  final GestureTapUpCallback?     onTapUp;
+  final GestureTapDownCallback? onTapDown;
+  final GestureTapUpCallback? onTapUp;
   final GestureDragStartCallback? onPanStart;
   final GestureDragUpdateCallback? onPanUpdate;
-  final GestureDragEndCallback?   onPanEnd;
-  final VoidCallback?             onPanCancel;
-  final HitTestBehavior           behavior;
+  final GestureDragEndCallback? onPanEnd;
+  final VoidCallback? onPanCancel;
+  final HitTestBehavior behavior;
 
   @override
-  State<SinglePointerGestureDetector> createState() => _SinglePointerGestureDetectorState();
+  State<SinglePointerGestureDetector> createState() =>
+      _SinglePointerGestureDetectorState();
 }
 
-class _SinglePointerGestureDetectorState extends State<SinglePointerGestureDetector> {
+class _SinglePointerGestureDetectorState
+    extends State<SinglePointerGestureDetector> {
   int _count = 0;
 
   @override
@@ -40,19 +42,23 @@ class _SinglePointerGestureDetectorState extends State<SinglePointerGestureDetec
         if (_count == 1) widget.onPanCancel?.call(); // 第二指 → 取消笔触
         setState(() => _count++);
       },
-      onPointerUp:     (_) { if (_count > 0) setState(() => _count--); },
-      onPointerCancel: (_) { if (_count > 0) setState(() => _count--); },
+      onPointerUp: (_) {
+        if (_count > 0) setState(() => _count--);
+      },
+      onPointerCancel: (_) {
+        if (_count > 0) setState(() => _count--);
+      },
       child: _count >= 2
           ? IgnorePointer(child: widget.child)
           : GestureDetector(
-              behavior:    widget.behavior,
-              onTapDown:   widget.onTapDown,
-              onTapUp:     widget.onTapUp,
-              onPanStart:  widget.onPanStart,
+              behavior: widget.behavior,
+              onTapDown: widget.onTapDown,
+              onTapUp: widget.onTapUp,
+              onPanStart: widget.onPanStart,
               onPanUpdate: widget.onPanUpdate,
-              onPanEnd:    widget.onPanEnd,
+              onPanEnd: widget.onPanEnd,
               onPanCancel: widget.onPanCancel,
-              child:       widget.child,
+              child: widget.child,
             ),
     );
   }

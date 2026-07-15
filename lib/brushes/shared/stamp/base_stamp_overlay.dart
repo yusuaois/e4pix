@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/crop_params.dart';
 import '../../../state/providers.dart';
-import '../single_pointer_gesture_detector.dart';
+import '../../../utils/single_pointer_gesture_detector.dart';
 import 'base_stamp_painter.dart';
 import 'stamp_compositor.dart';
 import 'stamp_gesture_handler.dart';

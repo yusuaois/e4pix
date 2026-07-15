@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/crop_params.dart';
 import '../../../state/providers.dart';
 import '../../../utils/brush_coord_utils.dart';
-import '../single_pointer_gesture_detector.dart';
+import '../../../utils/single_pointer_gesture_detector.dart';
 import 'base_effect_painter.dart';
 import 'effect_gesture_handler.dart';
 

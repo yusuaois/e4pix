@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../state/providers.dart';
+import '../../utils/single_pointer_gesture_detector.dart';
 
 /// 取色 readback 层：覆盖在预览上，捕获鼠标位置，从渲染后的小图取色
 ///
@@ -154,27 +155,19 @@ class _ColorPickerOverlayState extends ConsumerState<ColorPickerOverlay> {
             _cursor = null;
             ref.read(pickedColorProvider.notifier).set(null);
           },
-          child: Listener(
-            behavior: HitTestBehavior.opaque,
-            // 处理手机端手指按下 / 电脑端鼠标点击
-            onPointerDown: (e) {
-              _cursor = e.localPosition;
-              _updateReadingAt(e.localPosition);
+          child: SinglePointerGestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTapDown: (d) {
+              _cursor = d.localPosition;
+              _updateReadingAt(d.localPosition);
             },
-            // 处理手机端手指拖拽滑动 / 电脑端鼠标点击拖拽
-            onPointerMove: (e) {
-              _cursor = e.localPosition;
-              _updateReadingAt(e.localPosition);
+            onPanStart: (d) {
+              _cursor = d.localPosition;
+              _updateReadingAt(d.localPosition);
             },
-            // 处理手指抬起
-            onPointerUp: (_) {
-              // _cursor = null;
-              // ref.read(pickedColorProvider.notifier).set(null);
-            },
-            // 处理触摸被系统取消
-            onPointerCancel: (_) {
-              // _cursor = null;
-              // ref.read(pickedColorProvider.notifier).set(null);
+            onPanUpdate: (d) {
+              _cursor = d.localPosition;
+              _updateReadingAt(d.localPosition);
             },
             child: const SizedBox.expand(),
           ),
