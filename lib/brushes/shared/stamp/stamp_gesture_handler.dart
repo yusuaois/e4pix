@@ -23,6 +23,7 @@ class StampGestureHandler<T extends StampMark> {
     required this.renderedHashKey,
     required this.persistMarks,
     required this.screenToSource,
+    required this.scaleRadius,
     required this.onNeedsSetState,
     required this.onStrokeStarted,
     required this.onTriggerComposite,
@@ -46,7 +47,11 @@ class StampGestureHandler<T extends StampMark> {
 
   // --- 注入的动作 ---
   final void Function(WidgetRef ref, Offset source) updateCloneSource;
-  final void Function(WidgetRef ref, Offset target) addSingleMark;
+  final void Function(WidgetRef ref, Offset target, {required double radius})
+  addSingleMark;
+
+  // --- 注入的工具函数 ---
+  final double Function(double radius) scaleRadius;
   final void Function(WidgetRef ref, List<T> marks) commitMarksToPipeline;
   final int Function(WidgetRef ref) computeCommittedHash;
 
@@ -104,7 +109,9 @@ class StampGestureHandler<T extends StampMark> {
   void onTapUp(WidgetRef ref) {
     final target = _pendingTapTarget;
     _pendingTapTarget = null;
-    if (target != null) addSingleMark(ref, target);
+    if (target != null) {
+      addSingleMark(ref, target, radius: scaleRadius(getBrushRadius(ref)));
+    }
   }
 
   /// 笔画开始：初始化 tracker、计算 paintOffset、创建首 mark
@@ -124,7 +131,7 @@ class StampGestureHandler<T extends StampMark> {
       source = cs;
       paintOffset = Offset(source.dx - target.dx, source.dy - target.dy);
     }
-    final radius = getBrushRadius(ref);
+    final radius = scaleRadius(getBrushRadius(ref));
     final hardness = getBrushHardness(ref);
     final tracker = PathBrushTracker(spacing: radius * 0.15);
     tracker.start(target);
@@ -152,7 +159,7 @@ class StampGestureHandler<T extends StampMark> {
     final offset = paintOffset;
     final ts = _strokeTimestamp;
     if (tracker == null || offset == null || ts == null) return;
-    final radius = getBrushRadius(ref);
+    final radius = scaleRadius(getBrushRadius(ref));
     final hardness = getBrushHardness(ref);
     for (final t in tracker.move(screenToSource(pos))) {
       final s = Offset(t.dx + offset.dx, t.dy + offset.dy);
@@ -178,7 +185,7 @@ class StampGestureHandler<T extends StampMark> {
     final offset = paintOffset;
     final ts = _strokeTimestamp;
     if (tracker != null && offset != null && ts != null) {
-      final radius = getBrushRadius(ref);
+      final radius = scaleRadius(getBrushRadius(ref));
       final hardness = getBrushHardness(ref);
       for (final t in tracker.end()) {
         strokeMarks.add(

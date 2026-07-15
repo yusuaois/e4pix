@@ -40,7 +40,7 @@ class BaseEffectPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
-        ..strokeWidth = brushNorm * 2.0 * imageDisplaySize.width;
+        ..strokeWidth = brushNorm * 2.0 * imageDisplaySize.width / zoomScale;
 
       final path = Path();
       final first = sourceToScreenNorm(
@@ -73,7 +73,11 @@ class BaseEffectPainter extends CustomPainter {
         sourceWidth: sourceWidth,
         sourceHeight: sourceHeight,
       );
-      canvas.drawCircle(c, brushNorm * imageDisplaySize.width, fillPaint);
+      canvas.drawCircle(
+        c,
+        brushNorm * imageDisplaySize.width / zoomScale,
+        fillPaint,
+      );
     }
 
     // 光标环

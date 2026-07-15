@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/models/local_adjustment.dart';
 import '../../../../core/models/mask_shape.dart';
+import '../../../../brushes/shared/stamp/stamp_painter_utils.dart';
 
 class MaskPainter extends CustomPainter {
   final List<LocalAdjustment> locals;
@@ -227,6 +228,7 @@ class MaskCursorPainter extends CustomPainter {
   final bool subjectNegative;
   final Size displaySize;
   final Color primaryColor;
+  final double zoomScale;
 
   MaskCursorPainter({
     required this.cursorScreen,
@@ -235,6 +237,7 @@ class MaskCursorPainter extends CustomPainter {
     required this.subjectNegative,
     required this.displaySize,
     required this.primaryColor,
+    this.zoomScale = 1.0,
   });
 
   @override
@@ -261,23 +264,7 @@ class MaskCursorPainter extends CustomPainter {
       );
       return;
     }
-    final r = brushRadiusNorm * displaySize.width;
-    canvas.drawCircle(
-      c,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
-        ..color = Colors.black54,
-    );
-    canvas.drawCircle(
-      c,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = AppColors.textPrimary,
-    );
+    drawTargetCursor(canvas, c, brushRadiusNorm * displaySize.width, zoomScale);
   }
 
   @override
@@ -285,5 +272,6 @@ class MaskCursorPainter extends CustomPainter {
       old.cursorScreen != cursorScreen ||
       old.brushRadiusNorm != brushRadiusNorm ||
       old.wandMode != wandMode ||
-      old.subjectNegative != subjectNegative;
+      old.subjectNegative != subjectNegative ||
+      old.zoomScale != zoomScale;
 }

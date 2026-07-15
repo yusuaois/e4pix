@@ -63,12 +63,12 @@ class HistoryBrushNotifier extends Notifier<HistoryBrushState> {
     state = state.copyWith(brushHardness: hardness);
   }
 
-  void addMark(Offset target) {
+  void addMark(Offset target, {double? radiusOverride}) {
     final updated = <StampMark>[
       ..._marks<HistoryMark>(),
       HistoryMark(
         target: target,
-        radius: state.brushRadius,
+        radius: radiusOverride ?? state.brushRadius,
         hardness: state.brushHardness,
         createdAt: DateTime.now(),
       ),

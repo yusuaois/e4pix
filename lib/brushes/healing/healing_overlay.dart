@@ -128,8 +128,10 @@ class HealingOverlayState
   );
 
   @override
-  void addSingleMark(WidgetRef ref, Offset target) {
-    ref.read(healingStateProvider.notifier).addMark(target);
+  void addSingleMark(WidgetRef ref, Offset target, {required double radius}) {
+    ref
+        .read(healingStateProvider.notifier)
+        .addMark(target, radiusOverride: radius);
   }
 
   @override

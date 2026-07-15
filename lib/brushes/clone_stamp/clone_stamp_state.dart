@@ -115,10 +115,10 @@ class SpotRemoveNotifier extends Notifier<SpotRemoveState> {
   }
 
   /// 添加一个新的 spot mark（从 cloneSource 复制到 target）
-  void addSpot(ui.Offset target) {
+  void addSpot(ui.Offset target, {double? radiusOverride}) {
     final source = state.cloneSource;
     if (source == null) return;
-    _addSpotRaw(source, target);
+    _addSpotRaw(source, target, radius: radiusOverride);
   }
 
   /// 添加 spot，指定自定义 source（拖拽涂抹时源点跟随目标同步移动）
@@ -126,13 +126,13 @@ class SpotRemoveNotifier extends Notifier<SpotRemoveState> {
     _addSpotRaw(source, target);
   }
 
-  void _addSpotRaw(ui.Offset source, ui.Offset target) {
+  void _addSpotRaw(ui.Offset source, ui.Offset target, {double? radius}) {
     final updated = <StampMark>[
       ..._marks<SpotMark>(),
       SpotMark(
         source: source,
         target: target,
-        radius: state.brushRadius,
+        radius: radius ?? state.brushRadius,
         hardness: state.brushHardness,
         createdAt: DateTime.now(),
       ),

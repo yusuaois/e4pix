@@ -93,8 +93,10 @@ class _HistoryBrushOverlayState
   );
 
   @override
-  void addSingleMark(WidgetRef ref, Offset target) {
-    ref.read(historyBrushStateProvider.notifier).addMark(target);
+  void addSingleMark(WidgetRef ref, Offset target, {required double radius}) {
+    ref
+        .read(historyBrushStateProvider.notifier)
+        .addMark(target, radiusOverride: radius);
   }
 
   @override
@@ -144,7 +146,7 @@ class _HistoryBrushOverlayState
       size: widget.imageDisplaySize,
       painter: _HistoryPainter(
         cloneSource: null,
-        brushRadius: getBrushRadius(ref),
+        brushRadius: ref.read(historyBrushStateProvider).brushRadius,
         brushHardness: getBrushHardness(ref),
         imageDisplaySize: widget.imageDisplaySize,
         crop: widget.crop,

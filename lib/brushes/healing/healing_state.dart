@@ -105,10 +105,10 @@ class HealingNotifier extends Notifier<HealingState> {
   }
 
   /// 添加单个修复 mark（从 cloneSource 到 target）
-  void addMark(ui.Offset target) {
+  void addMark(ui.Offset target, {double? radiusOverride}) {
     final source = state.cloneSource;
     if (source == null) return;
-    _addMarkRaw(source, target);
+    _addMarkRaw(source, target, radius: radiusOverride);
   }
 
   /// 添加带显式源的修复 mark（拖拽时源随目标同步移动）
@@ -116,13 +116,13 @@ class HealingNotifier extends Notifier<HealingState> {
     _addMarkRaw(source, target);
   }
 
-  void _addMarkRaw(ui.Offset source, ui.Offset target) {
+  void _addMarkRaw(ui.Offset source, ui.Offset target, {double? radius}) {
     final updated = <StampMark>[
       ..._marks<HealingMark>(),
       HealingMark(
         source: source,
         target: target,
-        radius: state.brushRadius,
+        radius: radius ?? state.brushRadius,
         hardness: state.brushHardness,
         createdAt: DateTime.now(),
       ),

@@ -110,8 +110,10 @@ class _SpotRemoveOverlayState
   );
 
   @override
-  void addSingleMark(WidgetRef ref, Offset target) {
-    ref.read(spotRemoveStateProvider.notifier).addSpot(target);
+  void addSingleMark(WidgetRef ref, Offset target, {required double radius}) {
+    ref
+        .read(spotRemoveStateProvider.notifier)
+        .addSpot(target, radiusOverride: radius);
   }
 
   @override

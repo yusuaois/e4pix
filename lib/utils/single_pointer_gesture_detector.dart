@@ -39,13 +39,16 @@ class _SinglePointerGestureDetectorState
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) {
-        if (_count == 1) widget.onPanCancel?.call(); // 第二指 → 取消笔触
+        if (!mounted) return;
+        if (_count == 1) widget.onPanCancel?.call();
         setState(() => _count++);
       },
       onPointerUp: (_) {
+        if (!mounted) return;
         if (_count > 0) setState(() => _count--);
       },
       onPointerCancel: (_) {
+        if (!mounted) return;
         if (_count > 0) setState(() => _count--);
       },
       child: _count >= 2

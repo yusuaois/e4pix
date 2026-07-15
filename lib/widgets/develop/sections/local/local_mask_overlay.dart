@@ -152,7 +152,8 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
       return;
     }
     final brush = ref.read(brushSettingsProvider);
-    final radius = brush.radius;
+    final z = ref.read(zoomScaleProvider);
+    final radius = brush.radius / z;
     final hardness = brush.hardness;
     final erase = brush.erase;
     final flow = brush.flow;
@@ -224,11 +225,13 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final selectedId = ref.watch(selectedLocalIdProvider);
     final selected = ref.watch(selectedLocalProvider);
     final brush = ref.watch(brushSettingsProvider);
+    final zoomScale = ref.watch(zoomScaleProvider);
     final mode = brush.mode;
     final isBrush = selected != null && selected.mask is BrushMask;
     final isWand = isBrush && mode == BrushMode.wand;
     final isSubject = isBrush && mode == BrushMode.subject;
     final brushRadius = brush.radius;
+    final scaledRadius = brush.radius / zoomScale;
     final brushErase = brush.erase;
     final busy = brush.wandBusy || brush.samBusy;
 
@@ -242,16 +245,14 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final gesture = SinglePointerGestureDetector(
       behavior: HitTestBehavior.translucent,
       onTapDown: (d) {
-        _interactionWasBrush = isBrush && !isWand && !isSubject;
         _interactionWasWand = isWand;
         _interactionWasSubject = isSubject;
         if (_interactionWasWand || _interactionWasSubject) {
           setState(() => _cursorScreen = d.localPosition);
           return;
         }
-        if (_interactionWasBrush) {
+        if (isBrush) {
           _cursorScreen = d.localPosition;
-          _paintingPoints = [_screenToMask(d.localPosition)];
           setState(() {});
           return;
         }
@@ -270,7 +271,13 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         }
       },
       onPanStart: (_) {
-        if (_interactionWasBrush || _interactionWasWand) return;
+        if (_interactionWasWand || _interactionWasSubject) return;
+        if (isBrush) {
+          _interactionWasBrush = true;
+          _paintingPoints = [_screenToMask(_cursorScreen!)];
+          setState(() {});
+          return;
+        }
         if (_drag != _Handle.none) {
           ref.read(isUserDraggingSliderProvider.notifier).set(true);
         }
@@ -291,7 +298,8 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         _applyDrag(d.localPosition);
       },
       onPanEnd: (_) {
-        if (_interactionWasWand || _interactionWasSubject) return;
+        if (_interactionWasWand) return;
+        if (_interactionWasSubject) return;
         if (_interactionWasBrush) {
           _finishBrush();
           return;
@@ -299,7 +307,8 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         _endDrag();
       },
       onPanCancel: () {
-        if (_interactionWasWand || _interactionWasSubject) return;
+        if (_interactionWasWand) return;
+        if (_interactionWasSubject) return;
         if (_interactionWasBrush) {
           _finishBrush();
           return;
@@ -338,7 +347,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
               inProgressPoints: _paintingPoints == null
                   ? null
                   : List.of(_paintingPoints!),
-              brushRadiusNorm: brushRadius,
+              brushRadiusNorm: scaledRadius,
               brushErase: brushErase,
               baseViz: isBrush ? _baseViz : null,
             ),
@@ -354,6 +363,7 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
                   subjectNegative: isSubject && brush.samNegative,
                   displaySize: widget.imageDisplaySize,
                   primaryColor: Theme.of(context).colorScheme.primary,
+                  zoomScale: zoomScale,
                 ),
               ),
             ),

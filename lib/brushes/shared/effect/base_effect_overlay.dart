@@ -82,7 +82,8 @@ abstract class BaseEffectOverlayState<W extends ConsumerStatefulWidget>
     _cursorPos = localPosition;
     _isHovering = true;
     final target = _screenToSourceNorm(localPosition);
-    _gestureHandler.tap(target, brushNorm, hardness);
+    final z = ref.read(zoomScaleProvider);
+    _gestureHandler.tap(target, brushNorm / z, hardness);
   }
 
   void _onPanStart(DragStartDetails details) {
@@ -102,7 +103,8 @@ abstract class BaseEffectOverlayState<W extends ConsumerStatefulWidget>
 
   void _onPanEnd(DragEndDetails details) {
     _isHovering = false;
-    _gestureHandler.panEnd(brushNorm, hardness);
+    final z = ref.read(zoomScaleProvider);
+    _gestureHandler.panEnd(brushNorm / z, hardness);
     setState(() {});
   }
 

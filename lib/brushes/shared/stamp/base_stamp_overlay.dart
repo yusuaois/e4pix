@@ -76,7 +76,8 @@ abstract class BaseStampOverlayState<
   int computeCommittedHash(WidgetRef ref);
 
   /// 单次点击时添加单个 mark（clone: addSpot / healing: addMark）
-  void addSingleMark(WidgetRef ref, Offset target);
+  /// [radius] 为缩放后的值，由 gesture handler 从 [scaleRadius] 传入
+  void addSingleMark(WidgetRef ref, Offset target, {required double radius});
 
   /// 更新克隆源位置
   void updateCloneSource(WidgetRef ref, Offset source);
@@ -138,6 +139,7 @@ abstract class BaseStampOverlayState<
       persistMarks: (ref, key, marks, hash) {
         ref.read(persistedStampProvider.notifier).persist(key, marks, hash);
       },
+      scaleRadius: (r) => r / zoomScale,
       screenToSource: _compositor.screenToSource,
       onNeedsSetState: () {
         if (mounted) setState(() {});
