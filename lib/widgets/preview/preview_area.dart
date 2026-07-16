@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/gestures.dart';
 
 import '../../core/constants/raw_formats.dart';
 import '../../core/models/adjustment_params.dart';
@@ -1024,30 +1023,8 @@ class _ZoomableViewState extends State<_ZoomableView> {
   }
 
   void _onZoomChanged() {
-    final s = _scale;
-    if (s >= 1.0) {
-      widget.ref.read(zoomScaleProvider.notifier).set(s);
-    }
+    widget.ref.read(zoomScaleProvider.notifier).set(_scale);
     widget.ref.read(viewportTransformProvider.notifier).set(_tc.value.clone());
-  }
-
-  void _handleScroll(PointerScrollEvent e, Size viewport) {
-    // 以鼠标位置为中心缩放
-    final delta = -e.scrollDelta.dy;
-    final factor = delta > 0 ? 1.15 : 1 / 1.15;
-    final newScale = (_scale * factor).clamp(_min, _max);
-    final actualFactor = newScale / _scale;
-    if (actualFactor == 1.0) return;
-
-    final focal = e.localPosition;
-    final m = _tc.value.clone();
-    // 焦点处缩放
-    m
-      ..translateByDouble(focal.dx, focal.dy, 0, 1.0)
-      ..scaleByDouble(actualFactor, actualFactor, 1.0, 1.0)
-      ..translateByDouble(-focal.dx, -focal.dy, 0, 1.0);
-    _tc.value = m;
-    setState(() {});
   }
 
   void _reset() {
@@ -1063,28 +1040,19 @@ class _ZoomableViewState extends State<_ZoomableView> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (ctx, constraints) {
-        return Listener(
-          onPointerSignal: (s) {
-            if (s is PointerScrollEvent) _handleScroll(s, constraints.biggest);
-          },
-          child: GestureDetector(
-            onDoubleTap: _scale > 1.01 ? _reset : null, // 放大状态双击复位
-            onTap: _scale <= 1.01 ? widget.onTapNoZoom : null, // 未放大进全屏
-            child: InteractiveViewer(
-              transformationController: _tc,
-              minScale: _min,
-              maxScale: _max,
-              panEnabled: _panEnabled,
-              scaleEnabled: true,
-              clipBehavior: Clip.hardEdge,
-              onInteractionEnd: (_) => setState(() {}),
-              child: widget.child,
-            ),
-          ),
-        );
-      },
+    return GestureDetector(
+      onDoubleTap: _scale > 1.01 ? _reset : null, // 放大状态双击复位
+      onTap: _scale <= 1.01 ? widget.onTapNoZoom : null, // 未放大进全屏
+      child: InteractiveViewer(
+        transformationController: _tc,
+        minScale: _min,
+        maxScale: _max,
+        panEnabled: _panEnabled,
+        scaleEnabled: true,
+        clipBehavior: Clip.hardEdge,
+        onInteractionEnd: (_) => setState(() {}),
+        child: widget.child,
+      ),
     );
   }
 }
