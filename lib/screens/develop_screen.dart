@@ -743,10 +743,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final d = _buildLayoutData();
     final params = ref.watch(currentParamsNotifierProvider);
     final maskProgram = ref.watch(maskShaderProgramProvider);
-    final tool = ref.watch(developToolProvider);
-    final showHistogram =
-        shouldShowHistogram(context, tool == DevelopTool.curve) &&
-        !ref.watch(histogramCollapsedProvider);
+    final showHistogram = !ref.watch(histogramCollapsedProvider);
 
     return Padding(
       padding: const EdgeInsets.all(12),

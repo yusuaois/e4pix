@@ -40,38 +40,54 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
 
   Widget _section(DevelopTool tool, WidgetRef ref) {
     final m = manifestForTool(tool);
-    if (m != null) return m.sectionFactory(params, onChanged);
+    if (m != null) {
+      return SingleChildScrollView(child: m.sectionFactory(params, onChanged));
+    }
     switch (tool) {
       case DevelopTool.light:
-        return LightSection(
-          params: params,
-          onChanged: onChanged,
-          onCurveTap: () =>
-              ref.read(developToolProvider.notifier).set(DevelopTool.curve),
+        return SingleChildScrollView(
+          child: LightSection(
+            params: params,
+            onChanged: onChanged,
+            onCurveTap: () {
+              if (!ref.read(histogramCollapsedProvider)) {
+                ref.read(histogramCollapsedProvider.notifier).toggle();
+              }
+              ref.read(developToolProvider.notifier).set(DevelopTool.curve);
+            },
+          ),
         );
       case DevelopTool.color:
-        return WhiteBalanceColorSection(params: params, onChanged: onChanged);
+        return SingleChildScrollView(
+          child: WhiteBalanceColorSection(params: params, onChanged: onChanged),
+        );
       case DevelopTool.curve:
         return CurveSection(onDone: onCurveDone);
       case DevelopTool.hsl:
-        return HslSection(
-          bands: params.hsl,
-          onChanged: (b) => onChanged(params.copyWith(hsl: b)),
+        return SingleChildScrollView(
+          child: HslSection(
+            bands: params.hsl,
+            onChanged: (b) => onChanged(params.copyWith(hsl: b)),
+          ),
         );
       case DevelopTool.lut:
-        return LutSection();
+        return const SingleChildScrollView(child: LutSection());
       case DevelopTool.detail:
-        return DetailSection(params: params, onChanged: onChanged);
+        return SingleChildScrollView(
+          child: DetailSection(params: params, onChanged: onChanged),
+        );
       case DevelopTool.preset:
-        return const PresetGrid();
+        return const SingleChildScrollView(child: PresetGrid());
       case DevelopTool.local:
-        return const LocalPanel();
+        return const SingleChildScrollView(child: LocalPanel());
       case DevelopTool.watermark:
-        return const WatermarkSection();
+        return const SingleChildScrollView(child: WatermarkSection());
       case DevelopTool.lens:
-        return const LensSection();
+        return const SingleChildScrollView(child: LensSection());
       case DevelopTool.sr:
-        return SrSection(params: params, onChanged: onChanged);
+        return SingleChildScrollView(
+          child: SrSection(params: params, onChanged: onChanged),
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -148,9 +164,9 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
                       ),
                     ),
                   Expanded(
-                    child: ListView(
+                    child: Padding(
                       padding: const EdgeInsets.only(top: 8, bottom: 24),
-                      children: [_section(tool, ref)],
+                      child: _section(tool, ref),
                     ),
                   ),
                 ],

@@ -67,6 +67,14 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     final curves = ref.watch(
       currentParamsNotifierProvider.select((p) => p.curves),
     );
+
+    // 切离曲线模式时自动复位柱状图收起状态
+    ref.listen(developToolProvider, (prev, next) {
+      if (prev == DevelopTool.curve && next != DevelopTool.curve) {
+        ref.read(histogramCollapsedProvider.notifier).show();
+      }
+    });
+
     final curve = _curveOf(curves);
     final lineColor = _channelColor(context);
 
@@ -103,6 +111,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.onDone != null)
           Padding(
@@ -153,86 +162,97 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
           ),
         ),
         const SizedBox(height: 4),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 155),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: LayoutBuilder(
-                builder: (ctx, constraints) {
-                  final size = Size(
-                    constraints.maxWidth,
-                    constraints.maxHeight,
-                  );
-                  return GestureDetector(
-                    onTapUp: (d) => _onTapUp(d, size, curve, commit),
-                    onPanStart: (d) => _onPanStart(d, size, curve),
-                    onPanUpdate: (d) =>
-                        _onPanUpdate(d, size, curve, commitThrottled),
-                    onPanEnd: (_) {
-                      _dragIndex = null;
-                      flushThrottled();
-                    },
-                    onPanCancel: () {
-                      _dragIndex = null;
-                      flushThrottled();
-                    },
-                    onLongPressStart: (d) =>
-                        _onLongPress(d.localPosition, size, curve, commit),
-                    child: OverflowBox(
-                      maxWidth: size.width + 2 * _pointOverflow,
-                      maxHeight: size.height + 2 * _pointOverflow,
-                      alignment: Alignment.center,
-                      child: SizedBox(
-                        width: size.width + 2 * _pointOverflow,
-                        height: size.height + 2 * _pointOverflow,
-                        child: CustomPaint(
-                          painter: CurvePainter(
-                            curve: curve,
-                            lineColor: lineColor,
-                            overflow: _pointOverflow,
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 155),
+                    child: LayoutBuilder(
+                      builder: (ctx, outer) {
+                        final h = outer.maxHeight;
+                        final pad = 2 * _pointOverflow;
+                        final gridSize = Size(outer.maxWidth, h);
+                        return SizedBox.fromSize(
+                          size: Size(outer.maxWidth, h + pad),
+                          child: ClipRect(
+                            child: GestureDetector(
+                              onTapUp: (d) =>
+                                  _onTapUp(d, gridSize, curve, commit),
+                              onPanStart: (d) =>
+                                  _onPanStart(d, gridSize, curve),
+                              onPanUpdate: (d) => _onPanUpdate(
+                                d,
+                                gridSize,
+                                curve,
+                                commitThrottled,
+                              ),
+                              onPanEnd: (_) {
+                                _dragIndex = null;
+                                flushThrottled();
+                              },
+                              onPanCancel: () {
+                                _dragIndex = null;
+                                flushThrottled();
+                              },
+                              onLongPressStart: (d) => _onLongPress(
+                                d.localPosition,
+                                gridSize,
+                                curve,
+                                commit,
+                              ),
+                              child: CustomPaint(
+                                painter: CurvePainter(
+                                  curve: curve,
+                                  lineColor: lineColor,
+                                  overflow: _pointOverflow,
+                                ),
+                                size: Size(outer.maxWidth, h + pad),
+                              ),
+                            ),
                           ),
-                          size: Size(
-                            size.width + 2 * _pointOverflow,
-                            size.height + 2 * _pointOverflow,
-                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, AppSpacing.xs, 4, 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        tr("curveHint"),
+                        style: AppTypography.labelMedium.copyWith(
+                          color: AppColors.disabledText,
                         ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, AppSpacing.xs, 20, 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                tr("curveHint"),
-                style: AppTypography.labelMedium.copyWith(
-                  color: AppColors.disabledText,
-                ),
-              ),
-              TextButton(
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: curve.isIdentity
+                            ? null
+                            : () => commit(ToneCurve.identity),
+                        child: Text(
+                          tr("reset"),
+                          style: AppTypography.bodyLarge,
+                        ),
+                      ),
+                    ],
                   ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                onPressed: curve.isIdentity
-                    ? null
-                    : () => commit(ToneCurve.identity),
-                child: Text(tr("reset"), style: AppTypography.bodyLarge),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
