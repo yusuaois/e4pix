@@ -36,28 +36,19 @@ class HistoryBrushSection extends ConsumerWidget {
         SectionLabel(title: 'historyBrush'),
 
         // 激活按钮
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              PillChip(
-                icon: Icons.history,
-                label: tr('historyBrushTitle'),
-                isActive: isActive,
-                onTap: () {
-                  if (isActive) {
-                    notifier.setMode(HistoryBrushMode.inactive);
-                  } else {
-                    notifier.setMode(HistoryBrushMode.active);
-                    if (brushSourceIndex == null) {
-                      showHistoryPanelSheet(context, ref);
-                    }
-                  }
-                },
-              ),
-              const Spacer(),
-            ],
-          ),
+        SwitchTile.tile(
+          label: tr('historyBrushTitle'),
+          value: isActive,
+          onChanged: (_) {
+            if (isActive) {
+              notifier.setMode(HistoryBrushMode.inactive);
+            } else {
+              notifier.setMode(HistoryBrushMode.active);
+              if (brushSourceIndex == null) {
+                showHistoryPanelSheet(context, ref);
+              }
+            }
+          },
         ),
 
         // 画笔源状态

@@ -1,11 +1,11 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/models/adjustment_params.dart';
-import '../../../core/models/grain_params.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_typography.dart';
-import 'shared.dart';
+import '../../../../core/models/adjustment_params.dart';
+import '../../../../core/models/grain_params.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../shared.dart';
 
 class DetailSection extends StatefulWidget {
   final AdjustmentParams params;

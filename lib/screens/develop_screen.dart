@@ -48,7 +48,7 @@ import '../widgets/develop/histogram_panel.dart';
 import '../widgets/develop/histogram_info_combo.dart';
 import '../widgets/app/image_info_bar.dart';
 import '../widgets/develop/vertical_adjustment_panel.dart';
-import '../widgets/develop/sections/preset_section.dart';
+import '../widgets/develop/sections/preset/preset_section.dart';
 import '../widgets/tether/tether_widgets.dart';
 import 'settings_screen.dart';
 

@@ -12,7 +12,7 @@ import '../../widgets/develop/sections/shared.dart';
 
 /// 海绵工具设置面板
 ///
-/// - 激活切换 PillChip
+/// - 激活切换
 /// - 饱和/去饱和模式切换
 /// - 流量/半径/硬度滑块
 /// - 清除全部按钮
@@ -39,20 +39,11 @@ class SpongeSection extends ConsumerWidget {
         SectionLabel(title: 'sponge'),
 
         // 激活切换
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              PillChip(
-                icon: Icons.water_drop,
-                label: tr('spongeTitle'),
-                isActive: isActive,
-                onTap: () => notifier.setBrushMode(
-                  isActive ? SpongeBrushMode.inactive : SpongeBrushMode.active,
-                ),
-              ),
-              const Spacer(),
-            ],
+        SwitchTile.tile(
+          label: tr('spongeTitle'),
+          value: isActive,
+          onChanged: (_) => notifier.setBrushMode(
+            isActive ? SpongeBrushMode.inactive : SpongeBrushMode.active,
           ),
         ),
 

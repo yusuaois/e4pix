@@ -1,11 +1,11 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_colors.dart';
 
-import '../../../core/models/hsl_bands.dart';
-import '../../../core/theme/app_typography.dart';
-import '../tracked_slider.dart';
-import 'shared.dart';
+import '../../../../core/models/hsl_bands.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../tracked_slider.dart';
+import '../shared.dart';
 
 class HslSection extends StatefulWidget {
   final HslBands bands;

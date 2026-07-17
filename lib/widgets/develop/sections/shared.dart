@@ -100,11 +100,99 @@ class SectionLabel extends StatelessWidget {
   }
 }
 
+/// 开关磁贴
+///
+/// 统一的开关行组件，支持两种视觉变体：
+/// - [SwitchTile.tile] — 默认行式，匹配原标题样式
+/// - [SwitchTile.header] — 大写 header 样式，激活/非激活动态文字色
+class SwitchTile extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final EdgeInsetsGeometry padding;
+  final bool uppercase;
+  final TextStyle? textStyle;
+  final Color? activeColor;
+  final Color? inactiveColor;
+
+  const SwitchTile({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+    this.uppercase = false,
+    this.textStyle,
+    this.activeColor,
+    this.inactiveColor,
+  });
+
+  /// 默认行式开关（原 `_SwitchTile`）
+  factory SwitchTile.tile({
+    Key? key,
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return SwitchTile(
+      key: key,
+      label: label,
+      value: value,
+      onChanged: onChanged,
+    );
+  }
+
+  /// 大写 header 开关（原 `_SwitchHeader`）
+  factory SwitchTile.header({
+    Key? key,
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return SwitchTile(
+      key: key,
+      label: label,
+      value: value,
+      onChanged: onChanged,
+      padding: const EdgeInsets.fromLTRB(20, 10, 16, 4),
+      uppercase: true,
+      textStyle: AppTypography.labelSmall.copyWith(fontWeight: FontWeight.w600),
+      activeColor: AppColors.mediumText,
+      inactiveColor: AppColors.disabledText,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final displayLabel = uppercase ? label.toUpperCase() : label;
+
+    TextStyle effectiveStyle = textStyle ?? AppTypography.titleSmall;
+    if (activeColor != null || inactiveColor != null) {
+      effectiveStyle = effectiveStyle.copyWith(
+        color: value ? activeColor : inactiveColor,
+      );
+    }
+
+    return Padding(
+      padding: padding,
+      child: Row(
+        children: [
+          Expanded(child: Text(displayLabel, style: effectiveStyle)),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// 激活/非激活切换胶囊按钮
 ///
-/// 在画笔 Section 面板中用于切换工具激活状态和模式开关
-/// 激活状态下显示高亮背景、亮色边框和活跃文字色；
-/// 非激活状态下显示低调背景和暗色文字
+/// 用于二选一 / 多选一的互斥模式切换
+/// 激活/非激活总开关请使用 [SwitchTile]
 class PillChip extends StatelessWidget {
   final IconData icon;
   final String label;

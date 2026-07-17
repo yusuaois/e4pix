@@ -3,17 +3,17 @@ import 'dart:ui' as ui;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
-import '../../../core/constants/lut_formats.dart';
-import '../../../core/theme/app_typography.dart';
-import '../../../render/lut_texture_cache.dart';
-import '../../../services/lut/lut_library.dart';
-import '../../../state/providers.dart';
-import '../tracked_slider.dart';
-import 'shared.dart';
+import '../../../../core/constants/lut_formats.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../render/lut_texture_cache.dart';
+import '../../../../services/lut/lut_library.dart';
+import '../../../../state/providers.dart';
+import '../../tracked_slider.dart';
+import '../shared.dart';
 
 class LutSection extends ConsumerWidget {
   const LutSection({super.key});

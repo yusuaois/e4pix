@@ -14,7 +14,7 @@ import '../../widgets/develop/sections/shared.dart';
 ///
 /// 与图章/修复画笔一致的布局风格：
 /// - 标题
-/// - 激活切换 PillChip
+/// - 激活切换
 /// - 提示文字
 /// - 半径/硬度滑块
 /// - 清除全部按钮
@@ -42,20 +42,11 @@ class SpotHealSection extends ConsumerWidget {
         SectionLabel(title: 'spotHeal'),
 
         // ── 激活切换 ──
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              PillChip(
-                icon: Icons.auto_fix_normal,
-                label: tr('spotHealTitle'),
-                isActive: isActive,
-                onTap: () => notifier.setMode(
-                  isActive ? SpotHealMode.inactive : SpotHealMode.active,
-                ),
-              ),
-              const Spacer(),
-            ],
+        SwitchTile.tile(
+          label: tr('spotHealTitle'),
+          value: isActive,
+          onChanged: (_) => notifier.setMode(
+            isActive ? SpotHealMode.inactive : SpotHealMode.active,
           ),
         ),
 

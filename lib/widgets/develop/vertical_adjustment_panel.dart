@@ -10,7 +10,7 @@ import '../../core/theme/app_typography.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
 import 'sections/history_panel_sheet.dart';
-import 'sections/preset_section.dart';
+import 'sections/preset/preset_section.dart';
 
 /// 手机布局下的底部工具面板
 class VerticalAdjustmentPanel extends ConsumerStatefulWidget {

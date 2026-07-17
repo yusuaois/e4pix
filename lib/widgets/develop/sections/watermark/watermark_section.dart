@@ -1,15 +1,15 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/models/watermark_config.dart';
-import '../../../core/theme/app_typography.dart';
-import '../../../services/watermark/watermark_asset_manager.dart';
-import '../../../state/providers.dart';
-import '../../app/theme_color_picker.dart';
-import '../tracked_slider.dart';
-import 'shared.dart';
+import '../../../../core/models/watermark_config.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../services/watermark/watermark_asset_manager.dart';
+import '../../../../state/providers.dart';
+import '../../../app/theme_color_picker.dart';
+import '../../tracked_slider.dart';
+import '../shared.dart';
 
 class WatermarkSection extends ConsumerWidget {
   const WatermarkSection({super.key});
@@ -27,7 +27,7 @@ class WatermarkSection extends ConsumerWidget {
         children: [
           const SectionLabel(title: 'Watermark'),
           // ── 总开关 ──
-          _SwitchTile(
+          SwitchTile.tile(
             label: tr('watermarkEnable'),
             value: cfg.enabled,
             onChanged: (v) => set(cfg.copyWith(enabled: v)),
@@ -287,7 +287,7 @@ class WatermarkSection extends ConsumerWidget {
 
             // ═══════ EXIF ═══════
             SectionLabel(title: tr('watermarkSectionExifText')),
-            _SwitchTile(
+            SwitchTile.tile(
               label: tr('watermarkShowExif'),
               value: cfg.showExif,
               onChanged: (v) => set(cfg.copyWith(showExif: v)),
@@ -424,35 +424,6 @@ class WatermarkSection extends ConsumerWidget {
 }
 
 // ── 内部通用组件 ──
-
-/// 开关磁贴
-class _SwitchTile extends StatelessWidget {
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  const _SwitchTile({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: AppTypography.titleSmall)),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// 下拉选择 Tile
 class _DropdownTile<T> extends StatelessWidget {

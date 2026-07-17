@@ -12,7 +12,7 @@ import '../../widgets/develop/sections/shared.dart';
 
 /// 加深减淡设置面板（对齐 Photoshop）
 ///
-/// - 激活切换 PillChip
+/// - 激活切换
 /// - 减淡/加深模式切换
 /// - 阴影/中间调/高光范围选择
 /// - 曝光/半径/硬度滑块
@@ -41,22 +41,11 @@ class DodgeBurnSection extends ConsumerWidget {
         SectionLabel(title: 'dodgeBurn'),
 
         // ── 激活切换 ──
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              PillChip(
-                icon: Icons.tonality,
-                label: tr('dodgeBurnTitle'),
-                isActive: isActive,
-                onTap: () => notifier.setBrushMode(
-                  isActive
-                      ? DodgeBurnBrushMode.inactive
-                      : DodgeBurnBrushMode.active,
-                ),
-              ),
-              const Spacer(),
-            ],
+        SwitchTile.tile(
+          label: tr('dodgeBurnTitle'),
+          value: isActive,
+          onChanged: (_) => notifier.setBrushMode(
+            isActive ? DodgeBurnBrushMode.inactive : DodgeBurnBrushMode.active,
           ),
         ),
 

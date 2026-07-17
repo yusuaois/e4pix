@@ -2,12 +2,12 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/models/adjustment_params.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_typography.dart';
-import '../../../services/sr/sr_service.dart';
-import '../../../state/providers.dart';
-import 'shared.dart';
+import '../../../../core/models/adjustment_params.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../services/sr/sr_service.dart';
+import '../../../../state/providers.dart';
+import '../shared.dart';
 
 /// 超分辨率 Section
 ///
@@ -72,7 +72,7 @@ class _SrSectionState extends ConsumerState<SrSection> {
           const SectionLabel(title: 'Super Resolution'),
 
           // ── 总开关 ──
-          _SwitchTile(
+          SwitchTile.tile(
             label: tr('superResEnable'),
             value: p.srEnabled,
             onChanged: (v) {
@@ -123,7 +123,7 @@ class _SrSectionState extends ConsumerState<SrSection> {
             ),
 
             // 预览效果开关
-            _SwitchTile(
+            SwitchTile.tile(
               label: tr('superResPreview'),
               value: previewEnabled,
               onChanged: (v) {
@@ -166,35 +166,6 @@ class _SrSectionState extends ConsumerState<SrSection> {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-/// 开关磁贴
-class _SwitchTile extends StatelessWidget {
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  const _SwitchTile({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: AppTypography.titleSmall)),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
         ],
       ),
     );

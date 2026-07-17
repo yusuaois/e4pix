@@ -40,32 +40,19 @@ class HealingSection extends ConsumerWidget {
       children: [
         SectionLabel(title: 'healing'),
 
-        // ── Activation + Sampling ──
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              PillChip(
-                icon: Icons.healing,
-                label: tr('healingTitle'),
-                isActive: isActive,
-                onTap: () => notifier.setMode(
-                  isActive ? HealingMode.inactive : HealingMode.active,
-                ),
-              ),
-              if (isActive) ...[
-                const SizedBox(width: 8),
-                PillChip(
-                  icon: Icons.colorize,
-                  label: tr('healingSample'),
-                  isActive: isSampling,
-                  onTap: notifier.toggleSamplingButton,
-                ),
-              ],
-              const Spacer(),
-            ],
+        SwitchTile.tile(
+          label: tr('healingTitle'),
+          value: isActive,
+          onChanged: (_) => notifier.setMode(
+            isActive ? HealingMode.inactive : HealingMode.active,
           ),
         ),
+        if (isActive)
+          SwitchTile.tile(
+            label: tr('healingSample'),
+            value: isSampling,
+            onChanged: (_) => notifier.toggleSamplingButton(),
+          ),
 
         // ── Hint + sliders (active only) ──
         if (isActive) ...[

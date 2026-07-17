@@ -41,33 +41,19 @@ class SpotRemoveSection extends ConsumerWidget {
         SectionLabel(title: 'spotRemove'),
 
         // ── 激活切换 + 取样按钮 ──
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              // 激活按钮
-              PillChip(
-                icon: Icons.healing,
-                label: tr('spotRemoveTitle'),
-                isActive: isActive,
-                onTap: () => notifier.setMode(
-                  isActive ? SpotRemoveMode.inactive : SpotRemoveMode.active,
-                ),
-              ),
-              if (isActive) ...[
-                const SizedBox(width: 8),
-                // 取样按钮（手机用，hold 键按下时也亮起）
-                PillChip(
-                  icon: Icons.colorize,
-                  label: tr('spotRemoveSample'),
-                  isActive: isSampling,
-                  onTap: notifier.toggleSamplingButton,
-                ),
-              ],
-              const Spacer(),
-            ],
+        SwitchTile.tile(
+          label: tr('spotRemoveTitle'),
+          value: isActive,
+          onChanged: (_) => notifier.setMode(
+            isActive ? SpotRemoveMode.inactive : SpotRemoveMode.active,
           ),
         ),
+        if (isActive)
+          SwitchTile.tile(
+            label: tr('spotRemoveSample'),
+            value: isSampling,
+            onChanged: (_) => notifier.toggleSamplingButton(),
+          ),
 
         // ── 取样提示 + 半径滑块（激活时显示）──
         if (isActive) ...[

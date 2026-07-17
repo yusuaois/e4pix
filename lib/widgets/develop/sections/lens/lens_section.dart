@@ -2,13 +2,13 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/models/lens_correction_params.dart';
-import '../../../core/models/perspective_params.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_typography.dart';
-import '../../../services/lens/lensfun_database.dart';
-import '../../../state/providers.dart';
-import 'shared.dart';
+import '../../../../core/models/lens_correction_params.dart';
+import '../../../../core/models/perspective_params.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../services/lens/lensfun_database.dart';
+import '../../../../state/providers.dart';
+import '../shared.dart';
 
 class LensSection extends ConsumerStatefulWidget {
   const LensSection({super.key});
@@ -172,7 +172,7 @@ class _LensSectionState extends ConsumerState<LensSection> {
           ),
 
           // ── CA 色差校正 ──
-          _SwitchHeader(
+          SwitchTile.header(
             label: tr('lensCAEnabled'),
             value: lens.enabled,
             onChanged: (v) => _setLens(lens.copyWith(enabled: v)),
@@ -202,7 +202,7 @@ class _LensSectionState extends ConsumerState<LensSection> {
           ),
 
           // ── 畸变校正 ──
-          _SwitchHeader(
+          SwitchTile.header(
             label: tr('lensDistortionEnabled'),
             value: lens.distortionEnabled,
             onChanged: (v) => _setLens(lens.copyWith(distortionEnabled: v)),
@@ -241,7 +241,7 @@ class _LensSectionState extends ConsumerState<LensSection> {
           ),
 
           // ── 暗角校正 ──
-          _SwitchHeader(
+          SwitchTile.header(
             label: tr('lensVignettingEnabled'),
             value: lens.vignettingEnabled,
             onChanged: (v) => _setLens(lens.copyWith(vignettingEnabled: v)),
@@ -303,43 +303,6 @@ class _LensSectionState extends ConsumerState<LensSection> {
             onChanged: (v) => _setPersp(persp.withVerticalKeystone(v)),
           ),
           const SizedBox(height: 12),
-        ],
-      ),
-    );
-  }
-}
-
-class _SwitchHeader extends StatelessWidget {
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _SwitchHeader({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 16, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label.toUpperCase(),
-              style: AppTypography.labelSmall.copyWith(
-                fontWeight: FontWeight.w600,
-                color: value ? AppColors.mediumText : AppColors.disabledText,
-              ),
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
         ],
       ),
     );
