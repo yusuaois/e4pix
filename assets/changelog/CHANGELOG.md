@@ -2,7 +2,7 @@
 * **柱状图折叠**：横屏曲线模式下可手动收起柱状图，节省面板空间；收起后调出缩略条显示展开按钮；切离曲线模式自动恢复
 * **竖屏浮层泛化**：ActiveOverlay sealed class 替代硬编码的 CurveOverlay 判断，新增浮层无需修改 develop_screen 或 vertical_adjustment_panel
 * **Section 文件整理**：曲线相关文件收拢至 sections/light/ 子目录，删除旧 state/tools/curve_overlay_state.dart
-* * **曲线面板重设计**：竖屏改为浮层 overlay 模式，解决 section 收缩时控制点拖动被滚动拦截的缺陷；横屏统一入口为 Light 按钮，移除独立曲线 Tab/ToolRail 图标
+* **曲线面板重设计**：竖屏改为浮层 overlay 模式，解决 section 收缩时控制点拖动被滚动拦截的缺陷；横屏统一入口为 Light 按钮，移除独立曲线 Tab/ToolRail 图标
 * **UI精简**：删除侧边栏中的crop入口
 * **立方图**：优化立方图显示效果
 * **Info 面板重设计**：横屏下直方图和图片信息合并为可滑动切换的组合组件，释放 develop 工具区空间；Tool Rail 移除 info 入口

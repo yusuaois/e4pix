@@ -138,91 +138,94 @@ class PresetGrid extends ConsumerWidget {
           cacheNotifier.requestPreset(p.id, p.params);
         }
 
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SectionLabel(title: 'Preset'),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                      ),
-                      onPressed: () => showSavePresetDialog(context, notifier),
-                      child: Text(
-                        tr("saveCurrentAsPreset"),
-                        style: AppTypography.labelSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                      ),
-                      onPressed: () => importXmpPreset(context, ref),
-                      child: Text(
-                        tr("xmpImport"),
-                        style: AppTypography.labelSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+        return SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SectionLabel(title: 'Preset'),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                        ),
+                        onPressed: () =>
+                            showSavePresetDialog(context, notifier),
+                        child: Text(
+                          tr("saveCurrentAsPreset"),
+                          style: AppTypography.labelSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                      ),
-                      onPressed: () => exportXmpPreset(context, ref),
-                      child: Text(
-                        tr("exportPreset"),
-                        style: AppTypography.labelSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                        ),
+                        onPressed: () => importXmpPreset(context, ref),
+                        child: Text(
+                          tr("xmpImport"),
+                          style: AppTypography.labelSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                        ),
+                        onPressed: () => exportXmpPreset(context, ref),
+                        child: Text(
+                          tr("exportPreset"),
+                          style: AppTypography.labelSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 1.4,
+              const SizedBox(height: 4),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 1.4,
+                ),
+                itemCount: presets.length,
+                itemBuilder: (ctx, i) => _PresetCard(
+                  preset: presets[i],
+                  primary: primary,
+                  thumb: thumbs['preset:${presets[i].id}'],
+                  onTap: () => notifier.apply(presets[i].id),
+                  onLongPress: presets[i].isBuiltin
+                      ? null
+                      : () => showPresetOptions(context, ref, presets[i]),
+                ),
               ),
-              itemCount: presets.length,
-              itemBuilder: (ctx, i) => _PresetCard(
-                preset: presets[i],
-                primary: primary,
-                thumb: thumbs['preset:${presets[i].id}'],
-                onTap: () => notifier.apply(presets[i].id),
-                onLongPress: presets[i].isBuiltin
-                    ? null
-                    : () => showPresetOptions(context, ref, presets[i]),
-              ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );

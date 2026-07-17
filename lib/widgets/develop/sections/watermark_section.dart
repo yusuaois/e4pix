@@ -21,400 +21,404 @@ class WatermarkSection extends ConsumerWidget {
 
     void set(WatermarkConfig v) => notifier.update(v);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SectionLabel(title: 'Watermark'),
-        // ── 总开关 ──
-        _SwitchTile(
-          label: tr('watermarkEnable'),
-          value: cfg.enabled,
-          onChanged: (v) => set(cfg.copyWith(enabled: v)),
-        ),
-        if (!cfg.enabled)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-            child: Text(
-              tr('watermarkDisabledHint'),
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.disabledText,
-              ),
-            ),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionLabel(title: 'Watermark'),
+          // ── 总开关 ──
+          _SwitchTile(
+            label: tr('watermarkEnable'),
+            value: cfg.enabled,
+            onChanged: (v) => set(cfg.copyWith(enabled: v)),
           ),
-
-        // ── 以下仅在水印开启时显示 ──
-        if (cfg.enabled) ...[
-          const SizedBox(height: 4),
-
-          // ═══════ 背景 ═══════
-          SectionLabel(title: tr('watermarkSectionBackground')),
-          _DropdownTile<BackgroundType>(
-            label: tr('watermarkBackgroundType'),
-            value: cfg.backgroundType,
-            items: [
-              DropdownMenuItem(
-                value: BackgroundType.blurredOriginal,
-                child: _DropLabel(tr('watermarkBgBlurred')),
-              ),
-              DropdownMenuItem(
-                value: BackgroundType.solidColor,
-                child: _DropLabel(tr('watermarkBgSolid')),
-              ),
-              DropdownMenuItem(
-                value: BackgroundType.image,
-                child: _DropLabel(tr('watermarkBgCustomImage')),
-              ),
-            ],
-            onChanged: (v) =>
-                v != null ? set(cfg.copyWith(backgroundType: v)) : null,
-          ),
-          if (cfg.backgroundType == BackgroundType.solidColor)
-            _ColorTile(
-              label: tr('watermarkBgColor'),
-              color: cfg.backgroundColor,
-              onChanged: (c) => set(cfg.copyWith(backgroundColor: c)),
-            ),
-          if (cfg.backgroundType == BackgroundType.image) ...[
-            const SizedBox(height: 6),
-            _ImportTile(
-              label: tr('watermarkImportImage'),
-              currentFile: cfg.customBackgroundPath,
-              onImport: () async {
-                final name =
-                    await WatermarkAssetManager.pickAndSaveCustomImage();
-                if (name != null) {
-                  set(cfg.copyWith(customBackgroundPath: name));
-                }
-              },
-              onClear: () => set(cfg.copyWith(clearCustomBg: true)),
-            ),
-          ],
-          _DropdownTile<CanvasAspectRatio>(
-            label: tr('watermarkCanvasRatio'),
-            value: cfg.canvasAspectRatio,
-            items: CanvasAspectRatio.values.map((r) {
-              return DropdownMenuItem(
-                value: r,
-                child: _DropLabel(r.displayLabel),
-              );
-            }).toList(),
-            onChanged: (v) =>
-                v != null ? set(cfg.copyWith(canvasAspectRatio: v)) : null,
-          ),
-
-          const SizedBox(height: 8),
-
-          // ═══════ 布局 ═══════
-          SectionLabel(title: tr('watermarkSectionLayout')),
-          DevelopSliderTile(
-            label: tr('watermarkBlur'),
-            value: cfg.blurRadius,
-            min: 0,
-            max: 100,
-            suffix: ' px',
-            onChanged: (v) => set(cfg.copyWith(blurRadius: v)),
-          ),
-          DevelopSliderTile(
-            label: tr('watermarkBorderWidth'),
-            value: cfg.borderWidth,
-            min: 20,
-            max: 200,
-            suffix: ' px',
-            onChanged: (v) => set(cfg.copyWith(borderWidth: v)),
-          ),
-          DevelopSliderTile(
-            label: tr('watermarkImageScale'),
-            value: cfg.imageScale,
-            min: 0,
-            max: 1.0,
-            suffix: '%',
-            fractionDigits: 0,
-            onChanged: (v) => set(cfg.copyWith(imageScale: v)),
-          ),
-
-          const SizedBox(height: 8),
-
-          // ═══════ 质感 ═══════
-          SectionLabel(title: tr('watermarkSectionTexture')),
-          DevelopSliderTile(
-            label: tr('watermarkCornerRadius'),
-            value: cfg.cornerRadius,
-            min: 0,
-            max: 100,
-            suffix: ' px',
-            onChanged: (v) => set(cfg.copyWith(cornerRadius: v)),
-          ),
-          _ShadowIntensityTile(
-            label: tr('watermarkShadowIntensity'),
-            value: cfg.shadowIntensity,
-            onChanged: (v) => set(cfg.copyWith(shadowIntensity: v)),
-          ),
-
-          const SizedBox(height: 8),
-
-          // ═══════ 信息层位置 ═══════
-          SectionLabel(title: tr('watermarkSectionInfoPos')),
-          _DropdownTile<InfoPlacement>(
-            label: tr('watermarkInfoPlacement'),
-            value: cfg.infoPlacement,
-            items: [
-              DropdownMenuItem(
-                value: InfoPlacement.above,
-                child: _DropLabel(tr('watermarkInfoAbove')),
-              ),
-              DropdownMenuItem(
-                value: InfoPlacement.below,
-                child: _DropLabel(tr('watermarkInfoBelow')),
-              ),
-              DropdownMenuItem(
-                value: InfoPlacement.overlayTopLeft,
-                child: _DropLabel(tr('watermarkInfoOverlayTL')),
-              ),
-              DropdownMenuItem(
-                value: InfoPlacement.overlayTopRight,
-                child: _DropLabel(tr('watermarkInfoOverlayTR')),
-              ),
-              DropdownMenuItem(
-                value: InfoPlacement.overlayBottomLeft,
-                child: _DropLabel(tr('watermarkInfoOverlayBL')),
-              ),
-              DropdownMenuItem(
-                value: InfoPlacement.overlayBottomRight,
-                child: _DropLabel(tr('watermarkInfoOverlayBR')),
-              ),
-            ],
-            onChanged: (v) =>
-                v != null ? set(cfg.copyWith(infoPlacement: v)) : null,
-          ),
-
-          const SizedBox(height: 8),
-
-          // ═══════ Logo ═══════
-          SectionLabel(title: tr('watermarkSectionLogo')),
-          _DropdownTile<LogoSource>(
-            label: tr('watermarkLogoSource'),
-            value: cfg.logoSource,
-            items: [
-              DropdownMenuItem(
-                value: LogoSource.builtin,
-                child: _DropLabel(tr('watermarkLogoBuiltin')),
-              ),
-              DropdownMenuItem(
-                value: LogoSource.custom,
-                child: _DropLabel(tr('watermarkLogoCustom')),
-              ),
-            ],
-            onChanged: (v) =>
-                v != null ? set(cfg.copyWith(logoSource: v)) : null,
-          ),
-          if (cfg.logoSource == LogoSource.builtin) ...[
-            _DropdownTile<String>(
-              label: tr('watermarkLogoBrand'),
-              value: cfg.logoBrand,
-              items: [
-                DropdownMenuItem<String>(
-                  value: null,
-                  child: _DropLabel(tr('watermarkLogoNone')),
+          if (!cfg.enabled)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Text(
+                tr('watermarkDisabledHint'),
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.disabledText,
                 ),
-                ...kAvailableLogoBrands.map(
-                  (b) => DropdownMenuItem<String>(
-                    value: b,
-                    child: _DropLabel(b[0].toUpperCase() + b.substring(1)),
+              ),
+            ),
+
+          // ── 以下仅在水印开启时显示 ──
+          if (cfg.enabled) ...[
+            const SizedBox(height: 4),
+
+            // ═══════ 背景 ═══════
+            SectionLabel(title: tr('watermarkSectionBackground')),
+            _DropdownTile<BackgroundType>(
+              label: tr('watermarkBackgroundType'),
+              value: cfg.backgroundType,
+              items: [
+                DropdownMenuItem(
+                  value: BackgroundType.blurredOriginal,
+                  child: _DropLabel(tr('watermarkBgBlurred')),
+                ),
+                DropdownMenuItem(
+                  value: BackgroundType.solidColor,
+                  child: _DropLabel(tr('watermarkBgSolid')),
+                ),
+                DropdownMenuItem(
+                  value: BackgroundType.image,
+                  child: _DropLabel(tr('watermarkBgCustomImage')),
+                ),
+              ],
+              onChanged: (v) =>
+                  v != null ? set(cfg.copyWith(backgroundType: v)) : null,
+            ),
+            if (cfg.backgroundType == BackgroundType.solidColor)
+              _ColorTile(
+                label: tr('watermarkBgColor'),
+                color: cfg.backgroundColor,
+                onChanged: (c) => set(cfg.copyWith(backgroundColor: c)),
+              ),
+            if (cfg.backgroundType == BackgroundType.image) ...[
+              const SizedBox(height: 6),
+              _ImportTile(
+                label: tr('watermarkImportImage'),
+                currentFile: cfg.customBackgroundPath,
+                onImport: () async {
+                  final name =
+                      await WatermarkAssetManager.pickAndSaveCustomImage();
+                  if (name != null) {
+                    set(cfg.copyWith(customBackgroundPath: name));
+                  }
+                },
+                onClear: () => set(cfg.copyWith(clearCustomBg: true)),
+              ),
+            ],
+            _DropdownTile<CanvasAspectRatio>(
+              label: tr('watermarkCanvasRatio'),
+              value: cfg.canvasAspectRatio,
+              items: CanvasAspectRatio.values.map((r) {
+                return DropdownMenuItem(
+                  value: r,
+                  child: _DropLabel(r.displayLabel),
+                );
+              }).toList(),
+              onChanged: (v) =>
+                  v != null ? set(cfg.copyWith(canvasAspectRatio: v)) : null,
+            ),
+
+            const SizedBox(height: 8),
+
+            // ═══════ 布局 ═══════
+            SectionLabel(title: tr('watermarkSectionLayout')),
+            DevelopSliderTile(
+              label: tr('watermarkBlur'),
+              value: cfg.blurRadius,
+              min: 0,
+              max: 100,
+              suffix: ' px',
+              onChanged: (v) => set(cfg.copyWith(blurRadius: v)),
+            ),
+            DevelopSliderTile(
+              label: tr('watermarkBorderWidth'),
+              value: cfg.borderWidth,
+              min: 20,
+              max: 200,
+              suffix: ' px',
+              onChanged: (v) => set(cfg.copyWith(borderWidth: v)),
+            ),
+            DevelopSliderTile(
+              label: tr('watermarkImageScale'),
+              value: cfg.imageScale,
+              min: 0,
+              max: 1.0,
+              suffix: '%',
+              fractionDigits: 0,
+              onChanged: (v) => set(cfg.copyWith(imageScale: v)),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ═══════ 质感 ═══════
+            SectionLabel(title: tr('watermarkSectionTexture')),
+            DevelopSliderTile(
+              label: tr('watermarkCornerRadius'),
+              value: cfg.cornerRadius,
+              min: 0,
+              max: 100,
+              suffix: ' px',
+              onChanged: (v) => set(cfg.copyWith(cornerRadius: v)),
+            ),
+            _ShadowIntensityTile(
+              label: tr('watermarkShadowIntensity'),
+              value: cfg.shadowIntensity,
+              onChanged: (v) => set(cfg.copyWith(shadowIntensity: v)),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ═══════ 信息层位置 ═══════
+            SectionLabel(title: tr('watermarkSectionInfoPos')),
+            _DropdownTile<InfoPlacement>(
+              label: tr('watermarkInfoPlacement'),
+              value: cfg.infoPlacement,
+              items: [
+                DropdownMenuItem(
+                  value: InfoPlacement.above,
+                  child: _DropLabel(tr('watermarkInfoAbove')),
+                ),
+                DropdownMenuItem(
+                  value: InfoPlacement.below,
+                  child: _DropLabel(tr('watermarkInfoBelow')),
+                ),
+                DropdownMenuItem(
+                  value: InfoPlacement.overlayTopLeft,
+                  child: _DropLabel(tr('watermarkInfoOverlayTL')),
+                ),
+                DropdownMenuItem(
+                  value: InfoPlacement.overlayTopRight,
+                  child: _DropLabel(tr('watermarkInfoOverlayTR')),
+                ),
+                DropdownMenuItem(
+                  value: InfoPlacement.overlayBottomLeft,
+                  child: _DropLabel(tr('watermarkInfoOverlayBL')),
+                ),
+                DropdownMenuItem(
+                  value: InfoPlacement.overlayBottomRight,
+                  child: _DropLabel(tr('watermarkInfoOverlayBR')),
+                ),
+              ],
+              onChanged: (v) =>
+                  v != null ? set(cfg.copyWith(infoPlacement: v)) : null,
+            ),
+
+            const SizedBox(height: 8),
+
+            // ═══════ Logo ═══════
+            SectionLabel(title: tr('watermarkSectionLogo')),
+            _DropdownTile<LogoSource>(
+              label: tr('watermarkLogoSource'),
+              value: cfg.logoSource,
+              items: [
+                DropdownMenuItem(
+                  value: LogoSource.builtin,
+                  child: _DropLabel(tr('watermarkLogoBuiltin')),
+                ),
+                DropdownMenuItem(
+                  value: LogoSource.custom,
+                  child: _DropLabel(tr('watermarkLogoCustom')),
+                ),
+              ],
+              onChanged: (v) =>
+                  v != null ? set(cfg.copyWith(logoSource: v)) : null,
+            ),
+            if (cfg.logoSource == LogoSource.builtin) ...[
+              _DropdownTile<String>(
+                label: tr('watermarkLogoBrand'),
+                value: cfg.logoBrand,
+                items: [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: _DropLabel(tr('watermarkLogoNone')),
+                  ),
+                  ...kAvailableLogoBrands.map(
+                    (b) => DropdownMenuItem<String>(
+                      value: b,
+                      child: _DropLabel(b[0].toUpperCase() + b.substring(1)),
+                    ),
+                  ),
+                ],
+                onChanged: (v) =>
+                    set(cfg.copyWith(logoBrand: v, clearLogoBrand: v == null)),
+              ),
+            ],
+            if (cfg.logoSource == LogoSource.custom)
+              _ImportTile(
+                label: tr('watermarkImportLogo'),
+                currentFile: cfg.customLogoPath,
+                onImport: () async {
+                  final name =
+                      await WatermarkAssetManager.pickAndSaveCustomImage();
+                  if (name != null) {
+                    set(cfg.copyWith(customLogoPath: name));
+                  }
+                },
+                onClear: () => set(cfg.copyWith(clearCustomLogo: true)),
+              ),
+            if ((cfg.logoSource == LogoSource.builtin &&
+                    cfg.logoBrand != null) ||
+                (cfg.logoSource == LogoSource.custom &&
+                    cfg.customLogoPath != null)) ...[
+              DevelopSliderTile(
+                label: tr('watermarkLogoSize'),
+                value: cfg.logoSize,
+                min: 0.1,
+                max: 1.0,
+                fractionDigits: 2,
+                onChanged: (v) => set(cfg.copyWith(logoSize: v)),
+              ),
+              DevelopSliderTile(
+                label: tr('watermarkLogoOpacity'),
+                value: cfg.logoOpacity,
+                min: 0.0,
+                max: 1.0,
+                fractionDigits: 2,
+                onChanged: (v) => set(cfg.copyWith(logoOpacity: v)),
+              ),
+            ],
+
+            const SizedBox(height: 8),
+
+            // ═══════ Light / Dark ═══════
+            SectionLabel(title: tr('watermarkSectionColorMode')),
+            _SegmentedTile<WatermarkColorMode>(
+              label: tr('watermarkColorMode'),
+              value: cfg.colorMode,
+              items: [
+                _SegItem(
+                  value: WatermarkColorMode.light,
+                  label: tr('watermarkColorLight'),
+                ),
+                _SegItem(
+                  value: WatermarkColorMode.dark,
+                  label: tr('watermarkColorDark'),
+                ),
+              ],
+              onChanged: (v) => set(cfg.copyWith(colorMode: v)),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ═══════ EXIF ═══════
+            SectionLabel(title: tr('watermarkSectionExifText')),
+            _SwitchTile(
+              label: tr('watermarkShowExif'),
+              value: cfg.showExif,
+              onChanged: (v) => set(cfg.copyWith(showExif: v)),
+            ),
+            if (cfg.showExif) ...[
+              _SegmentedTile<ExifMode>(
+                label: tr('watermarkExifMode'),
+                value: cfg.exifMode,
+                items: [
+                  _SegItem(
+                    value: ExifMode.auto,
+                    label: tr('watermarkExifModeAuto'),
+                  ),
+                  _SegItem(
+                    value: ExifMode.custom,
+                    label: tr('watermarkExifModeCustom'),
+                  ),
+                ],
+                onChanged: (v) => set(cfg.copyWith(exifMode: v)),
+              ),
+              // EXIF 字段选择（仅自动模式）
+              if (cfg.exifMode == ExifMode.auto)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 2,
+                  ),
+                  child: Wrap(
+                    spacing: 4,
+                    runSpacing: 2,
+                    children: ExifField.values.map((field) {
+                      final selected =
+                          cfg.enabledExifFields.isEmpty ||
+                          cfg.enabledExifFields.contains(field);
+                      return _ExifFieldChip(
+                        label: field.displayLabelKey.tr(),
+                        selected: selected,
+                        onTap: () {
+                          final s = Set<ExifField>.from(cfg.enabledExifFields);
+                          if (cfg.enabledExifFields.isEmpty) {
+                            // 当前全选 → 反选：只保留被点击的这一个
+                            s.addAll(ExifField.values);
+                            s.remove(field);
+                          } else if (selected) {
+                            s.remove(field);
+                            if (s.isEmpty) {
+                              // 全部取消 = 空集 = 全选
+                              set(cfg.copyWith(clearExifFields: true));
+                              return;
+                            }
+                          } else {
+                            s.add(field);
+                            if (s.length == ExifField.values.length) {
+                              set(cfg.copyWith(clearExifFields: true));
+                              return;
+                            }
+                          }
+                          set(cfg.copyWith(enabledExifFields: s));
+                        },
+                      );
+                    }).toList(),
                   ),
                 ),
-              ],
-              onChanged: (v) =>
-                  set(cfg.copyWith(logoBrand: v, clearLogoBrand: v == null)),
-            ),
-          ],
-          if (cfg.logoSource == LogoSource.custom)
-            _ImportTile(
-              label: tr('watermarkImportLogo'),
-              currentFile: cfg.customLogoPath,
-              onImport: () async {
-                final name =
-                    await WatermarkAssetManager.pickAndSaveCustomImage();
-                if (name != null) {
-                  set(cfg.copyWith(customLogoPath: name));
-                }
-              },
-              onClear: () => set(cfg.copyWith(clearCustomLogo: true)),
-            ),
-          if ((cfg.logoSource == LogoSource.builtin && cfg.logoBrand != null) ||
-              (cfg.logoSource == LogoSource.custom &&
-                  cfg.customLogoPath != null)) ...[
-            DevelopSliderTile(
-              label: tr('watermarkLogoSize'),
-              value: cfg.logoSize,
-              min: 0.1,
-              max: 1.0,
-              fractionDigits: 2,
-              onChanged: (v) => set(cfg.copyWith(logoSize: v)),
-            ),
-            DevelopSliderTile(
-              label: tr('watermarkLogoOpacity'),
-              value: cfg.logoOpacity,
-              min: 0.0,
-              max: 1.0,
-              fractionDigits: 2,
-              onChanged: (v) => set(cfg.copyWith(logoOpacity: v)),
-            ),
-          ],
-
-          const SizedBox(height: 8),
-
-          // ═══════ Light / Dark ═══════
-          SectionLabel(title: tr('watermarkSectionColorMode')),
-          _SegmentedTile<WatermarkColorMode>(
-            label: tr('watermarkColorMode'),
-            value: cfg.colorMode,
-            items: [
-              _SegItem(
-                value: WatermarkColorMode.light,
-                label: tr('watermarkColorLight'),
+              if (cfg.exifMode == ExifMode.custom)
+                _ExifTextField(
+                  initialText: cfg.customExifText,
+                  onChanged: (v) {
+                    set(
+                      cfg.copyWith(
+                        customExifText: v.isEmpty ? null : v,
+                        clearCustomExif: v.isEmpty,
+                      ),
+                    );
+                  },
+                ),
+              _FontFamilyTile(
+                label: tr('watermarkFontFamily'),
+                value: cfg.fontFamily,
+                onChanged: (v) => set(
+                  cfg.copyWith(fontFamily: v, clearFontFamily: v == null),
+                ),
               ),
-              _SegItem(
-                value: WatermarkColorMode.dark,
-                label: tr('watermarkColorDark'),
+              DevelopSliderTile(
+                label: tr('watermarkFontSize'),
+                value: cfg.fontSize,
+                min: 8,
+                max: 36,
+                suffix: ' pt',
+                onChanged: (v) => set(cfg.copyWith(fontSize: v)),
+              ),
+              _FontWeightTile(
+                label: tr('watermarkFontWeight'),
+                value: cfg.fontWeightIndex,
+                onChanged: (v) => set(cfg.copyWith(fontWeightIndex: v)),
+              ),
+              DevelopSliderTile(
+                label: tr('watermarkTextOpacity'),
+                value: cfg.textOpacity,
+                min: 0.0,
+                max: 1.0,
+                fractionDigits: 2,
+                onChanged: (v) => set(cfg.copyWith(textOpacity: v)),
+              ),
+              DevelopSliderTile(
+                label: tr('watermarkTextPadding'),
+                value: cfg.textPadding,
+                min: 4,
+                max: 60,
+                suffix: ' px',
+                onChanged: (v) => set(cfg.copyWith(textPadding: v)),
               ),
             ],
-            onChanged: (v) => set(cfg.copyWith(colorMode: v)),
-          ),
 
-          const SizedBox(height: 8),
-
-          // ═══════ EXIF ═══════
-          SectionLabel(title: tr('watermarkSectionExifText')),
-          _SwitchTile(
-            label: tr('watermarkShowExif'),
-            value: cfg.showExif,
-            onChanged: (v) => set(cfg.copyWith(showExif: v)),
-          ),
-          if (cfg.showExif) ...[
-            _SegmentedTile<ExifMode>(
-              label: tr('watermarkExifMode'),
-              value: cfg.exifMode,
-              items: [
-                _SegItem(
-                  value: ExifMode.auto,
-                  label: tr('watermarkExifModeAuto'),
-                ),
-                _SegItem(
-                  value: ExifMode.custom,
-                  label: tr('watermarkExifModeCustom'),
-                ),
-              ],
-              onChanged: (v) => set(cfg.copyWith(exifMode: v)),
-            ),
-            // EXIF 字段选择（仅自动模式）
-            if (cfg.exifMode == ExifMode.auto)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 2,
-                ),
-                child: Wrap(
-                  spacing: 4,
-                  runSpacing: 2,
-                  children: ExifField.values.map((field) {
-                    final selected =
-                        cfg.enabledExifFields.isEmpty ||
-                        cfg.enabledExifFields.contains(field);
-                    return _ExifFieldChip(
-                      label: field.displayLabelKey.tr(),
-                      selected: selected,
-                      onTap: () {
-                        final s = Set<ExifField>.from(cfg.enabledExifFields);
-                        if (cfg.enabledExifFields.isEmpty) {
-                          // 当前全选 → 反选：只保留被点击的这一个
-                          s.addAll(ExifField.values);
-                          s.remove(field);
-                        } else if (selected) {
-                          s.remove(field);
-                          if (s.isEmpty) {
-                            // 全部取消 = 空集 = 全选
-                            set(cfg.copyWith(clearExifFields: true));
-                            return;
-                          }
-                        } else {
-                          s.add(field);
-                          if (s.length == ExifField.values.length) {
-                            set(cfg.copyWith(clearExifFields: true));
-                            return;
-                          }
-                        }
-                        set(cfg.copyWith(enabledExifFields: s));
-                      },
-                    );
-                  }).toList(),
+            const SizedBox(height: 12),
+            // ── 重置按钮 ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: OutlinedButton.icon(
+                onPressed: () => notifier.reset(),
+                icon: const Icon(Icons.refresh, size: 16),
+                label: Text(tr('reset')),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppColors.lightBorder),
+                  foregroundColor: AppColors.mediumText,
                 ),
               ),
-            if (cfg.exifMode == ExifMode.custom)
-              _ExifTextField(
-                initialText: cfg.customExifText,
-                onChanged: (v) {
-                  set(
-                    cfg.copyWith(
-                      customExifText: v.isEmpty ? null : v,
-                      clearCustomExif: v.isEmpty,
-                    ),
-                  );
-                },
-              ),
-            _FontFamilyTile(
-              label: tr('watermarkFontFamily'),
-              value: cfg.fontFamily,
-              onChanged: (v) =>
-                  set(cfg.copyWith(fontFamily: v, clearFontFamily: v == null)),
             ),
-            DevelopSliderTile(
-              label: tr('watermarkFontSize'),
-              value: cfg.fontSize,
-              min: 8,
-              max: 36,
-              suffix: ' pt',
-              onChanged: (v) => set(cfg.copyWith(fontSize: v)),
-            ),
-            _FontWeightTile(
-              label: tr('watermarkFontWeight'),
-              value: cfg.fontWeightIndex,
-              onChanged: (v) => set(cfg.copyWith(fontWeightIndex: v)),
-            ),
-            DevelopSliderTile(
-              label: tr('watermarkTextOpacity'),
-              value: cfg.textOpacity,
-              min: 0.0,
-              max: 1.0,
-              fractionDigits: 2,
-              onChanged: (v) => set(cfg.copyWith(textOpacity: v)),
-            ),
-            DevelopSliderTile(
-              label: tr('watermarkTextPadding'),
-              value: cfg.textPadding,
-              min: 4,
-              max: 60,
-              suffix: ' px',
-              onChanged: (v) => set(cfg.copyWith(textPadding: v)),
-            ),
+            const SizedBox(height: 24),
           ],
-
-          const SizedBox(height: 12),
-          // ── 重置按钮 ──
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: OutlinedButton.icon(
-              onPressed: () => notifier.reset(),
-              icon: const Icon(Icons.refresh, size: 16),
-              label: Text(tr('reset')),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.lightBorder),
-                foregroundColor: AppColors.mediumText,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
         ],
-      ],
+      ),
     );
   }
 }

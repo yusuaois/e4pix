@@ -12,15 +12,6 @@ import 'develop_sections.dart';
 import 'sections/history_panel_sheet.dart';
 import 'sections/preset_section.dart';
 
-/// 退出画笔/智能/主体工具
-void _exitLocalTool(WidgetRef ref) {
-  ref.read(selectedLocalIdProvider.notifier).set(null);
-  final mode = ref.read(brushSettingsProvider).mode;
-  if (mode != BrushMode.paint) {
-    ref.read(brushSettingsProvider.notifier).setMode(BrushMode.paint);
-  }
-}
-
 /// 手机布局下的底部工具面板
 class VerticalAdjustmentPanel extends ConsumerStatefulWidget {
   final ValueChanged<AdjustmentParams> onChanged;
@@ -56,7 +47,7 @@ class _VerticalAdjustmentPanelState
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
     if (_tabController.index != _localTabIndex) {
-      _exitLocalTool(ref);
+      exitLocalTool(ref);
     }
     // Deactivate any brush whose tab is being left.
     for (int i = 0; i < brushManifests.length; i++) {
@@ -152,70 +143,37 @@ class _VerticalAdjustmentPanelState
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  SingleChildScrollView(
-                    child: LightSection(
-                      params: params,
-                      onChanged: widget.onChanged,
-                      onCurveTap: () {
-                        ref
-                            .read(activeOverlayProvider.notifier)
-                            .open(const CurveActiveOverlay(channel: 0));
-                      },
-                    ),
+                  LightSection(
+                    params: params,
+                    onChanged: widget.onChanged,
+                    curveMode: CurveMode.overlay,
                   ),
-                  SingleChildScrollView(
-                    child: WhiteBalanceColorSection(
-                      params: params,
-                      onChanged: widget.onChanged,
-                    ),
+                  WhiteBalanceColorSection(
+                    params: params,
+                    onChanged: widget.onChanged,
                   ),
-                  SingleChildScrollView(
-                    child: HslSection(
-                      bands: params.hsl,
-                      onChanged: (b) =>
-                          widget.onChanged(params.copyWith(hsl: b)),
-                    ),
+                  HslSection(
+                    bands: params.hsl,
+                    onChanged: (b) => widget.onChanged(params.copyWith(hsl: b)),
                   ),
-                  SingleChildScrollView(child: const LutSection()),
+                  const LutSection(),
                   // 以下 4 个 Tab 较重，延迟到首帧结束后构建
                   _LazyBuild(
-                    builder: (_) => SingleChildScrollView(
-                      child: DetailSection(
-                        params: params,
-                        onChanged: widget.onChanged,
-                      ),
+                    builder: (_) => DetailSection(
+                      params: params,
+                      onChanged: widget.onChanged,
                     ),
                   ),
-                  _LazyBuild(
-                    builder: (_) =>
-                        const SingleChildScrollView(child: PresetGrid()),
-                  ),
-                  _LazyBuild(
-                    builder: (_) =>
-                        const SingleChildScrollView(child: LocalPanel()),
-                  ),
+                  _LazyBuild(builder: (_) => const PresetGrid()),
+                  _LazyBuild(builder: (_) => const LocalPanel()),
                   for (final m in brushManifests)
-                    _LazyBuild(
-                      builder: (_) => SingleChildScrollView(
-                        child: _brushSection(m.tool, params),
-                      ),
-                    ),
+                    _LazyBuild(builder: (_) => _brushSection(m.tool, params)),
+                  _LazyBuild(builder: (_) => const LensSection()),
                   _LazyBuild(
                     builder: (_) =>
-                        const SingleChildScrollView(child: LensSection()),
+                        SrSection(params: params, onChanged: widget.onChanged),
                   ),
-                  _LazyBuild(
-                    builder: (_) => SingleChildScrollView(
-                      child: SrSection(
-                        params: params,
-                        onChanged: widget.onChanged,
-                      ),
-                    ),
-                  ),
-                  _LazyBuild(
-                    builder: (_) =>
-                        const SingleChildScrollView(child: WatermarkSection()),
-                  ),
+                  _LazyBuild(builder: (_) => const WatermarkSection()),
                 ],
               ),
             ),

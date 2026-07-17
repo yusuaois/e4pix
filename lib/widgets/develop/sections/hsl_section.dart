@@ -58,51 +58,53 @@ class _HslSectionState extends State<HslSection> {
   @override
   Widget build(BuildContext context) {
     final values = _values();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionLabel(
-          title: 'HSL / Color',
-          trailing: !widget.bands.isNeutral
-              ? GestureDetector(
-                  onTap: () => widget.onChanged(HslBands.neutral),
-                  child: Text(
-                    tr('reset'),
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.faintText,
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionLabel(
+            title: 'HSL / Color',
+            trailing: !widget.bands.isNeutral
+                ? GestureDetector(
+                    onTap: () => widget.onChanged(HslBands.neutral),
+                    child: Text(
+                      tr('reset'),
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.faintText,
+                      ),
                     ),
-                  ),
-                )
-              : null,
-        ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SegmentedButton<int>(
-            style: SegmentedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              textStyle: AppTypography.bodySmall,
+                  )
+                : null,
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SegmentedButton<int>(
+              style: SegmentedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                textStyle: AppTypography.bodySmall,
+              ),
+              segments: [
+                ButtonSegment(value: 0, label: Text(tr("hue"))),
+                ButtonSegment(value: 1, label: Text(tr("sat"))),
+                ButtonSegment(value: 2, label: Text(tr("lum"))),
+              ],
+              selected: {_mode},
+              onSelectionChanged: (s) => setState(() => _mode = s.first),
             ),
-            segments: [
-              ButtonSegment(value: 0, label: Text(tr("hue"))),
-              ButtonSegment(value: 1, label: Text(tr("sat"))),
-              ButtonSegment(value: 2, label: Text(tr("lum"))),
-            ],
-            selected: {_mode},
-            onSelectionChanged: (s) => setState(() => _mode = s.first),
           ),
-        ),
-        const SizedBox(height: 8),
-        ...List.generate(
-          8,
-          (i) => _BandRow(
-            color: _bandColors[i],
-            label: _bandLabels[i],
-            value: values[i],
-            onChanged: (v) => _setValue(i, v),
+          const SizedBox(height: 8),
+          ...List.generate(
+            8,
+            (i) => _BandRow(
+              color: _bandColors[i],
+              label: _bandLabels[i],
+              value: values[i],
+              onChanged: (v) => _setValue(i, v),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

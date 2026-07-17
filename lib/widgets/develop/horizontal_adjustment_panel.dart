@@ -11,15 +11,6 @@ import 'develop_sections.dart';
 import 'sections/history_panel_sheet.dart';
 import 'sections/preset_section.dart';
 
-/// 退出画笔/智能/主体工具
-void _exitLocalTool(WidgetRef ref) {
-  ref.read(selectedLocalIdProvider.notifier).set(null);
-  final mode = ref.read(brushSettingsProvider).mode;
-  if (mode != BrushMode.paint) {
-    ref.read(brushSettingsProvider.notifier).setMode(BrushMode.paint);
-  }
-}
-
 class HorizontalAdjustmentPanel extends ConsumerWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
@@ -45,49 +36,34 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
     }
     switch (tool) {
       case DevelopTool.light:
-        return SingleChildScrollView(
-          child: LightSection(
-            params: params,
-            onChanged: onChanged,
-            onCurveTap: () {
-              if (!ref.read(histogramCollapsedProvider)) {
-                ref.read(histogramCollapsedProvider.notifier).toggle();
-              }
-              ref.read(developToolProvider.notifier).set(DevelopTool.curve);
-            },
-          ),
+        return LightSection(
+          params: params,
+          onChanged: onChanged,
+          curveMode: CurveMode.inline,
         );
       case DevelopTool.color:
-        return SingleChildScrollView(
-          child: WhiteBalanceColorSection(params: params, onChanged: onChanged),
-        );
+        return WhiteBalanceColorSection(params: params, onChanged: onChanged);
       case DevelopTool.curve:
-        return CurveSection(onDone: onCurveDone);
+        return CurveSection(onDone: onCurveDone, standalone: true);
       case DevelopTool.hsl:
-        return SingleChildScrollView(
-          child: HslSection(
-            bands: params.hsl,
-            onChanged: (b) => onChanged(params.copyWith(hsl: b)),
-          ),
+        return HslSection(
+          bands: params.hsl,
+          onChanged: (b) => onChanged(params.copyWith(hsl: b)),
         );
       case DevelopTool.lut:
-        return const SingleChildScrollView(child: LutSection());
+        return const LutSection();
       case DevelopTool.detail:
-        return SingleChildScrollView(
-          child: DetailSection(params: params, onChanged: onChanged),
-        );
+        return DetailSection(params: params, onChanged: onChanged);
       case DevelopTool.preset:
-        return const SingleChildScrollView(child: PresetGrid());
+        return const PresetGrid();
       case DevelopTool.local:
-        return const SingleChildScrollView(child: LocalPanel());
+        return const LocalPanel();
       case DevelopTool.watermark:
-        return const SingleChildScrollView(child: WatermarkSection());
+        return const WatermarkSection();
       case DevelopTool.lens:
-        return const SingleChildScrollView(child: LensSection());
+        return const LensSection();
       case DevelopTool.sr:
-        return SingleChildScrollView(
-          child: SrSection(params: params, onChanged: onChanged),
-        );
+        return SrSection(params: params, onChanged: onChanged);
       default:
         return const SizedBox.shrink();
     }
@@ -100,7 +76,7 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
     // 切离 local 时退出画笔/智能/主体工具
     ref.listen(developToolProvider, (prev, next) {
       if (prev == DevelopTool.local && next != DevelopTool.local) {
-        _exitLocalTool(ref);
+        exitLocalTool(ref);
       }
     });
     // 切离任意画笔工具时通过 manifest 自动退出
@@ -123,7 +99,7 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
               child: Column(
                 children: [
                   if (histogramInfoCombo != null) ...[
-                    ?histogramInfoCombo,
+                    histogramInfoCombo!,
                     // 收起按钮
                     SizedBox(
                       height: 18,

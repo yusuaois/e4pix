@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -11,11 +9,15 @@ import '../../../../core/models/tone_curve.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../state/providers.dart';
 import '../shared.dart';
+import 'curve_gesture_utils.dart';
 
 class CurveSection extends ConsumerStatefulWidget {
   final VoidCallback? onDone;
 
-  const CurveSection({super.key, this.onDone});
+  /// 是否独立使用（非 LightSection 内嵌），独立时自行管理柱状图复位
+  final bool standalone;
+
+  const CurveSection({super.key, this.onDone, this.standalone = false});
 
   @override
   ConsumerState<CurveSection> createState() => _CurveSectionState();
@@ -24,12 +26,9 @@ class CurveSection extends ConsumerStatefulWidget {
 class _CurveSectionState extends ConsumerState<CurveSection> {
   int _channel = 0; // 0主 1R 2G 3B
   int? _dragIndex;
+  late final _throttle = CurveThrottle();
 
-  /// 拖拽节流：避免每次像素移动都触发完整管线重渲染
-  Timer? _commitThrottle;
-  ToneCurve? _pendingCurve;
-
-  /// 控制点半径，供画布溢出以完整显示边界控制点
+  /// 控制点外溢半径
   static const double _pointOverflow = 6.0;
 
   ToneCurve _curveOf(RgbCurves c) => switch (_channel) {
@@ -58,7 +57,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
 
   @override
   void dispose() {
-    _commitThrottle?.cancel();
+    _throttle.cancel();
     super.dispose();
   }
 
@@ -68,12 +67,14 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
       currentParamsNotifierProvider.select((p) => p.curves),
     );
 
-    // 切离曲线模式时自动复位柱状图收起状态
-    ref.listen(developToolProvider, (prev, next) {
-      if (prev == DevelopTool.curve && next != DevelopTool.curve) {
-        ref.read(histogramCollapsedProvider.notifier).show();
-      }
-    });
+    // 独立模式：切离曲线工具时自动复位柱状图（内嵌模式下由 LightSection 管理）
+    if (widget.standalone) {
+      ref.listen(developToolProvider, (prev, next) {
+        if (prev == DevelopTool.curve && next != DevelopTool.curve) {
+          ref.read(histogramCollapsedProvider.notifier).show();
+        }
+      });
+    }
 
     final curve = _curveOf(curves);
     final lineColor = _channelColor(context);
@@ -85,33 +86,8 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
           .update(params.copyWith(curves: _withChannel(curves, next)));
     }
 
-    void commitThrottled(ToneCurve next) {
-      _pendingCurve = next;
-      if (_commitThrottle != null) return;
-      _commitThrottle = Timer(const Duration(milliseconds: 33), () {
-        _commitThrottle = null;
-        if (!mounted) return;
-        final c = _pendingCurve;
-        if (c != null) {
-          _pendingCurve = null;
-          commit(c);
-        }
-      });
-    }
-
-    void flushThrottled() {
-      _commitThrottle?.cancel();
-      _commitThrottle = null;
-      final c = _pendingCurve;
-      if (c != null) {
-        _pendingCurve = null;
-        commit(c);
-      }
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.onDone != null)
           Padding(
@@ -180,30 +156,48 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
                           size: Size(outer.maxWidth, h + pad),
                           child: ClipRect(
                             child: GestureDetector(
-                              onTapUp: (d) =>
-                                  _onTapUp(d, gridSize, curve, commit),
-                              onPanStart: (d) =>
-                                  _onPanStart(d, gridSize, curve),
-                              onPanUpdate: (d) => _onPanUpdate(
-                                d,
-                                gridSize,
-                                curve,
-                                commitThrottled,
-                              ),
+                              onTapUp: (d) {
+                                final next = handleTapUp(
+                                  d.localPosition,
+                                  gridSize,
+                                  curve,
+                                );
+                                if (next != null) commit(next);
+                              },
+                              onPanStart: (d) {
+                                _dragIndex = hitTest(
+                                  d.localPosition,
+                                  gridSize,
+                                  curve,
+                                );
+                              },
+                              onPanUpdate: (d) {
+                                final next = handlePanUpdate(
+                                  d.localPosition,
+                                  gridSize,
+                                  curve,
+                                  _dragIndex,
+                                );
+                                if (next != null) {
+                                  _throttle.throttle(next, commit);
+                                }
+                              },
                               onPanEnd: (_) {
                                 _dragIndex = null;
-                                flushThrottled();
+                                _throttle.flush(commit);
                               },
                               onPanCancel: () {
                                 _dragIndex = null;
-                                flushThrottled();
+                                _throttle.flush(commit);
                               },
-                              onLongPressStart: (d) => _onLongPress(
-                                d.localPosition,
-                                gridSize,
-                                curve,
-                                commit,
-                              ),
+                              onLongPressStart: (d) {
+                                final next = handleLongPress(
+                                  d.localPosition,
+                                  gridSize,
+                                  curve,
+                                );
+                                if (next != null) commit(next);
+                              },
                               child: CustomPaint(
                                 painter: CurvePainter(
                                   curve: curve,
@@ -288,73 +282,6 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
         ),
       ),
     );
-  }
-
-  Offset2 _toNorm(Offset local, Size size) => Offset2(
-    (local.dx / size.width).clamp(0.0, 1.0),
-    (1 - local.dy / size.height).clamp(0.0, 1.0),
-  );
-
-  Offset _toScreen(Offset2 p, Size size) =>
-      Offset(p.x * size.width, (1 - p.y) * size.height);
-  int? _hitTest(Offset local, Size size, ToneCurve curve) {
-    const r = 22.0;
-    for (int i = 0; i < curve.points.length; i++) {
-      if ((_toScreen(curve.points[i], size) - local).distance < r) return i;
-    }
-    return null;
-  }
-
-  void _onTapUp(
-    TapUpDetails d,
-    Size size,
-    ToneCurve curve,
-    void Function(ToneCurve) commit,
-  ) {
-    if (_hitTest(d.localPosition, size, curve) != null) return;
-    final n = _toNorm(d.localPosition, size);
-    final pts = [...curve.points, Offset2(n.x, n.y)]
-      ..sort((a, b) => a.x.compareTo(b.x));
-    commit(ToneCurve(pts));
-  }
-
-  void _onPanStart(DragStartDetails d, Size size, ToneCurve curve) {
-    _dragIndex = _hitTest(d.localPosition, size, curve);
-  }
-
-  void _onPanUpdate(
-    DragUpdateDetails d,
-    Size size,
-    ToneCurve curve,
-    void Function(ToneCurve) commit,
-  ) {
-    final i = _dragIndex;
-    if (i == null) return;
-    final n = _toNorm(d.localPosition, size);
-    final pts = [...curve.points];
-    final isFirst = i == 0, isLast = i == pts.length - 1;
-    double nx;
-    if (isFirst) {
-      nx = 0.0;
-    } else if (isLast) {
-      nx = 1.0;
-    } else {
-      nx = n.x.clamp(pts[i - 1].x + 0.01, pts[i + 1].x - 0.01);
-    }
-    pts[i] = Offset2(nx, n.y);
-    commit(ToneCurve(pts));
-  }
-
-  void _onLongPress(
-    Offset local,
-    Size size,
-    ToneCurve curve,
-    void Function(ToneCurve) commit,
-  ) {
-    final hit = _hitTest(local, size, curve);
-    if (hit == null || hit == 0 || hit == curve.points.length - 1) return;
-    final pts = [...curve.points]..removeAt(hit);
-    commit(ToneCurve(pts));
   }
 }
 

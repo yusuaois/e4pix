@@ -105,204 +105,206 @@ class _LensSectionState extends ConsumerState<LensSection> {
       currentParamsNotifierProvider.select((p) => p.perspective),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionLabel(
-          title: "lens",
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _detecting ? null : _autoDetect,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  child: _detecting
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 1.5),
-                        )
-                      : Text(
-                          tr('auto'),
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
-              if (!lens.isNeutral || !persp.isIdentity) ...[
-                const SizedBox(width: 6),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionLabel(
+            title: "lens",
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    ref
-                        .read(currentParamsNotifierProvider.notifier)
-                        .update(
-                          ref
-                              .read(currentParamsNotifierProvider)
-                              .copyWith(
-                                lensCorrection: LensCorrectionParams.neutral,
-                                perspective: PerspectiveParams.identity,
-                              ),
-                        );
-                  },
+                  onTap: _detecting ? null : _autoDetect,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 4,
                     ),
-                    child: Text(
-                      tr('reset'),
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.faintText,
+                    child: _detecting
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 1.5),
+                          )
+                        : Text(
+                            tr('auto'),
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                if (!lens.isNeutral || !persp.isIdentity) ...[
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      ref
+                          .read(currentParamsNotifierProvider.notifier)
+                          .update(
+                            ref
+                                .read(currentParamsNotifierProvider)
+                                .copyWith(
+                                  lensCorrection: LensCorrectionParams.neutral,
+                                  perspective: PerspectiveParams.identity,
+                                ),
+                          );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      child: Text(
+                        tr('reset'),
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.faintText,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
+            ),
+          ),
+
+          // ── CA 色差校正 ──
+          _SwitchHeader(
+            label: tr('lensCAEnabled'),
+            value: lens.enabled,
+            onChanged: (v) => _setLens(lens.copyWith(enabled: v)),
+          ),
+          _AnimatedSection(
+            expanded: lens.enabled,
+            children: [
+              DevelopSliderTile(
+                label: tr('lensCARed'),
+                value: lens.caRed,
+                min: 0.8,
+                max: 1.2,
+                fractionDigits: 4,
+                resetValue: 1.0,
+                onChanged: (v) => _setLens(lens.copyWith(caRed: v)),
+              ),
+              DevelopSliderTile(
+                label: tr('lensCABlue'),
+                value: lens.caBlue,
+                min: 0.8,
+                max: 1.2,
+                fractionDigits: 4,
+                resetValue: 1.0,
+                onChanged: (v) => _setLens(lens.copyWith(caBlue: v)),
+              ),
             ],
           ),
-        ),
 
-        // ── CA 色差校正 ──
-        _SwitchHeader(
-          label: tr('lensCAEnabled'),
-          value: lens.enabled,
-          onChanged: (v) => _setLens(lens.copyWith(enabled: v)),
-        ),
-        _AnimatedSection(
-          expanded: lens.enabled,
-          children: [
-            DevelopSliderTile(
-              label: tr('lensCARed'),
-              value: lens.caRed,
-              min: 0.8,
-              max: 1.2,
-              fractionDigits: 4,
-              resetValue: 1.0,
-              onChanged: (v) => _setLens(lens.copyWith(caRed: v)),
-            ),
-            DevelopSliderTile(
-              label: tr('lensCABlue'),
-              value: lens.caBlue,
-              min: 0.8,
-              max: 1.2,
-              fractionDigits: 4,
-              resetValue: 1.0,
-              onChanged: (v) => _setLens(lens.copyWith(caBlue: v)),
-            ),
-          ],
-        ),
+          // ── 畸变校正 ──
+          _SwitchHeader(
+            label: tr('lensDistortionEnabled'),
+            value: lens.distortionEnabled,
+            onChanged: (v) => _setLens(lens.copyWith(distortionEnabled: v)),
+          ),
+          _AnimatedSection(
+            expanded: lens.distortionEnabled,
+            children: [
+              DevelopSliderTile(
+                label: tr('lensDistortionK1'),
+                value: lens.distortionK1,
+                min: -0.5,
+                max: 0.5,
+                fractionDigits: 4,
+                resetValue: 0.0,
+                onChanged: (v) => _setLens(lens.copyWith(distortionK1: v)),
+              ),
+              DevelopSliderTile(
+                label: tr('lensDistortionK2'),
+                value: lens.distortionK2,
+                min: -0.5,
+                max: 0.5,
+                fractionDigits: 4,
+                resetValue: 0.0,
+                onChanged: (v) => _setLens(lens.copyWith(distortionK2: v)),
+              ),
+              DevelopSliderTile(
+                label: tr('lensDistortionK3'),
+                value: lens.distortionK3,
+                min: -0.5,
+                max: 0.5,
+                fractionDigits: 4,
+                resetValue: 0.0,
+                onChanged: (v) => _setLens(lens.copyWith(distortionK3: v)),
+              ),
+            ],
+          ),
 
-        // ── 畸变校正 ──
-        _SwitchHeader(
-          label: tr('lensDistortionEnabled'),
-          value: lens.distortionEnabled,
-          onChanged: (v) => _setLens(lens.copyWith(distortionEnabled: v)),
-        ),
-        _AnimatedSection(
-          expanded: lens.distortionEnabled,
-          children: [
-            DevelopSliderTile(
-              label: tr('lensDistortionK1'),
-              value: lens.distortionK1,
-              min: -0.5,
-              max: 0.5,
-              fractionDigits: 4,
-              resetValue: 0.0,
-              onChanged: (v) => _setLens(lens.copyWith(distortionK1: v)),
-            ),
-            DevelopSliderTile(
-              label: tr('lensDistortionK2'),
-              value: lens.distortionK2,
-              min: -0.5,
-              max: 0.5,
-              fractionDigits: 4,
-              resetValue: 0.0,
-              onChanged: (v) => _setLens(lens.copyWith(distortionK2: v)),
-            ),
-            DevelopSliderTile(
-              label: tr('lensDistortionK3'),
-              value: lens.distortionK3,
-              min: -0.5,
-              max: 0.5,
-              fractionDigits: 4,
-              resetValue: 0.0,
-              onChanged: (v) => _setLens(lens.copyWith(distortionK3: v)),
-            ),
-          ],
-        ),
+          // ── 暗角校正 ──
+          _SwitchHeader(
+            label: tr('lensVignettingEnabled'),
+            value: lens.vignettingEnabled,
+            onChanged: (v) => _setLens(lens.copyWith(vignettingEnabled: v)),
+          ),
+          _AnimatedSection(
+            expanded: lens.vignettingEnabled,
+            children: [
+              DevelopSliderTile(
+                label: tr('lensVignettingK1'),
+                value: lens.vignettingK1,
+                min: -1.0,
+                max: 1.0,
+                fractionDigits: 4,
+                resetValue: 0.0,
+                onChanged: (v) => _setLens(lens.copyWith(vignettingK1: v)),
+              ),
+              DevelopSliderTile(
+                label: tr('lensVignettingK2'),
+                value: lens.vignettingK2,
+                min: -1.0,
+                max: 1.0,
+                fractionDigits: 4,
+                resetValue: 0.0,
+                onChanged: (v) => _setLens(lens.copyWith(vignettingK2: v)),
+              ),
+              DevelopSliderTile(
+                label: tr('lensVignettingK3'),
+                value: lens.vignettingK3,
+                min: -1.0,
+                max: 1.0,
+                fractionDigits: 4,
+                resetValue: 0.0,
+                onChanged: (v) => _setLens(lens.copyWith(vignettingK3: v)),
+              ),
+            ],
+          ),
 
-        // ── 暗角校正 ──
-        _SwitchHeader(
-          label: tr('lensVignettingEnabled'),
-          value: lens.vignettingEnabled,
-          onChanged: (v) => _setLens(lens.copyWith(vignettingEnabled: v)),
-        ),
-        _AnimatedSection(
-          expanded: lens.vignettingEnabled,
-          children: [
-            DevelopSliderTile(
-              label: tr('lensVignettingK1'),
-              value: lens.vignettingK1,
-              min: -1.0,
-              max: 1.0,
-              fractionDigits: 4,
-              resetValue: 0.0,
-              onChanged: (v) => _setLens(lens.copyWith(vignettingK1: v)),
-            ),
-            DevelopSliderTile(
-              label: tr('lensVignettingK2'),
-              value: lens.vignettingK2,
-              min: -1.0,
-              max: 1.0,
-              fractionDigits: 4,
-              resetValue: 0.0,
-              onChanged: (v) => _setLens(lens.copyWith(vignettingK2: v)),
-            ),
-            DevelopSliderTile(
-              label: tr('lensVignettingK3'),
-              value: lens.vignettingK3,
-              min: -1.0,
-              max: 1.0,
-              fractionDigits: 4,
-              resetValue: 0.0,
-              onChanged: (v) => _setLens(lens.copyWith(vignettingK3: v)),
-            ),
-          ],
-        ),
+          const SizedBox(height: 8),
+          Divider(height: 1, color: AppColors.faintBorder),
 
-        const SizedBox(height: 8),
-        Divider(height: 1, color: AppColors.faintBorder),
-
-        // ── 透视矫正 ──
-        SectionLabel(title: tr('perspective')),
-        DevelopSliderTile(
-          label: tr('perspectiveHorizontal'),
-          value: persp.currentHorizontal(),
-          min: -60,
-          max: 60,
-          fractionDigits: 1,
-          resetValue: 0,
-          onChanged: (v) => _setPersp(persp.withHorizontalKeystone(v)),
-        ),
-        DevelopSliderTile(
-          label: tr('perspectiveVertical'),
-          value: persp.currentVertical(),
-          min: -60,
-          max: 60,
-          fractionDigits: 1,
-          resetValue: 0,
-          onChanged: (v) => _setPersp(persp.withVerticalKeystone(v)),
-        ),
-        const SizedBox(height: 12),
-      ],
+          // ── 透视矫正 ──
+          SectionLabel(title: tr('perspective')),
+          DevelopSliderTile(
+            label: tr('perspectiveHorizontal'),
+            value: persp.currentHorizontal(),
+            min: -60,
+            max: 60,
+            fractionDigits: 1,
+            resetValue: 0,
+            onChanged: (v) => _setPersp(persp.withHorizontalKeystone(v)),
+          ),
+          DevelopSliderTile(
+            label: tr('perspectiveVertical'),
+            value: persp.currentVertical(),
+            min: -60,
+            max: 60,
+            fractionDigits: 1,
+            resetValue: 0,
+            onChanged: (v) => _setPersp(persp.withVerticalKeystone(v)),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
     );
   }
 }

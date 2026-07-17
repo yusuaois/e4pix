@@ -35,35 +35,37 @@ class LutSection extends ConsumerWidget {
     final thumbs = thumbState.thumbs;
     final rendering = thumbState.rendering;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SectionLabel(title: 'LUT'),
-        const SizedBox(height: 4),
-        _LutSlot(
-          slot: 0,
-          label: 'LUT A',
-          lutName: lut.nameA,
-          intensity: lutIntensity,
-          library: library,
-          thumbs: thumbs,
-          rendering: rendering,
-          onItemVisible: (entry) =>
-              ref.read(thumbnailCacheProvider.notifier).requestLut(entry),
-        ),
-        const SizedBox(height: 10),
-        _LutSlot(
-          slot: 1,
-          label: 'LUT B',
-          lutName: lut.nameB,
-          intensity: lutIntensityB,
-          library: library,
-          thumbs: thumbs,
-          rendering: rendering,
-          onItemVisible: (entry) =>
-              ref.read(thumbnailCacheProvider.notifier).requestLut(entry),
-        ),
-      ],
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionLabel(title: 'LUT'),
+          const SizedBox(height: 4),
+          _LutSlot(
+            slot: 0,
+            label: 'LUT A',
+            lutName: lut.nameA,
+            intensity: lutIntensity,
+            library: library,
+            thumbs: thumbs,
+            rendering: rendering,
+            onItemVisible: (entry) =>
+                ref.read(thumbnailCacheProvider.notifier).requestLut(entry),
+          ),
+          const SizedBox(height: 10),
+          _LutSlot(
+            slot: 1,
+            label: 'LUT B',
+            lutName: lut.nameB,
+            intensity: lutIntensityB,
+            library: library,
+            thumbs: thumbs,
+            rendering: rendering,
+            onItemVisible: (entry) =>
+                ref.read(thumbnailCacheProvider.notifier).requestLut(entry),
+          ),
+        ],
+      ),
     );
   }
 }

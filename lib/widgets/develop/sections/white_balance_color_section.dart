@@ -16,9 +16,10 @@ class WhiteBalanceColorSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = params;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
         const SectionLabel(title: 'White Balance'),
         DevelopSliderTile(
           label: tr("whiteBalance"),
@@ -51,6 +52,7 @@ class WhiteBalanceColorSection extends StatelessWidget {
           onChanged: (v) => onChanged(p.copyWith(vibrance: v)),
         ),
       ],
+      ),
     );
   }
 }

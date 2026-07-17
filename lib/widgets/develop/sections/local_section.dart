@@ -26,105 +26,107 @@ class LocalPanel extends ConsumerWidget {
     final selected = ref.watch(selectedLocalProvider);
     final atLimit = locals.length >= LocalAdjustmentActions.maxLocals;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SectionLabel(title: 'Local'),
-        const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 4)),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                  ),
-                  onPressed: atLimit
-                      ? null
-                      : () => LocalAdjustmentActions(ref).addLinear(),
-                  child: Text(
-                    tr("linear"),
-                    style: AppTypography.labelSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                  ),
-                  onPressed: atLimit
-                      ? null
-                      : () => LocalAdjustmentActions(ref).addRadial(),
-                  child: Text(
-                    tr("radial"),
-                    style: AppTypography.labelSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                  ),
-                  onPressed: atLimit
-                      ? null
-                      : () => LocalAdjustmentActions(ref).addBrush(),
-                  child: Text(
-                    tr("brush"),
-                    style: AppTypography.labelSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (locals.isEmpty)
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionLabel(title: 'Local'),
+          const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 4)),
           Padding(
-            padding: EdgeInsets.fromLTRB(20, 4, 16, 8),
-            child: Text(
-              tr("notAddedLocalAdjustment"),
-              style: AppTypography.labelMedium.copyWith(
-                color: AppColors.disabledText,
-              ),
-            ),
-          )
-        else
-          for (final local in locals)
-            _MaskListItem(local: local, isSelected: local.id == selectedId),
-        if (selected != null) ...[
-          const SizedBox(height: 6),
-          Divider(height: 1, color: AppColors.faintBorder),
-          LocalShapeControls(local: selected),
-          BrushControls(local: selected),
-          Divider(height: 1, color: AppColors.faintBorder),
-          LocalParamsControls(local: selected),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: TextButton(
-              onPressed: () =>
-                  ref.read(selectedLocalIdProvider.notifier).set(null),
-              child: Text(tr("completed"), style: AppTypography.labelSmall),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                    ),
+                    onPressed: atLimit
+                        ? null
+                        : () => LocalAdjustmentActions(ref).addLinear(),
+                    child: Text(
+                      tr("linear"),
+                      style: AppTypography.labelSmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                    ),
+                    onPressed: atLimit
+                        ? null
+                        : () => LocalAdjustmentActions(ref).addRadial(),
+                    child: Text(
+                      tr("radial"),
+                      style: AppTypography.labelSmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                    ),
+                    onPressed: atLimit
+                        ? null
+                        : () => LocalAdjustmentActions(ref).addBrush(),
+                    child: Text(
+                      tr("brush"),
+                      style: AppTypography.labelSmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+          if (locals.isEmpty)
+            Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 16, 8),
+              child: Text(
+                tr("notAddedLocalAdjustment"),
+                style: AppTypography.labelMedium.copyWith(
+                  color: AppColors.disabledText,
+                ),
+              ),
+            )
+          else
+            for (final local in locals)
+              _MaskListItem(local: local, isSelected: local.id == selectedId),
+          if (selected != null) ...[
+            const SizedBox(height: 6),
+            Divider(height: 1, color: AppColors.faintBorder),
+            LocalShapeControls(local: selected),
+            BrushControls(local: selected),
+            Divider(height: 1, color: AppColors.faintBorder),
+            LocalParamsControls(local: selected),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: TextButton(
+                onPressed: () =>
+                    ref.read(selectedLocalIdProvider.notifier).set(null),
+                child: Text(tr("completed"), style: AppTypography.labelSmall),
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
