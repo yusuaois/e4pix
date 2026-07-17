@@ -158,8 +158,7 @@ class _HistogramInfoComboState extends ConsumerState<HistogramInfoCombo> {
                 onPressed: isLoading ? null : widget.onImport,
               ),
               const SizedBox(width: 8),
-              RatingFlagBar(compact: true),
-              const Spacer(),
+              const Expanded(child: RatingFlagBar(compact: true)),
               // 胶囊监视器
               _DotIndicator(current: _currentPage, onTap: _goToPage),
             ],
