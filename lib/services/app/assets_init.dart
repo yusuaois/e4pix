@@ -6,9 +6,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 将打包的 assets 文件按 app 版本释放到可写目录。
+/// 将打包的 assets 文件按 app 版本释放到可写目录
 ///
-/// 适用场景：preset、lensfun 等"应用内置 + 用户可修改/删除"的资源。
+/// 适用场景：preset、lensfun 等"应用内置 + 用户可修改/删除"的资源
 ///
 /// 行为：
 /// - 首次启动或 app 升级：释放 assets 下匹配的文件到目标目录，覆盖同名文件
@@ -16,10 +16,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - [deletedBasenames] 中的文件（无后缀名）不会被重新释放（用户手动删除的）
 /// - 升级后，系统中不存在的旧文件会被清理
 class AssetsInit {
-  /// 检查 app 版本。如果版本已变（首次启动或升级），将 [assetPrefix] 下匹配
-  /// [fileExtension] 的文件复制到 [targetDirPath]，跳过 [deletedBasenames] 中的文件。
+  /// 检查 app 版本，如果版本已变（首次启动或升级），将 [assetPrefix] 下匹配
+  /// [fileExtension] 的文件复制到 [targetDirPath]，跳过 [deletedBasenames] 中的文件
   ///
-  /// 返回 [ReleaseResult.released] 表示执行了释放，[ReleaseResult.skipped] 表示版本未变。
+  /// 返回 [ReleaseResult.released] 表示执行了释放，[ReleaseResult.skipped] 表示版本未变
   static Future<ReleaseResult> releaseIfNeeded({
     required String namespace,
     required String assetPrefix,

@@ -1,16 +1,18 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/models/adjustment_params.dart';
-import 'shared.dart';
+import '../../../../core/models/adjustment_params.dart';
+import '../shared.dart';
 
 class LightSection extends StatelessWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
+  final VoidCallback? onCurveTap;
   const LightSection({
     super.key,
     required this.params,
     required this.onChanged,
+    this.onCurveTap,
   });
 
   @override
@@ -19,7 +21,22 @@ class LightSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionLabel(title: 'Light'),
+        SectionLabel(
+          title: 'Light',
+          trailing: onCurveTap != null
+              ? IconButton(
+                  icon: const Icon(Icons.show_chart, size: 18),
+                  tooltip: tr('curve'),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                  onPressed: onCurveTap,
+                )
+              : null,
+        ),
         DevelopSliderTile(
           label: tr("exposure"),
           value: p.exposure,

@@ -1,7 +1,7 @@
 export 'sections/shared.dart';
-export 'sections/light_section.dart';
+export 'sections/light/light_section.dart';
 export 'sections/white_balance_color_section.dart';
-export 'sections/curve_section.dart';
+export 'sections/light/curve_section.dart';
 export 'sections/hsl_section.dart';
 export 'sections/lut_section.dart';
 export 'sections/detail_section.dart';

@@ -35,14 +35,14 @@ class _VerticalAdjustmentPanelState
     extends ConsumerState<VerticalAdjustmentPanel>
     with TickerProviderStateMixin {
   /// Number of non-brush tabs before the brush section begins.
-  static const _tabsBeforeBrushes = 8; // light..preset(7) + local(1)
+  static const _tabsBeforeBrushes = 7; // light..preset(6) + local(1)
 
   /// Number of non-brush tabs after the brush section.
   static const _tabsAfterBrushes = 3; // lens, sr, watermark
 
   int get _totalTabs =>
       _tabsBeforeBrushes + brushManifests.length + _tabsAfterBrushes;
-  int get _localTabIndex => 7;
+  int get _localTabIndex => 6;
 
   late final TabController _tabController;
 
@@ -83,125 +83,142 @@ class _VerticalAdjustmentPanelState
   @override
   Widget build(BuildContext context) {
     final params = ref.watch(currentParamsNotifierProvider);
+    final overlay = ref.watch(activeOverlayProvider);
+    final microBar = overlay.buildMicroBar(
+      context,
+      () => ref.read(activeOverlayProvider.notifier).close(),
+    );
 
     return Container(
       color: AppColors.panelBg,
       child: Column(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.subtleBorder)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: MediaQuery.removePadding(
-                    context: context,
-                    child: TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.start,
-                      indicatorSize: TabBarIndicatorSize.label,
-                      labelStyle: AppTypography.bodySmall,
-                      labelColor: AppColors.textPrimary,
-                      unselectedLabelColor: AppColors.textTertiary,
-                      tabs: [
-                        Tab(text: tr("light"), height: 36),
-                        Tab(text: tr("color"), height: 36),
-                        Tab(text: tr("curve"), height: 36),
-                        Tab(text: tr("hsl"), height: 36),
-                        Tab(text: 'LUT', height: 36),
-                        Tab(text: tr('detail'), height: 36),
-                        Tab(text: tr("preset"), height: 36),
-                        Tab(text: tr("local"), height: 36),
-                        for (final m in brushManifests)
-                          Tab(text: tr(m.titleKey), height: 36),
-                        Tab(text: tr("lens"), height: 36),
-                        Tab(text: tr('superResolution'), height: 36),
-                        Tab(text: tr("watermark"), height: 36),
-                      ],
+          if (microBar != null)
+            microBar
+          else
+            Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppColors.subtleBorder),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: MediaQuery.removePadding(
+                      context: context,
+                      child: TabBar(
+                        controller: _tabController,
+                        isScrollable: true,
+                        tabAlignment: TabAlignment.start,
+                        indicatorSize: TabBarIndicatorSize.label,
+                        labelStyle: AppTypography.bodySmall,
+                        labelColor: AppColors.textPrimary,
+                        unselectedLabelColor: AppColors.textTertiary,
+                        tabs: [
+                          Tab(text: tr("light"), height: 36),
+                          Tab(text: tr("color"), height: 36),
+                          Tab(text: tr("hsl"), height: 36),
+                          Tab(text: 'LUT', height: 36),
+                          Tab(text: tr('detail'), height: 36),
+                          Tab(text: tr("preset"), height: 36),
+                          Tab(text: tr("local"), height: 36),
+                          for (final m in brushManifests)
+                            Tab(text: tr(m.titleKey), height: 36),
+                          Tab(text: tr("lens"), height: 36),
+                          Tab(text: tr('superResolution'), height: 36),
+                          Tab(text: tr("watermark"), height: 36),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.history, size: 18),
-                  tooltip: tr('history'),
-                  onPressed: () => showHistoryPanelSheet(context, ref),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.refresh, size: 18),
-                  tooltip: tr("reset"),
-                  onPressed: () => widget.onChanged(AdjustmentParams.neutral),
-                ),
-              ],
+                  IconButton(
+                    icon: const Icon(Icons.history, size: 18),
+                    tooltip: tr('history'),
+                    onPressed: () => showHistoryPanelSheet(context, ref),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 18),
+                    tooltip: tr("reset"),
+                    onPressed: () => widget.onChanged(AdjustmentParams.neutral),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                SingleChildScrollView(
-                  child: LightSection(
-                    params: params,
-                    onChanged: widget.onChanged,
+          if (microBar != null)
+            const Expanded(child: SizedBox.shrink())
+          else
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  SingleChildScrollView(
+                    child: LightSection(
+                      params: params,
+                      onChanged: widget.onChanged,
+                      onCurveTap: () {
+                        ref
+                            .read(activeOverlayProvider.notifier)
+                            .open(const CurveActiveOverlay(channel: 0));
+                      },
+                    ),
                   ),
-                ),
-                SingleChildScrollView(
-                  child: WhiteBalanceColorSection(
-                    params: params,
-                    onChanged: widget.onChanged,
-                  ),
-                ),
-                CurveSection(),
-                SingleChildScrollView(
-                  child: HslSection(
-                    bands: params.hsl,
-                    onChanged: (b) => widget.onChanged(params.copyWith(hsl: b)),
-                  ),
-                ),
-                SingleChildScrollView(child: const LutSection()),
-                // 以下 4 个 Tab 较重，延迟到首帧结束后构建
-                _LazyBuild(
-                  builder: (_) => SingleChildScrollView(
-                    child: DetailSection(
+                  SingleChildScrollView(
+                    child: WhiteBalanceColorSection(
                       params: params,
                       onChanged: widget.onChanged,
                     ),
                   ),
-                ),
-                _LazyBuild(
-                  builder: (_) =>
-                      const SingleChildScrollView(child: PresetGrid()),
-                ),
-                _LazyBuild(
-                  builder: (_) =>
-                      const SingleChildScrollView(child: LocalPanel()),
-                ),
-                for (final m in brushManifests)
+                  SingleChildScrollView(
+                    child: HslSection(
+                      bands: params.hsl,
+                      onChanged: (b) =>
+                          widget.onChanged(params.copyWith(hsl: b)),
+                    ),
+                  ),
+                  SingleChildScrollView(child: const LutSection()),
+                  // 以下 4 个 Tab 较重，延迟到首帧结束后构建
                   _LazyBuild(
                     builder: (_) => SingleChildScrollView(
-                      child: _brushSection(m.tool, params),
+                      child: DetailSection(
+                        params: params,
+                        onChanged: widget.onChanged,
+                      ),
                     ),
                   ),
-                _LazyBuild(
-                  builder: (_) =>
-                      const SingleChildScrollView(child: LensSection()),
-                ),
-                _LazyBuild(
-                  builder: (_) => SingleChildScrollView(
-                    child: SrSection(
-                      params: params,
-                      onChanged: widget.onChanged,
+                  _LazyBuild(
+                    builder: (_) =>
+                        const SingleChildScrollView(child: PresetGrid()),
+                  ),
+                  _LazyBuild(
+                    builder: (_) =>
+                        const SingleChildScrollView(child: LocalPanel()),
+                  ),
+                  for (final m in brushManifests)
+                    _LazyBuild(
+                      builder: (_) => SingleChildScrollView(
+                        child: _brushSection(m.tool, params),
+                      ),
+                    ),
+                  _LazyBuild(
+                    builder: (_) =>
+                        const SingleChildScrollView(child: LensSection()),
+                  ),
+                  _LazyBuild(
+                    builder: (_) => SingleChildScrollView(
+                      child: SrSection(
+                        params: params,
+                        onChanged: widget.onChanged,
+                      ),
                     ),
                   ),
-                ),
-                _LazyBuild(
-                  builder: (_) =>
-                      const SingleChildScrollView(child: WatermarkSection()),
-                ),
-              ],
+                  _LazyBuild(
+                    builder: (_) =>
+                        const SingleChildScrollView(child: WatermarkSection()),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

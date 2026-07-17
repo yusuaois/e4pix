@@ -691,7 +691,7 @@ class FullPipelineRenderer {
   /// 按笔画时间戳排序合并渲染
   ///
   /// 先按 [StampMark.createdAt] 拆分笔画（Dart sort 不稳定不能直接全量排序），
-  /// 再按笔画时间戳排序、合并相邻同类型批次，逐组调用 [BrushLayerProvider.render]。
+  /// 再按笔画时间戳排序、合并相邻同类型批次，逐组调用 [BrushLayerProvider.render]
   /// 每组前 [invalidate] 缓存：[_renderTimeOrderedStamps] 不走 [IncrementalRenderCache]
   /// 的 count 匹配路径，必须清空避免读到旧纹理
   static Future<ui.Image> _renderTimeOrderedStamps({

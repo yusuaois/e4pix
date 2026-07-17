@@ -26,6 +26,7 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
   final Widget? histogramInfoCombo;
   final Widget? presetBar;
   final VoidCallback? onEnterCrop;
+  final VoidCallback? onCurveDone;
 
   const HorizontalAdjustmentPanel({
     super.key,
@@ -34,18 +35,24 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
     this.histogramInfoCombo,
     this.presetBar,
     this.onEnterCrop,
+    this.onCurveDone,
   });
 
-  Widget _section(DevelopTool tool) {
+  Widget _section(DevelopTool tool, WidgetRef ref) {
     final m = manifestForTool(tool);
     if (m != null) return m.sectionFactory(params, onChanged);
     switch (tool) {
       case DevelopTool.light:
-        return LightSection(params: params, onChanged: onChanged);
+        return LightSection(
+          params: params,
+          onChanged: onChanged,
+          onCurveTap: () =>
+              ref.read(developToolProvider.notifier).set(DevelopTool.curve),
+        );
       case DevelopTool.color:
         return WhiteBalanceColorSection(params: params, onChanged: onChanged);
       case DevelopTool.curve:
-        return const CurveSection();
+        return CurveSection(onDone: onCurveDone);
       case DevelopTool.hsl:
         return HslSection(
           bands: params.hsl,
@@ -99,11 +106,51 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
               decoration: const BoxDecoration(color: Colors.transparent),
               child: Column(
                 children: [
-                  ?histogramInfoCombo,
+                  if (histogramInfoCombo != null) ...[
+                    ?histogramInfoCombo,
+                    // 收起按钮
+                    SizedBox(
+                      height: 18,
+                      child: Center(
+                        child: IconButton(
+                          icon: const Icon(Icons.keyboard_arrow_up, size: 16),
+                          tooltip: tr('collapse'),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 18,
+                          ),
+                          onPressed: () => ref
+                              .read(histogramCollapsedProvider.notifier)
+                              .toggle(),
+                        ),
+                      ),
+                    ),
+                  ] else
+                    // 展开按钮
+                    SizedBox(
+                      height: 18,
+                      child: Center(
+                        child: IconButton(
+                          icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+                          tooltip: tr('expand'),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 18,
+                          ),
+                          onPressed: () => ref
+                              .read(histogramCollapsedProvider.notifier)
+                              .toggle(),
+                        ),
+                      ),
+                    ),
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.only(top: 8, bottom: 24),
-                      children: [_section(tool)],
+                      children: [_section(tool, ref)],
                     ),
                   ),
                 ],
@@ -171,12 +218,6 @@ class _ToolRail extends ConsumerWidget {
                     tooltip: tr('color'),
                     selected: selected == DevelopTool.color,
                     onTap: () => onSelect(DevelopTool.color),
-                  ),
-                  _RailItem(
-                    icon: Icons.show_chart,
-                    tooltip: tr('curve'),
-                    selected: selected == DevelopTool.curve,
-                    onTap: () => onSelect(DevelopTool.curve),
                   ),
                   _RailItem(
                     icon: Icons.gradient,

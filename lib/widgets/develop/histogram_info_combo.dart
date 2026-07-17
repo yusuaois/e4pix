@@ -139,7 +139,7 @@ class _HistogramInfoComboState extends ConsumerState<HistogramInfoCombo> {
         ),
         // ── Action bar ──
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+          padding: const EdgeInsets.fromLTRB(20, 2, 12, 4),
           child: Row(
             children: [
               IconButton(
@@ -158,14 +158,12 @@ class _HistogramInfoComboState extends ConsumerState<HistogramInfoCombo> {
                 onPressed: isLoading ? null : widget.onImport,
               ),
               const SizedBox(width: 8),
-              Expanded(child: RatingFlagBar(compact: true)),
+              RatingFlagBar(compact: true),
+              const Spacer(),
+              // 胶囊监视器
+              _DotIndicator(current: _currentPage, onTap: _goToPage),
             ],
           ),
-        ),
-        // ── Dot indicator ──
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: _DotIndicator(current: _currentPage, onTap: _goToPage),
         ),
       ],
     );

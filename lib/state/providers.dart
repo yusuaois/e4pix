@@ -31,6 +31,8 @@ export 'tools/brush_state.dart';
 export 'tools/crop_state.dart';
 export 'tools/local_state.dart';
 export 'tools/develop_tool_state.dart';
+export 'tools/active_overlay_state.dart';
+export 'tools/histogram_visibility_state.dart';
 export 'tools/compare_state.dart';
 export 'tools/sr_state.dart';
 export '../brushes/shared/stamp/persisted_stamp_state.dart';

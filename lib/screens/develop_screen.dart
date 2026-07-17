@@ -559,6 +559,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
   Widget _buildVerticalLayout() {
     final d = _buildLayoutData();
     final hasImage = d.image != null && d.program != null;
+    final overlay = ref.watch(activeOverlayProvider);
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -598,10 +599,12 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     constraints.maxWidth,
                     constraints.maxHeight,
                   );
+                  final overlayWidget = overlay.buildOverlay(context);
                   return Stack(
                     children: [
                       const Positioned.fill(child: PreviewArea()),
-                      if (hasImage)
+                      if (hasImage && overlayWidget != null) overlayWidget,
+                      if (hasImage && overlayWidget == null)
                         Positioned(
                           left: _histogramPosition.dx,
                           top: _histogramPosition.dy,
@@ -651,71 +654,82 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
             const SizedBox(height: 12),
             // 底部调整面板：悬浮卡片 可拖拽高度 + 折叠
             _buildFloatingCard(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                curve: Curves.easeOut,
-                height: _bottomPanelHeight,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 拖拽手柄 — 点击折叠 / 恢复图片滑块
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        setState(() {
-                          _bottomPanelCollapsed = !_bottomPanelCollapsed;
-                        });
-                      },
-                      onVerticalDragUpdate: (details) {
-                        _panelDragAccum += details.delta.dy;
-                        if (_panelDragAccum.abs() < _panelDragThreshold) return;
-                        setState(() {
-                          _bottomPanelHeight =
-                              (_bottomPanelHeight - _panelDragAccum).clamp(
-                                _bottomPanelMinHeight,
-                                _bottomPanelMaxHeight,
-                              );
-                        });
-                        _panelDragAccum = 0;
-                      },
-                      onVerticalDragEnd: (_) => _panelDragAccum = 0,
-                      onVerticalDragCancel: () => _panelDragAccum = 0,
-                      child: Container(
-                        height: _handleBarHeight,
-                        color: AppColors.subtleBorder,
-                        child: Center(
+              child: Builder(
+                builder: (_) {
+                  final microBar = overlay.buildMicroBar(
+                    context,
+                    () => ref.read(activeOverlayProvider.notifier).close(),
+                  );
+                  if (microBar != null) return microBar;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    curve: Curves.easeOut,
+                    height: _bottomPanelHeight,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 拖拽手柄 — 点击折叠 / 恢复图片滑块
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            setState(() {
+                              _bottomPanelCollapsed = !_bottomPanelCollapsed;
+                            });
+                          },
+                          onVerticalDragUpdate: (details) {
+                            _panelDragAccum += details.delta.dy;
+                            if (_panelDragAccum.abs() < _panelDragThreshold) {
+                              return;
+                            }
+                            setState(() {
+                              _bottomPanelHeight =
+                                  (_bottomPanelHeight - _panelDragAccum).clamp(
+                                    _bottomPanelMinHeight,
+                                    _bottomPanelMaxHeight,
+                                  );
+                            });
+                            _panelDragAccum = 0;
+                          },
+                          onVerticalDragEnd: (_) => _panelDragAccum = 0,
+                          onVerticalDragCancel: () => _panelDragAccum = 0,
                           child: Container(
-                            width: 36,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: AppColors.faintText,
-                              borderRadius: BorderRadius.circular(2),
+                            height: _handleBarHeight,
+                            color: AppColors.subtleBorder,
+                            child: Center(
+                              child: Container(
+                                width: 36,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: AppColors.faintText,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                        // 图片滑块 — 点击手柄折叠 / 恢复
+                        if (!_bottomPanelCollapsed &&
+                            d.shots.isNotEmpty &&
+                            !d.cropEditMode)
+                          TetherThumbStrip(
+                            shots: ref.watch(filteredShotsProvider),
+                            activeShot: d.activeShot,
+                            onSelect: _onThumbTap,
+                            multiSelectMode: d.selection.multiSelectMode,
+                            selectedShots: ref.watch(selectedShotsProvider),
+                          ),
+                        // 信息栏
+                        ImageInfoBar(onImport: _importImages),
+                        // 调整面板 — 填充剩余空间
+                        Expanded(
+                          child: VerticalAdjustmentPanel(
+                            onChanged: _onParamsChanged,
+                          ),
+                        ),
+                      ],
                     ),
-                    // 图片滑块 — 点击手柄折叠 / 恢复
-                    if (!_bottomPanelCollapsed &&
-                        d.shots.isNotEmpty &&
-                        !d.cropEditMode)
-                      TetherThumbStrip(
-                        shots: ref.watch(filteredShotsProvider),
-                        activeShot: d.activeShot,
-                        onSelect: _onThumbTap,
-                        multiSelectMode: d.selection.multiSelectMode,
-                        selectedShots: ref.watch(selectedShotsProvider),
-                      ),
-                    // 信息栏
-                    ImageInfoBar(onImport: _importImages),
-                    // 调整面板 — 填充剩余空间
-                    Expanded(
-                      child: VerticalAdjustmentPanel(
-                        onChanged: _onParamsChanged,
-                      ),
-                    ),
-                  ],
-                ),
+                  ); // AnimatedContainer end
+                }, // Builder end
               ),
             ),
           ] else
@@ -729,6 +743,10 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
     final d = _buildLayoutData();
     final params = ref.watch(currentParamsNotifierProvider);
     final maskProgram = ref.watch(maskShaderProgramProvider);
+    final tool = ref.watch(developToolProvider);
+    final showHistogram =
+        shouldShowHistogram(context, tool == DevelopTool.curve) &&
+        !ref.watch(histogramCollapsedProvider);
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -784,7 +802,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                     child: HorizontalAdjustmentPanel(
                       params: params,
                       onChanged: _onParamsChanged,
-                      histogramInfoCombo: d.program == null
+                      histogramInfoCombo: d.program == null || !showHistogram
                           ? null
                           : HistogramInfoCombo(
                               program: d.program!,
@@ -794,6 +812,9 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                             ),
                       presetBar: const PresetBar(),
                       onEnterCrop: () => enterCropMode(ref),
+                      onCurveDone: () => ref
+                          .read(developToolProvider.notifier)
+                          .set(DevelopTool.light),
                     ),
                   ),
                 ],

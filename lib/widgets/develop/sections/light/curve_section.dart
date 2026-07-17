@@ -2,17 +2,21 @@ import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/models/rgb_curves.dart';
-import '../../../core/models/tone_curve.dart';
-import '../../../core/theme/app_typography.dart';
-import '../../../state/providers.dart';
-import 'shared.dart';
+import '../../../../core/models/rgb_curves.dart';
+import '../../../../core/models/tone_curve.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../state/providers.dart';
+import '../shared.dart';
 
 class CurveSection extends ConsumerStatefulWidget {
-  const CurveSection({super.key});
+  final VoidCallback? onDone;
+
+  const CurveSection({super.key, this.onDone});
+
   @override
   ConsumerState<CurveSection> createState() => _CurveSectionState();
 }
@@ -100,7 +104,41 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionLabel(title: 'Curve'),
+        if (widget.onDone != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 12, 8),
+            child: Row(
+              children: [
+                Text(
+                  'CURVE',
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.disabledText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  onPressed: widget.onDone,
+                  child: Text(
+                    tr('done'),
+                    style: AppTypography.bodyLarge.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          const SectionLabel(title: 'Curve'),
         const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -150,7 +188,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
                         width: size.width + 2 * _pointOverflow,
                         height: size.height + 2 * _pointOverflow,
                         child: CustomPaint(
-                          painter: _CurvePainter(
+                          painter: CurvePainter(
                             curve: curve,
                             lineColor: lineColor,
                             overflow: _pointOverflow,
@@ -168,9 +206,9 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.sm),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(20, AppSpacing.xs, 20, 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -300,14 +338,17 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
   }
 }
 
-class _CurvePainter extends CustomPainter {
+class CurvePainter extends CustomPainter {
   final ToneCurve curve;
   final Color lineColor;
   final double overflow;
-  _CurvePainter({
+  final bool drawBackground;
+
+  CurvePainter({
     required this.curve,
     required this.lineColor,
     required this.overflow,
+    this.drawBackground = true,
   });
 
   static const double _pointR = 6.0;
@@ -319,17 +360,22 @@ class _CurvePainter extends CustomPainter {
     final vh = h - 2 * overflow; // 可视区域高
 
     // 背景和网格绘制在可视区域
-    final bg = Paint()..color = AppColors.scaffoldBg;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Offset(overflow, overflow) & Size(vw, vh),
-        const Radius.circular(6),
-      ),
-      bg,
-    );
+    if (drawBackground) {
+      final bg = Paint()..color = AppColors.scaffoldBg;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Offset(overflow, overflow) & Size(vw, vh),
+          const Radius.circular(6),
+        ),
+        bg,
+      );
+    }
 
+    // 网格线（浮层模式下用半透明白色，面板模式下用 dividerLine）
     final grid = Paint()
-      ..color = AppColors.dividerLine
+      ..color = drawBackground
+          ? AppColors.dividerLine
+          : Colors.white.withAlpha(51)
       ..strokeWidth = 1;
     for (int i = 1; i < 4; i++) {
       final x = overflow + vw * i / 4;
@@ -338,7 +384,9 @@ class _CurvePainter extends CustomPainter {
       canvas.drawLine(Offset(overflow, y), Offset(overflow + vw, y), grid);
     }
     final diag = Paint()
-      ..color = AppColors.faintBorder
+      ..color = drawBackground
+          ? AppColors.faintBorder
+          : Colors.white.withAlpha(25)
       ..strokeWidth = 1;
     canvas.drawLine(
       Offset(overflow, overflow + vh),
@@ -368,9 +416,12 @@ class _CurvePainter extends CustomPainter {
     );
 
     // 控制点使用 overflow 偏移
+    final pointFill = drawBackground
+        ? AppColors.scaffoldBg
+        : Colors.transparent;
     for (final p in curve.points) {
       final c = Offset(overflow + p.x * vw, overflow + (1 - p.y) * vh);
-      canvas.drawCircle(c, _pointR, Paint()..color = AppColors.scaffoldBg);
+      canvas.drawCircle(c, _pointR, Paint()..color = pointFill);
       canvas.drawCircle(
         c,
         _pointR,
@@ -384,6 +435,6 @@ class _CurvePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CurvePainter old) =>
+  bool shouldRepaint(CurvePainter old) =>
       old.curve != curve || old.lineColor != lineColor;
 }
