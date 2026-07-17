@@ -36,71 +36,73 @@ class SpotHealSection extends ConsumerWidget {
     final marks =
         (params.brushMarks['spot_heal']?.cast<SpotHealMark>()) ?? const [];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionLabel(title: 'spotHeal'),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionLabel(title: 'spotHeal'),
 
-        // ── 激活切换 ──
-        SwitchTile.tile(
-          label: tr('spotHealTitle'),
-          value: isActive,
-          onChanged: (_) => notifier.setMode(
-            isActive ? SpotHealMode.inactive : SpotHealMode.active,
-          ),
-        ),
-
-        // ── 提示 + 半径/硬度滑块（激活时显示）──
-        if (isActive) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: Text(
-              tr('spotHealHint'),
-              style: AppTypography.labelSmall.copyWith(
-                color: AppColors.disabledText,
-              ),
+          // ── 激活切换 ──
+          SwitchTile.tile(
+            label: tr('spotHealTitle'),
+            value: isActive,
+            onChanged: (_) => notifier.setMode(
+              isActive ? SpotHealMode.inactive : SpotHealMode.active,
             ),
           ),
-          const SizedBox(height: 4),
-          DevelopSliderTile(
-            label: tr('spotHealRadius'),
-            value: state.brushRadius,
-            min: 2,
-            max: 100,
-            fractionDigits: 0,
-            suffix: '‰',
-            onChanged: (v) => notifier.setBrushRadius(v),
-          ),
-          DevelopSliderTile(
-            label: tr('spotHealHardness'),
-            value: state.brushHardness * 100,
-            min: 0,
-            max: 100,
-            fractionDigits: 0,
-            suffix: '%',
-            onChanged: (v) => notifier.setBrushHardness(v / 100),
-          ),
-        ],
 
-        // ── 清除全部 ──
-        if (isActive && marks.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: notifier.clearAll,
-                icon: const Icon(Icons.delete_outline, size: 16),
-                label: Text(tr('ClearAll')),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.semanticError,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+          // ── 提示 + 半径/硬度滑块（激活时显示）──
+          if (isActive) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Text(
+                tr('spotHealHint'),
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.disabledText,
                 ),
               ),
             ),
-          ),
-      ],
+            const SizedBox(height: 4),
+            DevelopSliderTile(
+              label: tr('spotHealRadius'),
+              value: state.brushRadius,
+              min: 2,
+              max: 100,
+              fractionDigits: 0,
+              suffix: '‰',
+              onChanged: (v) => notifier.setBrushRadius(v),
+            ),
+            DevelopSliderTile(
+              label: tr('spotHealHardness'),
+              value: state.brushHardness * 100,
+              min: 0,
+              max: 100,
+              fractionDigits: 0,
+              suffix: '%',
+              onChanged: (v) => notifier.setBrushHardness(v / 100),
+            ),
+          ],
+
+          // ── 清除全部 ──
+          if (isActive && marks.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: notifier.clearAll,
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  label: Text(tr('ClearAll')),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.semanticError,
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

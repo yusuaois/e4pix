@@ -189,6 +189,33 @@ class SwitchTile extends StatelessWidget {
   }
 }
 
+/// 首帧延迟构建：首帧渲染空占位，下一帧真正构建，减少 TabBarView 或列表初始开销
+class LazyBuild extends StatefulWidget {
+  final WidgetBuilder builder;
+  const LazyBuild({super.key, required this.builder});
+
+  @override
+  State<LazyBuild> createState() => _LazyBuildState();
+}
+
+class _LazyBuildState extends State<LazyBuild> {
+  bool _built = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _built = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_built) return const SizedBox.shrink();
+    return widget.builder(context);
+  }
+}
+
 /// 激活/非激活切换胶囊按钮
 ///
 /// 用于二选一 / 多选一的互斥模式切换

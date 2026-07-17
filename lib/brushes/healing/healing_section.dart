@@ -35,80 +35,90 @@ class HealingSection extends ConsumerWidget {
     final marks =
         (params.brushMarks['healing']?.cast<HealingMark>()) ?? const [];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionLabel(title: 'healing'),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionLabel(title: 'healing'),
 
-        SwitchTile.tile(
-          label: tr('healingTitle'),
-          value: isActive,
-          onChanged: (_) => notifier.setMode(
-            isActive ? HealingMode.inactive : HealingMode.active,
-          ),
-        ),
-        if (isActive)
           SwitchTile.tile(
-            label: tr('healingSample'),
-            value: isSampling,
-            onChanged: (_) => notifier.toggleSamplingButton(),
-          ),
-
-        // ── Hint + sliders (active only) ──
-        if (isActive) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: Text(
-              state.cloneSource != null
-                  ? tr('healingSourceSet')
-                  : tr('healingAltHint'),
-              style: AppTypography.labelSmall.copyWith(
-                color: state.cloneSource != null
-                    ? AppColors.semanticSuccess
-                    : AppColors.disabledText,
-              ),
+            label: tr('healingTitle'),
+            value: isActive,
+            onChanged: (_) => notifier.setMode(
+              isActive ? HealingMode.inactive : HealingMode.active,
             ),
           ),
-          const SizedBox(height: 4),
-          DevelopSliderTile(
-            label: tr('healingRadius'),
-            value: state.brushRadius * 1000,
-            min: 2,
-            max: 100,
-            fractionDigits: 0,
-            suffix: '‰',
-            onChanged: (v) => notifier.setBrushRadius(v / 1000),
-          ),
-          DevelopSliderTile(
-            label: tr('healingHardness'),
-            value: state.brushHardness * 100,
-            min: 0,
-            max: 100,
-            fractionDigits: 0,
-            suffix: '%',
-            onChanged: (v) => notifier.setBrushHardness(v / 100),
-          ),
-        ],
-
-        // ── Clear All ──
-        if (isActive && marks.isNotEmpty)
+          if (isActive)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: notifier.clearAll,
-                icon: const Icon(Icons.delete_outline, size: 16),
-                label: Text(tr('ClearAll')),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.semanticError,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.only(left: 16, right: 16),
+            child: Row(
+              children: [
+                PillChip(
+                  icon: Icons.colorize,
+                  label: tr('healingSample'),
+                  isActive: isSampling,
+                  onTap: notifier.toggleSamplingButton,
+                ),
+              ],
+            ),
+          ),
+
+          // ── Hint + sliders (active only) ──
+          if (isActive) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Text(
+                state.cloneSource != null
+                    ? tr('healingSourceSet')
+                    : tr('healingAltHint'),
+                style: AppTypography.labelSmall.copyWith(
+                  color: state.cloneSource != null
+                      ? AppColors.semanticSuccess
+                      : AppColors.disabledText,
                 ),
               ),
             ),
-          ),
-      ],
+            const SizedBox(height: 4),
+            DevelopSliderTile(
+              label: tr('healingRadius'),
+              value: state.brushRadius * 1000,
+              min: 2,
+              max: 100,
+              fractionDigits: 0,
+              suffix: '‰',
+              onChanged: (v) => notifier.setBrushRadius(v / 1000),
+            ),
+            DevelopSliderTile(
+              label: tr('healingHardness'),
+              value: state.brushHardness * 100,
+              min: 0,
+              max: 100,
+              fractionDigits: 0,
+              suffix: '%',
+              onChanged: (v) => notifier.setBrushHardness(v / 100),
+            ),
+          ],
+
+          // ── Clear All ──
+          if (isActive && marks.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: notifier.clearAll,
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  label: Text(tr('ClearAll')),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.semanticError,
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

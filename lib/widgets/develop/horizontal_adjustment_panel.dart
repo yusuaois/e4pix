@@ -32,7 +32,7 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
   Widget _section(DevelopTool tool, WidgetRef ref) {
     final m = manifestForTool(tool);
     if (m != null) {
-      return SingleChildScrollView(child: m.sectionFactory(params, onChanged));
+      return m.sectionFactory(params, onChanged);
     }
     switch (tool) {
       case DevelopTool.light:
@@ -73,20 +73,9 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tool = ref.watch(developToolProvider);
 
-    // 切离 local 时退出画笔/智能/主体工具
     ref.listen(developToolProvider, (prev, next) {
-      if (prev == DevelopTool.local && next != DevelopTool.local) {
-        exitLocalTool(ref);
-      }
+      exitToolOnChange(ref, prev: prev, next: next);
     });
-    // 切离任意画笔工具时通过 manifest 自动退出
-    for (final m in brushManifests) {
-      ref.listen(developToolProvider, (prev, next) {
-        if (prev == m.tool && next != m.tool) {
-          deactivateBrush(m.id, ref);
-        }
-      });
-    }
 
     return SizedBox(
       width: 340,

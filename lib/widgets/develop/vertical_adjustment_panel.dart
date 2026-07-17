@@ -25,17 +25,24 @@ class VerticalAdjustmentPanel extends ConsumerStatefulWidget {
 class _VerticalAdjustmentPanelState
     extends ConsumerState<VerticalAdjustmentPanel>
     with TickerProviderStateMixin {
-  /// Number of non-brush tabs before the brush section begins.
-  static const _tabsBeforeBrushes = 7; // light..preset(6) + local(1)
+  late final List<DevelopTool> _toolOrder = [
+    DevelopTool.light,
+    DevelopTool.color,
+    DevelopTool.hsl,
+    DevelopTool.lut,
+    DevelopTool.detail,
+    DevelopTool.preset,
+    DevelopTool.local,
+    for (final m in brushManifests) m.tool,
+    DevelopTool.lens,
+    DevelopTool.sr,
+    DevelopTool.watermark,
+  ];
 
-  /// Number of non-brush tabs after the brush section.
-  static const _tabsAfterBrushes = 3; // lens, sr, watermark
-
-  int get _totalTabs =>
-      _tabsBeforeBrushes + brushManifests.length + _tabsAfterBrushes;
-  int get _localTabIndex => 6;
+  int get _totalTabs => _toolOrder.length;
 
   late final TabController _tabController;
+  int _prevIndex = 0;
 
   @override
   void initState() {
@@ -46,17 +53,13 @@ class _VerticalAdjustmentPanelState
 
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
-    if (_tabController.index != _localTabIndex) {
-      exitLocalTool(ref);
-    }
-    // Deactivate any brush whose tab is being left.
-    for (int i = 0; i < brushManifests.length; i++) {
-      final idx = _tabsBeforeBrushes + i;
-      if (_tabController.index != idx) {
-        deactivateBrush(brushManifests[i].id, ref);
-      }
-    }
+    final prev = _toolForIndex(_prevIndex);
+    final next = _toolForIndex(_tabController.index);
+    exitToolOnChange(ref, prev: prev, next: next);
+    _prevIndex = _tabController.index;
   }
+
+  DevelopTool _toolForIndex(int index) => _toolOrder[index];
 
   Widget _brushSection(DevelopTool tool, AdjustmentParams params) {
     final m = manifestForTool(tool);
@@ -157,55 +160,28 @@ class _VerticalAdjustmentPanelState
                     onChanged: (b) => widget.onChanged(params.copyWith(hsl: b)),
                   ),
                   const LutSection(),
-                  // 以下 4 个 Tab 较重，延迟到首帧结束后构建
-                  _LazyBuild(
+                  // 以下 Tab 较重，延迟到首帧结束后构建
+                  LazyBuild(
                     builder: (_) => DetailSection(
                       params: params,
                       onChanged: widget.onChanged,
                     ),
                   ),
-                  _LazyBuild(builder: (_) => const PresetGrid()),
-                  _LazyBuild(builder: (_) => const LocalPanel()),
+                  LazyBuild(builder: (_) => const PresetGrid()),
+                  LazyBuild(builder: (_) => const LocalPanel()),
                   for (final m in brushManifests)
-                    _LazyBuild(builder: (_) => _brushSection(m.tool, params)),
-                  _LazyBuild(builder: (_) => const LensSection()),
-                  _LazyBuild(
+                    LazyBuild(builder: (_) => _brushSection(m.tool, params)),
+                  LazyBuild(builder: (_) => const LensSection()),
+                  LazyBuild(
                     builder: (_) =>
                         SrSection(params: params, onChanged: widget.onChanged),
                   ),
-                  _LazyBuild(builder: (_) => const WatermarkSection()),
+                  LazyBuild(builder: (_) => const WatermarkSection()),
                 ],
               ),
             ),
         ],
       ),
     );
-  }
-}
-
-/// 首帧延迟构建：首帧渲染空占位，下一帧真正构建，减少 TabBarView 初始开销
-class _LazyBuild extends StatefulWidget {
-  final WidgetBuilder builder;
-  const _LazyBuild({required this.builder});
-
-  @override
-  State<_LazyBuild> createState() => _LazyBuildState();
-}
-
-class _LazyBuildState extends State<_LazyBuild> {
-  bool _built = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _built = true);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_built) return const SizedBox.shrink();
-    return widget.builder(context);
   }
 }

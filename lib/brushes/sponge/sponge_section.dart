@@ -33,104 +33,106 @@ class SpongeSection extends ConsumerWidget {
     final isActive = state.brushMode == SpongeBrushMode.active;
     final marks = (params.brushMarks['sponge']?.cast<SpongeMark>()) ?? const [];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionLabel(title: 'sponge'),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionLabel(title: 'sponge'),
 
-        // 激活切换
-        SwitchTile.tile(
-          label: tr('spongeTitle'),
-          value: isActive,
-          onChanged: (_) => notifier.setBrushMode(
-            isActive ? SpongeBrushMode.inactive : SpongeBrushMode.active,
+          // 激活切换
+          SwitchTile.tile(
+            label: tr('spongeTitle'),
+            value: isActive,
+            onChanged: (_) => notifier.setBrushMode(
+              isActive ? SpongeBrushMode.inactive : SpongeBrushMode.active,
+            ),
           ),
-        ),
 
-        // 控件（激活时显示）
-        if (isActive) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: Text(
-              tr('spongeHint'),
-              style: AppTypography.labelSmall.copyWith(
-                color: AppColors.disabledText,
+          // 控件（激活时显示）
+          if (isActive) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Text(
+                tr('spongeHint'),
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.disabledText,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
 
-          // 饱和/去饱和 模式切换
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                PillChip(
-                  icon: Icons.add_circle_outline,
-                  label: tr('spongeSaturate'),
-                  isActive: state.mode == SpongeMode.saturate,
-                  onTap: () => notifier.setMode(SpongeMode.saturate),
-                ),
-                const SizedBox(width: 8),
-                PillChip(
-                  icon: Icons.remove_circle_outline,
-                  label: tr('spongeDesaturate'),
-                  isActive: state.mode == SpongeMode.desaturate,
-                  onTap: () => notifier.setMode(SpongeMode.desaturate),
-                ),
-              ],
+            // 饱和/去饱和 模式切换
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  PillChip(
+                    icon: Icons.add_circle_outline,
+                    label: tr('spongeSaturate'),
+                    isActive: state.mode == SpongeMode.saturate,
+                    onTap: () => notifier.setMode(SpongeMode.saturate),
+                  ),
+                  const SizedBox(width: 8),
+                  PillChip(
+                    icon: Icons.remove_circle_outline,
+                    label: tr('spongeDesaturate'),
+                    isActive: state.mode == SpongeMode.desaturate,
+                    onTap: () => notifier.setMode(SpongeMode.desaturate),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
 
-          DevelopSliderTile(
-            label: tr('spongeFlow'),
-            value: state.flow * 100,
-            min: 1,
-            max: 100,
-            fractionDigits: 0,
-            suffix: '%',
-            onChanged: (v) => notifier.setFlow(v / 100),
-          ),
-          DevelopSliderTile(
-            label: tr('spongeRadius'),
-            value: state.brushRadius,
-            min: 2,
-            max: 100,
-            fractionDigits: 0,
-            suffix: '‰',
-            onChanged: (v) => notifier.setBrushRadius(v),
-          ),
-          DevelopSliderTile(
-            label: tr('spongeHardness'),
-            value: state.brushHardness * 100,
-            min: 0,
-            max: 100,
-            fractionDigits: 0,
-            suffix: '%',
-            onChanged: (v) => notifier.setBrushHardness(v / 100),
-          ),
+            DevelopSliderTile(
+              label: tr('spongeFlow'),
+              value: state.flow * 100,
+              min: 1,
+              max: 100,
+              fractionDigits: 0,
+              suffix: '%',
+              onChanged: (v) => notifier.setFlow(v / 100),
+            ),
+            DevelopSliderTile(
+              label: tr('spongeRadius'),
+              value: state.brushRadius,
+              min: 2,
+              max: 100,
+              fractionDigits: 0,
+              suffix: '‰',
+              onChanged: (v) => notifier.setBrushRadius(v),
+            ),
+            DevelopSliderTile(
+              label: tr('spongeHardness'),
+              value: state.brushHardness * 100,
+              min: 0,
+              max: 100,
+              fractionDigits: 0,
+              suffix: '%',
+              onChanged: (v) => notifier.setBrushHardness(v / 100),
+            ),
+          ],
+
+          // 清除全部
+          if (isActive && marks.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: notifier.clearAll,
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  label: Text(tr('ClearAll')),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.semanticError,
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              ),
+            ),
         ],
-
-        // 清除全部
-        if (isActive && marks.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: notifier.clearAll,
-                icon: const Icon(Icons.delete_outline, size: 16),
-                label: Text(tr('ClearAll')),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.semanticError,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                ),
-              ),
-            ),
-          ),
-      ],
+      ),
     );
   }
 }
