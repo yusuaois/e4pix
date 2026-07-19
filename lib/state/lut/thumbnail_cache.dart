@@ -42,14 +42,30 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
   final _lutQueue = <_LutTask>[];
   bool _lutRunning = false;
 
+  // 依赖未就绪时的暂存请求
+  final _pendingLuts = <String, LutEntry>{};
+
   // 预设批量定时器
   Timer? _presetTimer;
   final _pendingPresets = <String, AdjustmentParams>{};
 
   @override
   ThumbnailState build() {
-    ref.listen(imageNotifierProvider, (_, _) => _onSourceChanged());
+    // ref.listen 不触发初始值：若 image 已就绪则手动初始化 _lastSourceKey，
+    // 否则 _processLutQueue / _renderPreset 的 sourceKey 检查会丢弃所有渲染结果
+    final initial = ref.read(imageNotifierProvider).value;
+    if (initial != null && _lastSourceKey == null) {
+      _lastSourceKey = _sourceKey(initial.uiImage);
+    }
+
+    ref.listen(imageNotifierProvider, (prev, next) {
+      _onSourceChanged();
+      if (next.hasValue && prev is AsyncLoading) _retryPending();
+    });
     ref.listen(currentParamsNotifierProvider, (_, _) => _onSourceChanged());
+    ref.listen(shaderProgramProvider, (prev, next) {
+      if (next.hasValue && prev is AsyncLoading) _retryPending();
+    });
     ref.onDispose(() {
       _disposed = true;
       _presetTimer?.cancel();
@@ -74,7 +90,10 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
     }
     final image = ref.read(imageNotifierProvider).value;
     final program = ref.read(shaderProgramProvider).value;
-    if (image == null || program == null) return;
+    if (image == null || program == null) {
+      _pendingLuts[key] = entry;
+      return;
+    }
 
     state = state.copyWith(rendering: {...state.rendering, key});
     _lutQueue.add(
@@ -100,11 +119,9 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
     }
     _pendingPresets[key] = params;
     _presetTimer?.cancel();
-    // 100ms 防抖：同帧内多次 request 合并为一批
     _presetTimer = Timer(const Duration(milliseconds: 100), () {
       _presetTimer = null;
       _renderPresetBatch(Map.of(_pendingPresets));
-      _pendingPresets.clear();
     });
   }
 
@@ -178,6 +195,7 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
     final sourceKey = _sourceKey(image.uiImage);
     final keys = batch.keys.toList();
     state = state.copyWith(rendering: {...state.rendering, ...keys});
+    _pendingPresets.removeWhere((k, _) => keys.contains(k));
 
     for (final entry in batch.entries) {
       _renderPreset(
@@ -261,6 +279,22 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
     old?.dispose();
   }
 
+  // ── 重试暂存请求 ──
+
+  void _retryPending() {
+    for (final entry in Map.of(_pendingLuts).entries) {
+      _pendingLuts.remove(entry.key);
+      requestLut(entry.value);
+    }
+    if (_pendingPresets.isNotEmpty) {
+      _presetTimer?.cancel();
+      _presetTimer = Timer(const Duration(milliseconds: 100), () {
+        _presetTimer = null;
+        _renderPresetBatch(Map.of(_pendingPresets));
+      });
+    }
+  }
+
   // ── 源图变更 ──
 
   int _sourceKey(ui.Image src) => identityHashCode(src);
@@ -270,10 +304,16 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
     if (image == null) return;
     final key = _sourceKey(image.uiImage);
     if (key == _lastSourceKey) return;
+    // 首次初始化：仅记录 key，不清除暂存请求
+    if (_lastSourceKey == null) {
+      _lastSourceKey = key;
+      return;
+    }
     _lastSourceKey = key;
     _gen++;
     _lutQueue.clear();
     _lutRunning = false;
+    _pendingLuts.clear();
     _presetTimer?.cancel();
     _pendingPresets.clear();
 
