@@ -44,7 +44,7 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
       case DevelopTool.color:
         return WhiteBalanceColorSection(params: params, onChanged: onChanged);
       case DevelopTool.curve:
-        return CurveSection(onDone: onCurveDone, standalone: true);
+        return CurveSection(onDone: onCurveDone);
       case DevelopTool.hsl:
         return HslSection(
           bands: params.hsl,

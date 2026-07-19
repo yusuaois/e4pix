@@ -6,7 +6,7 @@ import '../../../../core/models/local_adjustment.dart';
 import '../../../../core/models/mask_shape.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../state/providers.dart';
-import '../local_section.dart';
+import 'local_section.dart';
 
 class LocalShapeControls extends ConsumerWidget {
   final LocalAdjustment local;

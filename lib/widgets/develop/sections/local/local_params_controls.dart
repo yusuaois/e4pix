@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/local_adjustment.dart';
 import '../../../../core/models/local_params.dart';
 import '../../../../state/providers.dart';
-import '../local_section.dart';
+import 'local_section.dart';
 
 class LocalParamsControls extends ConsumerWidget {
   final LocalAdjustment local;

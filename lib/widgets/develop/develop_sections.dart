@@ -7,5 +7,5 @@ export 'sections/lut/lut_section.dart';
 export 'sections/detail/detail_section.dart';
 export 'sections/watermark/watermark_section.dart';
 export 'sections/lens/lens_section.dart';
-export 'sections/local_section.dart';
+export 'sections/local/local_section.dart';
 export 'sections/sr/sr_section.dart';

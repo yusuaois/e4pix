@@ -1,18 +1,18 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/models/local_adjustment.dart';
-import '../../../core/models/mask_shape.dart';
-import '../../../core/theme/app_typography.dart';
-import '../../../services/local/sam_session.dart';
-import '../../../state/providers.dart';
-import '../develop_sections.dart';
-import '../tracked_slider.dart';
-import 'local/local_shape_controls.dart';
-import 'local/local_brush_controls.dart';
-import 'local/local_params_controls.dart';
+import '../../../../core/models/local_adjustment.dart';
+import '../../../../core/models/mask_shape.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../services/local/sam_session.dart';
+import '../../../../state/providers.dart';
+import '../../develop_sections.dart';
+import '../../tracked_slider.dart';
+import 'local_shape_controls.dart';
+import 'local_brush_controls.dart';
+import 'local_params_controls.dart';
 
 class LocalPanel extends ConsumerWidget {
   const LocalPanel({super.key});

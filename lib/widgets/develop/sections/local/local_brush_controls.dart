@@ -8,7 +8,7 @@ import '../../../../core/models/mask_shape.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../services/local/sam_session.dart';
 import '../../../../state/providers.dart';
-import '../local_section.dart';
+import 'local_section.dart';
 
 class BrushControls extends ConsumerWidget {
   final LocalAdjustment local;

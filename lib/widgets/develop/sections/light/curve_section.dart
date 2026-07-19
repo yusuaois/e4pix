@@ -14,10 +14,7 @@ import 'curve_gesture_utils.dart';
 class CurveSection extends ConsumerStatefulWidget {
   final VoidCallback? onDone;
 
-  /// 是否独立使用（非 LightSection 内嵌），独立时自行管理柱状图复位
-  final bool standalone;
-
-  const CurveSection({super.key, this.onDone, this.standalone = false});
+  const CurveSection({super.key, this.onDone});
 
   @override
   ConsumerState<CurveSection> createState() => _CurveSectionState();
@@ -27,8 +24,16 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
   int _channel = 0; // 0主 1R 2G 3B
   int? _dragIndex;
   late final _throttle = CurveThrottle();
+  late final VoidCallback _restoreHistogram;
 
-  /// 控制点外溢半径
+  @override
+  void initState() {
+    super.initState();
+    final show = ref.read(histogramCollapsedProvider.notifier).show;
+    _restoreHistogram = () => Future(show);
+  }
+
+  // 控制点外溢
   static const double _pointOverflow = 6.0;
 
   ToneCurve _curveOf(RgbCurves c) => switch (_channel) {
@@ -58,6 +63,7 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
   @override
   void dispose() {
     _throttle.cancel();
+    _restoreHistogram();
     super.dispose();
   }
 
@@ -66,15 +72,6 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     final curves = ref.watch(
       currentParamsNotifierProvider.select((p) => p.curves),
     );
-
-    // 独立模式：切离曲线工具时自动复位柱状图（内嵌模式下由 LightSection 管理）
-    if (widget.standalone) {
-      ref.listen(developToolProvider, (prev, next) {
-        if (prev == DevelopTool.curve && next != DevelopTool.curve) {
-          ref.read(histogramCollapsedProvider.notifier).show();
-        }
-      });
-    }
 
     final curve = _curveOf(curves);
     final lineColor = _channelColor(context);
