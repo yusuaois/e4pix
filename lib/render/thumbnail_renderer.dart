@@ -5,32 +5,38 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/models/adjustment_params.dart';
-import '../../render/lut_texture_cache.dart';
-import '../../render/render_engine.dart';
-import '../../services/lut/lut_library.dart';
-import '../providers.dart';
+import '../core/models/adjustment_params.dart';
+import 'lut_texture_cache.dart';
+import 'render_engine.dart';
+import '../services/lut/lut_library.dart';
+import '../state/image/image_state.dart';
+import '../state/params/params_state.dart';
+import '../state/render/render_state.dart';
+import '../utils/debouncer.dart';
 
-/// LUT / 预设缩略图的统一状态
+/// 缩略图渲染的统一状态
 @immutable
-class ThumbnailState {
+class ThumbnailRenderState {
   final Map<String, ui.Image> thumbs;
   final Set<String> rendering;
-  const ThumbnailState({this.thumbs = const {}, this.rendering = const {}});
+  const ThumbnailRenderState({
+    this.thumbs = const {},
+    this.rendering = const {},
+  });
 
-  ThumbnailState copyWith({
+  ThumbnailRenderState copyWith({
     Map<String, ui.Image>? thumbs,
     Set<String>? rendering,
-  }) => ThumbnailState(
+  }) => ThumbnailRenderState(
     thumbs: thumbs ?? this.thumbs,
     rendering: rendering ?? this.rendering,
   );
 }
 
-/// 统一缩略图渲染服务：LUT + 预设
+/// 通用缩略图渲染服务
 ///
-/// key 命名空间：`lut:name` / `preset:id`
-class ThumbnailCache extends Notifier<ThumbnailState> {
+/// key 命名空间：`lut:name` / `preset:id`，未来可扩展任意前缀
+class ThumbnailRenderer extends Notifier<ThumbnailRenderState> {
   static const _lutW = 60, _lutH = 40;
   static const _presetW = 80, _presetH = 56;
 
@@ -45,12 +51,12 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
   // 依赖未就绪时的暂存请求
   final _pendingLuts = <String, LutEntry>{};
 
-  // 预设批量定时器
-  Timer? _presetTimer;
+  // 预设批量防抖
+  final _presetDebouncer = Debouncer();
   final _pendingPresets = <String, AdjustmentParams>{};
 
   @override
-  ThumbnailState build() {
+  ThumbnailRenderState build() {
     // ref.listen 不触发初始值：若 image 已就绪则手动初始化 _lastSourceKey，
     // 否则 _processLutQueue / _renderPreset 的 sourceKey 检查会丢弃所有渲染结果
     final initial = ref.read(imageNotifierProvider).value;
@@ -68,20 +74,20 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
     });
     ref.onDispose(() {
       _disposed = true;
-      _presetTimer?.cancel();
+      _presetDebouncer.dispose();
       for (final img in state.thumbs.values) {
         try {
           img.dispose();
         } catch (_) {}
       }
     });
-    return const ThumbnailState();
+    return const ThumbnailRenderState();
   }
 
   // ── 公开 API ──
 
-  /// LUT 缩略图（60×40，含 LUT 纹理，串行队列）
-  void requestLut(LutEntry entry) {
+  /// 带 LUT 纹理的缩略图（60×40，串行队列）
+  void requestWithLut(LutEntry entry) {
     final key = 'lut:${entry.name}';
     if (_disposed ||
         state.thumbs.containsKey(key) ||
@@ -109,8 +115,8 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
     if (!_lutRunning) _processLutQueue();
   }
 
-  /// 预设缩略图（80×56，仅 develop pass，首帧防抖批量触发）
-  void requestPreset(String id, AdjustmentParams params) {
+  /// 基础 develop-pass 缩略图（80×56，首帧防抖批量触发）
+  void request(String id, AdjustmentParams params) {
     final key = 'preset:$id';
     if (_disposed ||
         state.thumbs.containsKey(key) ||
@@ -118,9 +124,7 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
       return;
     }
     _pendingPresets[key] = params;
-    _presetTimer?.cancel();
-    _presetTimer = Timer(const Duration(milliseconds: 100), () {
-      _presetTimer = null;
+    _presetDebouncer.run(const Duration(milliseconds: 100), () {
       _renderPresetBatch(Map.of(_pendingPresets));
     });
   }
@@ -272,7 +276,7 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
 
   void _commit(String key, ui.Image img) {
     final old = state.thumbs[key];
-    state = ThumbnailState(
+    state = ThumbnailRenderState(
       thumbs: {...state.thumbs, key: img},
       rendering: {...state.rendering}..remove(key),
     );
@@ -284,12 +288,10 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
   void _retryPending() {
     for (final entry in Map.of(_pendingLuts).entries) {
       _pendingLuts.remove(entry.key);
-      requestLut(entry.value);
+      requestWithLut(entry.value);
     }
     if (_pendingPresets.isNotEmpty) {
-      _presetTimer?.cancel();
-      _presetTimer = Timer(const Duration(milliseconds: 100), () {
-        _presetTimer = null;
+      _presetDebouncer.run(const Duration(milliseconds: 100), () {
         _renderPresetBatch(Map.of(_pendingPresets));
       });
     }
@@ -314,13 +316,13 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
     _lutQueue.clear();
     _lutRunning = false;
     _pendingLuts.clear();
-    _presetTimer?.cancel();
+    _presetDebouncer.cancel();
     _pendingPresets.clear();
 
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (_disposed) return;
       final old = Map<String, ui.Image>.from(state.thumbs);
-      state = const ThumbnailState();
+      state = const ThumbnailRenderState();
       Future.delayed(const Duration(milliseconds: 300), () {
         for (final img in old.values) {
           try {
@@ -332,9 +334,10 @@ class ThumbnailCache extends Notifier<ThumbnailState> {
   }
 }
 
-final thumbnailCacheProvider = NotifierProvider<ThumbnailCache, ThumbnailState>(
-  ThumbnailCache.new,
-);
+final thumbnailRendererProvider =
+    NotifierProvider<ThumbnailRenderer, ThumbnailRenderState>(
+      ThumbnailRenderer.new,
+    );
 
 class _LutTask {
   final String key;

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -6,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/crop_params.dart';
 import '../../../state/providers.dart';
+import '../../../utils/debouncer.dart';
 import '../../../utils/single_pointer_gesture_detector.dart';
 import 'base_stamp_painter.dart';
 import 'stamp_compositor.dart';
@@ -27,7 +27,7 @@ abstract class BaseStampOverlayState<
   // 光标/悬停
   Offset? cursorPos;
   bool cursorVisible = false;
-  Timer? _exitDebounce;
+  final _exitDebouncer = Debouncer();
 
   // 委托对象
   late final StampGestureHandler<T> _gestureHandler;
@@ -165,7 +165,7 @@ abstract class BaseStampOverlayState<
 
   @override
   void dispose() {
-    _exitDebounce?.cancel();
+    _exitDebouncer.dispose();
     _compositor.disposeComposited();
     onCustomDispose();
     super.dispose();
@@ -255,18 +255,18 @@ abstract class BaseStampOverlayState<
 
     return MouseRegion(
       onEnter: (_) {
-        _exitDebounce?.cancel();
+        _exitDebouncer.cancel();
         if (!cursorVisible) setState(() => cursorVisible = true);
       },
       onHover: (e) {
-        _exitDebounce?.cancel();
+        _exitDebouncer.cancel();
         setState(() {
           cursorVisible = true;
           cursorPos = e.localPosition;
         });
       },
       onExit: (_) {
-        _exitDebounce = Timer(const Duration(milliseconds: 50), () {
+        _exitDebouncer.run(const Duration(milliseconds: 50), () {
           if (mounted) setState(() => cursorVisible = false);
         });
       },

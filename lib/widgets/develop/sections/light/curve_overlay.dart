@@ -5,6 +5,7 @@ import '../../../../core/models/rgb_curves.dart';
 import '../../../../core/models/tone_curve.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../state/providers.dart';
+import '../../../../utils/throttler.dart';
 import 'curve_gesture_utils.dart';
 import 'curve_section.dart';
 
@@ -19,7 +20,7 @@ class CurveOverlay extends ConsumerStatefulWidget {
 
 class _CurveOverlayState extends ConsumerState<CurveOverlay> {
   int? _dragIndex;
-  late final _throttle = CurveThrottle();
+  late final _throttle = Throttler<ToneCurve>();
 
   /// 控制点外溢半径
   static const double _pointOverflow = 6.0;

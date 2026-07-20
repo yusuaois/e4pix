@@ -10,8 +10,10 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../../../../core/constants/lut_formats.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../render/lut_texture_cache.dart';
+import '../../../../render/thumbnail_renderer.dart';
 import '../../../../services/lut/lut_library.dart';
 import '../../../../state/providers.dart';
+import '../../../../utils/debouncer.dart';
 import '../../tracked_slider.dart';
 import '../shared.dart';
 
@@ -31,7 +33,7 @@ class LutSection extends ConsumerWidget {
 
     LutTextureCache.instance.protect(lut.nameA, lut.nameB);
 
-    final thumbState = ref.watch(thumbnailCacheProvider);
+    final thumbState = ref.watch(thumbnailRendererProvider);
     final thumbs = thumbState.thumbs;
     final rendering = thumbState.rendering;
 
@@ -49,8 +51,9 @@ class LutSection extends ConsumerWidget {
             library: library,
             thumbs: thumbs,
             rendering: rendering,
-            onItemVisible: (entry) =>
-                ref.read(thumbnailCacheProvider.notifier).requestLut(entry),
+            onItemVisible: (entry) => ref
+                .read(thumbnailRendererProvider.notifier)
+                .requestWithLut(entry),
           ),
           const SizedBox(height: 10),
           _LutSlot(
@@ -61,8 +64,9 @@ class LutSection extends ConsumerWidget {
             library: library,
             thumbs: thumbs,
             rendering: rendering,
-            onItemVisible: (entry) =>
-                ref.read(thumbnailCacheProvider.notifier).requestLut(entry),
+            onItemVisible: (entry) => ref
+                .read(thumbnailRendererProvider.notifier)
+                .requestWithLut(entry),
           ),
         ],
       ),
@@ -413,17 +417,16 @@ class _LutMenuItem extends StatefulWidget {
 
 class _LutMenuItemState extends State<_LutMenuItem> {
   bool _isVisible = false;
-  Timer? _debounceTimer;
+  final _debouncer = Debouncer();
 
   @override
   void dispose() {
-    _debounceTimer?.cancel();
+    _debouncer.dispose();
     super.dispose();
   }
 
   void _triggerVisible() {
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 200), () {
+    _debouncer.run(const Duration(milliseconds: 200), () {
       if (mounted && _isVisible) {
         widget.onVisible();
       }
@@ -450,7 +453,7 @@ class _LutMenuItemState extends State<_LutMenuItem> {
         if (visible != _isVisible) {
           _isVisible = visible;
           if (!_isVisible) {
-            _debounceTimer?.cancel();
+            _debouncer.cancel();
           }
         }
 

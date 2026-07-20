@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/tone_curve.dart';
@@ -68,45 +67,4 @@ ToneCurve? handleLongPress(Offset local, Size size, ToneCurve curve) {
   if (hit == null || hit == 0 || hit == curve.points.length - 1) return null;
   final pts = [...curve.points]..removeAt(hit);
   return ToneCurve(pts);
-}
-
-// ---------------------------------------------------------------------------
-// CurveThrottle — 拖拽节流（~30fps），避免每次像素移动都触发完整管线重渲染
-// ---------------------------------------------------------------------------
-
-class CurveThrottle {
-  Timer? _timer;
-  ToneCurve? _pending;
-
-  /// 节流提交：33ms 内多次调用只取最后一次
-  void throttle(ToneCurve next, void Function(ToneCurve) commit) {
-    _pending = next;
-    if (_timer != null) return;
-    _timer = Timer(const Duration(milliseconds: 33), () {
-      _timer = null;
-      final c = _pending;
-      if (c != null) {
-        _pending = null;
-        commit(c);
-      }
-    });
-  }
-
-  /// 立即提交 pending 值并取消定时器
-  void flush(void Function(ToneCurve) commit) {
-    _timer?.cancel();
-    _timer = null;
-    final c = _pending;
-    if (c != null) {
-      _pending = null;
-      commit(c);
-    }
-  }
-
-  /// 取消定时器，不提交
-  void cancel() {
-    _timer?.cancel();
-    _timer = null;
-    _pending = null;
-  }
 }

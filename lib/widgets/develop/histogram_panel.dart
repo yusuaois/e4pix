@@ -10,6 +10,7 @@ import '../../core/theme/app_typography.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../render/mask_cache.dart';
+import '../../utils/debouncer.dart';
 import '../../utils/shader_pass_util.dart';
 import '../../state/providers.dart';
 
@@ -106,7 +107,7 @@ class LiveHistogramPanel extends ConsumerStatefulWidget {
 class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
   Histogram _hist = Histogram.empty;
   HistogramMode _mode = HistogramMode.rgb;
-  Timer? _debounce;
+  final _debounce = Debouncer();
   bool _computing = false;
   ProviderSubscription<bool>? _dragSub;
   // 128px 缩略图足够直方图统计（256 bins × 128px = 2px/bin 平均）
@@ -144,16 +145,15 @@ class _LiveHistogramPanelState extends ConsumerState<LiveHistogramPanel> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    _debounce.dispose();
     _dragSub?.close();
     _developCache.dispose();
     super.dispose();
   }
 
   void _schedule() {
-    _debounce?.cancel();
     // 50ms 防抖：直方图不需要逐帧更新，略长于预览渲染周期（33ms）减少 GPU 争抢
-    _debounce = Timer(const Duration(milliseconds: 50), _recompute);
+    _debounce.run(const Duration(milliseconds: 50), _recompute);
   }
 
   Future<void> _recompute() async {

@@ -1,9 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/tethered_shot.dart';
+import '../../utils/debouncer.dart';
 import '../providers.dart';
 
 class CurrentParamsNotifier extends Notifier<AdjustmentParams> {
@@ -66,16 +65,16 @@ final effectiveLutEnabledProvider = Provider<bool>((ref) {
       !ref.watch(compareBypassProvider);
 });
 
-// ── 节流参数（渲染组件专用）──
+// ── 防抖参数（渲染组件专用）──
 
-/// 对 [currentParamsNotifierProvider] 做拖拽感知节流
+/// 对 [currentParamsNotifierProvider] 做拖拽感知防抖
 ///
 /// - 滑块拖拽中：最多 33ms 更新一次，避免 GPU 过载
 /// - 松手瞬间：立刻 flush 最终值，保证精度
 ///
-/// 渲染组件直接 watch 此 provider，无需各自做节流
-class _ThrottledParamsNotifier extends Notifier<AdjustmentParams> {
-  Timer? _timer;
+/// 渲染组件直接 watch 此 provider，无需各自做防抖
+class _DebouncedParamsNotifier extends Notifier<AdjustmentParams> {
+  final _debouncer = Debouncer();
   DateTime _lastEmit = DateTime(2000);
   bool _isDragging = false;
 
@@ -83,21 +82,20 @@ class _ThrottledParamsNotifier extends Notifier<AdjustmentParams> {
 
   @override
   AdjustmentParams build() {
-    ref.onDispose(() => _timer?.cancel());
+    ref.onDispose(() => _debouncer.dispose());
 
     // 监听拖拽状态
     ref.listen<bool>(isUserDraggingSliderProvider, (prev, next) {
       _isDragging = next;
       if (prev == true && next == false) {
         // 拖拽结束 — 取消定时器，立刻 emit 最新值
-        _timer?.cancel();
-        _timer = null;
+        _debouncer.cancel();
         _lastEmit = DateTime(2000);
         state = ref.read(effectiveParamsProvider);
       }
     });
 
-    // 监听原始参数 — 拖拽中节流，空闲时立即更新
+    // 监听原始参数 — 拖拽中防抖，空闲时立即更新
     ref.listen<AdjustmentParams>(effectiveParamsProvider, (prev, next) {
       if (prev == next) return;
       if (!_isDragging) {
@@ -105,15 +103,14 @@ class _ThrottledParamsNotifier extends Notifier<AdjustmentParams> {
         state = next;
         return;
       }
-      // 拖拽中：节流
+      // 拖拽中：防抖
       final elapsed = DateTime.now().difference(_lastEmit);
       if (elapsed >= _interval) {
         _lastEmit = DateTime.now();
         state = next;
         return;
       }
-      _timer?.cancel();
-      _timer = Timer(_interval - elapsed, () {
+      _debouncer.run(_interval - elapsed, () {
         _lastEmit = DateTime.now();
         state = next;
       });
@@ -123,7 +120,7 @@ class _ThrottledParamsNotifier extends Notifier<AdjustmentParams> {
   }
 }
 
-final throttledParamsProvider =
-    NotifierProvider<_ThrottledParamsNotifier, AdjustmentParams>(
-      _ThrottledParamsNotifier.new,
+final debouncedParamsProvider =
+    NotifierProvider<_DebouncedParamsNotifier, AdjustmentParams>(
+      _DebouncedParamsNotifier.new,
     );

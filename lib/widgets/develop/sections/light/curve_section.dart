@@ -8,6 +8,7 @@ import '../../../../core/models/rgb_curves.dart';
 import '../../../../core/models/tone_curve.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../state/providers.dart';
+import '../../../../utils/throttler.dart';
 import '../shared.dart';
 import 'curve_gesture_utils.dart';
 
@@ -23,7 +24,7 @@ class CurveSection extends ConsumerStatefulWidget {
 class _CurveSectionState extends ConsumerState<CurveSection> {
   int _channel = 0; // 0主 1R 2G 3B
   int? _dragIndex;
-  late final _throttle = CurveThrottle();
+  late final _throttle = Throttler<ToneCurve>();
   late final VoidCallback _restoreHistogram;
 
   @override

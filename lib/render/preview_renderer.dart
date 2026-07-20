@@ -46,7 +46,7 @@ class _PreviewRendererState extends ConsumerState<PreviewRenderer> {
   @override
   Widget build(BuildContext context) {
     final programAsync = ref.watch(shaderProgramProvider);
-    final params = ref.watch(throttledParamsProvider);
+    final params = ref.watch(debouncedParamsProvider);
     return programAsync.when(
       loading: () =>
           const Center(child: CircularProgressIndicator(strokeWidth: 2)),

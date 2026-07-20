@@ -303,7 +303,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(throttledParamsProvider, (prev, next) {
+    ref.listen(debouncedParamsProvider, (prev, next) {
       if (prev != next) _runRender();
     });
     ref.listen(isUserDraggingSliderProvider, (prev, next) {

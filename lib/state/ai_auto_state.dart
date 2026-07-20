@@ -8,6 +8,7 @@ import '../core/constants/raw_formats.dart';
 import '../services/ai/ai_color_service.dart';
 import '../services/ai/ai_input_renderer.dart';
 import '../services/ai/ai_settings.dart';
+import '../utils/debouncer.dart';
 import 'providers.dart';
 
 @immutable
@@ -43,7 +44,7 @@ class AIAutoState {
 }
 
 class AIAutoNotifier extends Notifier<AIAutoState> {
-  Timer? _debounce;
+  final _debounce = Debouncer();
   int _retryCount = 0;
   static const _maxRetries = 20;
 
@@ -52,7 +53,7 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
     AISettings.getAutoAI().then((v) {
       if (ref.mounted) state = state.copyWith(enabled: v);
     });
-    ref.onDispose(() => _debounce?.cancel());
+    ref.onDispose(() => _debounce.dispose());
     return const AIAutoState();
   }
 
@@ -72,9 +73,8 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
       return;
     }
 
-    _debounce?.cancel();
     _retryCount = 0;
-    _debounce = Timer(const Duration(milliseconds: 300), () {
+    _debounce.run(const Duration(milliseconds: 300), () {
       _runSuggestionForActive(shotPath);
     });
   }
@@ -98,8 +98,7 @@ class AIAutoNotifier extends Notifier<AIAutoState> {
         return;
       }
       _retryCount++;
-      _debounce?.cancel();
-      _debounce = Timer(
+      _debounce.run(
         const Duration(milliseconds: 400),
         () => _runSuggestionForActive(triggerPath),
       );

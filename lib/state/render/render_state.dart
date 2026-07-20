@@ -9,7 +9,7 @@ import '../../core/models/rgb_curves.dart';
 import '../../render/curve_baker.dart';
 import '../../render/lut_texture_cache.dart';
 import '../providers.dart';
-import '../utils/texture_notifier.dart';
+import 'texture_notifier.dart';
 
 @immutable
 class _ShaderBundle {

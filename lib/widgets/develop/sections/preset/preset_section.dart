@@ -7,6 +7,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../render/thumbnail_renderer.dart';
 import '../shared.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -127,15 +128,15 @@ class PresetGrid extends ConsumerWidget {
     final asyncList = ref.watch(presetNotifierProvider);
     final notifier = ref.read(presetNotifierProvider.notifier);
     final primary = Theme.of(context).colorScheme.primary;
-    final thumbs = ref.watch(thumbnailCacheProvider).thumbs;
-    final cacheNotifier = ref.read(thumbnailCacheProvider.notifier);
+    final thumbs = ref.watch(thumbnailRendererProvider).thumbs;
+    final cacheNotifier = ref.read(thumbnailRendererProvider.notifier);
 
     return asyncList.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('$e')),
       data: (presets) {
         for (final p in presets) {
-          cacheNotifier.requestPreset(p.id, p.params);
+          cacheNotifier.request(p.id, p.params);
         }
 
         return SingleChildScrollView(

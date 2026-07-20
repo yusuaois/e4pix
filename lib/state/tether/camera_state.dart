@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/camera/camera_controller.dart';
 import '../../services/camera/gphoto2_camera_controller.dart';
 import '../../services/camera/libgphoto2_android_controller.dart';
+import '../../utils/debouncer.dart';
 import '../providers.dart';
 
 @immutable
@@ -43,12 +44,12 @@ class CameraState {
 
 class CameraNotifier extends Notifier<CameraState> {
   StreamSubscription<CameraEvent>? _sub;
-  Timer? _shutterTimer;
+  final _shutterDebouncer = Debouncer();
 
   @override
   CameraState build() {
     ref.onDispose(() async {
-      _shutterTimer?.cancel();
+      _shutterDebouncer.dispose();
       await _sub?.cancel();
       await state.controller?.stopTether();
     });
@@ -99,8 +100,7 @@ class CameraNotifier extends Notifier<CameraState> {
       state = state.copyWith(modelName: ev.model);
     } else if (ev is CameraTakingShot) {
       state = state.copyWith(shutterFlash: true);
-      _shutterTimer?.cancel();
-      _shutterTimer = Timer(const Duration(milliseconds: 200), () {
+      _shutterDebouncer.run(const Duration(milliseconds: 200), () {
         if (ref.mounted) state = state.copyWith(shutterFlash: false);
       });
     } else if (ev is CameraError) {
@@ -112,8 +112,7 @@ class CameraNotifier extends Notifier<CameraState> {
   }
 
   Future<void> stop() async {
-    _shutterTimer?.cancel();
-    _shutterTimer = null;
+    _shutterDebouncer.cancel();
     await _sub?.cancel();
     _sub = null;
     final ctrl = state.controller;
