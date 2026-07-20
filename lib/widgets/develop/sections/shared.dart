@@ -142,7 +142,7 @@ class SwitchTile extends StatelessWidget {
     );
   }
 
-  /// 大写 header 开关（原 `_SwitchHeader`）
+  /// 大写 header 开关
   factory SwitchTile.header({
     Key? key,
     required String label,
@@ -236,16 +236,19 @@ class PillChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.activeBg : AppColors.dividerLine,
+          color: isActive
+              ? cs.primary.withValues(alpha: 0.20)
+              : AppColors.dividerLine,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isActive
-                ? AppColors.lightBorder.withValues(alpha: 0.6)
+                ? cs.primary.withValues(alpha: 0.4)
                 : AppColors.subtleBorder,
           ),
         ),
@@ -255,13 +258,13 @@ class PillChip extends StatelessWidget {
             Icon(
               icon,
               size: 14,
-              color: isActive ? AppColors.activeValue : AppColors.mediumText,
+              color: isActive ? cs.primary : AppColors.mediumText,
             ),
             const SizedBox(width: 4),
             Text(
               label,
               style: AppTypography.labelSmall.copyWith(
-                color: isActive ? AppColors.activeValue : AppColors.mediumText,
+                color: isActive ? cs.primary : AppColors.mediumText,
               ),
             ),
           ],

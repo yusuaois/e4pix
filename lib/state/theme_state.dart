@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _kDynamicKey = 'theme_dynamic_color';
 const _kSeedKey = 'theme_seed_color';
-const int kDefaultSeed = 0xFFAAAAAA;
+const int kDefaultSeed = 0xFF4CAF50;
 
 class DynamicColorEnabledNotifier extends Notifier<bool> {
   @override

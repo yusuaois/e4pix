@@ -13,8 +13,6 @@ import 'package:dynamic_color/dynamic_color.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // 拦截 debugPrint，捕获日志到 DebugLogService
   debugPrint = (String? message, {int? wrapWidth}) {
     DebugLogService.instance.add(message ?? '');
   };
@@ -37,22 +35,11 @@ void main() async {
   );
 }
 
-/// 从灰度 seed 构建纯中性 ColorScheme
-ColorScheme _grayScheme(int seed) {
-  final c = Color(seed);
-  final v = (c.r * 0.299 + c.g * 0.587 + c.b * 0.114).round();
-  final primary = Color.fromARGB(255, v, v, v);
-  return ColorScheme(
+ColorScheme _customScheme(int seed) {
+  return ColorScheme.fromSeed(
+    seedColor: Color(seed),
     brightness: Brightness.dark,
-    primary: primary,
-    onPrimary: AppColors.scaffoldBg,
-    secondary: primary,
-    onSecondary: AppColors.scaffoldBg,
-    surface: AppColors.panelBg,
-    onSurface: AppColors.textPrimary,
-    error: AppColors.semanticError,
-    onError: AppColors.scaffoldBg,
-  );
+  ).copyWith(surface: AppColors.panelBg, onSurface: AppColors.textPrimary);
 }
 
 class E4pixApp extends ConsumerWidget {
@@ -61,7 +48,7 @@ class E4pixApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 尽早触发 shader 预热（8 个 shader 并行加载编译），不阻塞 UI
+    // shader 预热
     ref.watch(shaderWarmupProvider);
 
     final dynamicEnabled = ref.watch(dynamicColorEnabledProvider);
@@ -71,7 +58,7 @@ class E4pixApp extends ConsumerWidget {
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         final ColorScheme scheme = (dynamicEnabled && darkDynamic != null)
             ? darkDynamic.copyWith(brightness: Brightness.dark)
-            : _grayScheme(seed);
+            : _customScheme(seed);
 
         return MaterialApp(
           title: 'e4pix',
@@ -80,11 +67,9 @@ class E4pixApp extends ConsumerWidget {
             useMaterial3: true,
             colorScheme: scheme,
             scaffoldBackgroundColor: _scaffoldBg,
-            // ── 对话框：统一 elevatedBg 背景 ──
             dialogTheme: const DialogThemeData(
               backgroundColor: AppColors.elevatedBg,
             ),
-            // ── SnackBar：统一浮动样式 ──
             snackBarTheme: SnackBarThemeData(
               backgroundColor: AppColors.elevatedBg,
               contentTextStyle: AppTypography.bodyLarge.copyWith(
@@ -95,12 +80,10 @@ class E4pixApp extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            // ── 交互反馈：桌面端 hover/焦点 ──
             hoverColor: Colors.white.withValues(alpha: 0.08),
             splashColor: Colors.white.withValues(alpha: 0.06),
             highlightColor: Colors.white.withValues(alpha: 0.04),
             focusColor: Colors.white.withValues(alpha: 0.12),
-            // ── 页面过渡 ──
             pageTransitionsTheme: const PageTransitionsTheme(
               builders: {
                 TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
@@ -110,12 +93,9 @@ class E4pixApp extends ConsumerWidget {
                 TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
               },
             ),
-            // ── 滑块：灰阶细轨道 ──
             sliderTheme: SliderThemeData(
               trackHeight: 2.0,
-              activeTrackColor: AppColors.textSecondary,
               inactiveTrackColor: AppColors.inactiveTrack,
-              thumbColor: AppColors.active,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
               overlayColor: AppColors.subtleBorder,
               overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),

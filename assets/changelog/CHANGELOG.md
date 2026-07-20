@@ -1,4 +1,6 @@
 ## ✈️ 新变化 (New Changes)
+* **主题取色开放**：自定义取色从灰度扩展为全色系，支持预设色和色轮选色自适应暗色主题
+* **控件色彩统一**：PillChip 激活态和滑块激活轨道/滑块头跟随主题色，替代硬编码中性灰阶
 * **柱状图折叠**：横屏曲线模式下可手动收起柱状图，节省面板空间；收起后调出缩略条显示展开按钮；切离曲线模式自动恢复
 * **竖屏浮层泛化**：ActiveOverlay sealed class 替代硬编码的 CurveOverlay 判断，新增浮层无需修改 develop_screen 或 vertical_adjustment_panel
 * **Section 文件整理**：曲线相关文件收拢至 sections/light/ 子目录，删除旧 state/tools/curve_overlay_state.dart
