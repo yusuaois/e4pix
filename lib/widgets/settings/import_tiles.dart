@@ -15,65 +15,40 @@ class ImportModeTiles extends ConsumerWidget {
     final mode = ref.watch(importModeProvider);
     final notifier = ref.read(importModeProvider.notifier);
 
-    Widget tile(
-      ImportMode value,
-      String title,
-      String desc, {
-      BorderRadius? shape,
-    }) {
-      return RadioListTile<ImportMode>(
-        value: value,
-        dense: true,
-        controlAffinity: ListTileControlAffinity.leading,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-        shape: shape != null
-            ? RoundedRectangleBorder(borderRadius: shape)
-            : null,
-        title: Text(title, style: AppTypography.bodyLarge),
-        subtitle: Text(
-          desc,
-          style: AppTypography.bodySmall.copyWith(color: AppColors.faintText),
-        ),
-      );
-    }
+    String label(ImportMode m) => switch (m) {
+      ImportMode.rawPriority => tr('importModeRawPriority'),
+      ImportMode.rawOnly => tr('importModeRawOnly'),
+      ImportMode.all => tr('importModeAll'),
+    };
 
-    return RadioGroup<ImportMode>(
-      groupValue: mode,
-      onChanged: (v) => v != null ? notifier.set(v) : null,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                const Icon(Icons.filter_alt_outlined, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    tr('importMode'),
-                    style: AppTypography.titleMedium,
-                  ),
-                ),
-              ],
+    String desc(ImportMode m) => switch (m) {
+      ImportMode.rawPriority => tr('importModeRawPriorityDesc'),
+      ImportMode.rawOnly => tr('importModeRawOnlyDesc'),
+      ImportMode.all => tr('importModeAllDesc'),
+    };
+
+    return ListTile(
+      shape: tileBorderRadius != null
+          ? RoundedRectangleBorder(borderRadius: tileBorderRadius!)
+          : null,
+      leading: const Icon(Icons.filter_alt_outlined, size: 20),
+      title: Text(tr('importMode'), style: AppTypography.titleMedium),
+      subtitle: Text(
+        desc(mode),
+        style: AppTypography.bodySmall.copyWith(color: AppColors.faintText),
+      ),
+      trailing: DropdownButton<ImportMode>(
+        value: mode,
+        items: [
+          for (final m in ImportMode.values)
+            DropdownMenuItem(
+              value: m,
+              child: Text(label(m), style: AppTypography.bodyLarge),
             ),
-          ),
-          tile(
-            ImportMode.rawPriority,
-            tr('importModeRawPriority'),
-            tr('importModeRawPriorityDesc'),
-          ),
-          tile(
-            ImportMode.rawOnly,
-            tr('importModeRawOnly'),
-            tr('importModeRawOnlyDesc'),
-          ),
-          tile(
-            ImportMode.all,
-            tr('importModeAll'),
-            tr('importModeAllDesc'),
-            shape: tileBorderRadius,
-          ),
         ],
+        onChanged: (v) {
+          if (v != null) notifier.set(v);
+        },
       ),
     );
   }

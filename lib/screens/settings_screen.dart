@@ -104,16 +104,7 @@ class _SectionCard extends StatelessWidget {
               ),
             ),
           ),
-          for (int i = 0; i < children.length; i++) ...[
-            children[i],
-            if (i < children.length - 1)
-              Divider(
-                height: 1,
-                thickness: 0.5,
-                color: AppColors.dividerLine,
-                indent: 16,
-              ),
-          ],
+          for (int i = 0; i < children.length; i++) children[i],
         ],
       ),
     );

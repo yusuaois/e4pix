@@ -9,3 +9,5 @@ export 'sections/watermark/watermark_section.dart';
 export 'sections/lens/lens_section.dart';
 export 'sections/local/local_section.dart';
 export 'sections/sr/sr_section.dart';
+export 'sections/history_panel_sheet.dart';
+export 'sections/preset/preset_section.dart';

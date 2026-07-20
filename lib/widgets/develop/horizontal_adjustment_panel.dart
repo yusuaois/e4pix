@@ -8,8 +8,6 @@ import '../../brushes/shared/brush_deactivate.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../state/providers.dart';
 import 'develop_sections.dart';
-import 'sections/history_panel_sheet.dart';
-import 'sections/preset/preset_section.dart';
 
 class HorizontalAdjustmentPanel extends ConsumerWidget {
   final AdjustmentParams params;
