@@ -7,7 +7,7 @@ import '../../../../core/models/watermark_config.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../services/watermark/watermark_asset_manager.dart';
 import '../../../../state/providers.dart';
-import '../../../app/theme_color_picker.dart';
+import 'package:flex_color_picker/flex_color_picker.dart';
 import '../../tracked_slider.dart';
 import '../shared.dart';
 
@@ -521,11 +521,33 @@ class _ColorTile extends StatelessWidget {
           ),
           GestureDetector(
             onTap: () async {
-              final c = await showDialog<Color>(
-                context: context,
-                builder: (_) => ThemeColorWheelDialog(initial: color),
+              final newColor = await showColorPickerDialog(
+                context,
+                color,
+                title: const SizedBox.shrink(),
+                width: 40,
+                height: 40,
+                borderRadius: 4,
+                spacing: 5,
+                runSpacing: 5,
+                wheelDiameter: 165,
+                showColorCode: true,
+                colorCodeHasColor: true,
+                showColorName: true,
+                showMaterialName: true,
+                enableOpacity: false,
+                enableTonalPalette: false,
+                pickersEnabled: const <ColorPickerType, bool>{
+                  ColorPickerType.both: false,
+                  ColorPickerType.primary: false,
+                  ColorPickerType.accent: false,
+                  ColorPickerType.bw: false,
+                  ColorPickerType.custom: false,
+                  ColorPickerType.wheel: true,
+                },
+                constraints: const BoxConstraints(minWidth: 300, maxWidth: 320),
               );
-              if (c != null) onChanged(c);
+              onChanged(newColor);
             },
             child: Container(
               width: 28,

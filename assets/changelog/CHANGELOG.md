@@ -1,5 +1,6 @@
 ## ✈️ 新变化 (New Changes)
-* **主题取色开放**：自定义取色从灰度扩展为全色系，支持预设色和色轮选色自适应暗色主题
+* **取色盘库迁移**：ThemeColorWheelDialog 替换为 flex_color_picker，色轮 + 最近使用颜色，灰度种子自动洗灰避免回退蓝色
+* **依赖整理**：pubspec.yaml 按语义分组注释分类
 * **控件色彩统一**：PillChip 激活态和滑块激活轨道/滑块头跟随主题色，替代硬编码中性灰阶
 * **柱状图折叠**：横屏曲线模式下可手动收起柱状图，节省面板空间；收起后调出缩略条显示展开按钮；切离曲线模式自动恢复
 * **竖屏浮层泛化**：ActiveOverlay sealed class 替代硬编码的 CurveOverlay 判断，新增浮层无需修改 develop_screen 或 vertical_adjustment_panel
