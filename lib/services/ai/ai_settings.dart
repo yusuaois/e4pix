@@ -24,56 +24,12 @@ class AISettings {
     // 已是有效预设 id？
     if (AIProviderPreset.safeById(raw) != null) return raw;
 
-    // TODO 【可删除】下个大版本：旧 enum 迁移已全部完成
-    // 尝试旧枚举迁移
-    final migrated = AIProviderPreset.migrateOldEnumName(raw);
-    if (migrated == null) return _defaultProviderId;
-    if (migrated != '__needs_custom_migration__') return migrated;
-
-    // 【可删除】与 _migrateOldCustom 一起删
-    // 旧 'custom' 需特殊处理
-    return await _migrateOldCustom(p);
+    return _defaultProviderId;
   }
 
   static Future<void> setProvider(String id) async {
     final p = await SharedPreferences.getInstance();
     await p.setString(_kProvider, id);
-  }
-
-  // ============================================================
-  // 【可删除】下个大版本清理：整个 _migrateOldCustom 方法
-  // Migration: old AIProviderId.custom → custom_openai | custom_anthropic
-  // ============================================================
-
-  static Future<String> _migrateOldCustom(SharedPreferences p) async {
-    // 读取旧 custom 格式决定新预设
-    final oldFormat = p.getString('ai_custom_format') ?? 'anthropic';
-    final newId = oldFormat == 'openai' ? 'custom_openai' : 'custom_anthropic';
-
-    // 迁移：ai_custom_endpoint → ai_endpoint_{newId}
-    final oldEndpoint = p.getString('ai_custom_endpoint') ?? '';
-    if (oldEndpoint.isNotEmpty) {
-      await p.setString(_endpointOfId(newId), oldEndpoint);
-    }
-    await p.remove('ai_custom_endpoint');
-
-    // 迁移：ai_custom_format → 无需等价项（预设已含协议）
-    await p.remove('ai_custom_format');
-
-    // 迁移：ai_key_custom → ai_key_{newId}
-    final oldKey = p.getString('ai_key_custom');
-    if (oldKey != null && oldKey.isNotEmpty) {
-      await p.setString(_keyOfId(newId), oldKey);
-    }
-
-    // Migrate: ai_model_custom → ai_model_{newId}
-    final oldModel = p.getString('ai_model_custom');
-    if (oldModel != null && oldModel.isNotEmpty) {
-      await p.setString(_modelOfId(newId), oldModel);
-    }
-
-    await p.setString(_kProvider, newId);
-    return newId;
   }
 
   // API Key

@@ -147,27 +147,4 @@ class AIProviderPreset {
       return null;
     }
   }
-
-  // ============================================================
-  // Migration from old AIProviderId enum
-  // 【可删除】下个大版本清理：_oldEnumToPresetId + migrateOldEnumName()
-  // ============================================================
-
-  static const _oldEnumToPresetId = <String, String>{
-    'anthropic': 'anthropic',
-    'openai': 'openai',
-    'deepseek': 'deepseek',
-    // 'custom' maps to sentinel — handled by AISettings._migrateOldCustom
-  };
-
-  /// Returns null if [stored] is not a recognized old enum name.
-  /// Returns '__needs_custom_migration__' sentinel for old 'custom'.
-  /// 【可删除】与 _oldEnumToPresetId 一起删
-  static String? migrateOldEnumName(String stored) {
-    if (_oldEnumToPresetId.containsKey(stored)) {
-      return _oldEnumToPresetId[stored];
-    }
-    if (stored == 'custom') return '__needs_custom_migration__';
-    return null;
-  }
 }
