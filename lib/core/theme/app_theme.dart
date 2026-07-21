@@ -89,5 +89,6 @@ ColorScheme _grayScheme(int seed) {
     onTertiaryContainer: primary,
     surface: AppColors.panelBg,
     onSurface: AppColors.textPrimary,
+    surfaceTint: primary,
   );
 }
