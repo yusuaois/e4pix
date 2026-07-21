@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../render/render_engine.dart';
+import '../../render/thumbnail_renderer.dart';
 import '../../utils/debouncer.dart';
 import '../providers.dart';
 import 'history_entry.dart';
@@ -51,12 +52,6 @@ class HistoryPanelNotifier extends Notifier<HistoryPanelState> {
 
   int _counter = 0;
 
-  static const _thumbW = 120;
-  static const _thumbH = 80;
-
-  /// 等待缩略图生成的条目 ID 集合
-  final _pendingThumbnails = <String>{};
-
   @override
   HistoryPanelState build() {
     // 参数变化 → debounce 捕获
@@ -66,16 +61,9 @@ class HistoryPanelNotifier extends Notifier<HistoryPanelState> {
       _scheduleParamCapture(prev, next);
     });
 
-    // developOutput 就绪时生成所有待处理缩略图（事件驱动，不靠 delay）
-    ref.listen<ui.Image?>(developOutputProvider, (prev, next) {
-      if (_disposed || next == null || _pendingThumbnails.isEmpty) return;
-      _processPendingThumbnails(next);
-    });
-
     ref.onDispose(() {
       _disposed = true;
       _debouncer.cancel();
-      _disposeAllThumbnails();
     });
 
     return const HistoryPanelState();
@@ -99,7 +87,9 @@ class HistoryPanelNotifier extends Notifier<HistoryPanelState> {
       timestamp: DateTime.now(),
     );
     _appendEntry(entry);
-    _requestThumbnail(entry.id);
+    ref
+        .read(thumbnailRendererProvider.notifier)
+        .requestFull('history', entry.id, entry.params);
   }
 
   String _diffLabel(AdjustmentParams prev, AdjustmentParams next) {
@@ -134,92 +124,20 @@ class HistoryPanelNotifier extends Notifier<HistoryPanelState> {
       timestamp: DateTime.now(),
     );
     _appendEntry(entry);
-    _requestThumbnail(entry.id);
-  }
-
-  // ── 缩略图生成（事件驱动）──
-
-  /// 将条目加入待处理队列；若 developOutput 已就绪则立即生成
-  void _requestThumbnail(String entryId) {
-    if (_disposed) return;
-    final devOutput = ref.read(developOutputProvider);
-    if (devOutput != null) {
-      _generateThumbnailForEntry(entryId, devOutput);
-    } else {
-      _pendingThumbnails.add(entryId);
-    }
-  }
-
-  /// developOutputProvider 更新时批量处理所有待处理条目
-  void _processPendingThumbnails(ui.Image devOutput) {
-    final ids = _pendingThumbnails.toList();
-    _pendingThumbnails.clear();
-    for (final id in ids) {
-      _generateThumbnailForEntry(id, devOutput);
-    }
-  }
-
-  Future<void> _generateThumbnailForEntry(
-    String entryId,
-    ui.Image devOutput,
-  ) async {
-    if (_disposed) return;
-
-    final ui.Image thumb;
-    try {
-      thumb = await _downscale(devOutput, _thumbW, _thumbH);
-    } catch (_) {
-      return;
-    }
-
-    if (_disposed) {
-      thumb.dispose();
-      return;
-    }
-
-    // 找到对应条目并设置缩略图
-    final entries = state.entries.toList();
-    for (int i = entries.length - 1; i >= 0; i--) {
-      if (entries[i].id == entryId) {
-        entries[i] = entries[i].copyWith(thumbnail: thumb);
-        state = state.copyWith(entries: entries);
-        return;
-      }
-    }
-    // 条目已被剪枝
-    thumb.dispose();
-  }
-
-  Future<ui.Image> _downscale(ui.Image source, int w, int h) async {
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-    canvas.drawImageRect(
-      source,
-      ui.Rect.fromLTWH(0, 0, source.width.toDouble(), source.height.toDouble()),
-      ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-      ui.Paint()..filterQuality = ui.FilterQuality.medium,
-    );
-    final picture = recorder.endRecording();
-    final img = await picture.toImage(w, h);
-    picture.dispose();
-    return img;
+    ref
+        .read(thumbnailRendererProvider.notifier)
+        .requestFull('history', entry.id, entry.params);
   }
 
   // ── 条目管理 ──
 
   void _appendEntry(HistoryEntry entry) {
     final newEntries = [...state.entries, entry];
+    // 超过上限时移除最旧条目
     while (newEntries.length > _maxEntries) {
-      final removed = newEntries.removeAt(0);
-      removed.thumbnail?.dispose();
+      newEntries.removeAt(0);
     }
     state = state.copyWith(entries: newEntries, clearSelected: true);
-  }
-
-  void _disposeAllThumbnails() {
-    for (final e in state.entries) {
-      e.thumbnail?.dispose();
-    }
   }
 
   // ── 公开操作 ──
@@ -292,7 +210,7 @@ class HistoryPanelNotifier extends Notifier<HistoryPanelState> {
     final oldSnapshot = historyBrushSnapshot.value;
     historyBrushSnapshot.value = null;
     oldSnapshot?.dispose();
-    _disposeAllThumbnails();
+    ref.read(thumbnailRendererProvider.notifier).removeNamespace('history');
     state = const HistoryPanelState();
   }
 }

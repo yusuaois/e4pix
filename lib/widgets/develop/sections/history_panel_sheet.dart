@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../render/thumbnail_renderer.dart';
 import '../../../state/params/history_entry.dart';
 import '../../../state/providers.dart';
 
@@ -34,6 +35,15 @@ class _HistoryPanelSheetState extends ConsumerState<_HistoryPanelSheet> {
     final brushSourceIndex = panel.brushSourceIndex;
     final notifier = ref.read(historyPanelProvider.notifier);
     final maxH = MediaQuery.of(context).size.height * 0.7;
+
+    // 监听缩略图状态变化以驱动自动刷新
+    final thumbState = ref.watch(thumbnailRendererProvider);
+    final thumbNotifier = ref.read(thumbnailRendererProvider.notifier);
+
+    // 触发所有条目的缩略图请求（key 已缓存则无操作）
+    for (final entry in entries) {
+      thumbNotifier.requestFull('history', entry.id, entry.params);
+    }
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxH),
@@ -95,6 +105,7 @@ class _HistoryPanelSheetState extends ConsumerState<_HistoryPanelSheet> {
                     index: index,
                     isSelected: isSelected,
                     isBrushSource: isBrushSource,
+                    thumbState: thumbState,
                     onTap: () {
                       notifier.revertTo(index);
                       Navigator.pop(context);
@@ -126,6 +137,7 @@ class _HistoryRow extends StatelessWidget {
   final int index;
   final bool isSelected;
   final bool isBrushSource;
+  final ThumbnailRenderState thumbState;
   final VoidCallback onTap;
   final VoidCallback onSetSource;
   final VoidCallback onClearSource;
@@ -135,6 +147,7 @@ class _HistoryRow extends StatelessWidget {
     required this.index,
     required this.isSelected,
     required this.isBrushSource,
+    required this.thumbState,
     required this.onTap,
     required this.onSetSource,
     required this.onClearSource,
@@ -150,7 +163,8 @@ class _HistoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final thumb = entry.thumbnail;
+    final thumbKey = 'history:${entry.id}';
+    final thumb = thumbState.thumbs[thumbKey];
     final label = entry.label;
     final timestamp = entry.timestamp;
 

@@ -12,10 +12,11 @@ class ThemeTiles extends ConsumerWidget {
   const ThemeTiles({super.key, this.tileBorderRadius});
 
   static const List<Color> _presets = [
-    Color(0xFFC0C0C0), // 亮灰
-    Color(0xFFA0A0A0), // 中性灰
-    Color(0xFF808080), // 中暗灰
-    Color(0xFF606060), // 暗灰
+    Color(0xFF4CAF50), // 绿色（默认）
+    Color(0xFF2196F3), // 蓝色
+    Color(0xFF6750A4), // 紫罗兰色
+    Color(0xFFE91E63), // 粉红色
+    Color(0xFFFF9800), // 橙色
   ];
 
   @override
@@ -27,7 +28,7 @@ class ThemeTiles extends ConsumerWidget {
     return Column(
       children: [
         SwitchListTile(
-          shape: tileBorderRadius != null
+          shape: dynamicEnabled && tileBorderRadius != null
               ? RoundedRectangleBorder(borderRadius: tileBorderRadius!)
               : null,
           secondary: const Icon(Icons.palette_outlined, size: 20),
@@ -48,13 +49,6 @@ class ThemeTiles extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 4, 16, 12),
             child: Row(
               children: [
-                Text(
-                  tr("settingsCustomColor"),
-                  style: AppTypography.titleSmall.copyWith(
-                    color: AppColors.mediumText,
-                  ),
-                ),
-                const SizedBox(width: 16),
                 for (final c in _presets) ...[
                   Swatch(
                     color: c,
@@ -72,7 +66,7 @@ class ThemeTiles extends ConsumerWidget {
                       context: context,
                       builder: (_) => ThemeColorWheelDialog(
                         initial: Color(seed),
-                        isGrayscale: true,
+                        isGrayscale: false,
                       ),
                     );
                     if (picked != null) {
@@ -127,13 +121,13 @@ class Swatch extends StatelessWidget {
           gradient: isWheel
               ? const SweepGradient(
                   colors: [
-                    Color(0xFF121212),
-                    Color(0xFF444444),
-                    Color(0xFF999999),
-                    Color(0xFFEEEEEE),
-                    Color(0xFF999999),
-                    Color(0xFF444444),
-                    Color(0xFF121212),
+                    Color(0xFFFF0000),
+                    Color(0xFFFFFF00),
+                    Color(0xFF00FF00),
+                    Color(0xFF00FFFF),
+                    Color(0xFF0000FF),
+                    Color(0xFFFF00FF),
+                    Color(0xFFFF0000),
                   ],
                 )
               : null,
