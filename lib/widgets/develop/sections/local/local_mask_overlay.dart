@@ -252,7 +252,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           return;
         }
         if (isBrush) {
+          _interactionWasBrush = true;
           _cursorScreen = d.localPosition;
+          _paintingPoints = [_screenToMask(d.localPosition)];
           setState(() {});
           return;
         }

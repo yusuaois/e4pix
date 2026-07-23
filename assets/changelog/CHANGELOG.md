@@ -13,9 +13,11 @@
 ## ⚡ 性能优化 (Performance)
 
 ## 🛠️ 底层改进 (Under the Hood)
+* **统一渲染路径**：删除 PreviewRenderer 双路径，所有预览场景统一走 FullPipeline；删除 `needsFullPipeline()` 判断逻辑，`_BlurredBackgroundLayer` 改为内联 CustomPainter
 * **画笔 UI 缩放补偿**：画笔光标（圆圈、取样十字、源点十字）现在随画面缩放保持固定屏幕像素大小，不再随 InteractiveViewer 等比放大/缩小
 
 ## 🐛 问题修复 (Bug Fixes)
+* **局部画笔单点不触发**：修复局部蒙版画笔在单点（不拖动）时不产生笔触的问题，`onTapDown` 补充笔触状态和点集初始化
 * **冷启动缩略图空白**：修复 LUT 下拉菜单和预设面板在冷启动时缩略图永久显示占位符
 * **History 缩略图空白**：修复历史记录中缩略图不显示
 * **缩放漂移修复**：鼠标在图片外黑边区域反复滚轮缩放时图片位置不再累积偏移，删除重复的 focal-point zoom 处理让 InteractiveViewer 原生接管

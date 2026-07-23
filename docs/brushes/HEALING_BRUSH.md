@@ -127,7 +127,7 @@ cp build/flutter_assets/assets/shaders/brushes/healing.frag assets/shaders/brush
 | `lib/state/render/render_state.dart` | healingShaderProgramProvider + renderedHealingHashProvider |
 | `lib/render/healing_cache.dart` | 两级缓存 (marks hash + 增量滚动) |
 | `lib/render/full_pipeline_renderer.dart` | _runHealingPass() + healing 内联段落 |
-| `lib/render/pass_config.dart` | hasHealingMarks() + needsFullPipeline() |
+| `lib/render/pass_config.dart` | needsDenoisePass / needsSharpenPass / needsPerspectivePass / needsLensCorrectionPass / activeLocals / hasActiveLocals |
 | `lib/widgets/develop/sections/healing_overlay.dart` | 手势 + Canvas 预览 + committed preview |
 | `lib/widgets/develop/sections/healing_section.dart` | UI 面板：激活/取样/半径/硬度/清除 |
 | `lib/widgets/develop/vertical_adjustment_panel.dart` | 竖屏第 9 tab (13 tabs) |

@@ -6,13 +6,11 @@ import '../../core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
-import '../../core/models/crop_params.dart';
 import '../../core/models/watermark_config.dart';
-import '../../render/pass_config.dart';
 import '../../native/raw_bridge.dart';
 import '../../utils/image_loader_util.dart';
-import '../../render/preview_renderer.dart';
 import '../../render/watermark_geometry.dart';
+import '../../render/develop_uniforms.dart';
 import '../../services/watermark/watermark_logo_loader.dart';
 import '../../state/providers.dart';
 import 'multi_pass_preview.dart';
@@ -66,68 +64,30 @@ class WatermarkPreview extends ConsumerWidget {
         ? AppColors.textPrimary
         : Colors.black;
 
-    // ── 渲染路径选择 ──
-    final needFullPipeline = needsFullPipeline(params);
-
-    if (needFullPipeline) {
-      final maskProgram = ref.watch(maskShaderProgramProvider).value;
-      final develop = ref.watch(shaderProgramProvider).value;
-      if (develop == null || maskProgram == null) {
-        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-      }
-      return _WatermarkCanvas(
-        geometry: geometry,
-        config: config,
-        textColor: textColor,
-        imageLayer: _ComplexImageLayer(
-          developProgram: develop,
-          maskProgram: maskProgram,
-          sourceImage: state.uiImage,
-          params: params,
-          lutTexture: lutEnabled ? lut.textureA : null,
-          lutSize: lutEnabled ? lut.sizeA : 0,
-          lutTextureB: lutEnabled ? lut.textureB : null,
-          lutSizeB: lutEnabled ? lut.sizeB : 0,
-          curveTexture: ref.watch(effectiveCurveTextureProvider),
-          sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
-          denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
-          perspectiveProgram: ref.watch(perspectiveShaderProgramProvider).value,
-          lensCorrectProgram: ref.watch(lensCorrectShaderProgramProvider).value,
-          geometry: geometry,
-        ),
-        backgroundLayer: _buildBackground(
-          config,
-          geometry,
-          state,
-          params,
-          lut,
-          lutEnabled,
-          ref,
-        ),
-        infoLayer: _InfoLayer(
-          metadata: state.metadata,
-          config: config,
-          geometry: geometry,
-          textColor: textColor,
-          exifText: exifStr,
-        ),
-      );
+    // ── 统一渲染路径（FullPipeline）──
+    final maskProgram = ref.watch(maskShaderProgramProvider).value;
+    final develop = ref.watch(shaderProgramProvider).value;
+    if (develop == null || maskProgram == null) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
-
-    // 简单路径
     return _WatermarkCanvas(
       geometry: geometry,
       config: config,
       textColor: textColor,
-      imageLayer: _SimpleImageLayer(
-        image: state.uiImage,
+      imageLayer: _ComplexImageLayer(
+        developProgram: develop,
+        maskProgram: maskProgram,
+        sourceImage: state.uiImage,
         params: params,
-        crop: params.crop,
         lutTexture: lutEnabled ? lut.textureA : null,
         lutSize: lutEnabled ? lut.sizeA : 0,
         lutTextureB: lutEnabled ? lut.textureB : null,
         lutSizeB: lutEnabled ? lut.sizeB : 0,
         curveTexture: ref.watch(effectiveCurveTextureProvider),
+        sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
+        denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
+        perspectiveProgram: ref.watch(perspectiveShaderProgramProvider).value,
+        lensCorrectProgram: ref.watch(lensCorrectShaderProgramProvider).value,
         geometry: geometry,
       ),
       backgroundLayer: _buildBackground(
@@ -280,123 +240,7 @@ class _WatermarkCanvas extends StatelessWidget {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Layer 2 简单路径：PreviewRenderer + 裁剪变换
-// ──────────────────────────────────────────────────────────────
-
-class _SimpleImageLayer extends ConsumerWidget {
-  final ui.Image image;
-  final AdjustmentParams params;
-  final CropParams crop;
-  final ui.Image? lutTexture;
-  final int lutSize;
-  final ui.Image? lutTextureB;
-  final int lutSizeB;
-  final ui.Image? curveTexture;
-  final WatermarkGeometry geometry;
-
-  const _SimpleImageLayer({
-    required this.image,
-    required this.params,
-    required this.crop,
-    this.lutTexture,
-    this.lutSize = 0,
-    this.lutTextureB,
-    this.lutSizeB = 0,
-    this.curveTexture,
-    required this.geometry,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final targetSize = geometry.imageRect.size;
-
-    if (crop.isIdentity) {
-      return SizedBox.fromSize(
-        size: targetSize,
-        child: PreviewRenderer(
-          image: image,
-          lutTexture: lutTexture,
-          lutSize: lutSize,
-          lutTextureB: lutTextureB,
-          lutSizeB: lutSizeB,
-          curveTexture: curveTexture,
-        ),
-      );
-    }
-
-    // 带裁剪 → 构建 transform 层级
-    final imgW = image.width.toDouble();
-    final imgH = image.height.toDouble();
-    final orientedW = crop.orientationSwapsAxes ? imgH : imgW;
-    final orientedH = crop.orientationSwapsAxes ? imgW : imgH;
-    final scale = targetSize.width / (orientedW * crop.width);
-    final renderedFullW = imgW * scale;
-    final renderedFullH = imgH * scale;
-    final renderedOrientedW = orientedW * scale;
-    final renderedOrientedH = orientedH * scale;
-
-    final orientedImage = SizedBox(
-      width: renderedOrientedW,
-      height: renderedOrientedH,
-      child: ClipRect(
-        child: Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.identity()
-            ..rotateZ(
-              crop.orientation * math.pi / 2 + crop.straighten * math.pi / 180,
-            )
-            ..scaleByDouble(
-              crop.flipH ? -1.0 : 1.0,
-              crop.flipV ? -1.0 : 1.0,
-              1.0,
-              1.0,
-            ),
-          child: OverflowBox(
-            minWidth: renderedFullW,
-            maxWidth: renderedFullW,
-            minHeight: renderedFullH,
-            maxHeight: renderedFullH,
-            child: SizedBox(
-              width: renderedFullW,
-              height: renderedFullH,
-              child: PreviewRenderer(
-                image: image,
-                lutTexture: lutTexture,
-                lutSize: lutSize,
-                lutTextureB: lutTextureB,
-                lutSizeB: lutSizeB,
-                curveTexture: curveTexture,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    return SizedBox.fromSize(
-      size: targetSize,
-      child: ClipRect(
-        child: OverflowBox(
-          minWidth: renderedOrientedW,
-          maxWidth: renderedOrientedW,
-          minHeight: renderedOrientedH,
-          maxHeight: renderedOrientedH,
-          alignment: Alignment.topLeft,
-          child: Transform.translate(
-            offset: Offset(
-              -crop.x * renderedOrientedW,
-              -crop.y * renderedOrientedH,
-            ),
-            child: orientedImage,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ──────────────────────────────────────────────────────────────
-// Layer 2 复杂路径：MultiPassPreview
+// Layer 2: MultiPassPreview
 // ──────────────────────────────────────────────────────────────
 
 class _ComplexImageLayer extends ConsumerWidget {
@@ -525,13 +369,17 @@ class _BlurredBackgroundLayer extends ConsumerWidget {
                 child: SizedBox(
                   width: image.width.toDouble(),
                   height: image.height.toDouble(),
-                  child: PreviewRenderer(
-                    image: image,
-                    lutTexture: lutTexture,
-                    lutSize: lutSize,
-                    lutTextureB: lutTextureB,
-                    lutSizeB: lutSizeB,
-                    curveTexture: curveTexture,
+                  child: CustomPaint(
+                    painter: _DevelopPainter(
+                      image: image,
+                      params: params,
+                      lut: lutTexture,
+                      lutSize: lutSize,
+                      lutB: lutTextureB,
+                      lutSizeB: lutSizeB,
+                      curve: curveTexture,
+                      program: program,
+                    ),
                   ),
                 ),
               ),
@@ -541,6 +389,59 @@ class _BlurredBackgroundLayer extends ConsumerWidget {
       },
     );
   }
+}
+
+class _DevelopPainter extends CustomPainter {
+  final ui.Image image;
+  final AdjustmentParams params;
+  final ui.Image? lut;
+  final int lutSize;
+  final ui.Image? lutB;
+  final int lutSizeB;
+  final ui.Image? curve;
+  final ui.FragmentProgram program;
+
+  _DevelopPainter({
+    required this.image,
+    required this.params,
+    this.lut,
+    this.lutSize = 0,
+    this.lutB,
+    this.lutSizeB = 0,
+    this.curve,
+    required this.program,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    try {
+      final shader = program.fragmentShader();
+      applyDevelopUniforms(
+        shader: shader,
+        renderSize: size,
+        params: params,
+        image: image,
+        lutTexture: lut,
+        lutSize: lutSize,
+        lutTextureB: lutB,
+        lutSizeB: lutSizeB,
+        curveTexture: curve,
+      );
+      canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
+    } catch (e) {
+      // 如果 image/lut 已被 dispose，静默跳过本帧渲染
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DevelopPainter old) =>
+      old.image != image ||
+      old.params != params ||
+      old.lut != lut ||
+      old.lutSize != lutSize ||
+      old.lutB != lutB ||
+      old.lutSizeB != lutSizeB ||
+      old.curve != curve;
 }
 
 // ──────────────────────────────────────────────────────────────

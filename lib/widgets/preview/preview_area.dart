@@ -13,9 +13,6 @@ import '../../core/constants/raw_formats.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/crop_params.dart';
 import '../../core/models/perspective_params.dart';
-import '../../render/gpu_warmup.dart';
-import '../../render/pass_config.dart';
-import '../../render/preview_renderer.dart';
 import '../../screens/folder_import_screen.dart';
 import '../../state/providers.dart';
 import 'color_picker_overlay.dart';
@@ -119,62 +116,6 @@ class _PreviewContent extends ConsumerStatefulWidget {
 }
 
 class _PreviewContentState extends ConsumerState<_PreviewContent> {
-  @override
-  void initState() {
-    super.initState();
-    _scheduleWarmup();
-  }
-
-  void _scheduleWarmup() {
-    ref.read(shaderWarmupProvider.future).then((_) {
-      if (!mounted) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _triggerWarmup();
-      });
-    });
-  }
-
-  void _triggerWarmup() {
-    // 如果当前走 FullPipeline 路径，预热由 MultiPassPreview 负责
-    final params = ref.read(effectiveParamsProvider);
-    if (needsFullPipeline(params)) return;
-
-    final brushProgs = ref.read(brushShaderProgramsProvider).value ?? {};
-
-    if (brushProgs.values.every((p) => p == null)) {
-      return;
-    }
-
-    final src = widget.state.uiImage;
-    const maxEdge = 2048;
-    final longest = math.max(src.width, src.height);
-    final scale = longest > maxEdge ? maxEdge / longest : 1.0;
-    final tw = (src.width * scale).round();
-    final th = (src.height * scale).round();
-
-    ui.Image clone;
-    try {
-      clone = src.clone();
-    } catch (_) {
-      return;
-    }
-
-    final tasks = buildWarmupTasks(
-      brushPrograms: brushProgs,
-      developOutput: clone,
-      targetWidth: tw,
-      targetHeight: th,
-    );
-
-    if (tasks.isEmpty) {
-      clone.dispose();
-      return;
-    }
-
-    runWarmupChain(tasks, clone, isMounted: () => mounted);
-  }
-
   @override
   Widget build(BuildContext context) {
     final params = ref.watch(effectiveParamsProvider);
@@ -390,181 +331,51 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     bool lutEnabled,
     WidgetRef ref,
   ) {
-    final needFullPipeline = needsFullPipeline(params);
-
-    if (needFullPipeline) {
-      final maskProgram = ref.watch(maskShaderProgramProvider).value;
-      final develop = ref.watch(shaderProgramProvider).value;
-      if (develop == null || maskProgram == null) {
-        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-      }
-      return LayoutBuilder(
-        builder: (ctx, constraints) {
-          final isVertical = MediaQuery.of(ctx).size.shortestSide < 600;
-          final previewQ = ref.watch(previewQualityProvider);
-          final (idle, dragging) = previewQ.edges(isVertical: isVertical);
-          final imgW = state.uiImage.width.toDouble();
-          final imgH = state.uiImage.height.toDouble();
-          final outAspect = params.crop.outAspectFor(imgW, imgH);
-          final box = applyBoxFit(
-            BoxFit.contain,
-            Size(outAspect, 1.0),
-            constraints.biggest,
-          ).destination;
-          final preview = MultiPassPreview(
-            developProgram: develop,
-            maskProgram: maskProgram,
-            sourceImage: state.uiImage,
-            params: params,
-            lutTexture: lutEnabled ? lut.textureA : null,
-            lutSize: lutEnabled ? lut.sizeA : 0,
-            lutTextureB: lutEnabled ? lut.textureB : null,
-            lutSizeB: lutEnabled ? lut.sizeB : 0,
-            curveTexture: ref.watch(effectiveCurveTextureProvider),
-            sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
-            denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
-            perspectiveProgram: ref
-                .watch(perspectiveShaderProgramProvider)
-                .value,
-            lensCorrectProgram: ref
-                .watch(lensCorrectShaderProgramProvider)
-                .value,
-            idleMaxEdge: idle,
-            draggingMaxEdge: dragging,
-          );
-          return _wrapPreviewContent(
-            ref,
-            SizedBox.fromSize(size: box, child: preview),
-            box,
-            state,
-            params,
-            lut,
-            lutEnabled,
-          );
-        },
-      );
+    final maskProgram = ref.watch(maskShaderProgramProvider).value;
+    final develop = ref.watch(shaderProgramProvider).value;
+    if (develop == null || maskProgram == null) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
-
-    final crop = params.crop;
-    final image = state.uiImage;
-
-    if (crop.isIdentity) {
-      return LayoutBuilder(
-        builder: (ctx, constraints) {
-          final fit = applyBoxFit(
-            BoxFit.contain,
-            Size(image.width.toDouble(), image.height.toDouble()),
-            constraints.biggest,
-          );
-          return _wrapPreviewContent(
-            ref,
-            SizedBox.fromSize(
-              size: fit.destination,
-              child: PreviewRenderer(
-                image: image,
-                lutTexture: lutEnabled ? lut.textureA : null,
-                lutSize: lutEnabled ? lut.sizeA : 0,
-                lutTextureB: lutEnabled ? lut.textureB : null,
-                lutSizeB: lutEnabled ? lut.sizeB : 0,
-                curveTexture: ref.watch(effectiveCurveTextureProvider),
-              ),
-            ),
-            fit.destination,
-            state,
-            params,
-            lut,
-            lutEnabled,
-          );
-        },
-      );
-    }
-
-    return Container(
-      color: Colors.black,
-      child: LayoutBuilder(
-        builder: (ctx, constraints) {
-          final imgW = image.width.toDouble();
-          final imgH = image.height.toDouble();
-          final outAspect = crop.outAspectFor(imgW, imgH);
-          final box = applyBoxFit(
-            BoxFit.contain,
-            Size(outAspect, 1.0),
-            constraints.biggest,
-          ).destination;
-          final orientedW = crop.orientationSwapsAxes ? imgH : imgW;
-          final orientedH = crop.orientationSwapsAxes ? imgW : imgH;
-          final scale = box.width / (orientedW * crop.width);
-          final renderedFullW = imgW * scale;
-          final renderedFullH = imgH * scale;
-          final renderedOrientedW = orientedW * scale;
-          final renderedOrientedH = orientedH * scale;
-          final orientedImage = SizedBox(
-            width: renderedOrientedW,
-            height: renderedOrientedH,
-            child: ClipRect(
-              child: Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..rotateZ(
-                    crop.orientation * math.pi / 2 +
-                        crop.straighten * math.pi / 180,
-                  )
-                  ..scaleByDouble(
-                    crop.flipH ? -1.0 : 1.0,
-                    crop.flipV ? -1.0 : 1.0,
-                    1.0,
-                    1.0,
-                  ),
-                child: OverflowBox(
-                  minWidth: renderedFullW,
-                  maxWidth: renderedFullW,
-                  minHeight: renderedFullH,
-                  maxHeight: renderedFullH,
-                  child: SizedBox(
-                    width: renderedFullW,
-                    height: renderedFullH,
-                    child: PreviewRenderer(
-                      image: image,
-                      lutTexture: lutEnabled ? lut.textureA : null,
-                      lutSize: lutEnabled ? lut.sizeA : 0,
-                      lutTextureB: lutEnabled ? lut.textureB : null,
-                      lutSizeB: lutEnabled ? lut.sizeB : 0,
-                      curveTexture: ref.watch(effectiveCurveTextureProvider),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-          return _wrapPreviewContent(
-            ref,
-            SizedBox.fromSize(
-              size: box,
-              child: ClipRect(
-                child: OverflowBox(
-                  minWidth: renderedOrientedW,
-                  maxWidth: renderedOrientedW,
-                  minHeight: renderedOrientedH,
-                  maxHeight: renderedOrientedH,
-                  alignment: Alignment.topLeft,
-                  child: Transform.translate(
-                    offset: Offset(
-                      -crop.x * renderedOrientedW,
-                      -crop.y * renderedOrientedH,
-                    ),
-                    child: orientedImage,
-                  ),
-                ),
-              ),
-            ),
-            box,
-            state,
-            params,
-            lut,
-            lutEnabled,
-          );
-        },
-      ),
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        final isVertical = MediaQuery.of(ctx).size.shortestSide < 600;
+        final previewQ = ref.watch(previewQualityProvider);
+        final (idle, dragging) = previewQ.edges(isVertical: isVertical);
+        final imgW = state.uiImage.width.toDouble();
+        final imgH = state.uiImage.height.toDouble();
+        final outAspect = params.crop.outAspectFor(imgW, imgH);
+        final box = applyBoxFit(
+          BoxFit.contain,
+          Size(outAspect, 1.0),
+          constraints.biggest,
+        ).destination;
+        final preview = MultiPassPreview(
+          developProgram: develop,
+          maskProgram: maskProgram,
+          sourceImage: state.uiImage,
+          params: params,
+          lutTexture: lutEnabled ? lut.textureA : null,
+          lutSize: lutEnabled ? lut.sizeA : 0,
+          lutTextureB: lutEnabled ? lut.textureB : null,
+          lutSizeB: lutEnabled ? lut.sizeB : 0,
+          curveTexture: ref.watch(effectiveCurveTextureProvider),
+          sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
+          denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
+          perspectiveProgram: ref.watch(perspectiveShaderProgramProvider).value,
+          lensCorrectProgram: ref.watch(lensCorrectShaderProgramProvider).value,
+          idleMaxEdge: idle,
+          draggingMaxEdge: dragging,
+        );
+        return _wrapPreviewContent(
+          ref,
+          SizedBox.fromSize(size: box, child: preview),
+          box,
+          state,
+          params,
+          lut,
+          lutEnabled,
+        );
+      },
     );
   }
 

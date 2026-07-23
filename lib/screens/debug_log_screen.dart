@@ -60,10 +60,7 @@ _ParsedLogEntry _parseLogMessage(String raw) {
 Color _tagColor(String tag) {
   final t = tag.toLowerCase();
 
-  if (t == 'rawbridge' ||
-      t == 'pipeline' ||
-      t == 'previewrenderer' ||
-      t == 'multipasspreview') {
+  if (t == 'rawbridge' || t == 'pipeline' || t == 'multipasspreview') {
     return AppColors.debugInfra;
   }
   if (t.startsWith('ai') ||
@@ -397,7 +394,6 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
             tag.startsWith('sr');
       case _Filter.pipeline:
         return tag == 'pipeline' ||
-            tag == 'previewrenderer' ||
             tag == 'multipasspreview' ||
             tag.startsWith('hdr') ||
             tag == 'luttexturecache' ||
