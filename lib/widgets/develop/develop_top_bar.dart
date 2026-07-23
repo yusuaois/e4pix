@@ -48,6 +48,7 @@ class DevelopTopBar extends ConsumerWidget {
     final hasImage = image != null && program != null;
     final isVertical = MediaQuery.of(context).size.shortestSide < 600;
     final primary = Theme.of(context).colorScheme.primary;
+    final onSurfaceVariant = Theme.of(context).colorScheme.onSurfaceVariant;
 
     // 自适应区
     final actions = <_BarAction>[
@@ -180,7 +181,7 @@ class DevelopTopBar extends ConsumerWidget {
                               .read(exportSelectionNotifierProvider.notifier)
                               .toggleMode(),
                           isVertical,
-                          color: AppColors.textPrimary,
+                          color: primary,
                         ),
                         SizedBox(width: isVertical ? 4 : 6),
                         if (selection.selectedPaths.isNotEmpty) ...[
@@ -229,15 +230,14 @@ class DevelopTopBar extends ConsumerWidget {
                               .read(compareViewModeProvider.notifier)
                               .endHold(),
                           color: compareMode != CompareViewMode.off
-                              ? AppColors.textPrimary
-                              : AppColors.mediumText,
+                              ? primary
+                              : null,
                         ),
                         if (shots.isNotEmpty)
                           _buildFilterButton(
                             ref,
                             isVertical,
-                            primary,
-                            filterActive,
+                            filterActive ? primary : onSurfaceVariant,
                           ),
                       ],
                     ),
@@ -272,12 +272,7 @@ class DevelopTopBar extends ConsumerWidget {
     );
   }
 
-  Widget _buildFilterButton(
-    WidgetRef ref,
-    bool isVertical,
-    Color primary,
-    bool filterActive,
-  ) {
+  Widget _buildFilterButton(WidgetRef ref, bool isVertical, Color color) {
     return SizedBox(
       width: _barBtnSize(isVertical),
       height: _barBtnSize(isVertical),
@@ -285,7 +280,7 @@ class DevelopTopBar extends ConsumerWidget {
         icon: Icon(
           Icons.filter_alt,
           size: _barIconSize(isVertical),
-          color: filterActive ? primary : null,
+          color: color,
         ),
         padding: EdgeInsets.zero,
         tooltip: tr('filter'),

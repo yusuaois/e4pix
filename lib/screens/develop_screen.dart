@@ -808,7 +808,6 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
                               onImport: _importImages,
                             ),
                       presetBar: const PresetBar(),
-                      onEnterCrop: () => enterCropMode(ref),
                       onCurveDone: () => ref
                           .read(developToolProvider.notifier)
                           .set(DevelopTool.light),

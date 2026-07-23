@@ -1,10 +1,6 @@
 ## ✈️ 新变化 (New Changes)
 * **取色盘库迁移**：ThemeColorWheelDialog 替换为 flex_color_picker，色轮 + 最近使用颜色，灰度种子自动洗灰避免回退蓝色
-* **依赖整理**：pubspec.yaml 按语义分组注释分类
-* **控件色彩统一**：PillChip 激活态和滑块激活轨道/滑块头跟随主题色，替代硬编码中性灰阶
 * **柱状图折叠**：横屏曲线模式下可手动收起柱状图，节省面板空间；收起后调出缩略条显示展开按钮；切离曲线模式自动恢复
-* **竖屏浮层泛化**：ActiveOverlay sealed class 替代硬编码的 CurveOverlay 判断，新增浮层无需修改 develop_screen 或 vertical_adjustment_panel
-* **Section 文件整理**：曲线相关文件收拢至 sections/light/ 子目录，删除旧 state/tools/curve_overlay_state.dart
 * **曲线面板重设计**：竖屏改为浮层 overlay 模式，解决 section 收缩时控制点拖动被滚动拦截的缺陷；横屏统一入口为 Light 按钮，移除独立曲线 Tab/ToolRail 图标
 * **UI精简**：删除侧边栏中的crop入口
 * **立方图**：优化立方图显示效果
@@ -20,7 +16,7 @@
 * **画笔 UI 缩放补偿**：画笔光标（圆圈、取样十字、源点十字）现在随画面缩放保持固定屏幕像素大小，不再随 InteractiveViewer 等比放大/缩小
 
 ## 🐛 问题修复 (Bug Fixes)
-* **冷启动缩略图空白**：修复 LUT 下拉菜单和预设面板在冷启动时缩略图永久显示占位符——根因是 ThumbnailCache 依赖未就绪时静默丢弃请求，现改为暂存并在 image/shader 就绪后自动重试
+* **冷启动缩略图空白**：修复 LUT 下拉菜单和预设面板在冷启动时缩略图永久显示占位符
 * **History 缩略图空白**：修复历史记录中缩略图不显示
 * **缩放漂移修复**：鼠标在图片外黑边区域反复滚轮缩放时图片位置不再累积偏移，删除重复的 focal-point zoom 处理让 InteractiveViewer 原生接管
 * **移动端双指放大**：修复移动端使用画笔时，无法双指放大/移动画布的问题

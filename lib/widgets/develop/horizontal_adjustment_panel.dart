@@ -14,7 +14,6 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
   final ValueChanged<AdjustmentParams> onChanged;
   final Widget? histogramInfoCombo;
   final Widget? presetBar;
-  final VoidCallback? onEnterCrop;
   final VoidCallback? onCurveDone;
 
   const HorizontalAdjustmentPanel({
@@ -23,7 +22,6 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
     required this.onChanged,
     this.histogramInfoCombo,
     this.presetBar,
-    this.onEnterCrop,
     this.onCurveDone,
   });
 
@@ -139,7 +137,6 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
           _ToolRail(
             selected: tool,
             onSelect: (t) => ref.read(developToolProvider.notifier).set(t),
-            onEnterCrop: onEnterCrop,
             onReset: () => onChanged(AdjustmentParams.neutral),
           ),
         ],
@@ -151,12 +148,10 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
 class _ToolRail extends ConsumerWidget {
   final DevelopTool selected;
   final ValueChanged<DevelopTool> onSelect;
-  final VoidCallback? onEnterCrop;
   final VoidCallback onReset;
   const _ToolRail({
     required this.selected,
     required this.onSelect,
-    this.onEnterCrop,
     required this.onReset,
   });
 
