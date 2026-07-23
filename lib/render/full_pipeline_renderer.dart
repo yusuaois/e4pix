@@ -2,17 +2,21 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../brushes/brush_manifest.dart';
 import '../brushes/shared/stamp/stamp_mark.dart';
 import '../core/models/adjustment_params.dart';
 import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
+import '../state/providers.dart';
 import '../utils/shader_pass_util.dart';
 import 'brush_layer_provider.dart';
 import 'brush_layer_registry.dart';
 import 'brush_rasterizer.dart';
 import 'crop_transform.dart';
 import 'homography.dart';
+import 'lut_texture_cache.dart';
 import 'mask_cache.dart';
 import 'pass_config.dart';
 import 'render_engine.dart';
@@ -21,8 +25,7 @@ import 'render_engine.dart';
 class PipelineRenderResult {
   final ui.Image finalImage;
 
-  /// 仅在 spot removal 激活时非空：Develop pass 输出的快照，
-  /// 供 spot removal overlay 做笔画预览（避免预览使用原始未处理图像）
+  /// Develop pass 之后的图像快照，供 overlay 做笔画预览
   final ui.Image? developOutput;
   PipelineRenderResult({required this.finalImage, this.developOutput});
 }
@@ -297,13 +300,11 @@ class FullPipelineRenderer {
 
     // 捕获 compose 之后的图像供 overlay 笔画预览
     ui.Image? developOutput;
-    if (hasEnabledMasks || (brushLayerRegistry?.hasActive(params) ?? false)) {
-      try {
-        developOutput = current.clone();
-      } catch (e) {
-        debugPrint('[Pipeline] Failed to clone develop output: $e');
-        developOutput = null;
-      }
+    try {
+      developOutput = current.clone();
+    } catch (e) {
+      debugPrint('[Pipeline] Failed to clone develop output: $e');
+      developOutput = null;
     }
 
     // 透视
@@ -771,5 +772,96 @@ class FullPipelineRenderer {
         start = i;
       }
     }
+  }
+
+  /// 从 [Ref] 自动解析 shader/LUT/curve 依赖并执行全管线渲染
+  ///
+  /// 返回 null 表示 develop/mask shader 尚未就绪
+  ///
+  /// 不需要画笔图层时传 [includeBrushLayers: false]（默认），
+  /// 跳过 brush registry 构建；传 true 时自动从 [brushManifests] 构建
+  static Future<PipelineRenderResult?> renderFromRef(
+    Ref ref, {
+    required ui.Image sourceImage,
+    required AdjustmentParams params,
+    int? targetWidth,
+    int? targetHeight,
+    bool includeBrushLayers = false,
+    DevelopPassCache? developCache,
+    BrushMaskCache? brushCache,
+    PerspectiveMatrixCache? perspectiveCache,
+    bool allowStaleAutoMask = false,
+  }) async {
+    final developProgram = ref.read(shaderProgramProvider).value;
+    final maskProgram = ref.read(maskShaderProgramProvider).value;
+    if (developProgram == null || maskProgram == null) return null;
+
+    final sharpenProgram = ref.read(sharpenShaderProgramProvider).value;
+    final denoiseProgram = ref.read(denoiseShaderProgramProvider).value;
+    final perspectiveProgram = ref.read(perspectiveShaderProgramProvider).value;
+    final lensCorrectProgram = ref.read(lensCorrectShaderProgramProvider).value;
+
+    // 画笔图层（仅当需要时构建）
+    BrushLayerRegistry? brushReg;
+    if (includeBrushLayers) {
+      try {
+        final brushPrograms = ref.read(brushShaderProgramsProvider).value ?? {};
+        final providers = <BrushLayerProvider>[];
+        for (final m in brushManifests) {
+          final prog = brushPrograms[m.id];
+          if (prog != null) {
+            providers.add(m.layerFactory(prog));
+          }
+        }
+        if (providers.isNotEmpty) {
+          brushReg = BrushLayerRegistry(providers: providers);
+        }
+      } catch (_) {}
+    }
+
+    // LUT 纹理
+    ui.Image? lutA;
+    int lutSizeA = 0;
+    if (params.lutNameA.isNotEmpty) {
+      final tex = await LutTextureCache.instance.load(params.lutNameA);
+      lutA = tex?.texture;
+      lutSizeA = tex?.size ?? 0;
+    }
+    ui.Image? lutB;
+    int lutSizeB = 0;
+    if (params.lutNameB.isNotEmpty) {
+      final tex = await LutTextureCache.instance.load(params.lutNameB);
+      lutB = tex?.texture;
+      lutSizeB = tex?.size ?? 0;
+    }
+
+    // 曲线纹理
+    final curveTexture = ref.read(curveTextureProvider);
+
+    final w = targetWidth ?? sourceImage.width;
+    final h = targetHeight ?? sourceImage.height;
+
+    return render(
+      developProgram: developProgram,
+      maskProgram: maskProgram,
+      sharpenProgram: sharpenProgram,
+      denoiseProgram: denoiseProgram,
+      perspectiveProgram: perspectiveProgram,
+      lensCorrectProgram: lensCorrectProgram,
+      brushLayerRegistry: brushReg,
+      sourceImage: sourceImage,
+      params: params,
+      lutTexture: lutA,
+      lutSize: lutSizeA,
+      lutTextureB: lutB,
+      lutSizeB: lutSizeB,
+      curveTexture: curveTexture,
+      targetWidth: w,
+      targetHeight: h,
+      developCache: developCache,
+      brushCache: brushCache,
+      perspectiveCache: perspectiveCache,
+      allowStaleAutoMask: allowStaleAutoMask,
+    );
   }
 }

@@ -5,7 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/adjustment_params.dart';
-import '../../render/render_engine.dart';
+import '../../core/models/crop_params.dart';
+import '../../render/full_pipeline_renderer.dart';
 import '../../render/thumbnail_renderer.dart';
 import '../../utils/debouncer.dart';
 import '../providers.dart';
@@ -181,27 +182,27 @@ class HistoryPanelNotifier extends Notifier<HistoryPanelState> {
   }
 
   Future<ui.Image?> _renderSnapshot(AdjustmentParams params) async {
-    final program = ref.read(shaderProgramProvider).value;
     final sourceImage = ref.read(imageNotifierProvider).value?.uiImage;
-    if (program == null || sourceImage == null) return null;
+    if (sourceImage == null) return null;
 
-    final cleanParams = params.copyWith(
-      locals: const [],
-      sharpenAmount: 0,
-      denoiseLuma: 0,
-      denoiseColor: 0,
-    );
+    // crop=identity：快照为全图坐标
+    final snapshotParams = params.copyWith(crop: CropParams.identity);
 
+    final safe = sourceImage.clone();
     try {
-      return await RenderEngine.renderToImage(
-        program: program,
-        sourceImage: sourceImage,
-        params: cleanParams,
+      final result = await FullPipelineRenderer.renderFromRef(
+        ref,
+        sourceImage: safe,
+        params: snapshotParams,
         targetWidth: sourceImage.width,
         targetHeight: sourceImage.height,
+        includeBrushLayers: true,
       );
+      return result?.finalImage;
     } catch (_) {
       return null;
+    } finally {
+      safe.dispose();
     }
   }
 
