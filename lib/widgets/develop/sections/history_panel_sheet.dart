@@ -40,10 +40,12 @@ class _HistoryPanelSheetState extends ConsumerState<_HistoryPanelSheet> {
     final thumbState = ref.watch(thumbnailRendererProvider);
     final thumbNotifier = ref.read(thumbnailRendererProvider.notifier);
 
-    // 触发所有条目的缩略图请求（key 已缓存则无操作）
-    for (final entry in entries) {
-      thumbNotifier.requestFull('history', entry.id, entry.params);
-    }
+    Future.microtask(() {
+      if (!mounted) return;
+      for (final entry in entries) {
+        thumbNotifier.requestFull('history', entry.id, entry.params);
+      }
+    });
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxH),

@@ -33,6 +33,7 @@ class DevelopTopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final _ = ref.listen(historyPanelProvider, (_, _) {});
     final image = ref.watch(imageNotifierProvider).value;
     final program = ref.watch(shaderProgramProvider).value;
     final session = ref.watch(tetherSessionNotifierProvider);
