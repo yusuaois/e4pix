@@ -8,11 +8,10 @@ import '../../core/models/adjustment_params.dart';
 import '../../core/models/crop_params.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../render/thumbnail_renderer.dart';
-import '../../utils/debouncer.dart';
 import '../providers.dart';
 import 'history_entry.dart';
 
-/// History Brush 快照图像 —— 全局 ValueNotifier，无需 Riverpod Ref 即可读取
+/// History Brush 快照图像
 final historyBrushSnapshot = ValueNotifier<ui.Image?>(null);
 
 @immutable
@@ -42,130 +41,46 @@ class HistoryPanelState {
   );
 }
 
+/// 历史面板可视化层——条目生成/防抖/隔离由 [HistoryNotifier] 负责
+///
+/// 仅负责：同步 panelEntries、UI 选中状态、revertTo / brushSource 操作
 class HistoryPanelNotifier extends Notifier<HistoryPanelState> {
-  static const int _maxEntries = 50;
-  static const Duration _debounceDelay = Duration(milliseconds: 500);
-
-  final _debouncer = Debouncer();
-
-  bool _isReverting = false;
-  bool _disposed = false;
-
-  int _counter = 0;
-
   @override
   HistoryPanelState build() {
-    // 参数变化 → debounce 捕获
-    ref.listen<AdjustmentParams>(currentParamsNotifierProvider, (prev, next) {
-      if (_disposed || _isReverting) return;
-      if (prev == next) return;
-      _scheduleParamCapture(prev, next);
+    // 从 HistoryNotifier 读取初始 entry 列表
+    final initial = ref.read(historyNotifierProvider);
+    final initialState = HistoryPanelState(entries: initial.panelEntries);
+
+    ref.listen(historyNotifierProvider, (prev, next) {
+      if (prev?.panelVersion == next.panelVersion) return;
+      final isReset = next.panelVersion == 0;
+      state = state.copyWith(
+        entries: next.panelEntries,
+        clearSelected: isReset,
+        clearBrushSource: isReset,
+      );
     });
 
-    ref.onDispose(() {
-      _disposed = true;
-      _debouncer.cancel();
-    });
-
-    return const HistoryPanelState();
-  }
-
-  // ── 参数变化捕获 ──
-
-  void _scheduleParamCapture(AdjustmentParams? prev, AdjustmentParams next) {
-    if (prev == null) return;
-    _debouncer.run(_debounceDelay, () => _captureFromParams(prev, next));
-  }
-
-  void _captureFromParams(AdjustmentParams prev, AdjustmentParams next) {
-    if (_disposed) return;
-    final label = _diffLabel(prev, next);
-    final id = 'param_${_counter++}_${DateTime.now().millisecondsSinceEpoch}';
-    final entry = HistoryEntry(
-      id: id,
-      label: label,
-      params: next,
-      timestamp: DateTime.now(),
-    );
-    _appendEntry(entry);
-    ref
-        .read(thumbnailRendererProvider.notifier)
-        .requestFull('history', entry.id, entry.params);
-  }
-
-  String _diffLabel(AdjustmentParams prev, AdjustmentParams next) {
-    final changes = <String>[];
-    if (prev.exposure != next.exposure) changes.add('Exposure');
-    if (prev.contrast != next.contrast) changes.add('Contrast');
-    if (prev.highlights != next.highlights) changes.add('Highlights');
-    if (prev.shadows != next.shadows) changes.add('Shadows');
-    if (prev.whites != next.whites) changes.add('Whites');
-    if (prev.blacks != next.blacks) changes.add('Blacks');
-    if (prev.temperature != next.temperature) changes.add('Temperature');
-    if (prev.vibrance != next.vibrance) changes.add('Vibrance');
-    if (prev.saturation != next.saturation) changes.add('Saturation');
-    if (prev.sharpenAmount != next.sharpenAmount) changes.add('Sharpen');
-    if (prev.denoiseLuma != next.denoiseLuma ||
-        prev.denoiseColor != next.denoiseColor) {
-      changes.add('Denoise');
-    }
-    return changes.isEmpty ? 'Adjustment' : changes.join(', ');
-  }
-
-  // ── 笔画结束捕获（外部调用）──
-
-  void captureStroke(String label) {
-    if (_disposed) return;
-    final params = ref.read(currentParamsNotifierProvider);
-    final id = 'stroke_${_counter++}_${DateTime.now().millisecondsSinceEpoch}';
-    final entry = HistoryEntry(
-      id: id,
-      label: label,
-      params: params,
-      timestamp: DateTime.now(),
-    );
-    _appendEntry(entry);
-    ref
-        .read(thumbnailRendererProvider.notifier)
-        .requestFull('history', entry.id, entry.params);
-  }
-
-  // ── 条目管理 ──
-
-  void _appendEntry(HistoryEntry entry) {
-    final newEntries = [...state.entries, entry];
-    // 超过上限时移除最旧条目
-    while (newEntries.length > _maxEntries) {
-      newEntries.removeAt(0);
-    }
-    state = state.copyWith(entries: newEntries, clearSelected: true);
+    return initialState;
   }
 
   // ── 公开操作 ──
 
   void revertTo(int index) {
-    if (_disposed || index < 0 || index >= state.entries.length) return;
+    if (index < 0 || index >= state.entries.length) return;
     final entry = state.entries[index];
-
-    _isReverting = true;
     ref
         .read(historyNotifierProvider.notifier)
         .applyWithoutHistory(entry.params);
     state = state.copyWith(selectedIndex: index);
-    Future.microtask(() {
-      _isReverting = false;
-    });
   }
 
   Future<void> selectBrushSource(int index) async {
-    if (_disposed || index < 0 || index >= state.entries.length) return;
+    if (index < 0 || index >= state.entries.length) return;
     final entry = state.entries[index];
 
     final snapshot = await _renderSnapshot(entry.params);
-    if (_disposed) {
-      snapshot?.dispose();
-      return;
-    }
+    if (snapshot == null) return;
 
     final old = historyBrushSnapshot.value;
     historyBrushSnapshot.value = snapshot;
@@ -185,9 +100,7 @@ class HistoryPanelNotifier extends Notifier<HistoryPanelState> {
     final sourceImage = ref.read(imageNotifierProvider).value?.uiImage;
     if (sourceImage == null) return null;
 
-    // crop=identity：快照为全图坐标
     final snapshotParams = params.copyWith(crop: CropParams.identity);
-
     final safe = sourceImage.clone();
     try {
       final result = await FullPipelineRenderer.renderFromRef(
@@ -207,11 +120,14 @@ class HistoryPanelNotifier extends Notifier<HistoryPanelState> {
   }
 
   void clear() {
-    _debouncer.cancel();
+    // 清空 HistoryNotifier 中的面板条目
+    ref.read(historyNotifierProvider.notifier).clearPanel();
+    // 清空缩略图 + 画笔快照
+    ref.read(thumbnailRendererProvider.notifier).removeNamespace('history');
     final oldSnapshot = historyBrushSnapshot.value;
     historyBrushSnapshot.value = null;
     oldSnapshot?.dispose();
-    ref.read(thumbnailRendererProvider.notifier).removeNamespace('history');
+    // 重置面板 UI 状态（包括 selectedIndex / brushSourceIndex）
     state = const HistoryPanelState();
   }
 }

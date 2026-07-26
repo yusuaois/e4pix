@@ -10,6 +10,7 @@ class CurrentParamsNotifier extends Notifier<AdjustmentParams> {
   AdjustmentParams build() {
     ref.listen<TetheredShot?>(activeShotProvider, (prev, next) {
       if (next != null && next.path != prev?.path) {
+        // 切图：直接设置 state，不触发 userEditVersion
         state = next.params;
       }
     });
@@ -18,6 +19,8 @@ class CurrentParamsNotifier extends Notifier<AdjustmentParams> {
 
   void update(AdjustmentParams newParams) {
     state = newParams;
+    // 用户编辑：递增版本号，历史系统据此区分切图 vs 编辑
+    ref.read(userEditVersionProvider.notifier).increment();
     final session = ref.read(tetherSessionNotifierProvider);
     final preserve = ref.read(preserveParamsProvider);
     if (session != null && preserve) {
@@ -33,6 +36,20 @@ class CurrentParamsNotifier extends Notifier<AdjustmentParams> {
   }
 
   void reset() => update(AdjustmentParams.neutral);
+}
+
+/// 用户编辑版本号 —— 每次调用 [CurrentParamsNotifier.update] 时递增。
+///
+/// 切图引起的参数变化不会递增此版本号，历史系统以此区分真实编辑与文件切换。
+final userEditVersionProvider =
+    NotifierProvider<UserEditVersionNotifier, int>(
+      UserEditVersionNotifier.new,
+    );
+
+class UserEditVersionNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+  void increment() => state++;
 }
 
 final currentParamsNotifierProvider =

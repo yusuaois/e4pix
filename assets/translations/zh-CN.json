@@ -291,6 +291,8 @@
   "settingsEditing": "编辑",
   "settingsSidecar": "自动保存编辑",
   "settingsSidecarHint": "将调整、星级、旗标保存到照片旁的 .e4pix.json，下次打开自动恢复",
+  "settingsPreserveHistory": "保留编辑历史",
+  "settingsPreserveHistoryHint": "切换图片时保留每张图片的编辑历史",
   "settingsKeybindings": "键盘快捷键",
   "settingsKeybindingsHint": "自定义各操作的按键",
   "keyGroupOps": "操作",

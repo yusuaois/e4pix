@@ -122,3 +122,29 @@ class ExportTemplateNotifier extends Notifier<String> {
     await prefs.setString('export_template', v);
   }
 }
+
+final preserveHistoryProvider = NotifierProvider<PreserveHistoryNotifier, bool>(
+  PreserveHistoryNotifier.new,
+);
+
+class PreserveHistoryNotifier extends Notifier<bool> {
+  static const _key = 'preserve_history';
+
+  @override
+  bool build() {
+    _load();
+    return true; // 默认保留历史
+  }
+
+  Future<void> _load() async {
+    final p = await SharedPreferences.getInstance();
+    final v = p.getBool(_key);
+    if (v != null) state = v;
+  }
+
+  Future<void> set(bool v) async {
+    state = v;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_key, v);
+  }
+}

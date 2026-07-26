@@ -16,6 +16,20 @@ class EditingTiles extends ConsumerWidget {
     return Column(
       children: [
         SwitchListTile(
+          secondary: const Icon(Icons.history, size: 20),
+          title: Text(
+            tr("settingsPreserveHistory"),
+            style: AppTypography.titleMedium,
+          ),
+          subtitle: Text(
+            tr("settingsPreserveHistoryHint"),
+            style: AppTypography.bodySmall.copyWith(color: AppColors.faintText),
+          ),
+          value: ref.watch(preserveHistoryProvider),
+          onChanged: (v) => ref.read(preserveHistoryProvider.notifier).set(v),
+        ),
+
+        SwitchListTile(
           secondary: const Icon(Icons.save_outlined, size: 20),
           title: Text(tr("settingsSidecar"), style: AppTypography.titleMedium),
           subtitle: Text(

@@ -291,6 +291,8 @@
   "settingsEditing": "Editing",
   "settingsSidecar": "Auto-Save Edits",
   "settingsSidecarHint": "Save edits, ratings, and flags to a .e4pix.json file next to the photo for automatic restoration next time.",
+  "settingsPreserveHistory": "Preserve Edit History",
+  "settingsPreserveHistoryHint": "Keep edit history for each image when switching between photos",
   "settingsKeybindings": "Keyboard Shortcuts",
   "settingsKeybindingsHint": "Customize keys for each action",
   "keyGroupOps": "Operations",

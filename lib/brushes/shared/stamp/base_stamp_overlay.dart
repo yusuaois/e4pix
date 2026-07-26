@@ -156,7 +156,7 @@ abstract class BaseStampOverlayState<
       },
       onStrokeCommitted: () {
         // 通知 History 面板捕获新的笔画条目
-        ref.read(historyPanelProvider.notifier).captureStroke(logTag);
+        ref.read(historyNotifierProvider.notifier).captureStroke(logTag);
       },
     );
 
