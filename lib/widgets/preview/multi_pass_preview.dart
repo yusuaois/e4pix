@@ -147,6 +147,17 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
           providers.add(_brushLayers[m.id]!);
         }
       }
+
+      // 若 widget.params 与 provider 不一致，listener 已先于 widget 重建触发
+      // 跳过此帧等 didUpdateWidget
+      if (brushManifests.any((m) {
+        return (widget.params.brushMarks[m.id]?.length ?? 0) !=
+            (ref.read(debouncedParamsProvider).brushMarks[m.id]?.length ?? 0);
+      })) {
+        _isRendering = false;
+        return;
+      }
+
       if (providers.isNotEmpty) {
         _layerRegistry = BrushLayerRegistry(providers: providers);
         layerReg = _layerRegistry;
@@ -316,16 +327,18 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
         _runRender();
       }
     });
-    // 任意画笔 marks 清零时置空 developOutput，关闭旧烘焙图残留窗口
+    // 任意画笔 marks 清零时：失效全部 layer 缓存 + 置空 developOutput
     ref.listen(currentParamsNotifierProvider, (prev, next) {
       if (prev == null) return;
-      for (final m in brushManifests) {
-        final nextLen = next.brushMarks[m.id]?.length ?? 0;
-        final prevLen = prev.brushMarks[m.id]?.length ?? 0;
-        if (nextLen == 0 && prevLen > 0) {
-          ref.read(developOutputProvider.notifier).update(null);
-          return;
+      final cleared = brushManifests.any((m) {
+        return (next.brushMarks[m.id]?.length ?? 0) == 0 &&
+            (prev.brushMarks[m.id]?.length ?? 0) > 0;
+      });
+      if (cleared) {
+        for (final p in _brushLayers.values) {
+          p.invalidate();
         }
+        ref.read(developOutputProvider.notifier).update(null);
       }
     });
 
