@@ -87,6 +87,7 @@ class _MultiPassPreviewState extends ConsumerState<MultiPassPreview> {
       _perspectiveCache.invalidate();
       _layerRegistry?.invalidateAll();
       _hasWarmedUpProviders = false;
+      ref.read(developOutputProvider.notifier).update(null);
     }
     if (old.sourceImage != widget.sourceImage ||
         old.lutTexture != widget.lutTexture ||

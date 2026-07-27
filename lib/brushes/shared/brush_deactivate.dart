@@ -33,3 +33,18 @@ void exitLocalTool(WidgetRef ref) {
     ref.read(brushSettingsProvider.notifier).setMode(BrushMode.paint);
   }
 }
+
+/// 退出当前活跃工具（画笔/本地调整）
+void exitCurrentTool(WidgetRef ref) {
+  final tool = ref.read(developToolProvider);
+  if (tool == DevelopTool.local) {
+    exitLocalTool(ref);
+    return;
+  }
+  for (final m in brushManifests) {
+    if (tool == m.tool) {
+      deactivateBrush(m.id, ref);
+      return;
+    }
+  }
+}

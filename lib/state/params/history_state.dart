@@ -211,26 +211,6 @@ class HistoryNotifier extends Notifier<HistoryState> {
     _applyInternal(restored);
   }
 
-  void resetToNeutral() {
-    final neutral = AdjustmentParams.neutral;
-    if (_pendingBaseline == neutral) return;
-    final current = ref.read(currentParamsNotifierProvider);
-    if (current != neutral) {
-      _debouncer.cancel();
-      _prunedEntries.clear();
-      final newUndo = [...state.undoStack, current];
-      if (newUndo.length > _maxStack) {
-        newUndo.removeRange(0, newUndo.length - _maxStack);
-      }
-      state = state.copyWith(
-        undoStack: newUndo,
-        redoStack: const [],
-        panelVersion: state.panelVersion + 1,
-      );
-    }
-    _applyInternal(neutral);
-  }
-
   /// WARNING: [_pendingBaseline] MUST be set BEFORE calling [update()]
   /// on [currentParamsNotifierProvider].
   /// [update()] → `userEditVersion++` → listener fires →

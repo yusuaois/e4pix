@@ -11,9 +11,12 @@
 * `_prunedEntries` 追踪 undo 裁剪条目，redo 恢复，新 commit 清空
 
 ## 🐛 问题修复 (Bug Fixes)
+* 修复图片切换时画笔 overlay 可能使用上一张图的 developOutput 纹理
+* 删除历史系统死代码 `resetToNeutral()`（零调用点，无运行时影响）
 
 ## ✨ 改进 (Improvements)
 * 编辑设置页新增"保留编辑历史"开关，默认开启，支持 zh-CN / en-US
+* 切换图片时自动退出活跃画笔，防止 overlay 引用过期图片数据
 
 ---
 

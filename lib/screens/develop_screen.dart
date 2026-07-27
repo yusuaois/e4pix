@@ -50,6 +50,7 @@ import '../widgets/app/image_info_bar.dart';
 import '../widgets/develop/vertical_adjustment_panel.dart';
 import '../widgets/develop/sections/preset/preset_section.dart';
 import '../widgets/tether/tether_widgets.dart';
+import '../brushes/shared/brush_deactivate.dart';
 import 'settings_screen.dart';
 
 class DevelopScreen extends ConsumerStatefulWidget {
@@ -437,10 +438,19 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         _snack(tr('cameraError', args: [next.lastError!]));
       }
     });
-    // 加载lensfun数据库
+    // 图片加载/切换监听
     ref.listen(imageNotifierProvider, (prev, next) {
+      final prevPath = prev?.value?.path;
+      final nextPath = next.value?.path;
+
+      // 加载lensfun数据库
       if (next.value != null && prev?.value == null) {
         LensfunDatabase.instance.ensureLoaded();
+      }
+
+      // 切换图片（非首次加载）→ 退出活跃画笔
+      if (prevPath != null && nextPath != null && prevPath != nextPath) {
+        exitCurrentTool(ref);
       }
     });
     if (isFullscreen) {
