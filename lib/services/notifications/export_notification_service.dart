@@ -58,13 +58,10 @@ class ExportNotificationService {
   }) async {
     await _ensureInit();
 
-    final title = tr('exportNotifyDoneTitle');
-    final body = filename;
-
     await _plugin.show(
       id: _nextId(),
-      title: title,
-      body: body,
+      title: tr('exportNotifyDoneTitle'),
+      body: filename,
       notificationDetails: _buildNotificationDetails(),
     );
   }
@@ -76,13 +73,10 @@ class ExportNotificationService {
   }) async {
     await _ensureInit();
 
-    final title = tr('exportNotifyBatchDoneTitle');
-    final body = tr('exportNotifyBatchDoneBody', args: ['$count']);
-
     await _plugin.show(
       id: _nextId(),
-      title: title,
-      body: body,
+      title: tr('exportNotifyBatchDoneTitle'),
+      body: tr('exportNotifyBatchDoneBody', args: ['$count']),
       notificationDetails: _buildNotificationDetails(),
     );
   }
@@ -95,13 +89,10 @@ class ExportNotificationService {
   }) async {
     await _ensureInit();
 
-    final title = tr('exportNotifyFailedTitle');
-    final body = filename;
-
     await _plugin.show(
       id: _nextId(),
-      title: title,
-      body: body,
+      title: tr('exportNotifyFailedTitle'),
+      body: filename,
       notificationDetails: _buildNotificationDetails(),
     );
   }

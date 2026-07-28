@@ -80,11 +80,11 @@ class ExportTemplate {
   /// 清理文件名非法字符（跨平台安全）：/ \ : * ? " < > | 及控制符 → _，
   /// 去除首尾空白与点，折叠连续下划线
   static String sanitize(String s) {
-    var out = s.replaceAll(RegExp(r'[/\\:*?"<>|\x00-\x1F]'), '_');
-    out = out.replaceAll(RegExp(r'_{2,}'), '_'); // 折叠连续下划线
-    out = out.trim();
-    out = out.replaceAll(RegExp(r'^[.\s]+|[.\s]+$'), ''); // 去首尾点/空白
-    return out;
+    return s
+        .replaceAll(RegExp(r'[/\\:*?"<>|\x00-\x1F]'), '_')
+        .replaceAll(RegExp(r'_{2,}'), '_') // 折叠连续下划线
+        .trim()
+        .replaceAll(RegExp(r'^[.\s]+|[.\s]+$'), ''); // 去首尾点/空白
   }
 
   /// 去掉文件名的扩展名

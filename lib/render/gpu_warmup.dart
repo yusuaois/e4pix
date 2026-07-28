@@ -13,20 +13,10 @@ List<(String, Future<void> Function())> buildWarmupTasks({
   required int targetWidth,
   required int targetHeight,
 }) {
-  final tasks = <(String, Future<void> Function())>[];
-
-  for (final m in brushManifests) {
-    final prog = brushPrograms[m.id];
-    if (prog != null) {
-      final layer = m.layerFactory(prog);
-      tasks.add((
-        m.id,
-        () => layer.warmup(developOutput, targetWidth, targetHeight),
-      ));
-    }
-  }
-
-  return tasks;
+  return brushManifests.where((m) => brushPrograms[m.id] != null).map((m) {
+    final layer = m.layerFactory(brushPrograms[m.id]!);
+    return (m.id, () => layer.warmup(developOutput, targetWidth, targetHeight));
+  }).toList();
 }
 
 /// Session 级守卫——整个 app 生命周期内只预热一次

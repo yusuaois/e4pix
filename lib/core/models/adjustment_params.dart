@@ -220,9 +220,9 @@ class AdjustmentParams {
     Map<String, List<StampMark>> b,
   ) {
     if (a.length != b.length) return false;
-    for (final key in a.keys) {
-      if (!b.containsKey(key)) return false;
-      if (!listEquals(a[key], b[key])) return false;
+    for (final entry in a.entries) {
+      if (!b.containsKey(entry.key)) return false;
+      if (!listEquals(entry.value, b[entry.key])) return false;
     }
     return true;
   }

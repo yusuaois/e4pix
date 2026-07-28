@@ -806,13 +806,10 @@ class FullPipelineRenderer {
     if (includeBrushLayers) {
       try {
         final brushPrograms = ref.read(brushShaderProgramsProvider).value ?? {};
-        final providers = <BrushLayerProvider>[];
-        for (final m in brushManifests) {
-          final prog = brushPrograms[m.id];
-          if (prog != null) {
-            providers.add(m.layerFactory(prog));
-          }
-        }
+        final providers = brushManifests
+            .where((m) => brushPrograms[m.id] != null)
+            .map((m) => m.layerFactory(brushPrograms[m.id]!))
+            .toList();
         if (providers.isNotEmpty) {
           brushReg = BrushLayerRegistry(providers: providers);
         }

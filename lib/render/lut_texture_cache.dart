@@ -69,14 +69,11 @@ class LutTextureCache {
 
     // 跳过受保护的活跃 LUT
     while (_map.length > _capacity) {
-      String? keyToEvict;
       // 从最旧的条目开始寻找第一个"不受保护"的 LUT
-      for (final key in _map.keys) {
-        if (!_activeLuts.contains(key)) {
-          keyToEvict = key;
-          break;
-        }
-      }
+      final keyToEvict = _map.keys.cast<String?>().firstWhere(
+        (k) => !_activeLuts.contains(k),
+        orElse: () => null,
+      );
 
       if (keyToEvict != null) {
         final old = _map.remove(keyToEvict);
@@ -87,12 +84,8 @@ class LutTextureCache {
     }
   }
 
-  bool ownsTexture(ui.Image tex) {
-    for (final t in _map.values) {
-      if (identical(t.texture, tex)) return true;
-    }
-    return false;
-  }
+  bool ownsTexture(ui.Image tex) =>
+      _map.values.any((t) => identical(t.texture, tex));
 
   void invalidate(String name) {
     final old = _map.remove(name);

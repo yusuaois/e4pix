@@ -37,25 +37,23 @@ class SmartRegionService {
       final th = (src.height * scale).round();
 
       // 像素 marks 存在时用 compose guide，确保选区感知图章等修改
-      ui.Image guideImg;
       final composeGuide = ref.read(composeGuideProvider);
-      if (composeGuide != null &&
-          brushManifests.any((m) => m.hasMarks(params))) {
-        guideImg = composeGuide.clone();
-      } else {
-        guideImg = await RenderEngine.renderToImage(
-          program: program,
-          sourceImage: src,
-          params: params.copyWith(crop: CropParams.identity),
-          lutTexture: lutEnabled ? lut.textureA : null,
-          lutSize: lutEnabled ? lut.sizeA : 0,
-          lutTextureB: lutEnabled ? lut.textureB : null,
-          lutSizeB: lutEnabled ? lut.sizeB : 0,
-          curveTexture: ref.read(curveTextureProvider),
-          targetWidth: tw,
-          targetHeight: th,
-        );
-      }
+      final guideImg =
+          (composeGuide != null &&
+              brushManifests.any((m) => m.hasMarks(params)))
+          ? composeGuide.clone()
+          : await RenderEngine.renderToImage(
+              program: program,
+              sourceImage: src,
+              params: params.copyWith(crop: CropParams.identity),
+              lutTexture: lutEnabled ? lut.textureA : null,
+              lutSize: lutEnabled ? lut.sizeA : 0,
+              lutTextureB: lutEnabled ? lut.textureB : null,
+              lutSizeB: lutEnabled ? lut.sizeB : 0,
+              curveTexture: ref.read(curveTextureProvider),
+              targetWidth: tw,
+              targetHeight: th,
+            );
 
       final gw = guideImg.width;
       final gh = guideImg.height;

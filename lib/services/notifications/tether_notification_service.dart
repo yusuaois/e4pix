@@ -56,13 +56,10 @@ class TetherNotificationService {
   }) async {
     await _ensureInit();
 
-    final title = tr('tetherCameraNotificationTitle');
-    final body = '$model (${tr('saveTo')}: $saveFolder)';
-
     await _plugin.show(
       id: _cameraNotificationId,
-      title: title,
-      body: body,
+      title: tr('tetherCameraNotificationTitle'),
+      body: '$model (${tr('saveTo')}: $saveFolder)',
       notificationDetails: _buildNotificationDetails(
         'e4pix_camera_tether',
         'Camera Tethering',
@@ -81,13 +78,10 @@ class TetherNotificationService {
   Future<void> showWatcherOngoing({required String watchPath}) async {
     await _ensureInit();
 
-    final title = tr('tetherWatcherNotificationTitle');
-    final body = watchPath;
-
     await _plugin.show(
       id: _watcherNotificationId,
-      title: title,
-      body: body,
+      title: tr('tetherWatcherNotificationTitle'),
+      body: watchPath,
       notificationDetails: _buildNotificationDetails(
         'e4pix_folder_watcher',
         'Folder Watcher',

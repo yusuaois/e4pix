@@ -338,17 +338,11 @@ Widget? _makeHistoryBrushOverlay(OverlayFactoryParams p) {
 }
 
 /// 按 [DevelopTool] 枚举值查找 [BrushManifest]
-BrushManifest? manifestForTool(DevelopTool tool) {
-  for (final m in brushManifests) {
-    if (m.tool == tool) return m;
-  }
-  return null;
-}
+BrushManifest? manifestForTool(DevelopTool tool) => brushManifests
+    .cast<BrushManifest?>()
+    .firstWhere((m) => m!.tool == tool, orElse: () => null);
 
 /// 按 brush ID 字符串查找 [BrushManifest]
-BrushManifest? manifestForId(String id) {
-  for (final m in brushManifests) {
-    if (m.id == id) return m;
-  }
-  return null;
-}
+BrushManifest? manifestForId(String id) => brushManifests
+    .cast<BrushManifest?>()
+    .firstWhere((m) => m!.id == id, orElse: () => null);

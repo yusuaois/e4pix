@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../brushes/brush_manifest.dart';
 import '../../core/models/export_job.dart';
-import '../../render/brush_layer_provider.dart';
 import '../../render/brush_layer_registry.dart';
 import '../../render/exporter.dart';
 import '../../render/lut_texture_cache.dart';
@@ -25,13 +24,10 @@ class ExportQueueNotifier extends Notifier<List<ExportJob>> {
   static BrushLayerRegistry? _buildRegistry(
     Map<String, ui.FragmentProgram?> brushPrograms,
   ) {
-    final providers = <BrushLayerProvider>[];
-    for (final m in brushManifests) {
-      final prog = brushPrograms[m.id];
-      if (prog != null) {
-        providers.add(m.layerFactory(prog));
-      }
-    }
+    final providers = brushManifests
+        .where((m) => brushPrograms[m.id] != null)
+        .map((m) => m.layerFactory(brushPrograms[m.id]!))
+        .toList();
     return providers.isNotEmpty
         ? BrushLayerRegistry(providers: providers)
         : null;

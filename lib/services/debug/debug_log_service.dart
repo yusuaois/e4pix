@@ -222,14 +222,11 @@ class DebugLogService {
 
       final newContent = utf8.decode(newBytes);
       final lines = newContent.split('\n');
-      bool added = false;
+      final prevCount = _entries.length;
       for (final line in lines) {
         if (line.isEmpty) continue;
         final entry = _parseLine(line);
-        if (entry != null) {
-          _entries.add(entry);
-          added = true;
-        }
+        if (entry != null) _entries.add(entry);
       }
       _lastSyncedOffset = size;
 
@@ -237,7 +234,7 @@ class DebugLogService {
       while (_entries.length > maxEntries) {
         _entries.removeAt(0);
       }
-      if (added) logCount.value = _entries.length;
+      if (_entries.length != prevCount) logCount.value = _entries.length;
     } catch (_) {}
   }
 

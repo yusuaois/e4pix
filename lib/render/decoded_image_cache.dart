@@ -51,12 +51,8 @@ class DecodedImageCache {
   bool containsPath(String path) => _map.containsKey(path);
 
   /// 该 image 是否由缓存持有
-  bool ownsImage(ui.Image image) {
-    for (final c in _map.values) {
-      if (identical(c.image, image)) return true;
-    }
-    return false;
-  }
+  bool ownsImage(ui.Image image) =>
+      _map.values.any((c) => identical(c.image, image));
 
   /// 存入缓存 若已有同 path 旧项且 image 不同，dispose 旧 image
   /// 容量为 0 时直接 dispose 传入 image（调用方已交出所有权）

@@ -68,10 +68,10 @@ class AIColorSuggestion {
   });
 
   List<String> get changedFields {
-    final out = <String>[];
-    for (final e in raw.entries) {
-      if (e.value != null) out.add(e.key);
-    }
+    final out = raw.entries
+        .where((e) => e.value != null)
+        .map((e) => e.key)
+        .toList();
     if (_hasHslChanges()) out.add('hsl');
     if (localSuggestions.isNotEmpty) {
       out.add('locals(${localSuggestions.length})');
