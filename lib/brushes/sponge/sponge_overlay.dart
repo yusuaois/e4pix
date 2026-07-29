@@ -30,6 +30,9 @@ class SpongeOverlay extends ConsumerStatefulWidget {
 }
 
 class _SpongeOverlayState extends BaseEffectOverlayState<SpongeOverlay> {
+  static const _kSaturateColor = Color(0x8066DD66); // warm green
+  static const _kDesaturateColor = Color(0x80AAAAAA); // cool grey
+
   // Widget 属性
   @override
   Size get imageDisplaySize => widget.imageDisplaySize;
@@ -48,8 +51,8 @@ class _SpongeOverlayState extends BaseEffectOverlayState<SpongeOverlay> {
   @override
   Color get cursorColor {
     return ref.watch(spongeStateProvider).mode == SpongeMode.saturate
-        ? const Color(0x8066DD66) // warm green for saturate
-        : const Color(0x80AAAAAA); // cool grey for desaturate
+        ? _kSaturateColor
+        : _kDesaturateColor;
   }
 
   @override

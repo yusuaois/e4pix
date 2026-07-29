@@ -53,7 +53,11 @@ class _DebugModeTileState extends State<DebugModeTile> {
                 context,
                 MaterialPageRoute(builder: (_) => const DebugLogScreen()),
               );
-              if (mounted) setState(() {});
+              if (mounted) {
+                setState(() {
+                  /* rebuild */
+                });
+              }
             },
           ),
       ],

@@ -93,76 +93,87 @@ class _FolderImportScreenState extends State<_FolderImportScreen> {
         _rawPaths.isNotEmpty && _selected.length == _rawPaths.length;
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
-      appBar: AppBar(
-        backgroundColor: AppColors.scaffoldBg,
-        title: Text(
-          p.basename(widget.dirPath),
-          style: AppTypography.headlineSmall,
-        ),
-        actions: [
-          if (_rawPaths.isNotEmpty)
-            TextButton(
-              onPressed: allSelected ? _selectNone : _selectAll,
-              child: Text(
-                allSelected ? tr('deselectAll') : tr('selectAll'),
-                style: AppTypography.bodyLarge,
-              ),
-            ),
-        ],
+      appBar: _buildAppBar(allSelected),
+      body: _buildBody(),
+      bottomNavigationBar: _buildBottomBar(),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(bool allSelected) {
+    return AppBar(
+      backgroundColor: AppColors.scaffoldBg,
+      title: Text(
+        p.basename(widget.dirPath),
+        style: AppTypography.headlineSmall,
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-          : _error != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.semanticWarning),
-                ),
-              ),
-            )
-          : _rawPaths.isEmpty
-          ? Center(
-              child: Text(
-                tr('folderImportEmpty'),
-                style: TextStyle(color: AppColors.faintText),
-              ),
-            )
-          : GridView.builder(
-              padding: const EdgeInsets.all(8),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 160,
-                childAspectRatio: 1.1,
-                crossAxisSpacing: 6,
-                mainAxisSpacing: 6,
-              ),
-              itemCount: _rawPaths.length,
-              itemBuilder: (ctx, i) {
-                final path = _rawPaths[i];
-                return _RawGridTile(
-                  key: ValueKey(path),
-                  path: path,
-                  selected: _selected.contains(path),
-                  onTap: () => _toggle(path),
-                );
-              },
+      actions: [
+        if (_rawPaths.isNotEmpty)
+          TextButton(
+            onPressed: allSelected ? _selectNone : _selectAll,
+            child: Text(
+              allSelected ? tr('deselectAll') : tr('selectAll'),
+              style: AppTypography.bodyLarge,
             ),
-      bottomNavigationBar: _selected.isEmpty
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: FilledButton(
-                  onPressed: () =>
-                      Navigator.of(context).pop(_selected.toList()),
-                  child: Text(
-                    tr('folderImportConfirm', args: ['${_selected.length}']),
-                  ),
-                ),
-              ),
-            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.semanticWarning),
+          ),
+        ),
+      );
+    }
+    if (_rawPaths.isEmpty) {
+      return Center(
+        child: Text(
+          tr('folderImportEmpty'),
+          style: TextStyle(color: AppColors.faintText),
+        ),
+      );
+    }
+    return GridView.builder(
+      padding: const EdgeInsets.all(8),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 160,
+        childAspectRatio: 1.1,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+      ),
+      itemCount: _rawPaths.length,
+      itemBuilder: (ctx, i) {
+        final path = _rawPaths[i];
+        return _RawGridTile(
+          key: ValueKey(path),
+          path: path,
+          selected: _selected.contains(path),
+          onTap: () => _toggle(path),
+        );
+      },
+    );
+  }
+
+  Widget? _buildBottomBar() {
+    if (_selected.isEmpty) return null;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: FilledButton(
+          onPressed: () => Navigator.of(context).pop(_selected.toList()),
+          child: Text(tr('folderImportConfirm', args: ['${_selected.length}'])),
+        ),
+      ),
     );
   }
 }
@@ -246,89 +257,96 @@ class _RawGridTileState extends State<_RawGridTile>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Container(
-              color: AppColors.subtleBorder,
-              child: FutureBuilder<ui.Image>(
-                future: _thumbFuture,
-                builder: (ctx, snap) {
-                  if (snap.connectionState != ConnectionState.done) {
-                    return const Center(
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 1.5),
-                      ),
-                    );
-                  }
-                  if (snap.hasError || !snap.hasData) {
-                    return Center(
-                      child: Icon(
-                        Icons.broken_image_outlined,
-                        size: 20,
-                        color: AppColors.semanticError.withValues(alpha: 0.5),
-                      ),
-                    );
-                  }
-                  return RawImage(image: snap.data, fit: BoxFit.cover);
-                },
-              ),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              color: Colors.black.withValues(alpha: 0.5),
-              child: Text(
-                p.basename(widget.path),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.labelSmall.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-          ),
-          if (widget.selected)
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: primary, width: 3),
-                color: primary.withValues(alpha: 0.18),
-              ),
-            ),
-          Positioned(
-            top: 6,
-            right: 6,
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: widget.selected
-                    ? primary
-                    : Colors.black.withValues(alpha: 0.5),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: widget.selected
-                      ? AppColors.textPrimary
-                      : AppColors.mediumText,
-                  width: 1.5,
-                ),
-              ),
-              child: widget.selected
-                  ? const Icon(
-                      Icons.check,
-                      size: 14,
-                      color: AppColors.textPrimary,
-                    )
-                  : null,
-            ),
-          ),
+          _buildThumbnail(),
+          _buildBasenameLabel(),
+          if (widget.selected) _buildSelectionOverlay(primary),
+          _buildCheckCircle(widget.selected, primary),
         ],
+      ),
+    );
+  }
+
+  Widget _buildThumbnail() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        color: AppColors.subtleBorder,
+        child: FutureBuilder<ui.Image>(
+          future: _thumbFuture,
+          builder: (ctx, snap) {
+            if (snap.connectionState != ConnectionState.done) {
+              return const Center(
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 1.5),
+                ),
+              );
+            }
+            if (snap.hasError || !snap.hasData) {
+              return Center(
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  size: 20,
+                  color: AppColors.semanticError.withValues(alpha: 0.5),
+                ),
+              );
+            }
+            return RawImage(image: snap.data, fit: BoxFit.cover);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBasenameLabel() {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        color: Colors.black.withValues(alpha: 0.5),
+        child: Text(
+          p.basename(widget.path),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionOverlay(Color primary) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: primary, width: 3),
+        color: primary.withValues(alpha: 0.18),
+      ),
+    );
+  }
+
+  Widget _buildCheckCircle(bool selected, Color primary) {
+    return Positioned(
+      top: 6,
+      right: 6,
+      child: Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          color: selected ? primary : Colors.black.withValues(alpha: 0.5),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? AppColors.textPrimary : AppColors.mediumText,
+            width: 1.5,
+          ),
+        ),
+        child: selected
+            ? const Icon(Icons.check, size: 14, color: AppColors.textPrimary)
+            : null,
       ),
     );
   }

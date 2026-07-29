@@ -60,7 +60,6 @@ class _LightSectionState extends ConsumerState<LightSection> {
   Widget build(BuildContext context) {
     final p = widget.params;
 
-    // 内嵌曲线模式：显示曲线面板替代滑块
     if (_showCurve) {
       return CurveSection(onDone: _exitCurve);
     }
@@ -80,52 +79,61 @@ class _LightSectionState extends ConsumerState<LightSection> {
               onPressed: _enterCurve,
             ),
           ),
-          DevelopSliderTile(
-            label: tr("exposure"),
-            value: p.exposure,
-            min: -5,
-            max: 5,
-            onChanged: (v) => widget.onChanged(p.copyWith(exposure: v)),
-            suffix: ' EV',
-            fractionDigits: 2,
-          ),
-          DevelopSliderTile(
-            label: tr("contrast"),
-            value: p.contrast,
-            min: -100,
-            max: 100,
-            onChanged: (v) => widget.onChanged(p.copyWith(contrast: v)),
-          ),
-          DevelopSliderTile(
-            label: tr("highlight"),
-            value: p.highlights,
-            min: -100,
-            max: 100,
-            onChanged: (v) => widget.onChanged(p.copyWith(highlights: v)),
-          ),
-          DevelopSliderTile(
-            label: tr("shadow"),
-            value: p.shadows,
-            min: -100,
-            max: 100,
-            onChanged: (v) => widget.onChanged(p.copyWith(shadows: v)),
-          ),
-          DevelopSliderTile(
-            label: tr("white"),
-            value: p.whites,
-            min: -100,
-            max: 100,
-            onChanged: (v) => widget.onChanged(p.copyWith(whites: v)),
-          ),
-          DevelopSliderTile(
-            label: tr("black"),
-            value: p.blacks,
-            min: -100,
-            max: 100,
-            onChanged: (v) => widget.onChanged(p.copyWith(blacks: v)),
-          ),
+          _buildSliders(p),
         ],
       ),
+    );
+  }
+
+  Widget _buildSliders(AdjustmentParams p) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DevelopSliderTile(
+          label: tr("exposure"),
+          value: p.exposure,
+          min: -5,
+          max: 5,
+          onChanged: (v) => widget.onChanged(p.copyWith(exposure: v)),
+          suffix: ' EV',
+          fractionDigits: 2,
+        ),
+        DevelopSliderTile(
+          label: tr("contrast"),
+          value: p.contrast,
+          min: -100,
+          max: 100,
+          onChanged: (v) => widget.onChanged(p.copyWith(contrast: v)),
+        ),
+        DevelopSliderTile(
+          label: tr("highlight"),
+          value: p.highlights,
+          min: -100,
+          max: 100,
+          onChanged: (v) => widget.onChanged(p.copyWith(highlights: v)),
+        ),
+        DevelopSliderTile(
+          label: tr("shadow"),
+          value: p.shadows,
+          min: -100,
+          max: 100,
+          onChanged: (v) => widget.onChanged(p.copyWith(shadows: v)),
+        ),
+        DevelopSliderTile(
+          label: tr("white"),
+          value: p.whites,
+          min: -100,
+          max: 100,
+          onChanged: (v) => widget.onChanged(p.copyWith(whites: v)),
+        ),
+        DevelopSliderTile(
+          label: tr("black"),
+          value: p.blacks,
+          min: -100,
+          max: 100,
+          onChanged: (v) => widget.onChanged(p.copyWith(blacks: v)),
+        ),
+      ],
     );
   }
 }

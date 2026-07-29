@@ -30,6 +30,9 @@ class DodgeBurnOverlay extends ConsumerStatefulWidget {
 }
 
 class _DodgeBurnOverlayState extends BaseEffectOverlayState<DodgeBurnOverlay> {
+  static const _kDodgeColor = Color(0x80FFCC00); // warm gold
+  static const _kBurnColor = Color(0x800088FF); // cool blue
+
   // Widget 属性
   @override
   Size get imageDisplaySize => widget.imageDisplaySize;
@@ -48,8 +51,8 @@ class _DodgeBurnOverlayState extends BaseEffectOverlayState<DodgeBurnOverlay> {
   @override
   Color get cursorColor {
     return ref.watch(dodgeBurnStateProvider).mode == DodgeBurnMode.dodge
-        ? const Color(0x80FFCC00) // warm gold for dodge
-        : const Color(0x800088FF); // cool blue for burn
+        ? _kDodgeColor
+        : _kBurnColor;
   }
 
   @override

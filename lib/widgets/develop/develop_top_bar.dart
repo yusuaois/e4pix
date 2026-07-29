@@ -36,23 +36,56 @@ class DevelopTopBar extends ConsumerWidget {
     final _ = ref.listen(historyPanelProvider, (_, _) {});
     final image = ref.watch(imageNotifierProvider).value;
     final program = ref.watch(shaderProgramProvider).value;
-    final session = ref.watch(tetherSessionNotifierProvider);
-    final cameraState = ref.watch(cameraNotifierProvider);
-    final selection = ref.watch(exportSelectionNotifierProvider);
-    final shots = ref.watch(shotsNotifierProvider);
-    final canUndo = ref.watch(historyNotifierProvider.select((h) => h.canUndo));
-    final canRedo = ref.watch(historyNotifierProvider.select((h) => h.canRedo));
-    final notifier = ref.read(historyNotifierProvider.notifier);
-    final filterActive = ref.watch(shotFilterProvider).isActive;
-    final compareMode = ref.watch(compareViewModeProvider);
 
     final hasImage = image != null && program != null;
     final isVertical = MediaQuery.of(context).size.shortestSide < 600;
     final primary = Theme.of(context).colorScheme.primary;
     final onSurfaceVariant = Theme.of(context).colorScheme.onSurfaceVariant;
 
-    // 自适应区
-    final actions = <_BarAction>[
+    final actions = _buildToolActions(context, ref, hasImage, primary);
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isVertical ? 8 : 16,
+        vertical: isVertical ? 3 : 8,
+      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
+      child: Row(
+        children: [
+          ..._buildLeadingWidgets(
+            context,
+            ref,
+            hasImage,
+            isVertical,
+            primary,
+            onSurfaceVariant,
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (ctx, constraints) => _buildAdaptiveActions(
+                actions,
+                constraints.maxWidth,
+                isVertical,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<_BarAction> _buildToolActions(
+    BuildContext context,
+    WidgetRef ref,
+    bool hasImage,
+    Color primary,
+  ) {
+    final session = ref.watch(tetherSessionNotifierProvider);
+    final cameraState = ref.watch(cameraNotifierProvider);
+    final selection = ref.watch(exportSelectionNotifierProvider);
+    final shots = ref.watch(shotsNotifierProvider);
+
+    return <_BarAction>[
       if (hasImage)
         _BarAction(
           icon: Icons.crop,
@@ -78,11 +111,9 @@ class DevelopTopBar extends ConsumerWidget {
           onPressed: onExport,
           alwaysVisible: true,
           onLongPress: () => _showQueuePanel(context),
-
           priority: 100,
           badgeCount: ref.watch(exportQueuePendingCountProvider),
         ),
-      // 多选入口按钮
       if (hasImage && !selection.multiSelectMode)
         _BarAction(
           icon: Icons.checklist_rounded,
@@ -95,7 +126,6 @@ class DevelopTopBar extends ConsumerWidget {
                     .toggleMode(),
           priority: 90,
         ),
-      // 多选模式下的 HDR 和同步按钮
       if (selection.multiSelectMode && selection.selectedPaths.length >= 2)
         _BarAction(
           icon: Icons.hdr_on,
@@ -156,121 +186,114 @@ class DevelopTopBar extends ConsumerWidget {
         priority: 20,
       ),
     ];
+  }
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isVertical ? 8 : 16,
-        vertical: isVertical ? 3 : 8,
-      ),
-      decoration: const BoxDecoration(color: Colors.transparent),
-      child: Row(
-        children: [
-          if (hasImage) ...[
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              switchInCurve: Curves.easeInOut,
-              switchOutCurve: Curves.easeInOut,
-              child: selection.multiSelectMode
-                  ? Row(
-                      key: const ValueKey('multi'),
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _iconBtn(
-                          Icons.close,
-                          tr('multiSelectExit'),
-                          () => ref
-                              .read(exportSelectionNotifierProvider.notifier)
-                              .toggleMode(),
-                          isVertical,
-                          color: primary,
-                        ),
-                        SizedBox(width: isVertical ? 4 : 6),
-                        if (selection.selectedPaths.isNotEmpty) ...[
-                          _buildSelectionChip(context, selection, isVertical),
-                          SizedBox(width: isVertical ? 2 : 4),
-                        ],
-                        _buildSelectAllButton(
-                          ref,
-                          selection,
-                          shots,
-                          isVertical,
-                        ),
-                      ],
-                    )
-                  : Row(
-                      key: const ValueKey('normal'),
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _iconBtn(
-                          Icons.undo,
-                          tr('undo'),
-                          canUndo ? notifier.undo : null,
-                          isVertical,
-                        ),
-                        _iconBtn(
-                          Icons.redo,
-                          tr('redo'),
-                          canRedo ? notifier.redo : null,
-                          isVertical,
-                        ),
-                        _iconBtn(
-                          compareMode == CompareViewMode.split
-                              ? Icons.vertical_split
-                              : Icons.compare,
-                          compareMode == CompareViewMode.split
-                              ? tr('splitCompareExit')
-                              : tr('compareHint'),
-                          () => ref
-                              .read(compareViewModeProvider.notifier)
-                              .toggleSplit(),
-                          isVertical,
-                          onLongPressStart: (_) => ref
-                              .read(compareViewModeProvider.notifier)
-                              .startHold(),
-                          onLongPressEnd: (_) => ref
-                              .read(compareViewModeProvider.notifier)
-                              .endHold(),
-                          color: compareMode != CompareViewMode.off
-                              ? primary
-                              : null,
-                        ),
-                        if (shots.isNotEmpty)
-                          _buildFilterButton(
-                            ref,
-                            isVertical,
-                            filterActive ? primary : onSurfaceVariant,
-                          ),
-                      ],
+  List<Widget> _buildLeadingWidgets(
+    BuildContext context,
+    WidgetRef ref,
+    bool hasImage,
+    bool isVertical,
+    Color primary,
+    Color onSurfaceVariant,
+  ) {
+    final cameraState = ref.watch(cameraNotifierProvider);
+    final selection = ref.watch(exportSelectionNotifierProvider);
+    final shots = ref.watch(shotsNotifierProvider);
+    final canUndo = ref.watch(historyNotifierProvider.select((h) => h.canUndo));
+    final canRedo = ref.watch(historyNotifierProvider.select((h) => h.canRedo));
+    final notifier = ref.read(historyNotifierProvider.notifier);
+    final filterActive = ref.watch(shotFilterProvider).isActive;
+    final compareMode = ref.watch(compareViewModeProvider);
+
+    return [
+      if (hasImage)
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          switchInCurve: Curves.easeInOut,
+          switchOutCurve: Curves.easeInOut,
+          child: selection.multiSelectMode
+              ? Row(
+                  key: const ValueKey('multi'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _iconBtn(
+                      Icons.close,
+                      tr('multiSelectExit'),
+                      () => ref
+                          .read(exportSelectionNotifierProvider.notifier)
+                          .toggleMode(),
+                      isVertical,
+                      color: primary,
                     ),
-            ),
-            if (!isVertical)
-              const VerticalDivider(width: 1, indent: 8, endIndent: 8),
-          ],
-          if (cameraState.isActive)
-            _iconBtn(
-              Icons.photo_camera,
-              tr(
-                'cameraConnected',
-                args: [cameraState.modelName ?? tr('cameraModelUnknown')],
-              ),
-              onStopTether,
-              isVertical,
-              color: cameraState.shutterFlash
-                  ? AppColors.semanticSuccess
-                  : AppColors.textPrimary,
-            ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (ctx, constraints) => _buildAdaptiveActions(
-                actions,
-                constraints.maxWidth,
-                isVertical,
-              ),
-            ),
+                    SizedBox(width: isVertical ? 4 : 6),
+                    if (selection.selectedPaths.isNotEmpty) ...[
+                      _buildSelectionChip(context, selection, isVertical),
+                      SizedBox(width: isVertical ? 2 : 4),
+                    ],
+                    _buildSelectAllButton(ref, selection, shots, isVertical),
+                  ],
+                )
+              : Row(
+                  key: const ValueKey('normal'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _iconBtn(
+                      Icons.undo,
+                      tr('undo'),
+                      canUndo ? notifier.undo : null,
+                      isVertical,
+                    ),
+                    _iconBtn(
+                      Icons.redo,
+                      tr('redo'),
+                      canRedo ? notifier.redo : null,
+                      isVertical,
+                    ),
+                    _iconBtn(
+                      compareMode == CompareViewMode.split
+                          ? Icons.vertical_split
+                          : Icons.compare,
+                      compareMode == CompareViewMode.split
+                          ? tr('splitCompareExit')
+                          : tr('compareHint'),
+                      () => ref
+                          .read(compareViewModeProvider.notifier)
+                          .toggleSplit(),
+                      isVertical,
+                      onLongPressStart: (_) => ref
+                          .read(compareViewModeProvider.notifier)
+                          .startHold(),
+                      onLongPressEnd: (_) =>
+                          ref.read(compareViewModeProvider.notifier).endHold(),
+                      color: compareMode != CompareViewMode.off
+                          ? primary
+                          : null,
+                    ),
+                    if (shots.isNotEmpty)
+                      _buildFilterButton(
+                        ref,
+                        isVertical,
+                        filterActive ? primary : onSurfaceVariant,
+                      ),
+                  ],
+                ),
+        ),
+      if (hasImage && !isVertical)
+        const VerticalDivider(width: 1, indent: 8, endIndent: 8),
+      if (cameraState.isActive)
+        _iconBtn(
+          Icons.photo_camera,
+          tr(
+            'cameraConnected',
+            args: [cameraState.modelName ?? tr('cameraModelUnknown')],
           ),
-        ],
-      ),
-    );
+          onStopTether,
+          isVertical,
+          color: cameraState.shutterFlash
+              ? AppColors.semanticSuccess
+              : AppColors.textPrimary,
+        ),
+    ];
   }
 
   Widget _buildFilterButton(WidgetRef ref, bool isVertical, Color color) {

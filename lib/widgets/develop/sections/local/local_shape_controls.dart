@@ -21,48 +21,66 @@ class LocalShapeControls extends ConsumerWidget {
 
     return Column(
       children: [
-        MiniSlider(
-          label: tr("rotation"),
-          value: shape.rotation,
-          min: -3.14159,
-          max: 3.14159,
-          formatter: (v) => '${(v * 180 / 3.14159).toStringAsFixed(0)}°',
-          onChanged: (v) => actions.updateLocal(
-            local.id,
-            (l) => l.copyWith(mask: shape.copyWith(rotation: v)),
-          ),
-        ),
-        MiniSlider(
-          label: tr("feather"),
-          value: shape.feather,
-          min: 0,
-          max: 1,
-          formatter: (v) => (v * 100).round().toString(),
-          onChanged: (v) => actions.updateLocal(
-            local.id,
-            (l) => l.copyWith(mask: shape.copyWith(feather: v)),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 64,
-                child: Text(tr("invert"), style: AppTypography.labelMedium),
-              ),
-              Switch(
-                value: shape.inverted,
-                onChanged: (v) => actions.updateLocal(
-                  local.id,
-                  (l) => l.copyWith(mask: shape.copyWith(inverted: v)),
-                ),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ],
-          ),
-        ),
+        ..._buildGeometrySliders(shape, local.id, actions),
+        _buildInvertToggle(shape, local.id, actions),
       ],
+    );
+  }
+
+  List<Widget> _buildGeometrySliders(
+    RadialGradientMask shape,
+    String localId,
+    LocalAdjustmentActions actions,
+  ) {
+    return [
+      MiniSlider(
+        label: tr("rotation"),
+        value: shape.rotation,
+        min: -3.14159,
+        max: 3.14159,
+        formatter: (v) => '${(v * 180 / 3.14159).toStringAsFixed(0)}°',
+        onChanged: (v) => actions.updateLocal(
+          localId,
+          (l) => l.copyWith(mask: shape.copyWith(rotation: v)),
+        ),
+      ),
+      MiniSlider(
+        label: tr("feather"),
+        value: shape.feather,
+        min: 0,
+        max: 1,
+        formatter: (v) => (v * 100).round().toString(),
+        onChanged: (v) => actions.updateLocal(
+          localId,
+          (l) => l.copyWith(mask: shape.copyWith(feather: v)),
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildInvertToggle(
+    RadialGradientMask shape,
+    String localId,
+    LocalAdjustmentActions actions,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 64,
+            child: Text(tr("invert"), style: AppTypography.labelMedium),
+          ),
+          Switch(
+            value: shape.inverted,
+            onChanged: (v) => actions.updateLocal(
+              localId,
+              (l) => l.copyWith(mask: shape.copyWith(inverted: v)),
+            ),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ],
+      ),
     );
   }
 }

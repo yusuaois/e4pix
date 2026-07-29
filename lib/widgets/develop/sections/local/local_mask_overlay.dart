@@ -35,6 +35,8 @@ class LocalMaskOverlay extends ConsumerStatefulWidget {
 }
 
 class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
+  static const _kDimOverlay = Color(0x22000000);
+
   _Handle _drag = _Handle.none;
   String? _dragId;
   Offset _dragStartPos = Offset.zero;
@@ -175,7 +177,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     );
     _paintingPoints = null;
     _cursorScreen = null;
-    setState(() {});
+    setState(() {
+      /* rebuild */
+    });
   }
 
   Future<void> _runWand(Offset pos) async {
@@ -218,6 +222,8 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final locals = ref.watch(
       currentParamsNotifierProvider.select((p) => p.locals),
     );
+    if (locals.isEmpty) return const SizedBox.shrink();
+
     final crop = ref.watch(currentParamsNotifierProvider.select((p) => p.crop));
     final image = ref.watch(imageNotifierProvider).value;
     final srcW = image?.uiImage.width ?? 0;
@@ -226,10 +232,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
     final selected = ref.watch(selectedLocalProvider);
     final brush = ref.watch(brushSettingsProvider);
     final zoomScale = ref.watch(zoomScaleProvider);
-    final mode = brush.mode;
     final isBrush = selected != null && selected.mask is BrushMask;
-    final isWand = isBrush && mode == BrushMode.wand;
-    final isSubject = isBrush && mode == BrushMode.subject;
+    final isWand = isBrush && brush.mode == BrushMode.wand;
+    final isSubject = isBrush && brush.mode == BrushMode.subject;
     final brushRadius = brush.radius;
     final scaledRadius = brush.radius / zoomScale;
     final brushErase = brush.erase;
@@ -240,9 +245,46 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         : null;
     _ensureBaseViz(selBrush, crop, srcW, srcH);
 
-    if (locals.isEmpty) return const SizedBox.shrink();
+    Widget content = _buildGestureDetector(
+      context,
+      locals,
+      selectedId,
+      scaledRadius,
+      brushRadius,
+      brushErase,
+      isBrush,
+      isWand,
+      isSubject,
+      brush,
+      zoomScale,
+    );
 
-    final gesture = SinglePointerGestureDetector(
+    if (busy) content = _buildBusyOverlay(context, content);
+    if (!isBrush) return content;
+
+    return MouseRegion(
+      onHover: (e) => setState(() => _cursorScreen = e.localPosition),
+      onExit: (_) {
+        if (_paintingPoints == null) setState(() => _cursorScreen = null);
+      },
+      child: content,
+    );
+  }
+
+  Widget _buildGestureDetector(
+    BuildContext context,
+    List<LocalAdjustment> locals,
+    String? selectedId,
+    double scaledRadius,
+    double brushRadius,
+    bool brushErase,
+    bool isBrush,
+    bool isWand,
+    bool isSubject,
+    BrushSettings brush,
+    double zoomScale,
+  ) {
+    return SinglePointerGestureDetector(
       behavior: HitTestBehavior.translucent,
       onTapDown: (d) {
         _interactionWasWand = isWand;
@@ -255,7 +297,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           _interactionWasBrush = true;
           _cursorScreen = d.localPosition;
           _paintingPoints = [_screenToMask(d.localPosition)];
-          setState(() {});
+          setState(() {
+            /* rebuild */
+          });
           return;
         }
         final hit = _hitTest(d.localPosition, locals, selectedId);
@@ -277,7 +321,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
         if (isBrush) {
           _interactionWasBrush = true;
           _paintingPoints = [_screenToMask(_cursorScreen!)];
-          setState(() {});
+          setState(() {
+            /* rebuild */
+          });
           return;
         }
         if (_drag != _Handle.none) {
@@ -293,7 +339,9 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           if (_paintingPoints == null) return;
           _cursorScreen = d.localPosition;
           _paintingPoints!.add(_screenToMask(d.localPosition));
-          setState(() {});
+          setState(() {
+            /* rebuild */
+          });
           return;
         }
         if (_drag == _Handle.none || _dragId == null) return;
@@ -337,70 +385,87 @@ class _LocalMaskOverlayState extends ConsumerState<LocalMaskOverlay> {
           ref.read(selectedLocalIdProvider.notifier).set(hit.$1);
         }
       },
-      child: Stack(
-        children: [
-          CustomPaint(
-            size: widget.imageDisplaySize,
-            painter: MaskPainter(
-              locals: locals,
-              selectedId: selectedId,
-              displaySize: widget.imageDisplaySize,
-              primaryColor: Theme.of(context).colorScheme.primary,
-              inProgressPoints: _paintingPoints == null
-                  ? null
-                  : List.of(_paintingPoints!),
-              brushRadiusNorm: scaledRadius,
-              brushErase: brushErase,
-              baseViz: isBrush ? _baseViz : null,
-            ),
-          ),
-          if (isBrush || isWand)
-            RepaintBoundary(
-              child: CustomPaint(
-                size: widget.imageDisplaySize,
-                painter: MaskCursorPainter(
-                  cursorScreen: _cursorScreen,
-                  brushRadiusNorm: brushRadius,
-                  wandMode: isWand || isSubject,
-                  subjectNegative: isSubject && brush.samNegative,
-                  displaySize: widget.imageDisplaySize,
-                  primaryColor: Theme.of(context).colorScheme.primary,
-                  zoomScale: zoomScale,
-                ),
-              ),
-            ),
-        ],
+      child: _buildPaintLayers(
+        context,
+        locals,
+        selectedId,
+        scaledRadius,
+        brushRadius,
+        brushErase,
+        isBrush,
+        isWand,
+        isSubject,
+        brush,
+        zoomScale,
       ),
     );
+  }
 
-    Widget content = gesture;
-    if (busy) {
-      content = Stack(
-        children: [
-          Positioned.fill(child: gesture),
-          const Positioned.fill(child: ColoredBox(color: Color(0x22000000))),
-          Center(
-            child: SizedBox(
-              width: 26,
-              height: 26,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Theme.of(context).colorScheme.primary,
+  Widget _buildPaintLayers(
+    BuildContext context,
+    List<LocalAdjustment> locals,
+    String? selectedId,
+    double scaledRadius,
+    double brushRadius,
+    bool brushErase,
+    bool isBrush,
+    bool isWand,
+    bool isSubject,
+    BrushSettings brush,
+    double zoomScale,
+  ) {
+    return Stack(
+      children: [
+        CustomPaint(
+          size: widget.imageDisplaySize,
+          painter: MaskPainter(
+            locals: locals,
+            selectedId: selectedId,
+            displaySize: widget.imageDisplaySize,
+            primaryColor: Theme.of(context).colorScheme.primary,
+            inProgressPoints: _paintingPoints == null
+                ? null
+                : List.of(_paintingPoints!),
+            brushRadiusNorm: scaledRadius,
+            brushErase: brushErase,
+            baseViz: isBrush ? _baseViz : null,
+          ),
+        ),
+        if (isBrush || isWand)
+          RepaintBoundary(
+            child: CustomPaint(
+              size: widget.imageDisplaySize,
+              painter: MaskCursorPainter(
+                cursorScreen: _cursorScreen,
+                brushRadiusNorm: brushRadius,
+                wandMode: isWand || isSubject,
+                subjectNegative: isSubject && brush.samNegative,
+                displaySize: widget.imageDisplaySize,
+                primaryColor: Theme.of(context).colorScheme.primary,
+                zoomScale: zoomScale,
               ),
             ),
           ),
-        ],
-      );
-    }
+      ],
+    );
+  }
 
-    if (!isBrush) return content;
-
-    return MouseRegion(
-      onHover: (e) => setState(() => _cursorScreen = e.localPosition),
-      onExit: (_) {
-        if (_paintingPoints == null) setState(() => _cursorScreen = null);
-      },
-      child: content,
+  Widget _buildBusyOverlay(BuildContext context, Widget child) {
+    return Stack(
+      children: [
+        Positioned.fill(child: child),
+        const Positioned.fill(child: ColoredBox(color: _kDimOverlay)),
+        Center(
+          child: SizedBox(
+            width: 26,
+            height: 26,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

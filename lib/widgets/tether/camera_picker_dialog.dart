@@ -88,219 +88,228 @@ class _CameraPickerDialogState extends State<CameraPickerDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    tr("detectedCameras"),
-                    style: AppTypography.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.refresh, size: 16),
-                    visualDensity: VisualDensity.compact,
-                    tooltip: tr("reDetect"),
-                    onPressed: _detecting ? null : _detect,
-                  ),
-                ],
+            children: [_buildCameraSection(), _buildFolderSection()],
+          ),
+        ),
+      ),
+      actions: _buildDialogActions(),
+    );
+  }
+
+  Widget _buildCameraSection() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              tr("detectedCameras"),
+              style: AppTypography.bodyLarge.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 6),
-              Container(
+            ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 16),
+              visualDensity: VisualDensity.compact,
+              tooltip: tr("reDetect"),
+              onPressed: _detecting ? null : _detect,
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceBg,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: AppColors.subtleBorder),
+          ),
+          padding: const EdgeInsets.all(8),
+          constraints: const BoxConstraints(minHeight: 70),
+          child: _detecting
+              ? const Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : _error != null
+              ? Text(
+                  _error!,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.semanticError,
+                  ),
+                )
+              : _cameras.isEmpty
+              ? Platform.isAndroid
+                    ? Text(
+                        '${tr("noCamerasFound")}\n· Android: ${tr("tetherOtherModeHint")}',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.mediumText,
+                        ),
+                      )
+                    : (Platform.isWindows
+                          ? Text(
+                              '${tr("noCamerasFound")}\n'
+                              '· Windows: ${tr("tetherWindowsModeHint")}\n'
+                              '   - usbipd list\n'
+                              '   - usbipd attach --wsl --busid <busid>\n',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.mediumText,
+                              ),
+                            )
+                          : Text(
+                              '${tr("noCamerasFound")}\n'
+                              '· Linux/macOS: ${tr("tetherOtherModeHint")}',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.mediumText,
+                              ),
+                            ))
+              : Column(
+                  children: _cameras.map((c) {
+                    final isSel = c == _selected;
+                    return InkWell(
+                      onTap: () => setState(() => _selected = c),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isSel
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_off,
+                              size: 14,
+                              color: isSel
+                                  ? Theme.of(context).colorScheme.primary
+                                  : AppColors.disabledText,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                c.model,
+                                style: AppTypography.bodyLarge,
+                              ),
+                            ),
+                            Text(
+                              c.port,
+                              style: AppTypography.labelSmall.copyWith(
+                                fontFamily: 'monospace',
+                                color: AppColors.faintText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFolderSection() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 14),
+        Text(
+          tr("saveTo"),
+          style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        if (_loadedDefault)
+          Row(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                size: 12,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                tr("settingsUsingDefaultFolder"),
+                style: AppTypography.labelMedium.copyWith(
+                  color: AppColors.faintText,
+                ),
+              ),
+            ],
+          ),
+        if (!_loadedDefault && _folder != null)
+          Row(
+            children: [
+              SizedBox(
+                height: 24,
+                width: 24,
+                child: Checkbox(
+                  value: _rememberAsDefault,
+                  onChanged: (v) =>
+                      setState(() => _rememberAsDefault = v ?? false),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                tr("settingsRememberAsDefault"),
+                style: AppTypography.bodySmall,
+              ),
+            ],
+          ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceBg,
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: AppColors.subtleBorder),
                 ),
-                padding: const EdgeInsets.all(8),
-                constraints: const BoxConstraints(minHeight: 70),
-                child: _detecting
-                    ? const Center(
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : _error != null
-                    ? Text(
-                        _error!,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.semanticError,
-                        ),
-                      )
-                    : _cameras.isEmpty
-                    ? Platform.isAndroid
-                          ? Text(
-                              '${tr("noCamerasFound")}\n· Android: ${tr("tetherOtherModeHint")}',
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.mediumText,
-                              ),
-                            )
-                          : (Platform.isWindows
-                                ? Text(
-                                    '${tr("noCamerasFound")}\n'
-                                    '· Windows: ${tr("tetherWindowsModeHint")}\n'
-                                    '   - usbipd list\n'
-                                    '   - usbipd attach --wsl --busid <busid>\n',
-                                    style: AppTypography.bodySmall.copyWith(
-                                      color: AppColors.mediumText,
-                                    ),
-                                  )
-                                : Text(
-                                    '${tr("noCamerasFound")}\n'
-                                    '· Linux/macOS: ${tr("tetherOtherModeHint")}',
-                                    style: AppTypography.bodySmall.copyWith(
-                                      color: AppColors.mediumText,
-                                    ),
-                                  ))
-                    : Column(
-                        children: _cameras.map((c) {
-                          final isSel = c == _selected;
-                          return InkWell(
-                            onTap: () => setState(() => _selected = c),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isSel
-                                        ? Icons.radio_button_checked
-                                        : Icons.radio_button_off,
-                                    size: 14,
-                                    color: isSel
-                                        ? Theme.of(context).colorScheme.primary
-                                        : AppColors.disabledText,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      c.model,
-                                      style: AppTypography.bodyLarge,
-                                    ),
-                                  ),
-                                  Text(
-                                    c.port,
-                                    style: AppTypography.labelSmall.copyWith(
-                                      fontFamily: 'monospace',
-                                      color: AppColors.faintText,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                tr("saveTo"),
-                style: AppTypography.bodyLarge.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              // 标记 "正在使用默认"
-              if (_loadedDefault)
-                Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      size: 12,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      tr("settingsUsingDefaultFolder"),
-                      style: AppTypography.labelMedium.copyWith(
-                        color: AppColors.faintText,
-                      ),
-                    ),
-                  ],
-                ),
-              // 用户主动选了一个非默认的文件夹 → 提示"记住"
-              if (!_loadedDefault && _folder != null)
-                Row(
-                  children: [
-                    SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: Checkbox(
-                        value: _rememberAsDefault,
-                        onChanged: (v) =>
-                            setState(() => _rememberAsDefault = v ?? false),
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      tr("settingsRememberAsDefault"),
-                      style: AppTypography.bodySmall,
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceBg,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: AppColors.subtleBorder),
-                      ),
-                      child: Text(
-                        _folder ?? tr("notChosen"),
-                        style: AppTypography.bodyMedium.copyWith(
-                          fontFamily: 'monospace',
-                          color: _folder == null
-                              ? AppColors.disabledText
-                              : null,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+                child: Text(
+                  _folder ?? tr("notChosen"),
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontFamily: 'monospace',
+                    color: _folder == null ? AppColors.disabledText : null,
                   ),
-                  const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: _pickFolder,
-                    child: Text(tr("browse")),
-                  ),
-                ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, null),
-          child: Text(tr("cancel")),
-        ),
-        FilledButton(
-          onPressed: (_selected != null && _folder != null)
-              ? () async {
-                  if (_rememberAsDefault && !_loadedDefault) {
-                    await AppSettings.setTetherFolder(_folder);
-                  }
-                  if (!context.mounted) return;
-                  Navigator.pop(
-                    context,
-                    CameraPickResult(_selected!, _folder!),
-                  );
-                }
-              : null,
-          child: Text(tr("startCameraTether")),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(onPressed: _pickFolder, child: Text(tr("browse"))),
+          ],
         ),
       ],
     );
+  }
+
+  List<Widget> _buildDialogActions() {
+    return [
+      TextButton(
+        onPressed: () => Navigator.pop(context, null),
+        child: Text(tr("cancel")),
+      ),
+      FilledButton(
+        onPressed: (_selected != null && _folder != null)
+            ? () async {
+                if (_rememberAsDefault && !_loadedDefault) {
+                  await AppSettings.setTetherFolder(_folder);
+                }
+                if (!mounted) return;
+                Navigator.pop(context, CameraPickResult(_selected!, _folder!));
+              }
+            : null,
+        child: Text(tr("startCameraTether")),
+      ),
+    ];
   }
 }

@@ -88,6 +88,11 @@ class DebugLogService {
   /// 新日志通知
   final ValueNotifier<int> logCount = ValueNotifier(0);
 
+  /// 释放 [logCount] 等资源
+  void dispose() {
+    logCount.dispose();
+  }
+
   /// 解析一行日志文本，支持新格式 [YYYY-MM-DD HH:MM:SS] 和旧格式 [HH:MM:SS]
   LogEntry? _parseLine(String line) {
     // 优先匹配新格式

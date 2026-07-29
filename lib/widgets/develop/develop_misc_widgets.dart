@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/models/tethered_shot.dart';
 import '../../core/theme/app_typography.dart';
+import '../../services/ai/ai_color_service.dart';
 import '../../state/providers.dart';
 
 // 星级 + 旗标条
@@ -35,72 +36,88 @@ class RatingFlagBar extends ConsumerWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 5 颗星
-          for (int i = 1; i <= 5; i++)
-            GestureDetector(
-              onTap: () {
-                notifier.updateRating(
-                  active.path,
-                  active.rating == i ? i - 1 : i,
-                );
-                writeSidecar();
-              },
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: compact ? 2.0 : 8.0,
-                ),
-                child: Icon(
-                  i <= active.rating ? Icons.star : Icons.star_border,
-                  size: 18,
-                  color: i <= active.rating
-                      ? AppColors.semanticWarning
-                      : AppColors.disabledText,
-                ),
-              ),
-            ),
+          _buildStars(active, notifier, writeSidecar),
           const SizedBox(width: 8),
-          // 旗标
-          IconButton(
-            icon: Icon(
-              Icons.flag,
-              size: 16,
-              color: active.flag == ShotFlag.pick
-                  ? AppColors.semanticSuccess
-                  : AppColors.disabledText,
-            ),
-            tooltip: tr('flagPick'),
-            visualDensity: VisualDensity.compact,
-            onPressed: () {
-              notifier.updateFlag(
-                active.path,
-                active.flag == ShotFlag.pick ? ShotFlag.none : ShotFlag.pick,
-              );
-              writeSidecar();
-            },
+          _buildFlagButton(
+            active: active,
+            notifier: notifier,
+            writeSidecar: writeSidecar,
+            flag: ShotFlag.pick,
+            icon: Icons.flag,
+            activeColor: AppColors.semanticSuccess,
+            tooltipKey: 'flagPick',
           ),
-          IconButton(
-            icon: Icon(
-              Icons.block,
-              size: 16,
-              color: active.flag == ShotFlag.reject
-                  ? AppColors.semanticError
-                  : AppColors.disabledText,
-            ),
-            tooltip: tr('flagReject'),
-            visualDensity: VisualDensity.compact,
-            onPressed: () {
-              notifier.updateFlag(
-                active.path,
-                active.flag == ShotFlag.reject
-                    ? ShotFlag.none
-                    : ShotFlag.reject,
-              );
-              writeSidecar();
-            },
+          _buildFlagButton(
+            active: active,
+            notifier: notifier,
+            writeSidecar: writeSidecar,
+            flag: ShotFlag.reject,
+            icon: Icons.block,
+            activeColor: AppColors.semanticError,
+            tooltipKey: 'flagReject',
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStars(
+    TetheredShot active,
+    ShotsNotifier notifier,
+    VoidCallback writeSidecar,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 1; i <= 5; i++)
+          GestureDetector(
+            onTap: () {
+              notifier.updateRating(
+                active.path,
+                active.rating == i ? i - 1 : i,
+              );
+              writeSidecar();
+            },
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: compact ? 2.0 : 8.0,
+              ),
+              child: Icon(
+                i <= active.rating ? Icons.star : Icons.star_border,
+                size: 18,
+                color: i <= active.rating
+                    ? AppColors.semanticWarning
+                    : AppColors.disabledText,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFlagButton({
+    required TetheredShot active,
+    required ShotsNotifier notifier,
+    required VoidCallback writeSidecar,
+    required ShotFlag flag,
+    required IconData icon,
+    required Color activeColor,
+    required String tooltipKey,
+  }) {
+    final isActive = active.flag == flag;
+    return IconButton(
+      icon: Icon(
+        icon,
+        size: 16,
+        color: isActive ? activeColor : AppColors.disabledText,
+      ),
+      tooltip: tr(tooltipKey),
+      visualDensity: VisualDensity.compact,
+      onPressed: () {
+        notifier.updateFlag(active.path, isActive ? ShotFlag.none : flag);
+        writeSidecar();
+      },
     );
   }
 }
@@ -138,33 +155,44 @@ class AIBanner extends ConsumerWidget {
     final ai = ref.watch(aiAutoNotifierProvider);
 
     if (ai.inProgress && ai.pendingSuggestion == null) {
-      return Container(
-        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 12,
-              height: 12,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.5,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              tr("aiColorInProgress"),
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.mediumText,
-              ),
-            ),
-          ],
-        ),
-      );
+      return _buildInProgressBanner(context);
     }
     if (ai.pendingSuggestion == null) return const SizedBox.shrink();
 
-    final s = ai.pendingSuggestion!;
+    return _buildSuggestionBanner(context, ai.pendingSuggestion!, ref);
+  }
+
+  Widget _buildInProgressBanner(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.5,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            tr("aiColorInProgress"),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.mediumText,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestionBanner(
+    BuildContext context,
+    AIColorSuggestion s,
+    WidgetRef ref,
+  ) {
     return Material(
       color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
       child: InkWell(

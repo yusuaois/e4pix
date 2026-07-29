@@ -23,10 +23,10 @@ void main() async {
     ProviderScope(
       child: ExcludeSemantics(
         child: EasyLocalization(
-          supportedLocales: [Locale('en', 'US'), Locale('zh', 'CN')],
+          supportedLocales: const [Locale('en', 'US'), Locale('zh', 'CN')],
           path: 'assets/translations',
-          fallbackLocale: Locale('en', 'US'),
-          child: E4pixApp(),
+          fallbackLocale: const Locale('en', 'US'),
+          child: const E4pixApp(),
         ),
       ),
     ),

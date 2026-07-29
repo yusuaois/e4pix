@@ -73,10 +73,80 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
     final curves = ref.watch(
       currentParamsNotifierProvider.select((p) => p.curves),
     );
-
     final curve = _curveOf(curves);
     final lineColor = _channelColor(context);
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildHeader(context),
+        const SizedBox(height: 8),
+        _buildChannelTabs(context),
+        const SizedBox(height: 4),
+        _buildCurveEditor(context, curves, curve, lineColor),
+      ],
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    if (widget.onDone != null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 10, 12, 8),
+        child: Row(
+          children: [
+            Text(
+              'CURVE',
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.disabledText,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: widget.onDone,
+              child: Text(
+                tr('done'),
+                style: AppTypography.bodyLarge.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SectionLabel(title: 'Curve');
+  }
+
+  Widget _buildChannelTabs(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          _chTab('RGB', 0, Theme.of(context).colorScheme.primary),
+          _chTab('R', 1, AppColors.curveRed),
+          _chTab('G', 2, AppColors.curveGreen),
+          _chTab('B', 3, AppColors.curveBlue),
+          _chTab(tr("lum"), 4, AppColors.curveLum),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCurveEditor(
+    BuildContext context,
+    RgbCurves curves,
+    ToneCurve curve,
+    Color lineColor,
+  ) {
     void commit(ToneCurve next) {
       final params = ref.read(currentParamsNotifierProvider);
       ref
@@ -84,170 +154,114 @@ class _CurveSectionState extends ConsumerState<CurveSection> {
           .update(params.copyWith(curves: _withChannel(curves, next)));
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (widget.onDone != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 12, 8),
-            child: Row(
-              children: [
-                Text(
-                  'CURVE',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.disabledText,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: widget.onDone,
-                  child: Text(
-                    tr('done'),
-                    style: AppTypography.bodyLarge.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          const SectionLabel(title: 'Curve'),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              _chTab('RGB', 0, Theme.of(context).colorScheme.primary),
-              _chTab('R', 1, AppColors.curveRed),
-              _chTab('G', 2, AppColors.curveGreen),
-              _chTab('B', 3, AppColors.curveBlue),
-              _chTab(tr("lum"), 4, AppColors.curveLum),
-            ],
-          ),
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildCurveCanvas(curve, lineColor, commit),
+            const SizedBox(height: AppSpacing.sm),
+            _buildCurveFooter(curve, commit),
+          ],
         ),
-        const SizedBox(height: 4),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Flexible(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 155),
-                    child: LayoutBuilder(
-                      builder: (ctx, outer) {
-                        final h = outer.maxHeight;
-                        final pad = 2 * _pointOverflow;
-                        final gridSize = Size(outer.maxWidth, h);
-                        return SizedBox.fromSize(
-                          size: Size(outer.maxWidth, h + pad),
-                          child: ClipRect(
-                            child: GestureDetector(
-                              onTapUp: (d) {
-                                final next = handleTapUp(
-                                  d.localPosition,
-                                  gridSize,
-                                  curve,
-                                );
-                                if (next != null) commit(next);
-                              },
-                              onPanStart: (d) {
-                                _dragIndex = hitTest(
-                                  d.localPosition,
-                                  gridSize,
-                                  curve,
-                                );
-                              },
-                              onPanUpdate: (d) {
-                                final next = handlePanUpdate(
-                                  d.localPosition,
-                                  gridSize,
-                                  curve,
-                                  _dragIndex,
-                                );
-                                if (next != null) {
-                                  _throttle.throttle(next, commit);
-                                }
-                              },
-                              onPanEnd: (_) {
-                                _dragIndex = null;
-                                _throttle.flush(commit);
-                              },
-                              onPanCancel: () {
-                                _dragIndex = null;
-                                _throttle.flush(commit);
-                              },
-                              onLongPressStart: (d) {
-                                final next = handleLongPress(
-                                  d.localPosition,
-                                  gridSize,
-                                  curve,
-                                );
-                                if (next != null) commit(next);
-                              },
-                              child: CustomPaint(
-                                painter: CurvePainter(
-                                  curve: curve,
-                                  lineColor: lineColor,
-                                  overflow: _pointOverflow,
-                                ),
-                                size: Size(outer.maxWidth, h + pad),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+      ),
+    );
+  }
+
+  Widget _buildCurveCanvas(
+    ToneCurve curve,
+    Color lineColor,
+    void Function(ToneCurve) commit,
+  ) {
+    return Flexible(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 155),
+        child: LayoutBuilder(
+          builder: (ctx, outer) {
+            final h = outer.maxHeight;
+            final pad = 2 * _pointOverflow;
+            final gridSize = Size(outer.maxWidth, h);
+            return SizedBox.fromSize(
+              size: Size(outer.maxWidth, h + pad),
+              child: ClipRect(
+                child: GestureDetector(
+                  onTapUp: (d) {
+                    final next = handleTapUp(d.localPosition, gridSize, curve);
+                    if (next != null) commit(next);
+                  },
+                  onPanStart: (d) {
+                    _dragIndex = hitTest(d.localPosition, gridSize, curve);
+                  },
+                  onPanUpdate: (d) {
+                    final next = handlePanUpdate(
+                      d.localPosition,
+                      gridSize,
+                      curve,
+                      _dragIndex,
+                    );
+                    if (next != null) {
+                      _throttle.throttle(next, commit);
+                    }
+                  },
+                  onPanEnd: (_) {
+                    _dragIndex = null;
+                    _throttle.flush(commit);
+                  },
+                  onPanCancel: () {
+                    _dragIndex = null;
+                    _throttle.flush(commit);
+                  },
+                  onLongPressStart: (d) {
+                    final next = handleLongPress(
+                      d.localPosition,
+                      gridSize,
+                      curve,
+                    );
+                    if (next != null) commit(next);
+                  },
+                  child: CustomPaint(
+                    painter: CurvePainter(
+                      curve: curve,
+                      lineColor: lineColor,
+                      overflow: _pointOverflow,
                     ),
+                    size: Size(outer.maxWidth, h + pad),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, AppSpacing.xs, 4, 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        tr("curveHint"),
-                        style: AppTypography.labelMedium.copyWith(
-                          color: AppColors.disabledText,
-                        ),
-                      ),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        onPressed: curve.isIdentity
-                            ? null
-                            : () => commit(ToneCurve.identity),
-                        child: Text(
-                          tr("reset"),
-                          style: AppTypography.bodyLarge,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurveFooter(ToneCurve curve, void Function(ToneCurve) commit) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, AppSpacing.xs, 4, 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            tr("curveHint"),
+            style: AppTypography.labelMedium.copyWith(
+              color: AppColors.disabledText,
             ),
           ),
-        ),
-      ],
+          TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: curve.isIdentity
+                ? null
+                : () => commit(ToneCurve.identity),
+            child: Text(tr("reset"), style: AppTypography.bodyLarge),
+          ),
+        ],
+      ),
     );
   }
 

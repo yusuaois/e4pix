@@ -100,8 +100,8 @@ class TetherWatcher {
     _seen.clear();
   }
 
-  Future<void> dispose() async {
-    await stop();
-    await _controller.close();
+  void dispose() {
+    stop();
+    _controller.close();
   }
 }

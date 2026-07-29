@@ -18,7 +18,6 @@ class WatermarkSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cfg = ref.watch(watermarkConfigProvider);
     final notifier = ref.read(watermarkConfigProvider.notifier);
-
     void set(WatermarkConfig v) => notifier.update(v);
 
     return SingleChildScrollView(
@@ -26,398 +25,454 @@ class WatermarkSection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionLabel(title: 'Watermark'),
-          // ── 总开关 ──
           SwitchTile.tile(
             label: tr('watermarkEnable'),
             value: cfg.enabled,
             onChanged: (v) => set(cfg.copyWith(enabled: v)),
           ),
-          if (!cfg.enabled)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: Text(
-                tr('watermarkDisabledHint'),
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.disabledText,
-                ),
-              ),
-            ),
-
-          // ── 以下仅在水印开启时显示 ──
           if (cfg.enabled) ...[
             const SizedBox(height: 4),
-
-            // ═══════ 背景 ═══════
-            SectionLabel(title: tr('watermarkSectionBackground')),
-            _DropdownTile<BackgroundType>(
-              label: tr('watermarkBackgroundType'),
-              value: cfg.backgroundType,
-              items: [
-                DropdownMenuItem(
-                  value: BackgroundType.blurredOriginal,
-                  child: _DropLabel(tr('watermarkBgBlurred')),
-                ),
-                DropdownMenuItem(
-                  value: BackgroundType.solidColor,
-                  child: _DropLabel(tr('watermarkBgSolid')),
-                ),
-                DropdownMenuItem(
-                  value: BackgroundType.image,
-                  child: _DropLabel(tr('watermarkBgCustomImage')),
-                ),
-              ],
-              onChanged: (v) =>
-                  v != null ? set(cfg.copyWith(backgroundType: v)) : null,
-            ),
-            if (cfg.backgroundType == BackgroundType.solidColor)
-              _ColorTile(
-                label: tr('watermarkBgColor'),
-                color: cfg.backgroundColor,
-                onChanged: (c) => set(cfg.copyWith(backgroundColor: c)),
-              ),
-            if (cfg.backgroundType == BackgroundType.image) ...[
-              const SizedBox(height: 6),
-              _ImportTile(
-                label: tr('watermarkImportImage'),
-                currentFile: cfg.customBackgroundPath,
-                onImport: () async {
-                  final name =
-                      await WatermarkAssetManager.pickAndSaveCustomImage();
-                  if (name != null) {
-                    set(cfg.copyWith(customBackgroundPath: name));
-                  }
-                },
-                onClear: () => set(cfg.copyWith(clearCustomBg: true)),
-              ),
-            ],
-            _DropdownTile<CanvasAspectRatio>(
-              label: tr('watermarkCanvasRatio'),
-              value: cfg.canvasAspectRatio,
-              items: CanvasAspectRatio.values.map((r) {
-                return DropdownMenuItem(
-                  value: r,
-                  child: _DropLabel(r.displayLabel),
-                );
-              }).toList(),
-              onChanged: (v) =>
-                  v != null ? set(cfg.copyWith(canvasAspectRatio: v)) : null,
-            ),
-
+            _buildBackgroundSection(context, cfg, set),
             const SizedBox(height: 8),
-
-            // ═══════ 布局 ═══════
-            SectionLabel(title: tr('watermarkSectionLayout')),
-            DevelopSliderTile(
-              label: tr('watermarkBlur'),
-              value: cfg.blurRadius,
-              min: 0,
-              max: 100,
-              suffix: ' px',
-              onChanged: (v) => set(cfg.copyWith(blurRadius: v)),
-            ),
-            DevelopSliderTile(
-              label: tr('watermarkBorderWidth'),
-              value: cfg.borderWidth,
-              min: 20,
-              max: 200,
-              suffix: ' px',
-              onChanged: (v) => set(cfg.copyWith(borderWidth: v)),
-            ),
-            DevelopSliderTile(
-              label: tr('watermarkImageScale'),
-              value: cfg.imageScale,
-              min: 0,
-              max: 1.0,
-              suffix: '%',
-              fractionDigits: 0,
-              onChanged: (v) => set(cfg.copyWith(imageScale: v)),
-            ),
-
+            _buildLayoutSection(cfg, set),
             const SizedBox(height: 8),
-
-            // ═══════ 质感 ═══════
-            SectionLabel(title: tr('watermarkSectionTexture')),
-            DevelopSliderTile(
-              label: tr('watermarkCornerRadius'),
-              value: cfg.cornerRadius,
-              min: 0,
-              max: 100,
-              suffix: ' px',
-              onChanged: (v) => set(cfg.copyWith(cornerRadius: v)),
-            ),
-            _ShadowIntensityTile(
-              label: tr('watermarkShadowIntensity'),
-              value: cfg.shadowIntensity,
-              onChanged: (v) => set(cfg.copyWith(shadowIntensity: v)),
-            ),
-
+            _buildTextureSection(cfg, set),
             const SizedBox(height: 8),
-
-            // ═══════ 信息层位置 ═══════
-            SectionLabel(title: tr('watermarkSectionInfoPos')),
-            _DropdownTile<InfoPlacement>(
-              label: tr('watermarkInfoPlacement'),
-              value: cfg.infoPlacement,
-              items: [
-                DropdownMenuItem(
-                  value: InfoPlacement.above,
-                  child: _DropLabel(tr('watermarkInfoAbove')),
-                ),
-                DropdownMenuItem(
-                  value: InfoPlacement.below,
-                  child: _DropLabel(tr('watermarkInfoBelow')),
-                ),
-                DropdownMenuItem(
-                  value: InfoPlacement.overlayTopLeft,
-                  child: _DropLabel(tr('watermarkInfoOverlayTL')),
-                ),
-                DropdownMenuItem(
-                  value: InfoPlacement.overlayTopRight,
-                  child: _DropLabel(tr('watermarkInfoOverlayTR')),
-                ),
-                DropdownMenuItem(
-                  value: InfoPlacement.overlayBottomLeft,
-                  child: _DropLabel(tr('watermarkInfoOverlayBL')),
-                ),
-                DropdownMenuItem(
-                  value: InfoPlacement.overlayBottomRight,
-                  child: _DropLabel(tr('watermarkInfoOverlayBR')),
-                ),
-              ],
-              onChanged: (v) =>
-                  v != null ? set(cfg.copyWith(infoPlacement: v)) : null,
-            ),
-
+            _buildInfoPositionSection(cfg, set),
             const SizedBox(height: 8),
-
-            // ═══════ Logo ═══════
-            SectionLabel(title: tr('watermarkSectionLogo')),
-            _DropdownTile<LogoSource>(
-              label: tr('watermarkLogoSource'),
-              value: cfg.logoSource,
-              items: [
-                DropdownMenuItem(
-                  value: LogoSource.builtin,
-                  child: _DropLabel(tr('watermarkLogoBuiltin')),
-                ),
-                DropdownMenuItem(
-                  value: LogoSource.custom,
-                  child: _DropLabel(tr('watermarkLogoCustom')),
-                ),
-              ],
-              onChanged: (v) =>
-                  v != null ? set(cfg.copyWith(logoSource: v)) : null,
-            ),
-            if (cfg.logoSource == LogoSource.builtin) ...[
-              _DropdownTile<String>(
-                label: tr('watermarkLogoBrand'),
-                value: cfg.logoBrand,
-                items: [
-                  DropdownMenuItem<String>(
-                    value: null,
-                    child: _DropLabel(tr('watermarkLogoNone')),
-                  ),
-                  ...kAvailableLogoBrands.map(
-                    (b) => DropdownMenuItem<String>(
-                      value: b,
-                      child: _DropLabel(b[0].toUpperCase() + b.substring(1)),
-                    ),
-                  ),
-                ],
-                onChanged: (v) =>
-                    set(cfg.copyWith(logoBrand: v, clearLogoBrand: v == null)),
-              ),
-            ],
-            if (cfg.logoSource == LogoSource.custom)
-              _ImportTile(
-                label: tr('watermarkImportLogo'),
-                currentFile: cfg.customLogoPath,
-                onImport: () async {
-                  final name =
-                      await WatermarkAssetManager.pickAndSaveCustomImage();
-                  if (name != null) {
-                    set(cfg.copyWith(customLogoPath: name));
-                  }
-                },
-                onClear: () => set(cfg.copyWith(clearCustomLogo: true)),
-              ),
-            if ((cfg.logoSource == LogoSource.builtin &&
-                    cfg.logoBrand != null) ||
-                (cfg.logoSource == LogoSource.custom &&
-                    cfg.customLogoPath != null)) ...[
-              DevelopSliderTile(
-                label: tr('watermarkLogoSize'),
-                value: cfg.logoSize,
-                min: 0.1,
-                max: 1.0,
-                fractionDigits: 2,
-                onChanged: (v) => set(cfg.copyWith(logoSize: v)),
-              ),
-              DevelopSliderTile(
-                label: tr('watermarkLogoOpacity'),
-                value: cfg.logoOpacity,
-                min: 0.0,
-                max: 1.0,
-                fractionDigits: 2,
-                onChanged: (v) => set(cfg.copyWith(logoOpacity: v)),
-              ),
-            ],
-
+            _buildLogoSection(cfg, set),
             const SizedBox(height: 8),
-
-            // ═══════ Light / Dark ═══════
-            SectionLabel(title: tr('watermarkSectionColorMode')),
-            _SegmentedTile<WatermarkColorMode>(
-              label: tr('watermarkColorMode'),
-              value: cfg.colorMode,
-              items: [
-                _SegItem(
-                  value: WatermarkColorMode.light,
-                  label: tr('watermarkColorLight'),
-                ),
-                _SegItem(
-                  value: WatermarkColorMode.dark,
-                  label: tr('watermarkColorDark'),
-                ),
-              ],
-              onChanged: (v) => set(cfg.copyWith(colorMode: v)),
-            ),
-
+            _buildColorModeSection(cfg, set),
             const SizedBox(height: 8),
-
-            // ═══════ EXIF ═══════
-            SectionLabel(title: tr('watermarkSectionExifText')),
-            SwitchTile.tile(
-              label: tr('watermarkShowExif'),
-              value: cfg.showExif,
-              onChanged: (v) => set(cfg.copyWith(showExif: v)),
-            ),
-            if (cfg.showExif) ...[
-              _SegmentedTile<ExifMode>(
-                label: tr('watermarkExifMode'),
-                value: cfg.exifMode,
-                items: [
-                  _SegItem(
-                    value: ExifMode.auto,
-                    label: tr('watermarkExifModeAuto'),
-                  ),
-                  _SegItem(
-                    value: ExifMode.custom,
-                    label: tr('watermarkExifModeCustom'),
-                  ),
-                ],
-                onChanged: (v) => set(cfg.copyWith(exifMode: v)),
-              ),
-              // EXIF 字段选择（仅自动模式）
-              if (cfg.exifMode == ExifMode.auto)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 2,
-                  ),
-                  child: Wrap(
-                    spacing: 4,
-                    runSpacing: 2,
-                    children: ExifField.values.map((field) {
-                      final selected =
-                          cfg.enabledExifFields.isEmpty ||
-                          cfg.enabledExifFields.contains(field);
-                      return _ExifFieldChip(
-                        label: field.displayLabelKey.tr(),
-                        selected: selected,
-                        onTap: () {
-                          final s = Set<ExifField>.from(cfg.enabledExifFields);
-                          if (cfg.enabledExifFields.isEmpty) {
-                            // 当前全选 → 反选：只保留被点击的这一个
-                            s.addAll(ExifField.values);
-                            s.remove(field);
-                          } else if (selected) {
-                            s.remove(field);
-                            if (s.isEmpty) {
-                              // 全部取消 = 空集 = 全选
-                              set(cfg.copyWith(clearExifFields: true));
-                              return;
-                            }
-                          } else {
-                            s.add(field);
-                            if (s.length == ExifField.values.length) {
-                              set(cfg.copyWith(clearExifFields: true));
-                              return;
-                            }
-                          }
-                          set(cfg.copyWith(enabledExifFields: s));
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ),
-              if (cfg.exifMode == ExifMode.custom)
-                _ExifTextField(
-                  initialText: cfg.customExifText,
-                  onChanged: (v) {
-                    set(
-                      cfg.copyWith(
-                        customExifText: v.isEmpty ? null : v,
-                        clearCustomExif: v.isEmpty,
-                      ),
-                    );
-                  },
-                ),
-              _FontFamilyTile(
-                label: tr('watermarkFontFamily'),
-                value: cfg.fontFamily,
-                onChanged: (v) => set(
-                  cfg.copyWith(fontFamily: v, clearFontFamily: v == null),
-                ),
-              ),
-              DevelopSliderTile(
-                label: tr('watermarkFontSize'),
-                value: cfg.fontSize,
-                min: 8,
-                max: 36,
-                suffix: ' pt',
-                onChanged: (v) => set(cfg.copyWith(fontSize: v)),
-              ),
-              _FontWeightTile(
-                label: tr('watermarkFontWeight'),
-                value: cfg.fontWeightIndex,
-                onChanged: (v) => set(cfg.copyWith(fontWeightIndex: v)),
-              ),
-              DevelopSliderTile(
-                label: tr('watermarkTextOpacity'),
-                value: cfg.textOpacity,
-                min: 0.0,
-                max: 1.0,
-                fractionDigits: 2,
-                onChanged: (v) => set(cfg.copyWith(textOpacity: v)),
-              ),
-              DevelopSliderTile(
-                label: tr('watermarkTextPadding'),
-                value: cfg.textPadding,
-                min: 4,
-                max: 60,
-                suffix: ' px',
-                onChanged: (v) => set(cfg.copyWith(textPadding: v)),
-              ),
-            ],
-
+            _buildExifSection(context, cfg, set),
             const SizedBox(height: 12),
-            // ── 重置按钮 ──
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: OutlinedButton.icon(
-                onPressed: () => notifier.reset(),
-                icon: const Icon(Icons.refresh, size: 16),
-                label: Text(tr('reset')),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: AppColors.lightBorder),
-                  foregroundColor: AppColors.mediumText,
+            _buildResetButton(() => notifier.reset()),
+            const SizedBox(height: 24),
+          ] else
+            _buildDisabledHint(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDisabledHint() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: Text(
+        tr('watermarkDisabledHint'),
+        style: AppTypography.bodySmall.copyWith(color: AppColors.disabledText),
+      ),
+    );
+  }
+
+  Widget _buildBackgroundSection(
+    BuildContext context,
+    WatermarkConfig cfg,
+    void Function(WatermarkConfig) set,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionLabel(title: tr('watermarkSectionBackground')),
+        _DropdownTile<BackgroundType>(
+          label: tr('watermarkBackgroundType'),
+          value: cfg.backgroundType,
+          items: [
+            DropdownMenuItem(
+              value: BackgroundType.blurredOriginal,
+              child: _DropLabel(tr('watermarkBgBlurred')),
+            ),
+            DropdownMenuItem(
+              value: BackgroundType.solidColor,
+              child: _DropLabel(tr('watermarkBgSolid')),
+            ),
+            DropdownMenuItem(
+              value: BackgroundType.image,
+              child: _DropLabel(tr('watermarkBgCustomImage')),
+            ),
+          ],
+          onChanged: (v) =>
+              v != null ? set(cfg.copyWith(backgroundType: v)) : null,
+        ),
+        if (cfg.backgroundType == BackgroundType.solidColor)
+          _ColorTile(
+            label: tr('watermarkBgColor'),
+            color: cfg.backgroundColor,
+            onChanged: (c) => set(cfg.copyWith(backgroundColor: c)),
+          ),
+        if (cfg.backgroundType == BackgroundType.image) ...[
+          const SizedBox(height: 6),
+          _ImportTile(
+            label: tr('watermarkImportImage'),
+            currentFile: cfg.customBackgroundPath,
+            onImport: () async {
+              final name = await WatermarkAssetManager.pickAndSaveCustomImage();
+              if (name != null) {
+                set(cfg.copyWith(customBackgroundPath: name));
+              }
+            },
+            onClear: () => set(cfg.copyWith(clearCustomBg: true)),
+          ),
+        ],
+        _DropdownTile<CanvasAspectRatio>(
+          label: tr('watermarkCanvasRatio'),
+          value: cfg.canvasAspectRatio,
+          items: CanvasAspectRatio.values.map((r) {
+            return DropdownMenuItem(
+              value: r,
+              child: _DropLabel(r.displayLabel),
+            );
+          }).toList(),
+          onChanged: (v) =>
+              v != null ? set(cfg.copyWith(canvasAspectRatio: v)) : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLayoutSection(
+    WatermarkConfig cfg,
+    void Function(WatermarkConfig) set,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionLabel(title: tr('watermarkSectionLayout')),
+        DevelopSliderTile(
+          label: tr('watermarkBlur'),
+          value: cfg.blurRadius,
+          min: 0,
+          max: 100,
+          suffix: ' px',
+          onChanged: (v) => set(cfg.copyWith(blurRadius: v)),
+        ),
+        DevelopSliderTile(
+          label: tr('watermarkBorderWidth'),
+          value: cfg.borderWidth,
+          min: 20,
+          max: 200,
+          suffix: ' px',
+          onChanged: (v) => set(cfg.copyWith(borderWidth: v)),
+        ),
+        DevelopSliderTile(
+          label: tr('watermarkImageScale'),
+          value: cfg.imageScale,
+          min: 0,
+          max: 1.0,
+          suffix: '%',
+          fractionDigits: 0,
+          onChanged: (v) => set(cfg.copyWith(imageScale: v)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextureSection(
+    WatermarkConfig cfg,
+    void Function(WatermarkConfig) set,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionLabel(title: tr('watermarkSectionTexture')),
+        DevelopSliderTile(
+          label: tr('watermarkCornerRadius'),
+          value: cfg.cornerRadius,
+          min: 0,
+          max: 100,
+          suffix: ' px',
+          onChanged: (v) => set(cfg.copyWith(cornerRadius: v)),
+        ),
+        _ShadowIntensityTile(
+          label: tr('watermarkShadowIntensity'),
+          value: cfg.shadowIntensity,
+          onChanged: (v) => set(cfg.copyWith(shadowIntensity: v)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoPositionSection(
+    WatermarkConfig cfg,
+    void Function(WatermarkConfig) set,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionLabel(title: tr('watermarkSectionInfoPos')),
+        _DropdownTile<InfoPlacement>(
+          label: tr('watermarkInfoPlacement'),
+          value: cfg.infoPlacement,
+          items: [
+            DropdownMenuItem(
+              value: InfoPlacement.above,
+              child: _DropLabel(tr('watermarkInfoAbove')),
+            ),
+            DropdownMenuItem(
+              value: InfoPlacement.below,
+              child: _DropLabel(tr('watermarkInfoBelow')),
+            ),
+            DropdownMenuItem(
+              value: InfoPlacement.overlayTopLeft,
+              child: _DropLabel(tr('watermarkInfoOverlayTL')),
+            ),
+            DropdownMenuItem(
+              value: InfoPlacement.overlayTopRight,
+              child: _DropLabel(tr('watermarkInfoOverlayTR')),
+            ),
+            DropdownMenuItem(
+              value: InfoPlacement.overlayBottomLeft,
+              child: _DropLabel(tr('watermarkInfoOverlayBL')),
+            ),
+            DropdownMenuItem(
+              value: InfoPlacement.overlayBottomRight,
+              child: _DropLabel(tr('watermarkInfoOverlayBR')),
+            ),
+          ],
+          onChanged: (v) =>
+              v != null ? set(cfg.copyWith(infoPlacement: v)) : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLogoSection(
+    WatermarkConfig cfg,
+    void Function(WatermarkConfig) set,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionLabel(title: tr('watermarkSectionLogo')),
+        _DropdownTile<LogoSource>(
+          label: tr('watermarkLogoSource'),
+          value: cfg.logoSource,
+          items: [
+            DropdownMenuItem(
+              value: LogoSource.builtin,
+              child: _DropLabel(tr('watermarkLogoBuiltin')),
+            ),
+            DropdownMenuItem(
+              value: LogoSource.custom,
+              child: _DropLabel(tr('watermarkLogoCustom')),
+            ),
+          ],
+          onChanged: (v) => v != null ? set(cfg.copyWith(logoSource: v)) : null,
+        ),
+        if (cfg.logoSource == LogoSource.builtin) ...[
+          _DropdownTile<String>(
+            label: tr('watermarkLogoBrand'),
+            value: cfg.logoBrand,
+            items: [
+              DropdownMenuItem<String>(
+                value: null,
+                child: _DropLabel(tr('watermarkLogoNone')),
+              ),
+              ...kAvailableLogoBrands.map(
+                (b) => DropdownMenuItem<String>(
+                  value: b,
+                  child: _DropLabel(b[0].toUpperCase() + b.substring(1)),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-          ],
+            ],
+            onChanged: (v) =>
+                set(cfg.copyWith(logoBrand: v, clearLogoBrand: v == null)),
+          ),
         ],
+        if (cfg.logoSource == LogoSource.custom)
+          _ImportTile(
+            label: tr('watermarkImportLogo'),
+            currentFile: cfg.customLogoPath,
+            onImport: () async {
+              final name = await WatermarkAssetManager.pickAndSaveCustomImage();
+              if (name != null) {
+                set(cfg.copyWith(customLogoPath: name));
+              }
+            },
+            onClear: () => set(cfg.copyWith(clearCustomLogo: true)),
+          ),
+        if ((cfg.logoSource == LogoSource.builtin && cfg.logoBrand != null) ||
+            (cfg.logoSource == LogoSource.custom &&
+                cfg.customLogoPath != null)) ...[
+          DevelopSliderTile(
+            label: tr('watermarkLogoSize'),
+            value: cfg.logoSize,
+            min: 0.1,
+            max: 1.0,
+            fractionDigits: 2,
+            onChanged: (v) => set(cfg.copyWith(logoSize: v)),
+          ),
+          DevelopSliderTile(
+            label: tr('watermarkLogoOpacity'),
+            value: cfg.logoOpacity,
+            min: 0.0,
+            max: 1.0,
+            fractionDigits: 2,
+            onChanged: (v) => set(cfg.copyWith(logoOpacity: v)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildColorModeSection(
+    WatermarkConfig cfg,
+    void Function(WatermarkConfig) set,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionLabel(title: tr('watermarkSectionColorMode')),
+        _SegmentedTile<WatermarkColorMode>(
+          label: tr('watermarkColorMode'),
+          value: cfg.colorMode,
+          items: [
+            _SegItem(
+              value: WatermarkColorMode.light,
+              label: tr('watermarkColorLight'),
+            ),
+            _SegItem(
+              value: WatermarkColorMode.dark,
+              label: tr('watermarkColorDark'),
+            ),
+          ],
+          onChanged: (v) => set(cfg.copyWith(colorMode: v)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExifSection(
+    BuildContext context,
+    WatermarkConfig cfg,
+    void Function(WatermarkConfig) set,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionLabel(title: tr('watermarkSectionExifText')),
+        SwitchTile.tile(
+          label: tr('watermarkShowExif'),
+          value: cfg.showExif,
+          onChanged: (v) => set(cfg.copyWith(showExif: v)),
+        ),
+        if (cfg.showExif) ...[
+          _SegmentedTile<ExifMode>(
+            label: tr('watermarkExifMode'),
+            value: cfg.exifMode,
+            items: [
+              _SegItem(
+                value: ExifMode.auto,
+                label: tr('watermarkExifModeAuto'),
+              ),
+              _SegItem(
+                value: ExifMode.custom,
+                label: tr('watermarkExifModeCustom'),
+              ),
+            ],
+            onChanged: (v) => set(cfg.copyWith(exifMode: v)),
+          ),
+          // EXIF 字段选择（仅自动模式）
+          if (cfg.exifMode == ExifMode.auto)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              child: Wrap(
+                spacing: 4,
+                runSpacing: 2,
+                children: ExifField.values.map((field) {
+                  final selected =
+                      cfg.enabledExifFields.isEmpty ||
+                      cfg.enabledExifFields.contains(field);
+                  return _ExifFieldChip(
+                    label: field.displayLabelKey.tr(),
+                    selected: selected,
+                    onTap: () {
+                      final s = Set<ExifField>.from(cfg.enabledExifFields);
+                      if (cfg.enabledExifFields.isEmpty) {
+                        s.addAll(ExifField.values);
+                        s.remove(field);
+                      } else if (selected) {
+                        s.remove(field);
+                        if (s.isEmpty) {
+                          set(cfg.copyWith(clearExifFields: true));
+                          return;
+                        }
+                      } else {
+                        s.add(field);
+                        if (s.length == ExifField.values.length) {
+                          set(cfg.copyWith(clearExifFields: true));
+                          return;
+                        }
+                      }
+                      set(cfg.copyWith(enabledExifFields: s));
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+          if (cfg.exifMode == ExifMode.custom)
+            _ExifTextField(
+              initialText: cfg.customExifText,
+              onChanged: (v) {
+                set(
+                  cfg.copyWith(
+                    customExifText: v.isEmpty ? null : v,
+                    clearCustomExif: v.isEmpty,
+                  ),
+                );
+              },
+            ),
+          _FontFamilyTile(
+            label: tr('watermarkFontFamily'),
+            value: cfg.fontFamily,
+            onChanged: (v) =>
+                set(cfg.copyWith(fontFamily: v, clearFontFamily: v == null)),
+          ),
+          DevelopSliderTile(
+            label: tr('watermarkFontSize'),
+            value: cfg.fontSize,
+            min: 8,
+            max: 36,
+            suffix: ' pt',
+            onChanged: (v) => set(cfg.copyWith(fontSize: v)),
+          ),
+          _FontWeightTile(
+            label: tr('watermarkFontWeight'),
+            value: cfg.fontWeightIndex,
+            onChanged: (v) => set(cfg.copyWith(fontWeightIndex: v)),
+          ),
+          DevelopSliderTile(
+            label: tr('watermarkTextOpacity'),
+            value: cfg.textOpacity,
+            min: 0.0,
+            max: 1.0,
+            fractionDigits: 2,
+            onChanged: (v) => set(cfg.copyWith(textOpacity: v)),
+          ),
+          DevelopSliderTile(
+            label: tr('watermarkTextPadding'),
+            value: cfg.textPadding,
+            min: 4,
+            max: 60,
+            suffix: ' px',
+            onChanged: (v) => set(cfg.copyWith(textPadding: v)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildResetButton(void Function() onReset) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: OutlinedButton.icon(
+        onPressed: onReset,
+        icon: const Icon(Icons.refresh, size: 16),
+        label: Text(tr('reset')),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: AppColors.lightBorder),
+          foregroundColor: AppColors.mediumText,
+        ),
       ),
     );
   }
@@ -519,55 +574,63 @@ class _ColorTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          GestureDetector(
-            onTap: () async {
-              final newColor = await showColorPickerDialog(
-                context,
-                color,
-                title: const SizedBox.shrink(),
-                width: 40,
-                height: 40,
-                borderRadius: 4,
-                spacing: 5,
-                runSpacing: 5,
-                wheelDiameter: 165,
-                showColorCode: true,
-                colorCodeHasColor: true,
-                showColorName: true,
-                showMaterialName: true,
-                enableOpacity: false,
-                enableTonalPalette: false,
-                pickersEnabled: const <ColorPickerType, bool>{
-                  ColorPickerType.both: false,
-                  ColorPickerType.primary: false,
-                  ColorPickerType.accent: false,
-                  ColorPickerType.bw: false,
-                  ColorPickerType.custom: false,
-                  ColorPickerType.wheel: true,
-                },
-                constraints: const BoxConstraints(minWidth: 300, maxWidth: 320),
-              );
-              onChanged(newColor);
-            },
-            child: Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.dividerLine),
-              ),
-            ),
-          ),
+          _buildColorPicker(context),
           const SizedBox(width: 10),
-          Text(
-            '#${color.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()}',
-            style: AppTypography.labelMedium.copyWith(
-              fontFamily: 'monospace',
-              color: AppColors.faintText,
-            ),
-          ),
+          _buildHexLabel(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildColorPicker(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        final newColor = await showColorPickerDialog(
+          context,
+          color,
+          title: const SizedBox.shrink(),
+          width: 40,
+          height: 40,
+          borderRadius: 4,
+          spacing: 5,
+          runSpacing: 5,
+          wheelDiameter: 165,
+          showColorCode: true,
+          colorCodeHasColor: true,
+          showColorName: true,
+          showMaterialName: true,
+          enableOpacity: false,
+          enableTonalPalette: false,
+          pickersEnabled: const <ColorPickerType, bool>{
+            ColorPickerType.both: false,
+            ColorPickerType.primary: false,
+            ColorPickerType.accent: false,
+            ColorPickerType.bw: false,
+            ColorPickerType.custom: false,
+            ColorPickerType.wheel: true,
+          },
+          constraints: const BoxConstraints(minWidth: 300, maxWidth: 320),
+        );
+        onChanged(newColor);
+      },
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.dividerLine),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHexLabel() {
+    return Text(
+      '#${color.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()}',
+      style: AppTypography.labelMedium.copyWith(
+        fontFamily: 'monospace',
+        color: AppColors.faintText,
       ),
     );
   }
@@ -603,39 +666,15 @@ class _SegmentedTile<T> extends StatelessWidget {
           ),
           Expanded(
             child: Row(
-              children: items.map((item) {
-                final selected = value == item.value;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => onChanged(item.value),
-                    child: Container(
-                      height: 32,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? Theme.of(
-                                context,
-                              ).colorScheme.primary.withValues(alpha: 0.2)
-                            : AppColors.subtleBorder,
-                        border: Border.all(
-                          color: selected
-                              ? Theme.of(context).colorScheme.primary
-                              : AppColors.dividerLine,
-                        ),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        item.label,
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: selected
-                              ? Theme.of(context).colorScheme.primary
-                              : AppColors.mediumText,
-                        ),
-                      ),
+              children: items
+                  .map(
+                    (item) => _SegButton(
+                      item: item,
+                      selected: value == item.value,
+                      onTap: () => onChanged(item.value),
                     ),
-                  ),
-                );
-              }).toList(),
+                  )
+                  .toList(),
             ),
           ),
         ],
@@ -648,6 +687,46 @@ class _SegItem<T> {
   final T value;
   final String label;
   const _SegItem({required this.value, required this.label});
+}
+
+class _SegButton<T> extends StatelessWidget {
+  final _SegItem<T> item;
+  final bool selected;
+  final VoidCallback onTap;
+  const _SegButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected
+                ? primary.withValues(alpha: 0.2)
+                : AppColors.subtleBorder,
+            border: Border.all(
+              color: selected ? primary : AppColors.dividerLine,
+            ),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            item.label,
+            style: AppTypography.bodyMedium.copyWith(
+              color: selected ? primary : AppColors.mediumText,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// 阴影强度 Tile（带实时预览小样）
@@ -713,22 +792,6 @@ class _FontFamilyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 常见跨平台字体列表
-    const fonts = [
-      null, // System Default
-      'Roboto',
-      'Open Sans',
-      'Lato',
-      'Montserrat',
-      'Raleway',
-      'Poppins',
-      'Source Sans Pro',
-      'Noto Sans',
-      'Inter',
-      'Courier New',
-      'monospace',
-    ];
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
@@ -742,38 +805,52 @@ class _FontFamilyTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Expanded(
-            child: Container(
-              height: 34,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: AppColors.activeBg),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String?>(
-                  value: value,
-                  isExpanded: true,
-                  isDense: true,
-                  dropdownColor: AppColors.panelBg,
-                  style: AppTypography.bodyLarge.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                  items: fonts.map((f) {
-                    return DropdownMenuItem<String?>(
-                      value: f,
-                      child: Text(
-                        f ?? tr('watermarkFontSystem'),
-                        style: AppTypography.bodyLarge.copyWith(fontFamily: f),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: onChanged,
-                ),
-              ),
-            ),
-          ),
+          Expanded(child: _buildFontDropdown()),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFontDropdown() {
+    const fonts = [
+      null,
+      'Roboto',
+      'Open Sans',
+      'Lato',
+      'Montserrat',
+      'Raleway',
+      'Poppins',
+      'Source Sans Pro',
+      'Noto Sans',
+      'Inter',
+      'Courier New',
+      'monospace',
+    ];
+    return Container(
+      height: 34,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.activeBg),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: value,
+          isExpanded: true,
+          isDense: true,
+          dropdownColor: AppColors.panelBg,
+          style: AppTypography.bodyLarge.copyWith(color: AppColors.textPrimary),
+          items: fonts.map((f) {
+            return DropdownMenuItem<String?>(
+              value: f,
+              child: Text(
+                f ?? tr('watermarkFontSystem'),
+                style: AppTypography.bodyLarge.copyWith(fontFamily: f),
+              ),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
       ),
     );
   }
@@ -911,41 +988,59 @@ class _FontWeightTile extends StatelessWidget {
               children: List.generate(weights.length, (i) {
                 final selected = i == idx;
                 final (fw, name) = weights[i];
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => onChanged(i),
-                    child: Container(
-                      height: 32,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? Theme.of(
-                                context,
-                              ).colorScheme.primary.withValues(alpha: 0.2)
-                            : AppColors.subtleBorder,
-                        border: Border.all(
-                          color: selected
-                              ? Theme.of(context).colorScheme.primary
-                              : AppColors.dividerLine,
-                        ),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        name,
-                        style: AppTypography.labelSmall.copyWith(
-                          fontWeight: fw,
-                          color: selected
-                              ? Theme.of(context).colorScheme.primary
-                              : AppColors.mediumText,
-                        ),
-                      ),
-                    ),
-                  ),
+                return _WeightButton(
+                  name: name,
+                  fontWeight: fw,
+                  selected: selected,
+                  onTap: () => onChanged(i),
                 );
               }),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _WeightButton extends StatelessWidget {
+  final String name;
+  final FontWeight fontWeight;
+  final bool selected;
+  final VoidCallback onTap;
+  const _WeightButton({
+    required this.name,
+    required this.fontWeight,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected
+                ? primary.withValues(alpha: 0.2)
+                : AppColors.subtleBorder,
+            border: Border.all(
+              color: selected ? primary : AppColors.dividerLine,
+            ),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            name,
+            style: AppTypography.labelSmall.copyWith(
+              fontWeight: fontWeight,
+              color: selected ? primary : AppColors.mediumText,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -981,52 +1076,53 @@ class _ImportTile extends StatelessWidget {
           ),
           Expanded(
             child: currentFile != null
-                ? Row(
-                    children: [
-                      Icon(
-                        Icons.image,
-                        size: 14,
-                        color: AppColors.semanticSuccess.withValues(alpha: 0.8),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          currentFile!,
-                          style: AppTypography.labelMedium.copyWith(
-                            fontFamily: 'monospace',
-                            color: AppColors.mediumText,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: onClear,
-                        child: Icon(
-                          Icons.close,
-                          size: 14,
-                          color: AppColors.disabledText,
-                        ),
-                      ),
-                    ],
-                  )
-                : OutlinedButton.icon(
-                    onPressed: onImport,
-                    icon: const Icon(Icons.file_upload_outlined, size: 14),
-                    label: Text(tr('import'), style: AppTypography.bodySmall),
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      side: BorderSide(color: AppColors.lightBorder),
-                      foregroundColor: AppColors.mediumText,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                    ),
-                  ),
+                ? _buildFileInfo()
+                : _buildImportButton(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFileInfo() {
+    return Row(
+      children: [
+        Icon(
+          Icons.image,
+          size: 14,
+          color: AppColors.semanticSuccess.withValues(alpha: 0.8),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            currentFile!,
+            style: AppTypography.labelMedium.copyWith(
+              fontFamily: 'monospace',
+              color: AppColors.mediumText,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 4),
+        GestureDetector(
+          onTap: onClear,
+          child: Icon(Icons.close, size: 14, color: AppColors.disabledText),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImportButton() {
+    return OutlinedButton.icon(
+      onPressed: onImport,
+      icon: const Icon(Icons.file_upload_outlined, size: 14),
+      label: Text(tr('import'), style: AppTypography.bodySmall),
+      style: OutlinedButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        side: BorderSide(color: AppColors.lightBorder),
+        foregroundColor: AppColors.mediumText,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       ),
     );
   }

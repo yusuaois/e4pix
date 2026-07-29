@@ -45,7 +45,8 @@ class TetherSessionNotifier extends Notifier<TetherSession?> {
   TetherSession? build() {
     ref.onDispose(() async {
       await _sub?.cancel();
-      await state?.watcher.dispose();
+      await state?.watcher.stop();
+      state?.watcher.dispose();
     });
     return null;
   }
@@ -86,12 +87,18 @@ class TetherSessionNotifier extends Notifier<TetherSession?> {
     await _sub?.cancel();
     _sub = null;
     state = null;
-    await session?.watcher.dispose();
+    session?.watcher.dispose();
 
     // 销毁通知
     if (session != null && !session.suppressNotification) {
       TetherNotificationService.instance.dismissWatcherOngoing();
     }
+  }
+
+  // Riverpod 通过 ref.onDispose 异步清理；此方法供同步场景调用
+  void dispose() {
+    _sub?.cancel();
+    _sub = null;
   }
 }
 

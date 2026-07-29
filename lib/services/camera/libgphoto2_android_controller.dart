@@ -140,6 +140,11 @@ class LibGphoto2AndroidController implements CameraController {
     _active = false;
   }
 
+  /// 同步清理资源
+  void dispose() {
+    _cleanup();
+  }
+
   /// 远程触发快门
   Future<void> triggerCapture() async {
     await _channel.invokeMethod('triggerCapture');

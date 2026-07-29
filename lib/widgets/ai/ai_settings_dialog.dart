@@ -145,276 +145,12 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // —— 1. Provider —— //
-              Text(
-                tr("aiProvider"),
-                style: AppTypography.bodyLarge.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
-                initialValue: _presetId,
-                isDense: true,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
-                  ),
-                ),
-                items: AIProviderPreset.all
-                    .map(
-                      (p) => DropdownMenuItem(
-                        value: p.id,
-                        child: Text(
-                          p.displayName,
-                          style: AppTypography.bodyLarge,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: _onProviderChanged,
-              ),
-              const SizedBox(height: 14),
-
-              // —— Endpoint (shown only if preset requires it) —— //
-              if (preset.requiresEndpoint) ...[
-                Text(
-                  tr("aiCustomEndpoint"),
-                  style: AppTypography.bodyLarge.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _endpointController,
-                  keyboardType: TextInputType.url,
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    hintText: tr("aiCustomEndpointHint"),
-                    isDense: true,
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
-                    ),
-                  ),
-                  style: AppTypography.bodyMedium.copyWith(
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                const SizedBox(height: 14),
-              ],
-
-              // —— 2. Model —— //
-              Text(
-                tr("model"),
-                style: AppTypography.bodyLarge.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-
-              // Branch A: Standard dropdown only (no custom models allowed)
-              if (!preset.allowsCustomModels)
-                DropdownButtonFormField<String>(
-                  initialValue: effectiveModelId,
-                  isDense: true,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
-                    ),
-                  ),
-                  items: preset.preconfiguredModels
-                      .map(
-                        (m) => DropdownMenuItem(
-                          value: m.id,
-                          child: Text(m.label, style: AppTypography.bodyLarge),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) =>
-                      setState(() => _modelId = v ?? preset.defaultModelId),
-                )
-              // Branch B: Custom models only, no preconfigured list → just text field
-              else if (preset.preconfiguredModels.isEmpty) ...[
-                Text(
-                  tr("aiCustomModel"),
-                  style: AppTypography.bodyLarge.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _customModelController,
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    hintText: tr("aiCustomModelHint"),
-                    isDense: true,
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
-                    ),
-                  ),
-                  style: AppTypography.bodyMedium.copyWith(
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ]
-              // Branch C: Preconfigured models + "Custom..." option
-              else ...[
-                DropdownButtonFormField<String>(
-                  initialValue: _useCustomModel
-                      ? '__custom__'
-                      : effectiveModelId,
-                  isDense: true,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
-                    ),
-                  ),
-                  items: [
-                    ...preset.preconfiguredModels.map(
-                      (m) => DropdownMenuItem(
-                        value: m.id,
-                        child: Text(m.label, style: AppTypography.bodyLarge),
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: '__custom__',
-                      child: Text(tr("aiCustomModelOption")),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    if (v == '__custom__') {
-                      setState(() {
-                        _useCustomModel = true;
-                        _customModelController.text = _modelId;
-                      });
-                    } else {
-                      setState(() {
-                        _useCustomModel = false;
-                        _modelId = v ?? preset.defaultModelId;
-                      });
-                    }
-                  },
-                ),
-                if (_useCustomModel) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    tr("aiCustomModel"),
-                    style: AppTypography.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _customModelController,
-                    decoration: InputDecoration(
-                      hintText: tr("aiCustomModelHint"),
-                      isDense: true,
-                      border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 10,
-                      ),
-                    ),
-                    style: AppTypography.bodyMedium.copyWith(
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ],
-              ],
-
-              const SizedBox(height: 14),
-
-              // —— 3. API Key (shown only if preset requires it) —— //
-              if (preset.requiresApiKey) ...[
-                Text(
-                  '${preset.displayName} ${tr("apiKey")}',
-                  style: AppTypography.bodyLarge.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _keyController,
-                  obscureText: _obscure,
-                  textInputAction: TextInputAction.done,
-                  decoration: InputDecoration(
-                    hintText: preset.apiKeyHint ?? 'sk-...',
-                    isDense: true,
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscure ? Icons.visibility : Icons.visibility_off,
-                        size: 16,
-                      ),
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                    ),
-                  ),
-                  style: AppTypography.bodyMedium.copyWith(
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                const SizedBox(height: 4),
-                if (preset.apiKeyOriginTrKey != null)
-                  Text(
-                    tr(preset.apiKeyOriginTrKey!),
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.faintText,
-                    ),
-                  ),
-              ],
-
+              _buildProviderDropdown(),
+              if (preset.requiresEndpoint) _buildEndpointField(),
+              _buildModelSection(preset, effectiveModelId),
+              if (preset.requiresApiKey) _buildApiKeyField(preset),
               const Divider(height: 28),
-
-              // —— 联机自动建议 —— //
-              InkWell(
-                onTap: () => setState(() => _autoAI = !_autoAI),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Checkbox(
-                        value: _autoAI,
-                        onChanged: (v) => setState(() => _autoAI = v ?? false),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              tr("aiColorSuggestionTetherAuto"),
-                              style: AppTypography.bodyLarge.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              tr("aiColorSuggestionTetherAutoDescription"),
-                              style: AppTypography.labelMedium.copyWith(
-                                color: AppColors.mediumText,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              _buildAutoAiToggle(),
             ],
           ),
         ),
@@ -426,6 +162,272 @@ class _AISettingsDialogState extends State<AISettingsDialog> {
         ),
         FilledButton(onPressed: _save, child: Text(tr("save"))),
       ],
+    );
+  }
+
+  Widget _buildProviderDropdown() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          tr("aiProvider"),
+          style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          initialValue: _presetId,
+          isDense: true,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          ),
+          items: AIProviderPreset.all
+              .map(
+                (p) => DropdownMenuItem(
+                  value: p.id,
+                  child: Text(p.displayName, style: AppTypography.bodyLarge),
+                ),
+              )
+              .toList(),
+          onChanged: _onProviderChanged,
+        ),
+        const SizedBox(height: 14),
+      ],
+    );
+  }
+
+  Widget _buildEndpointField() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          tr("aiCustomEndpoint"),
+          style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _endpointController,
+          keyboardType: TextInputType.url,
+          textInputAction: TextInputAction.next,
+          decoration: InputDecoration(
+            hintText: tr("aiCustomEndpointHint"),
+            isDense: true,
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 10,
+            ),
+          ),
+          style: AppTypography.bodyMedium.copyWith(fontFamily: 'monospace'),
+        ),
+        const SizedBox(height: 14),
+      ],
+    );
+  }
+
+  Widget _buildApiKeyField(AIProviderPreset preset) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${preset.displayName} ${tr("apiKey")}',
+          style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _keyController,
+          obscureText: _obscure,
+          textInputAction: TextInputAction.done,
+          decoration: InputDecoration(
+            hintText: preset.apiKeyHint ?? 'sk-...',
+            isDense: true,
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 10,
+            ),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscure ? Icons.visibility : Icons.visibility_off,
+                size: 16,
+              ),
+              onPressed: () => setState(() => _obscure = !_obscure),
+            ),
+          ),
+          style: AppTypography.bodyMedium.copyWith(fontFamily: 'monospace'),
+        ),
+        const SizedBox(height: 4),
+        if (preset.apiKeyOriginTrKey != null)
+          Text(
+            tr(preset.apiKeyOriginTrKey!),
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.faintText,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildAutoAiToggle() {
+    return InkWell(
+      onTap: () => setState(() => _autoAI = !_autoAI),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Checkbox(
+              value: _autoAI,
+              onChanged: (v) => setState(() => _autoAI = v ?? false),
+              visualDensity: VisualDensity.compact,
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr("aiColorSuggestionTetherAuto"),
+                    style: AppTypography.bodyLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    tr("aiColorSuggestionTetherAutoDescription"),
+                    style: AppTypography.labelMedium.copyWith(
+                      color: AppColors.mediumText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Model section (extracted from build for readability) ──
+
+  Widget _buildModelSection(AIProviderPreset preset, String effectiveModelId) {
+    final children = <Widget>[
+      Text(
+        tr("model"),
+        style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 6),
+    ];
+
+    if (!preset.allowsCustomModels) {
+      children.add(
+        DropdownButtonFormField<String>(
+          initialValue: effectiveModelId,
+          isDense: true,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          ),
+          items: preset.preconfiguredModels
+              .map(
+                (m) => DropdownMenuItem(
+                  value: m.id,
+                  child: Text(m.label, style: AppTypography.bodyLarge),
+                ),
+              )
+              .toList(),
+          onChanged: (v) =>
+              setState(() => _modelId = v ?? preset.defaultModelId),
+        ),
+      );
+    } else if (preset.preconfiguredModels.isEmpty) {
+      children.addAll([
+        Text(
+          tr("aiCustomModel"),
+          style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _customModelController,
+          textInputAction: TextInputAction.next,
+          decoration: InputDecoration(
+            hintText: tr("aiCustomModelHint"),
+            isDense: true,
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 10,
+            ),
+          ),
+          style: AppTypography.bodyMedium.copyWith(fontFamily: 'monospace'),
+        ),
+      ]);
+    } else {
+      children.addAll([
+        DropdownButtonFormField<String>(
+          initialValue: _useCustomModel ? '__custom__' : effectiveModelId,
+          isDense: true,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          ),
+          items: [
+            ...preset.preconfiguredModels.map(
+              (m) => DropdownMenuItem(
+                value: m.id,
+                child: Text(m.label, style: AppTypography.bodyLarge),
+              ),
+            ),
+            DropdownMenuItem(
+              value: '__custom__',
+              child: Text(tr("aiCustomModelOption")),
+            ),
+          ],
+          onChanged: (v) {
+            if (v == '__custom__') {
+              setState(() {
+                _useCustomModel = true;
+                _customModelController.text = _modelId;
+              });
+            } else {
+              setState(() {
+                _useCustomModel = false;
+                _modelId = v ?? preset.defaultModelId;
+              });
+            }
+          },
+        ),
+        if (_useCustomModel) ...[
+          const SizedBox(height: 10),
+          Text(
+            tr("aiCustomModel"),
+            style: AppTypography.bodyLarge.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _customModelController,
+            decoration: InputDecoration(
+              hintText: tr("aiCustomModelHint"),
+              isDense: true,
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 10,
+              ),
+            ),
+            style: AppTypography.bodyMedium.copyWith(fontFamily: 'monospace'),
+          ),
+        ],
+      ]);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: children,
     );
   }
 }

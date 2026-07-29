@@ -25,7 +25,7 @@ class KeybindingNotifier extends Notifier<KeybindingState> {
   @override
   KeybindingState build() {
     _load();
-    return KeybindingState({...kDefaultBindings});
+    return const KeybindingState({...kDefaultBindings});
   }
 
   Future<void> _load() async {

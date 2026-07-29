@@ -29,86 +29,91 @@ class ExportQueuePanel extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 标题行
-              Row(
-                children: [
-                  const Icon(Icons.ios_share_rounded, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    tr('exportQueueTitle'),
-                    style: AppTypography.headlineSmall.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (pending > 0)
-                    Text(
-                      tr('exportQueueRemaining', args: ['$pending']),
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.mediumText,
-                      ),
-                    ),
-                ],
-              ),
+              _buildTitleRow(pending),
               const SizedBox(height: 8),
-
-              // 列表
-              if (jobs.isEmpty)
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      tr('exportQueueEmpty'),
-                      style: AppTypography.bodyLarge.copyWith(
-                        color: AppColors.disabledText,
-                      ),
-                    ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: jobs.length,
-                    separatorBuilder: (_, _) =>
-                        Divider(height: 1, color: AppColors.subtleBorder),
-                    itemBuilder: (_, i) => _JobRow(
-                      job: jobs[i],
-                      onCancel: () => notifier.cancel(jobs[i].id),
-                    ),
-                  ),
-                ),
-
+              _buildBody(jobs, notifier),
               const SizedBox(height: 8),
-              // 底部操作
-              Row(
-                children: [
-                  if (hasFinished)
-                    TextButton.icon(
-                      onPressed: notifier.clearFinished,
-                      icon: const Icon(Icons.clear_all, size: 16),
-                      label: Text(
-                        tr('exportQueueClearFinished'),
-                        style: AppTypography.bodyLarge,
-                      ),
-                    ),
-                  const Spacer(),
-                  if (pending > 0)
-                    TextButton.icon(
-                      onPressed: notifier.cancelAll,
-                      icon: const Icon(Icons.cancel_outlined, size: 16),
-                      label: Text(
-                        tr('exportQueueCancelAll'),
-                        style: AppTypography.bodyLarge,
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.semanticError,
-                      ),
-                    ),
-                ],
-              ),
+              _buildBottomActions(notifier, pending, hasFinished),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTitleRow(int pending) {
+    return Row(
+      children: [
+        const Icon(Icons.ios_share_rounded, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          tr('exportQueueTitle'),
+          style: AppTypography.headlineSmall.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const Spacer(),
+        if (pending > 0)
+          Text(
+            tr('exportQueueRemaining', args: ['$pending']),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.mediumText,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBody(List<ExportJob> jobs, dynamic notifier) {
+    if (jobs.isEmpty) {
+      return Expanded(
+        child: Center(
+          child: Text(
+            tr('exportQueueEmpty'),
+            style: AppTypography.bodyLarge.copyWith(
+              color: AppColors.disabledText,
+            ),
+          ),
+        ),
+      );
+    }
+    return Expanded(
+      child: ListView.separated(
+        itemCount: jobs.length,
+        separatorBuilder: (_, _) =>
+            Divider(height: 1, color: AppColors.subtleBorder),
+        itemBuilder: (_, i) =>
+            _JobRow(job: jobs[i], onCancel: () => notifier.cancel(jobs[i].id)),
+      ),
+    );
+  }
+
+  Widget _buildBottomActions(dynamic notifier, int pending, bool hasFinished) {
+    return Row(
+      children: [
+        if (hasFinished)
+          TextButton.icon(
+            onPressed: notifier.clearFinished,
+            icon: const Icon(Icons.clear_all, size: 16),
+            label: Text(
+              tr('exportQueueClearFinished'),
+              style: AppTypography.bodyLarge,
+            ),
+          ),
+        const Spacer(),
+        if (pending > 0)
+          TextButton.icon(
+            onPressed: notifier.cancelAll,
+            icon: const Icon(Icons.cancel_outlined, size: 16),
+            label: Text(
+              tr('exportQueueCancelAll'),
+              style: AppTypography.bodyLarge,
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.semanticError,
+            ),
+          ),
+      ],
     );
   }
 }
@@ -126,73 +131,7 @@ class _JobRow extends StatelessWidget {
         children: [
           _statusIcon(),
           const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  job.displayName,
-                  style: AppTypography.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (job.status == ExportJobStatus.running ||
-                    job.status == ExportJobStatus.cancelling) ...[
-                  const SizedBox(height: 4),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: job.status == ExportJobStatus.cancelling
-                          ? null // 取消中：不确定进度（来回动）
-                          : job.progress,
-                      minHeight: 3,
-                      backgroundColor: AppColors.dividerLine,
-                      color: job.status == ExportJobStatus.cancelling
-                          ? AppColors.semanticWarning.withValues(alpha: 0.7)
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    job.status == ExportJobStatus.cancelling
-                        ? tr('exportCancelling') // "正在取消…"
-                        : (job.stage ?? ''),
-                    style: AppTypography.labelSmall.copyWith(
-                      color: job.status == ExportJobStatus.cancelling
-                          ? AppColors.semanticWarning.withValues(alpha: 0.7)
-                          : AppColors.disabledText,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ] else if (job.status == ExportJobStatus.failed &&
-                    job.error != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    job.error!,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.semanticError,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ] else if (job.status == ExportJobStatus.done &&
-                    job.outputPath != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    job.outputPath!,
-                    style: AppTypography.labelSmall.copyWith(
-                      fontFamily: 'monospace',
-                      color: AppColors.semanticSuccess.withValues(alpha: 0.6),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          // 取消按钮（未完成且非取消中）
+          Expanded(child: _buildJobInfo()),
           if (!job.isFinished && job.status != ExportJobStatus.cancelling)
             IconButton(
               icon: const Icon(Icons.close, size: 16),
@@ -202,6 +141,94 @@ class _JobRow extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildJobInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          job.displayName,
+          style: AppTypography.titleSmall,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        if (job.status == ExportJobStatus.running ||
+            job.status == ExportJobStatus.cancelling)
+          _buildProgressRow()
+        else if (job.status == ExportJobStatus.failed && job.error != null)
+          _buildErrorText()
+        else if (job.status == ExportJobStatus.done && job.outputPath != null)
+          _buildOutputPath(),
+      ],
+    );
+  }
+
+  Widget _buildProgressRow() {
+    final cancelling = job.status == ExportJobStatus.cancelling;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: cancelling ? null : job.progress,
+            minHeight: 3,
+            backgroundColor: AppColors.dividerLine,
+            color: cancelling
+                ? AppColors.semanticWarning.withValues(alpha: 0.7)
+                : null,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          cancelling ? tr('exportCancelling') : (job.stage ?? ''),
+          style: AppTypography.labelSmall.copyWith(
+            color: cancelling
+                ? AppColors.semanticWarning.withValues(alpha: 0.7)
+                : AppColors.disabledText,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorText() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 2),
+        Text(
+          job.error!,
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.semanticError,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOutputPath() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 2),
+        Text(
+          job.outputPath!,
+          style: AppTypography.labelSmall.copyWith(
+            fontFamily: 'monospace',
+            color: AppColors.semanticSuccess.withValues(alpha: 0.6),
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 

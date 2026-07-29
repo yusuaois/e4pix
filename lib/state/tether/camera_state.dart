@@ -123,6 +123,13 @@ class CameraNotifier extends Notifier<CameraState> {
     TetherNotificationService.instance.dismissCameraOngoing();
   }
 
+  // Riverpod 通过 ref.onDispose 异步清理；此方法供同步场景调用
+  void dispose() {
+    _shutterDebouncer.dispose();
+    _sub?.cancel();
+    _sub = null;
+  }
+
   Future<void> triggerCapture() async {
     final ctrl = state.controller;
     if (ctrl is LibGphoto2AndroidController) {

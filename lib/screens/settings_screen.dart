@@ -33,49 +33,51 @@ class SettingsScreen extends ConsumerWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(12),
-        child: ListView(
-          children: [
-            _SectionCard(
-              title: tr("settingsTether"),
-              children: [
-                const TetherFolderTile(),
-                ImportModeTiles(tileBorderRadius: _bottomRadius),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _SectionCard(
-              title: tr("aiColor"),
-              children: [AISettingsLink(tileBorderRadius: _bottomRadius)],
-            ),
-            const SizedBox(height: 12),
-            _SectionCard(
-              title: tr("settingsTheme"),
-              children: [ThemeTiles(tileBorderRadius: _bottomRadius)],
-            ),
-            const SizedBox(height: 12),
-            _SectionCard(
-              title: tr("settingsRender"),
-              children: [QualityTiles(tileBorderRadius: _bottomRadius)],
-            ),
-            const SizedBox(height: 12),
-            _SectionCard(
-              title: tr("settingsEditing"),
-              children: [EditingTiles(tileBorderRadius: _bottomRadius)],
-            ),
-            const SizedBox(height: 12),
-            _SectionCard(
-              title: tr('debug'),
-              children: [DebugModeTile(tileBorderRadius: _bottomRadius)],
-            ),
-            const SizedBox(height: 12),
-            _SectionCard(
-              title: tr("settingsAbout"),
-              children: [AboutTiles(tileBorderRadius: _bottomRadius)],
-            ),
-          ],
-        ),
+        child: ListView(children: _buildSections()),
       ),
     );
+  }
+
+  List<Widget> _buildSections() {
+    return [
+      _SectionCard(
+        title: tr("settingsTether"),
+        children: const [
+          TetherFolderTile(),
+          ImportModeTiles(tileBorderRadius: _bottomRadius),
+        ],
+      ),
+      const SizedBox(height: 12),
+      _SectionCard(
+        title: tr("aiColor"),
+        children: const [AISettingsLink(tileBorderRadius: _bottomRadius)],
+      ),
+      const SizedBox(height: 12),
+      _SectionCard(
+        title: tr("settingsTheme"),
+        children: const [ThemeTiles(tileBorderRadius: _bottomRadius)],
+      ),
+      const SizedBox(height: 12),
+      _SectionCard(
+        title: tr("settingsRender"),
+        children: const [QualityTiles(tileBorderRadius: _bottomRadius)],
+      ),
+      const SizedBox(height: 12),
+      _SectionCard(
+        title: tr("settingsEditing"),
+        children: const [EditingTiles(tileBorderRadius: _bottomRadius)],
+      ),
+      const SizedBox(height: 12),
+      _SectionCard(
+        title: tr('debug'),
+        children: const [DebugModeTile(tileBorderRadius: _bottomRadius)],
+      ),
+      const SizedBox(height: 12),
+      _SectionCard(
+        title: tr('settingsAbout'),
+        children: const [AboutTiles(tileBorderRadius: _bottomRadius)],
+      ),
+    ];
   }
 }
 

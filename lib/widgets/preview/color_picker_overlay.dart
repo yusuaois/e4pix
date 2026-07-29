@@ -112,7 +112,9 @@ class _ColorPickerOverlayState extends ConsumerState<ColorPickerOverlay> {
         _rbW = rendered.width;
         _rbH = rendered.height;
 
-        setState(() {});
+        setState(() {
+          /* rebuild */
+        });
         if (_cursor != null) _updateReadingAt(_cursor!);
       } finally {
         rendered.dispose();

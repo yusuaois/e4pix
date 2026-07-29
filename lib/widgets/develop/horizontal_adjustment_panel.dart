@@ -83,47 +83,7 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
               decoration: const BoxDecoration(color: Colors.transparent),
               child: Column(
                 children: [
-                  if (histogramInfoCombo != null) ...[
-                    histogramInfoCombo!,
-                    // 收起按钮
-                    SizedBox(
-                      height: 18,
-                      child: Center(
-                        child: IconButton(
-                          icon: const Icon(Icons.keyboard_arrow_up, size: 16),
-                          tooltip: tr('collapse'),
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 24,
-                            minHeight: 18,
-                          ),
-                          onPressed: () => ref
-                              .read(histogramCollapsedProvider.notifier)
-                              .toggle(),
-                        ),
-                      ),
-                    ),
-                  ] else
-                    // 展开按钮
-                    SizedBox(
-                      height: 18,
-                      child: Center(
-                        child: IconButton(
-                          icon: const Icon(Icons.keyboard_arrow_down, size: 16),
-                          tooltip: tr('expand'),
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 24,
-                            minHeight: 18,
-                          ),
-                          onPressed: () => ref
-                              .read(histogramCollapsedProvider.notifier)
-                              .toggle(),
-                        ),
-                      ),
-                    ),
+                  _buildHistogramToggle(ref),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.only(top: 8, bottom: 24),
@@ -140,6 +100,44 @@ class HorizontalAdjustmentPanel extends ConsumerWidget {
             onReset: () => onChanged(AdjustmentParams.neutral),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHistogramToggle(WidgetRef ref) {
+    if (histogramInfoCombo != null) {
+      return Column(
+        children: [
+          histogramInfoCombo!,
+          SizedBox(
+            height: 18,
+            child: Center(
+              child: IconButton(
+                icon: const Icon(Icons.keyboard_arrow_up, size: 16),
+                tooltip: tr('collapse'),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 18),
+                onPressed: () =>
+                    ref.read(histogramCollapsedProvider.notifier).toggle(),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    return SizedBox(
+      height: 18,
+      child: Center(
+        child: IconButton(
+          icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+          tooltip: tr('expand'),
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 24, minHeight: 18),
+          onPressed: () =>
+              ref.read(histogramCollapsedProvider.notifier).toggle(),
+        ),
       ),
     );
   }
@@ -163,7 +161,6 @@ class _ToolRail extends ConsumerWidget {
       child: Column(
         children: [
           const SizedBox(height: 8),
-          // 固定顶部：历史 / reset
           _RailItem(
             icon: Icons.history,
             tooltip: tr('history'),
@@ -176,85 +173,84 @@ class _ToolRail extends ConsumerWidget {
             endIndent: 10,
             color: AppColors.faintBorder,
           ),
-          // 可滚动 develop 工具区
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _RailItem(
-                    icon: Icons.light_mode_outlined,
-                    tooltip: tr('light'),
-                    selected: selected == DevelopTool.light,
-                    onTap: () => onSelect(DevelopTool.light),
-                  ),
-                  _RailItem(
-                    icon: Icons.palette_outlined,
-                    tooltip: tr('color'),
-                    selected: selected == DevelopTool.color,
-                    onTap: () => onSelect(DevelopTool.color),
-                  ),
-                  _RailItem(
-                    icon: Icons.gradient,
-                    tooltip: tr('hsl'),
-                    selected: selected == DevelopTool.hsl,
-                    onTap: () => onSelect(DevelopTool.hsl),
-                  ),
-                  _RailItem(
-                    icon: Icons.view_in_ar_outlined,
-                    tooltip: 'LUT',
-                    selected: selected == DevelopTool.lut,
-                    onTap: () => onSelect(DevelopTool.lut),
-                  ),
-                  _RailItem(
-                    icon: Icons.bookmarks_outlined,
-                    tooltip: tr('preset'),
-                    selected: selected == DevelopTool.preset,
-                    onTap: () => onSelect(DevelopTool.preset),
-                  ),
-                  _RailItem(
-                    icon: Icons.deblur,
-                    tooltip: tr('detail'),
-                    selected: selected == DevelopTool.detail,
-                    onTap: () => onSelect(DevelopTool.detail),
-                  ),
-                  _RailItem(
-                    icon: Icons.brush_outlined,
-                    tooltip: tr('local'),
-                    selected: selected == DevelopTool.local,
-                    onTap: () => onSelect(DevelopTool.local),
-                  ),
-                  for (final m in brushManifests)
-                    _RailItem(
-                      icon: m.icon,
-                      tooltip: tr(m.titleKey),
-                      selected: selected == m.tool,
-                      onTap: () => onSelect(m.tool),
-                    ),
-                  _RailItem(
-                    icon: Icons.camera_outlined,
-                    tooltip: tr('lens'),
-                    selected: selected == DevelopTool.lens,
-                    onTap: () => onSelect(DevelopTool.lens),
-                  ),
-                  _RailItem(
-                    icon: Icons.auto_awesome,
-                    tooltip: tr('superResolution'),
-                    selected: selected == DevelopTool.sr,
-                    onTap: () => onSelect(DevelopTool.sr),
-                  ),
-                  _RailItem(
-                    icon: Icons.border_style,
-                    tooltip: tr('watermark'),
-                    selected: selected == DevelopTool.watermark,
-                    onTap: () => onSelect(DevelopTool.watermark),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          ),
+          Expanded(child: SingleChildScrollView(child: _buildToolItems())),
         ],
       ),
+    );
+  }
+
+  Column _buildToolItems() {
+    return Column(
+      children: [
+        _RailItem(
+          icon: Icons.light_mode_outlined,
+          tooltip: tr('light'),
+          selected: selected == DevelopTool.light,
+          onTap: () => onSelect(DevelopTool.light),
+        ),
+        _RailItem(
+          icon: Icons.palette_outlined,
+          tooltip: tr('color'),
+          selected: selected == DevelopTool.color,
+          onTap: () => onSelect(DevelopTool.color),
+        ),
+        _RailItem(
+          icon: Icons.gradient,
+          tooltip: tr('hsl'),
+          selected: selected == DevelopTool.hsl,
+          onTap: () => onSelect(DevelopTool.hsl),
+        ),
+        _RailItem(
+          icon: Icons.view_in_ar_outlined,
+          tooltip: 'LUT',
+          selected: selected == DevelopTool.lut,
+          onTap: () => onSelect(DevelopTool.lut),
+        ),
+        _RailItem(
+          icon: Icons.bookmarks_outlined,
+          tooltip: tr('preset'),
+          selected: selected == DevelopTool.preset,
+          onTap: () => onSelect(DevelopTool.preset),
+        ),
+        _RailItem(
+          icon: Icons.deblur,
+          tooltip: tr('detail'),
+          selected: selected == DevelopTool.detail,
+          onTap: () => onSelect(DevelopTool.detail),
+        ),
+        _RailItem(
+          icon: Icons.brush_outlined,
+          tooltip: tr('local'),
+          selected: selected == DevelopTool.local,
+          onTap: () => onSelect(DevelopTool.local),
+        ),
+        for (final m in brushManifests)
+          _RailItem(
+            icon: m.icon,
+            tooltip: tr(m.titleKey),
+            selected: selected == m.tool,
+            onTap: () => onSelect(m.tool),
+          ),
+        _RailItem(
+          icon: Icons.camera_outlined,
+          tooltip: tr('lens'),
+          selected: selected == DevelopTool.lens,
+          onTap: () => onSelect(DevelopTool.lens),
+        ),
+        _RailItem(
+          icon: Icons.auto_awesome,
+          tooltip: tr('superResolution'),
+          selected: selected == DevelopTool.sr,
+          onTap: () => onSelect(DevelopTool.sr),
+        ),
+        _RailItem(
+          icon: Icons.border_style,
+          tooltip: tr('watermark'),
+          selected: selected == DevelopTool.watermark,
+          onTap: () => onSelect(DevelopTool.watermark),
+        ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 }

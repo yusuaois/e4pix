@@ -42,7 +42,6 @@ class WatermarkPreview extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(watermarkConfigProvider);
 
-    // ── 几何计算 ──
     final srcW = state.uiImage.width;
     final srcH = state.uiImage.height;
     final cropAspect = params.crop.outAspectFor(
@@ -64,41 +63,17 @@ class WatermarkPreview extends ConsumerWidget {
         ? AppColors.textPrimary
         : Colors.black;
 
-    // ── 统一渲染路径（FullPipeline）──
-    final maskProgram = ref.watch(maskShaderProgramProvider).value;
-    final develop = ref.watch(shaderProgramProvider).value;
-    if (develop == null || maskProgram == null) {
+    final develop = _checkShadersReady(ref);
+    if (develop == null) {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
+
     return _WatermarkCanvas(
       geometry: geometry,
       config: config,
       textColor: textColor,
-      imageLayer: _ComplexImageLayer(
-        developProgram: develop,
-        maskProgram: maskProgram,
-        sourceImage: state.uiImage,
-        params: params,
-        lutTexture: lutEnabled ? lut.textureA : null,
-        lutSize: lutEnabled ? lut.sizeA : 0,
-        lutTextureB: lutEnabled ? lut.textureB : null,
-        lutSizeB: lutEnabled ? lut.sizeB : 0,
-        curveTexture: ref.watch(effectiveCurveTextureProvider),
-        sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
-        denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
-        perspectiveProgram: ref.watch(perspectiveShaderProgramProvider).value,
-        lensCorrectProgram: ref.watch(lensCorrectShaderProgramProvider).value,
-        geometry: geometry,
-      ),
-      backgroundLayer: _buildBackground(
-        config,
-        geometry,
-        state,
-        params,
-        lut,
-        lutEnabled,
-        ref,
-      ),
+      imageLayer: _buildImageLayer(ref, develop, geometry),
+      backgroundLayer: _buildBackground(config, geometry, ref),
       infoLayer: _InfoLayer(
         metadata: state.metadata,
         config: config,
@@ -109,15 +84,42 @@ class WatermarkPreview extends ConsumerWidget {
     );
   }
 
+  ui.FragmentProgram? _checkShadersReady(WidgetRef ref) {
+    final mask = ref.watch(maskShaderProgramProvider).value;
+    final develop = ref.watch(shaderProgramProvider).value;
+    if (develop == null || mask == null) return null;
+    return develop;
+  }
+
+  Widget _buildImageLayer(
+    WidgetRef ref,
+    ui.FragmentProgram develop,
+    WatermarkGeometry geometry,
+  ) {
+    final maskProgram = ref.read(maskShaderProgramProvider).value!;
+    return _ComplexImageLayer(
+      developProgram: develop,
+      maskProgram: maskProgram,
+      sourceImage: state.uiImage,
+      params: params,
+      lutTexture: lutEnabled ? lut.textureA : null,
+      lutSize: lutEnabled ? lut.sizeA : 0,
+      lutTextureB: lutEnabled ? lut.textureB : null,
+      lutSizeB: lutEnabled ? lut.sizeB : 0,
+      curveTexture: ref.watch(effectiveCurveTextureProvider),
+      sharpenProgram: ref.watch(sharpenShaderProgramProvider).value,
+      denoiseProgram: ref.watch(denoiseShaderProgramProvider).value,
+      perspectiveProgram: ref.watch(perspectiveShaderProgramProvider).value,
+      lensCorrectProgram: ref.watch(lensCorrectShaderProgramProvider).value,
+      geometry: geometry,
+    );
+  }
+
   // ── 背景层构建 ──
 
-  static Widget? _buildBackground(
+  Widget? _buildBackground(
     WatermarkConfig config,
     WatermarkGeometry geometry,
-    DecodedImageState state,
-    AdjustmentParams params,
-    LutState lut,
-    bool lutEnabled,
     WidgetRef ref,
   ) {
     switch (config.backgroundType) {
@@ -182,57 +184,57 @@ class _WatermarkCanvas extends StatelessWidget {
             : Colors.black,
         child: Stack(
           clipBehavior: Clip.hardEdge,
-          children: [
-            // Layer 0: 背景
-            if (backgroundLayer != null)
-              Positioned.fill(child: backgroundLayer!),
+          children: _buildStackChildren(shadowColor, showShadow),
+        ),
+      ),
+    );
+  }
 
-            // Layer 1: 信息层（在图片后方时）
-            if (infoLayer != null && geometry.infoBehindImage)
-              Positioned(
-                left: geometry.infoRect.left,
-                top: geometry.infoRect.top,
-                width: geometry.infoRect.width,
-                height: geometry.infoRect.height,
-                child: infoLayer!,
-              ),
+  List<Widget> _buildStackChildren(Color shadowColor, bool showShadow) {
+    return [
+      if (backgroundLayer != null) Positioned.fill(child: backgroundLayer!),
+      if (infoLayer != null && geometry.infoBehindImage)
+        _buildInfoLayer(behind: true)!,
+      _buildImageLayerShadow(shadowColor, showShadow),
+      if (infoLayer != null && !geometry.infoBehindImage)
+        _buildInfoLayer(behind: false)!,
+    ];
+  }
 
-            // Layer 2: 原图（圆角 + 阴影）
-            Positioned(
-              left: geometry.imageRect.left,
-              top: geometry.imageRect.top,
-              width: geometry.imageRect.width,
-              height: geometry.imageRect.height,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(geometry.cornerRadius),
-                  boxShadow: showShadow
-                      ? [
-                          BoxShadow(
-                            color: shadowColor,
-                            blurRadius: geometry.shadowBlur,
-                            offset: Offset(0, geometry.shadowOffsetY),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(geometry.cornerRadius),
-                  child: imageLayer,
-                ),
-              ),
-            ),
+  Widget? _buildInfoLayer({required bool behind}) {
+    if (infoLayer == null) return null;
+    if (geometry.infoBehindImage != behind) return null;
+    return Positioned(
+      left: geometry.infoRect.left,
+      top: geometry.infoRect.top,
+      width: geometry.infoRect.width,
+      height: geometry.infoRect.height,
+      child: infoLayer!,
+    );
+  }
 
-            // Layer 1: 信息层（在图片前方 / 叠加模式时）
-            if (infoLayer != null && !geometry.infoBehindImage)
-              Positioned(
-                left: geometry.infoRect.left,
-                top: geometry.infoRect.top,
-                width: geometry.infoRect.width,
-                height: geometry.infoRect.height,
-                child: infoLayer!,
-              ),
-          ],
+  Widget _buildImageLayerShadow(Color shadowColor, bool showShadow) {
+    return Positioned(
+      left: geometry.imageRect.left,
+      top: geometry.imageRect.top,
+      width: geometry.imageRect.width,
+      height: geometry.imageRect.height,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(geometry.cornerRadius),
+          boxShadow: showShadow
+              ? [
+                  BoxShadow(
+                    color: shadowColor,
+                    blurRadius: geometry.shadowBlur,
+                    offset: Offset(0, geometry.shadowOffsetY),
+                  ),
+                ]
+              : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(geometry.cornerRadius),
+          child: imageLayer,
         ),
       ),
     );
@@ -617,7 +619,9 @@ class _LogoImageState extends State<_LogoImage> {
     final old = _image;
     _image = img;
     old?.dispose();
-    setState(() {});
+    setState(() {
+      /* rebuild */
+    });
   }
 
   @override

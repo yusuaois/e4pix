@@ -85,99 +85,96 @@ class _VerticalAdjustmentPanelState
       color: AppColors.panelBg,
       child: Column(
         children: [
-          if (microBar != null)
-            microBar
-          else
-            Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: AppColors.subtleBorder),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: MediaQuery.removePadding(
-                      context: context,
-                      child: TabBar(
-                        controller: _tabController,
-                        isScrollable: true,
-                        tabAlignment: TabAlignment.start,
-                        indicatorSize: TabBarIndicatorSize.label,
-                        labelStyle: AppTypography.bodySmall,
-                        labelColor: AppColors.textPrimary,
-                        unselectedLabelColor: AppColors.textTertiary,
-                        tabs: [
-                          Tab(text: tr("light"), height: 36),
-                          Tab(text: tr("color"), height: 36),
-                          Tab(text: tr("hsl"), height: 36),
-                          Tab(text: 'LUT', height: 36),
-                          Tab(text: tr('detail'), height: 36),
-                          Tab(text: tr("preset"), height: 36),
-                          Tab(text: tr("local"), height: 36),
-                          for (final m in brushManifests)
-                            Tab(text: tr(m.titleKey), height: 36),
-                          Tab(text: tr("lens"), height: 36),
-                          Tab(text: tr('superResolution'), height: 36),
-                          Tab(text: tr("watermark"), height: 36),
-                        ],
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.history, size: 18),
-                    tooltip: tr('history'),
-                    onPressed: () => showHistoryPanelSheet(context, ref),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh, size: 18),
-                    tooltip: tr("reset"),
-                    onPressed: () => widget.onChanged(AdjustmentParams.neutral),
-                  ),
-                ],
-              ),
-            ),
+          if (microBar != null) microBar else _buildTabBar(),
           if (microBar != null)
             const Expanded(child: SizedBox.shrink())
           else
-            Expanded(
-              child: TabBarView(
+            _buildTabBarView(params),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.subtleBorder)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: MediaQuery.removePadding(
+              context: context,
+              child: TabBar(
                 controller: _tabController,
-                children: [
-                  LightSection(
-                    params: params,
-                    onChanged: widget.onChanged,
-                    curveMode: CurveMode.overlay,
-                  ),
-                  WhiteBalanceColorSection(
-                    params: params,
-                    onChanged: widget.onChanged,
-                  ),
-                  HslSection(
-                    bands: params.hsl,
-                    onChanged: (b) => widget.onChanged(params.copyWith(hsl: b)),
-                  ),
-                  const LutSection(),
-                  // 以下 Tab 较重，延迟到首帧结束后构建
-                  LazyBuild(
-                    builder: (_) => DetailSection(
-                      params: params,
-                      onChanged: widget.onChanged,
-                    ),
-                  ),
-                  LazyBuild(builder: (_) => const PresetGrid()),
-                  LazyBuild(builder: (_) => const LocalPanel()),
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                indicatorSize: TabBarIndicatorSize.label,
+                labelStyle: AppTypography.bodySmall,
+                labelColor: AppColors.textPrimary,
+                unselectedLabelColor: AppColors.textTertiary,
+                tabs: [
+                  Tab(text: tr("light"), height: 36),
+                  Tab(text: tr("color"), height: 36),
+                  Tab(text: tr("hsl"), height: 36),
+                  const Tab(text: 'LUT', height: 36),
+                  Tab(text: tr('detail'), height: 36),
+                  Tab(text: tr("preset"), height: 36),
+                  Tab(text: tr("local"), height: 36),
                   for (final m in brushManifests)
-                    LazyBuild(builder: (_) => _brushSection(m.tool, params)),
-                  LazyBuild(builder: (_) => const LensSection()),
-                  LazyBuild(
-                    builder: (_) =>
-                        SrSection(params: params, onChanged: widget.onChanged),
-                  ),
-                  LazyBuild(builder: (_) => const WatermarkSection()),
+                    Tab(text: tr(m.titleKey), height: 36),
+                  Tab(text: tr("lens"), height: 36),
+                  Tab(text: tr('superResolution'), height: 36),
+                  Tab(text: tr("watermark"), height: 36),
                 ],
               ),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.history, size: 18),
+            tooltip: tr('history'),
+            onPressed: () => showHistoryPanelSheet(context, ref),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh, size: 18),
+            tooltip: tr("reset"),
+            onPressed: () => widget.onChanged(AdjustmentParams.neutral),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBarView(AdjustmentParams params) {
+    return Expanded(
+      child: TabBarView(
+        controller: _tabController,
+        children: [
+          LightSection(
+            params: params,
+            onChanged: widget.onChanged,
+            curveMode: CurveMode.overlay,
+          ),
+          WhiteBalanceColorSection(params: params, onChanged: widget.onChanged),
+          HslSection(
+            bands: params.hsl,
+            onChanged: (b) => widget.onChanged(params.copyWith(hsl: b)),
+          ),
+          const LutSection(),
+          LazyBuild(
+            builder: (_) =>
+                DetailSection(params: params, onChanged: widget.onChanged),
+          ),
+          LazyBuild(builder: (_) => const PresetGrid()),
+          LazyBuild(builder: (_) => const LocalPanel()),
+          for (final m in brushManifests)
+            LazyBuild(builder: (_) => _brushSection(m.tool, params)),
+          LazyBuild(builder: (_) => const LensSection()),
+          LazyBuild(
+            builder: (_) =>
+                SrSection(params: params, onChanged: widget.onChanged),
+          ),
+          LazyBuild(builder: (_) => const WatermarkSection()),
         ],
       ),
     );

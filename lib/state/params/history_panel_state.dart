@@ -130,6 +130,13 @@ class HistoryPanelNotifier extends Notifier<HistoryPanelState> {
     // 重置面板 UI 状态（包括 selectedIndex / brushSourceIndex）
     state = const HistoryPanelState();
   }
+
+  /// 同步释放画笔快照 ValueNotifier
+  void dispose() {
+    final old = historyBrushSnapshot.value;
+    historyBrushSnapshot.value = null;
+    old?.dispose();
+  }
 }
 
 final historyPanelProvider =

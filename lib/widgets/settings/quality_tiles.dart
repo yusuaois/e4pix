@@ -13,9 +13,18 @@ class QualityTiles extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pq = ref.watch(previewQualityProvider);
-    final eq = ref.watch(exportQualityProvider);
+    return Column(
+      children: [
+        _buildPreviewQualitySection(context, ref),
+        _buildExportQualitySection(ref),
+        _buildImageCacheSection(ref),
+        _ExportConcurrencyTile(tileBorderRadius: tileBorderRadius),
+      ],
+    );
+  }
 
+  Widget _buildPreviewQualitySection(BuildContext context, WidgetRef ref) {
+    final pq = ref.watch(previewQualityProvider);
     return Column(
       children: [
         Padding(
@@ -58,6 +67,14 @@ class QualityTiles extends ConsumerWidget {
                 ref.read(previewQualityProvider.notifier).set(s.first),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildExportQualitySection(WidgetRef ref) {
+    final eq = ref.watch(exportQualityProvider);
+    return Column(
+      children: [
         ListTile(
           leading: const Icon(Icons.high_quality_outlined, size: 20),
           title: Text(
@@ -87,6 +104,13 @@ class QualityTiles extends ConsumerWidget {
                 ref.read(exportQualityProvider.notifier).set(v.round()),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildImageCacheSection(WidgetRef ref) {
+    return Column(
+      children: [
         ListTile(
           leading: const Icon(Icons.cached, size: 20),
           title: Text(
@@ -120,7 +144,6 @@ class QualityTiles extends ConsumerWidget {
                 ref.read(imageCacheCapacityProvider.notifier).set(v.round()),
           ),
         ),
-        _ExportConcurrencyTile(tileBorderRadius: tileBorderRadius),
       ],
     );
   }

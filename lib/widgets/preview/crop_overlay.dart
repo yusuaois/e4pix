@@ -83,114 +83,14 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
   Widget build(BuildContext context) {
     final crop = ref.watch(cropDraftProvider);
     final screenRect = _cropToScreen(crop);
-    final dW = widget.imageDisplaySize.width;
-    final dH = widget.imageDisplaySize.height;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onPanDown: (d) {
-        _drag = _hitTest(d.localPosition, screenRect);
-        _dragStart = d.localPosition;
-        _cropAtDragStart = crop;
-      },
-      onPanStart: (_) {
-        if (_drag != _Handle.none) {
-          ref.read(isUserDraggingSliderProvider.notifier).set(true);
-        }
-      },
-      onPanUpdate: (d) {
-        if (_drag == _Handle.none) return;
-
-        // rotation knob 单独处理（角度增量而非位置增量）
-        if (_drag == _Handle.rotationKnob) {
-          final c0 = _cropAtDragStart;
-          final cropCenter = Offset(
-            (c0.x + c0.width / 2) * dW,
-            (c0.y + c0.height / 2) * dH,
-          );
-          final startAngle = math.atan2(
-            _dragStart.dy - cropCenter.dy,
-            _dragStart.dx - cropCenter.dx,
-          );
-          final currentAngle = math.atan2(
-            d.localPosition.dy - cropCenter.dy,
-            d.localPosition.dx - cropCenter.dx,
-          );
-          final deltaDeg = (currentAngle - startAngle) * 180.0 / math.pi;
-          final newStraighten = (c0.straighten + deltaDeg).clamp(-45.0, 45.0);
-          ref
-              .read(cropDraftProvider.notifier)
-              .update(c0.copyWith(straighten: newStraighten));
-          return;
-        }
-
-        final delta = d.localPosition - _dragStart;
-        final dx = delta.dx / dW;
-        final dy = delta.dy / dH;
-        final c0 = _cropAtDragStart;
-        var x = c0.x, y = c0.y, w = c0.width, h = c0.height;
-
-        switch (_drag) {
-          case _Handle.body:
-            x = (c0.x + dx).clamp(0.0, 1.0 - c0.width);
-            y = (c0.y + dy).clamp(0.0, 1.0 - c0.height);
-            break;
-          case _Handle.tl:
-            x = (c0.x + dx).clamp(0.0, c0.x + c0.width - _minSize);
-            y = (c0.y + dy).clamp(0.0, c0.y + c0.height - _minSize);
-            w = c0.x + c0.width - x;
-            h = c0.y + c0.height - y;
-            break;
-          case _Handle.tr:
-            y = (c0.y + dy).clamp(0.0, c0.y + c0.height - _minSize);
-            w = (c0.width + dx).clamp(_minSize, 1.0 - c0.x);
-            h = c0.y + c0.height - y;
-            break;
-          case _Handle.bl:
-            x = (c0.x + dx).clamp(0.0, c0.x + c0.width - _minSize);
-            w = c0.x + c0.width - x;
-            h = (c0.height + dy).clamp(_minSize, 1.0 - c0.y);
-            break;
-          case _Handle.br:
-            w = (c0.width + dx).clamp(_minSize, 1.0 - c0.x);
-            h = (c0.height + dy).clamp(_minSize, 1.0 - c0.y);
-            break;
-          case _Handle.t:
-            y = (c0.y + dy).clamp(0.0, c0.y + c0.height - _minSize);
-            h = c0.y + c0.height - y;
-            break;
-          case _Handle.b:
-            h = (c0.height + dy).clamp(_minSize, 1.0 - c0.y);
-            break;
-          case _Handle.l:
-            x = (c0.x + dx).clamp(0.0, c0.x + c0.width - _minSize);
-            w = c0.x + c0.width - x;
-            break;
-          case _Handle.r:
-            w = (c0.width + dx).clamp(_minSize, 1.0 - c0.x);
-            break;
-          case _Handle.none:
-          case _Handle.rotationKnob:
-            return;
-        }
-
-        // 保留 orientation / flip / straighten
-        ref
-            .read(cropDraftProvider.notifier)
-            .update(c0.copyWith(x: x, y: y, width: w, height: h));
-      },
-      onPanEnd: (_) {
-        if (_drag != _Handle.none) {
-          ref.read(isUserDraggingSliderProvider.notifier).set(false);
-        }
-        _drag = _Handle.none;
-      },
-      onPanCancel: () {
-        if (_drag != _Handle.none) {
-          ref.read(isUserDraggingSliderProvider.notifier).set(false);
-        }
-        _drag = _Handle.none;
-      },
+      onPanDown: _handlePanDown,
+      onPanStart: _handlePanStart,
+      onPanUpdate: _handlePanUpdate,
+      onPanEnd: _handlePanEnd,
+      onPanCancel: _handlePanCancel,
       child: CustomPaint(
         size: widget.imageDisplaySize,
         painter: _CropPainter(
@@ -201,6 +101,119 @@ class _CropOverlayState extends ConsumerState<CropOverlay> {
         ),
       ),
     );
+  }
+
+  void _handlePanDown(DragDownDetails d) {
+    final crop = ref.read(cropDraftProvider);
+    final screenRect = _cropToScreen(crop);
+    _drag = _hitTest(d.localPosition, screenRect);
+    _dragStart = d.localPosition;
+    _cropAtDragStart = crop;
+  }
+
+  void _handlePanStart(DragStartDetails _) {
+    if (_drag != _Handle.none) {
+      ref.read(isUserDraggingSliderProvider.notifier).set(true);
+    }
+  }
+
+  void _handlePanUpdate(DragUpdateDetails d) {
+    if (_drag == _Handle.none) return;
+
+    final dW = widget.imageDisplaySize.width;
+    final dH = widget.imageDisplaySize.height;
+
+    // rotation knob 单独处理（角度增量而非位置增量）
+    if (_drag == _Handle.rotationKnob) {
+      final c0 = _cropAtDragStart;
+      final cropCenter = Offset(
+        (c0.x + c0.width / 2) * dW,
+        (c0.y + c0.height / 2) * dH,
+      );
+      final startAngle = math.atan2(
+        _dragStart.dy - cropCenter.dy,
+        _dragStart.dx - cropCenter.dx,
+      );
+      final currentAngle = math.atan2(
+        d.localPosition.dy - cropCenter.dy,
+        d.localPosition.dx - cropCenter.dx,
+      );
+      final deltaDeg = (currentAngle - startAngle) * 180.0 / math.pi;
+      final newStraighten = (c0.straighten + deltaDeg).clamp(-45.0, 45.0);
+      ref
+          .read(cropDraftProvider.notifier)
+          .update(c0.copyWith(straighten: newStraighten));
+      return;
+    }
+
+    final delta = d.localPosition - _dragStart;
+    final dx = delta.dx / dW;
+    final dy = delta.dy / dH;
+    final c0 = _cropAtDragStart;
+    var x = c0.x, y = c0.y, w = c0.width, h = c0.height;
+
+    switch (_drag) {
+      case _Handle.body:
+        x = (c0.x + dx).clamp(0.0, 1.0 - c0.width);
+        y = (c0.y + dy).clamp(0.0, 1.0 - c0.height);
+        break;
+      case _Handle.tl:
+        x = (c0.x + dx).clamp(0.0, c0.x + c0.width - _minSize);
+        y = (c0.y + dy).clamp(0.0, c0.y + c0.height - _minSize);
+        w = c0.x + c0.width - x;
+        h = c0.y + c0.height - y;
+        break;
+      case _Handle.tr:
+        y = (c0.y + dy).clamp(0.0, c0.y + c0.height - _minSize);
+        w = (c0.width + dx).clamp(_minSize, 1.0 - c0.x);
+        h = c0.y + c0.height - y;
+        break;
+      case _Handle.bl:
+        x = (c0.x + dx).clamp(0.0, c0.x + c0.width - _minSize);
+        w = c0.x + c0.width - x;
+        h = (c0.height + dy).clamp(_minSize, 1.0 - c0.y);
+        break;
+      case _Handle.br:
+        w = (c0.width + dx).clamp(_minSize, 1.0 - c0.x);
+        h = (c0.height + dy).clamp(_minSize, 1.0 - c0.y);
+        break;
+      case _Handle.t:
+        y = (c0.y + dy).clamp(0.0, c0.y + c0.height - _minSize);
+        h = c0.y + c0.height - y;
+        break;
+      case _Handle.b:
+        h = (c0.height + dy).clamp(_minSize, 1.0 - c0.y);
+        break;
+      case _Handle.l:
+        x = (c0.x + dx).clamp(0.0, c0.x + c0.width - _minSize);
+        w = c0.x + c0.width - x;
+        break;
+      case _Handle.r:
+        w = (c0.width + dx).clamp(_minSize, 1.0 - c0.x);
+        break;
+      case _Handle.none:
+      case _Handle.rotationKnob:
+        return;
+    }
+
+    // 保留 orientation / flip / straighten
+    ref
+        .read(cropDraftProvider.notifier)
+        .update(c0.copyWith(x: x, y: y, width: w, height: h));
+  }
+
+  void _handlePanEnd(DragEndDetails _) {
+    if (_drag != _Handle.none) {
+      ref.read(isUserDraggingSliderProvider.notifier).set(false);
+    }
+    _drag = _Handle.none;
+  }
+
+  void _handlePanCancel() {
+    if (_drag != _Handle.none) {
+      ref.read(isUserDraggingSliderProvider.notifier).set(false);
+    }
+    _drag = _Handle.none;
   }
 }
 

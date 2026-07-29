@@ -32,101 +32,123 @@ class LocalPanel extends ConsumerWidget {
         children: [
           const SectionLabel(title: 'Local'),
           const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 4)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                    ),
-                    onPressed: atLimit
-                        ? null
-                        : () => LocalAdjustmentActions(ref).addLinear(),
-                    child: Text(
-                      tr("linear"),
-                      style: AppTypography.labelSmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                    ),
-                    onPressed: atLimit
-                        ? null
-                        : () => LocalAdjustmentActions(ref).addRadial(),
-                    child: Text(
-                      tr("radial"),
-                      style: AppTypography.labelSmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                    ),
-                    onPressed: atLimit
-                        ? null
-                        : () => LocalAdjustmentActions(ref).addBrush(),
-                    child: Text(
-                      tr("brush"),
-                      style: AppTypography.labelSmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (locals.isEmpty)
-            Padding(
-              padding: EdgeInsets.fromLTRB(20, 4, 16, 8),
-              child: Text(
-                tr("notAddedLocalAdjustment"),
-                style: AppTypography.labelMedium.copyWith(
-                  color: AppColors.disabledText,
-                ),
-              ),
-            )
-          else
-            for (final local in locals)
-              _MaskListItem(local: local, isSelected: local.id == selectedId),
-          if (selected != null) ...[
-            const SizedBox(height: 6),
-            Divider(height: 1, color: AppColors.faintBorder),
-            LocalShapeControls(local: selected),
-            BrushControls(local: selected),
-            Divider(height: 1, color: AppColors.faintBorder),
-            LocalParamsControls(local: selected),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: TextButton(
-                onPressed: () =>
-                    ref.read(selectedLocalIdProvider.notifier).set(null),
-                child: Text(tr("completed"), style: AppTypography.labelSmall),
-              ),
-            ),
-          ],
+          _buildAddButtons(atLimit, ref),
+          _buildEmptyHint(locals),
+          ..._buildMaskList(locals, selectedId),
+          if (selected != null) _buildSelectedDetails(ref, selected),
         ],
       ),
+    );
+  }
+
+  Widget _buildAddButtons(bool atLimit, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+              ),
+              onPressed: atLimit
+                  ? null
+                  : () => LocalAdjustmentActions(ref).addLinear(),
+              child: Text(
+                tr("linear"),
+                style: AppTypography.labelSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+              ),
+              onPressed: atLimit
+                  ? null
+                  : () => LocalAdjustmentActions(ref).addRadial(),
+              child: Text(
+                tr("radial"),
+                style: AppTypography.labelSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+              ),
+              onPressed: atLimit
+                  ? null
+                  : () => LocalAdjustmentActions(ref).addBrush(),
+              child: Text(
+                tr("brush"),
+                style: AppTypography.labelSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyHint(List<LocalAdjustment> locals) {
+    if (locals.isNotEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 16, 8),
+      child: Text(
+        tr("notAddedLocalAdjustment"),
+        style: AppTypography.labelMedium.copyWith(
+          color: AppColors.disabledText,
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildMaskList(
+    List<LocalAdjustment> locals,
+    String? selectedId,
+  ) {
+    return locals.map((local) {
+      return _MaskListItem(local: local, isSelected: local.id == selectedId);
+    }).toList();
+  }
+
+  Widget _buildSelectedDetails(WidgetRef ref, LocalAdjustment selected) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 6),
+        Divider(height: 1, color: AppColors.faintBorder),
+        LocalShapeControls(local: selected),
+        BrushControls(local: selected),
+        Divider(height: 1, color: AppColors.faintBorder),
+        LocalParamsControls(local: selected),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: TextButton(
+            onPressed: () =>
+                ref.read(selectedLocalIdProvider.notifier).set(null),
+            child: Text(tr("completed"), style: AppTypography.labelSmall),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -148,11 +170,11 @@ class _MaskListItem extends ConsumerWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => {
+        onTap: () {
           ref
               .read(selectedLocalIdProvider.notifier)
-              .set(isSelected ? null : local.id),
-          SamSession.instance.resetPoints(),
+              .set(isSelected ? null : local.id);
+          SamSession.instance.resetPoints();
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -169,42 +191,57 @@ class _MaskListItem extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              IconButton(
-                icon: Icon(Icons.edit, size: 14, color: AppColors.faintText),
-                onPressed: () => _showRenameDialog(context, ref, local),
-                padding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-              ),
-              IconButton(
-                icon: Icon(
-                  local.enabled ? Icons.visibility : Icons.visibility_off,
-                  size: 14,
-                  color: AppColors.faintText,
-                ),
-                onPressed: () => LocalAdjustmentActions(
-                  ref,
-                ).updateLocal(local.id, (l) => l.copyWith(enabled: !l.enabled)),
-                padding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-              ),
-              IconButton(
-                icon: Icon(Icons.close, size: 14, color: AppColors.faintText),
-                onPressed: () => {
-                  LocalAdjustmentActions(ref).deleteLocal(local.id),
-                  SamSession.instance.resetPoints(),
-                },
-                padding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-              ),
+              _buildActions(context, ref, local),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _buildActions(
+    BuildContext context,
+    WidgetRef ref,
+    LocalAdjustment local,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildActionIcon(
+          Icons.edit,
+          () => _showRenameDialog(context, ref, local),
+        ),
+        _buildActionIcon(
+          local.enabled ? Icons.visibility : Icons.visibility_off,
+          () => LocalAdjustmentActions(
+            ref,
+          ).updateLocal(local.id, (l) => l.copyWith(enabled: !l.enabled)),
+        ),
+        _buildActionIcon(Icons.close, () {
+          LocalAdjustmentActions(ref).deleteLocal(local.id);
+          SamSession.instance.resetPoints();
+        }),
+      ],
+    );
+  }
+
+  Widget _buildActionIcon(IconData icon, VoidCallback onPressed) {
+    return IconButton(
+      icon: Icon(icon, size: 14, color: AppColors.faintText),
+      onPressed: onPressed,
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+    );
+  }
+}
+
+class _RenameDialogController {
+  final TextEditingController controller;
+  _RenameDialogController(String text)
+    : controller = TextEditingController(text: text);
+
+  void dispose() => controller.dispose();
 }
 
 Future<void> _showRenameDialog(
@@ -212,13 +249,13 @@ Future<void> _showRenameDialog(
   WidgetRef ref,
   LocalAdjustment local,
 ) async {
-  final controller = TextEditingController(text: local.name);
+  final ctrl = _RenameDialogController(local.name);
   final newName = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(tr("rename")),
       content: TextField(
-        controller: controller,
+        controller: ctrl.controller,
         autofocus: true,
         textInputAction: TextInputAction.done,
         onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
@@ -229,13 +266,13 @@ Future<void> _showRenameDialog(
           child: Text(tr("cancel")),
         ),
         TextButton(
-          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+          onPressed: () => Navigator.pop(ctx, ctrl.controller.text.trim()),
           child: Text(tr("confirm")),
         ),
       ],
     ),
   );
-  controller.dispose();
+  ctrl.dispose();
   if (newName != null && newName.isNotEmpty && newName != local.name) {
     LocalAdjustmentActions(
       ref,

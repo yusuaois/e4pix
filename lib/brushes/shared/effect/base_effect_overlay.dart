@@ -91,26 +91,34 @@ abstract class BaseEffectOverlayState<W extends ConsumerStatefulWidget>
     _isHovering = true;
     final pos = _screenToSourceNorm(details.localPosition);
     _gestureHandler.panStart(pos);
-    setState(() {});
+    setState(() {
+      /* rebuild */
+    });
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
     _cursorPos = details.localPosition;
     final pos = _screenToSourceNorm(details.localPosition);
     _gestureHandler.panUpdate(pos);
-    setState(() {});
+    setState(() {
+      /* rebuild */
+    });
   }
 
   void _onPanEnd(DragEndDetails details) {
     _isHovering = false;
     final z = ref.read(zoomScaleProvider);
     _gestureHandler.panEnd(brushNorm / z, hardness);
-    setState(() {});
+    setState(() {
+      /* rebuild */
+    });
   }
 
   void _onPanCancel() {
     _gestureHandler.panCancel();
-    setState(() {});
+    setState(() {
+      /* rebuild */
+    });
   }
 
   // Build

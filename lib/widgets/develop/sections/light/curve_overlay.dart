@@ -65,7 +65,6 @@ class _CurveOverlayState extends ConsumerState<CurveOverlay> {
     );
     final curve = _curveOf(curves);
     final baseColor = _channelColor(context);
-    // 浮层模式：曲线和控点用半透明主题色
     final lineColor = baseColor.withValues(alpha: 0.55);
 
     void commit(ToneCurve next) {
@@ -81,86 +80,88 @@ class _CurveOverlayState extends ConsumerState<CurveOverlay> {
         Positioned.fill(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () {}, // 吞掉点击遮罩区域的事件，但不做任何事
+            onTap: () {},
             child: Container(color: Colors.transparent),
           ),
         ),
-        // 曲线网格正方形，靠下对齐，下/左/右 padding 一致
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(48, 0, 48, 48),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: LayoutBuilder(
-                builder: (ctx, constraints) {
-                  final size = Size(
-                    constraints.maxWidth,
-                    constraints.maxHeight,
-                  );
-                  return GestureDetector(
-                    onTapUp: (d) {
-                      final next = handleTapUp(d.localPosition, size, curve);
-                      if (next != null) commit(next);
-                    },
-                    onPanStart: (d) {
-                      _dragIndex = hitTest(d.localPosition, size, curve);
-                    },
-                    onPanUpdate: (d) {
-                      final next = handlePanUpdate(
-                        d.localPosition,
-                        size,
-                        curve,
-                        _dragIndex,
-                      );
-                      if (next != null) {
-                        _throttle.throttle(next, commit);
-                      }
-                    },
-                    onPanEnd: (_) {
-                      _dragIndex = null;
-                      _throttle.flush(commit);
-                    },
-                    onPanCancel: () {
-                      _dragIndex = null;
-                      _throttle.flush(commit);
-                    },
-                    onLongPressStart: (d) {
-                      final next = handleLongPress(
-                        d.localPosition,
-                        size,
-                        curve,
-                      );
-                      if (next != null) commit(next);
-                    },
-                    child: OverflowBox(
-                      maxWidth: size.width + 2 * _pointOverflow,
-                      maxHeight: size.height + 2 * _pointOverflow,
-                      alignment: Alignment.center,
-                      child: SizedBox(
-                        width: size.width + 2 * _pointOverflow,
-                        height: size.height + 2 * _pointOverflow,
-                        child: CustomPaint(
-                          painter: CurvePainter(
-                            curve: curve,
-                            lineColor: lineColor,
-                            overflow: _pointOverflow,
-                            drawBackground: false,
-                          ),
-                          size: Size(
-                            size.width + 2 * _pointOverflow,
-                            size.height + 2 * _pointOverflow,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+        _buildCurveGrid(curve, lineColor, commit),
+      ],
+    );
+  }
+
+  Widget _buildCurveGrid(
+    ToneCurve curve,
+    Color lineColor,
+    void Function(ToneCurve) commit,
+  ) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(48, 0, 48, 48),
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: LayoutBuilder(
+            builder: (ctx, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
+              return _buildGestureCurve(size, curve, lineColor, commit);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGestureCurve(
+    Size size,
+    ToneCurve curve,
+    Color lineColor,
+    void Function(ToneCurve) commit,
+  ) {
+    return GestureDetector(
+      onTapUp: (d) {
+        final next = handleTapUp(d.localPosition, size, curve);
+        if (next != null) commit(next);
+      },
+      onPanStart: (d) {
+        _dragIndex = hitTest(d.localPosition, size, curve);
+      },
+      onPanUpdate: (d) {
+        final next = handlePanUpdate(d.localPosition, size, curve, _dragIndex);
+        if (next != null) _throttle.throttle(next, commit);
+      },
+      onPanEnd: (_) {
+        _dragIndex = null;
+        _throttle.flush(commit);
+      },
+      onPanCancel: () {
+        _dragIndex = null;
+        _throttle.flush(commit);
+      },
+      onLongPressStart: (d) {
+        final next = handleLongPress(d.localPosition, size, curve);
+        if (next != null) commit(next);
+      },
+      child: OverflowBox(
+        maxWidth: size.width + 2 * _pointOverflow,
+        maxHeight: size.height + 2 * _pointOverflow,
+        alignment: Alignment.center,
+        child: SizedBox(
+          width: size.width + 2 * _pointOverflow,
+          height: size.height + 2 * _pointOverflow,
+          child: CustomPaint(
+            painter: CurvePainter(
+              curve: curve,
+              lineColor: lineColor,
+              overflow: _pointOverflow,
+              drawBackground: false,
+            ),
+            size: Size(
+              size.width + 2 * _pointOverflow,
+              size.height + 2 * _pointOverflow,
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

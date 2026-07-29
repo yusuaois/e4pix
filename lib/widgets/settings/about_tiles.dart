@@ -261,76 +261,88 @@ class UpdateDialog extends StatelessWidget {
         tr("updateAvailable", args: [info.latestVersion]),
         style: AppTypography.headlineMedium,
       ),
-      content: SizedBox(
-        width: 360,
-        child: SingleChildScrollView(
-          child: info.body.trim().isEmpty
-              ? Text(
-                  tr("updateNoNotes"),
-                  style: AppTypography.titleSmall.copyWith(height: 1.5),
-                )
-              : MarkdownBody(
-                  data: info.body,
-                  onTapLink: (text, href, title) {
-                    if (href != null) {
-                      url_launcher.launchUrl(
-                        Uri.parse(href),
-                        mode: url_launcher.LaunchMode.externalApplication,
-                      );
-                    }
-                  },
-                  styleSheet: MarkdownStyleSheet(
-                    p: AppTypography.titleSmall.copyWith(height: 1.5),
-                    h2: AppTypography.headlineSmall.copyWith(
-                      fontWeight: FontWeight.bold,
-                      height: 1.8,
-                    ),
-                    listBullet: AppTypography.titleSmall,
-                    code: AppTypography.bodySmall.copyWith(
-                      fontFamily: 'monospace',
-                      color: AppColors.semanticWarning,
-                      backgroundColor: AppColors.faintBorder,
-                      letterSpacing: 1.0,
-                    ),
-                    blockquote: AppTypography.bodyMedium.copyWith(
-                      color: AppColors.faintText,
-                    ),
-                    blockquoteDecoration: BoxDecoration(
-                      color: AppColors.faintBorder,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-        ),
+      content: _buildContent(),
+      actions: _buildActions(context),
+    );
+  }
+
+  Widget _buildContent() {
+    return SizedBox(
+      width: 360,
+      child: SingleChildScrollView(
+        child: info.body.trim().isEmpty
+            ? Text(
+                tr("updateNoNotes"),
+                style: AppTypography.titleSmall.copyWith(height: 1.5),
+              )
+            : MarkdownBody(
+                data: info.body,
+                onTapLink: (text, href, title) {
+                  if (href != null) {
+                    url_launcher.launchUrl(
+                      Uri.parse(href),
+                      mode: url_launcher.LaunchMode.externalApplication,
+                    );
+                  }
+                },
+                styleSheet: _buildMarkdownStyleSheet(),
+              ),
       ),
-      actions: [
-        if (showIgnore)
-          TextButton(
-            onPressed: () {
-              UpdateService.ignoreVersion(info.latestVersion);
-              Navigator.pop(context);
-            },
-            child: Text(tr("updateIgnore")),
-          ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(tr("updateLater")),
-        ),
+    );
+  }
+
+  MarkdownStyleSheet _buildMarkdownStyleSheet() {
+    return MarkdownStyleSheet(
+      p: AppTypography.titleSmall.copyWith(height: 1.5),
+      h2: AppTypography.headlineSmall.copyWith(
+        fontWeight: FontWeight.bold,
+        height: 1.8,
+      ),
+      listBullet: AppTypography.titleSmall,
+      code: AppTypography.bodySmall.copyWith(
+        fontFamily: 'monospace',
+        color: AppColors.semanticWarning,
+        backgroundColor: AppColors.faintBorder,
+        letterSpacing: 1.0,
+      ),
+      blockquote: AppTypography.bodyMedium.copyWith(
+        color: AppColors.faintText,
+      ),
+      blockquoteDecoration: BoxDecoration(
+        color: AppColors.faintBorder,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+
+  List<Widget> _buildActions(BuildContext context) {
+    return [
+      if (showIgnore)
         TextButton(
           onPressed: () {
-            url_launcher.launchUrl(
-              Uri.parse(info.releaseUrl),
-              mode: url_launcher.LaunchMode.externalApplication,
-            );
+            UpdateService.ignoreVersion(info.latestVersion);
+            Navigator.pop(context);
           },
-          child: Text(tr("updateOpenPage")),
+          child: Text(tr("updateIgnore")),
         ),
-        FilledButton(
-          onPressed: () => _download(context),
-          child: Text(tr("updateDownload")),
-        ),
-      ],
-    );
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(tr("updateLater")),
+      ),
+      TextButton(
+        onPressed: () {
+          url_launcher.launchUrl(
+            Uri.parse(info.releaseUrl),
+            mode: url_launcher.LaunchMode.externalApplication,
+          );
+        },
+        child: Text(tr("updateOpenPage")),
+      ),
+      FilledButton(
+        onPressed: () => _download(context),
+        child: Text(tr("updateDownload")),
+      ),
+    ];
   }
 }
 
@@ -368,53 +380,57 @@ class ChangelogDialog extends StatelessWidget {
         tr('changelogTitle', args: [version]),
         style: AppTypography.headlineMedium,
       ),
-      content: SizedBox(
-        width: 360,
-        child: FutureBuilder<String>(
-          future: rootBundle.loadString('assets/changelog/CHANGELOG.md'),
-          builder: (ctx, snap) {
-            if (!snap.hasData) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              );
-            }
-            final raw = snap.data!.trim();
-            // Strip empty section headers (## heading with no content before next ## or ---)
-            final stripped = raw.replaceAll(
-              RegExp(r'^##[^\n]*\s+(?=##|\Z)', multiLine: true, dotAll: true),
-              '',
-            );
-            // Strip download notes / SHA section after ---
-            final cutIdx = stripped.indexOf('\n---');
-            final body =
-                (cutIdx >= 0 ? stripped.substring(0, cutIdx) : stripped).trim();
-            if (body.isEmpty) {
-              return Text(
-                tr('changelogUnavailable'),
-                style: AppTypography.titleSmall.copyWith(
-                  color: AppColors.faintText,
-                ),
-              );
-            }
-            return SingleChildScrollView(
-              child: MarkdownBody(data: body, styleSheet: _mdStyleSheet),
-            );
-          },
-        ),
-      ),
+      content: _buildChangelogContent(),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(tr('close')),
         ),
       ],
+    );
+  }
+
+  Widget _buildChangelogContent() {
+    return SizedBox(
+      width: 360,
+      child: FutureBuilder<String>(
+        future: rootBundle.loadString('assets/changelog/CHANGELOG.md'),
+        builder: (ctx, snap) {
+          if (!snap.hasData) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          }
+          final raw = snap.data!.trim();
+          // Strip empty section headers (## heading with no content before next ## or ---)
+          final stripped = raw.replaceAll(
+            RegExp(r'^##[^\n]*\s+(?=##|\Z)', multiLine: true, dotAll: true),
+            '',
+          );
+          // Strip download notes / SHA section after ---
+          final cutIdx = stripped.indexOf('\n---');
+          final body =
+              (cutIdx >= 0 ? stripped.substring(0, cutIdx) : stripped).trim();
+          if (body.isEmpty) {
+            return Text(
+              tr('changelogUnavailable'),
+              style: AppTypography.titleSmall.copyWith(
+                color: AppColors.faintText,
+              ),
+            );
+          }
+          return SingleChildScrollView(
+            child: MarkdownBody(data: body, styleSheet: _mdStyleSheet),
+          );
+        },
+      ),
     );
   }
 }

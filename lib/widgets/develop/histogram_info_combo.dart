@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/models/adjustment_params.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../native/raw_bridge.dart';
@@ -81,90 +82,103 @@ class _HistogramInfoComboState extends ConsumerState<HistogramInfoCombo> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── PageView: histogram / info ──
-        SizedBox(
-          height: 84,
-          child: Stack(
-            children: [
-              PageView(
-                controller: _pageController,
-                onPageChanged: (p) => setState(() => _currentPage = p),
-                children: [
-                  LiveHistogramPanel(
-                    program: widget.program,
-                    maskProgram: widget.maskProgram,
-                    sourceImage: widget.sourceImage,
-                    params: params,
-                    lutTexture: lutEnabled ? lut.textureA : null,
-                    lutSize: lutEnabled ? lut.sizeA : 0,
-                    lutTextureB: lutEnabled ? lut.textureB : null,
-                    lutSizeB: lutEnabled ? lut.sizeB : 0,
-                    curveTexture: curveTexture,
-                    height: 84,
-                    margin: const EdgeInsets.fromLTRB(14, 4, 14, 0),
-                  ),
-                  _buildInfoPage(context, image, isLoading, path),
-                ],
-              ),
-              if (_isDesktop)
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: _buildHoverArrow(
-                    isLeft: true,
-                    visible: _hoverLeft && _currentPage > 0,
-                    onTap: _currentPage > 0
-                        ? () => _goToPage(_currentPage - 1)
-                        : null,
-                    onHover: (h) => setState(() => _hoverLeft = h),
-                  ),
-                ),
-              if (_isDesktop)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: _buildHoverArrow(
-                    isLeft: false,
-                    visible: _hoverRight && _currentPage < 1,
-                    onTap: _currentPage < 1
-                        ? () => _goToPage(_currentPage + 1)
-                        : null,
-                    onHover: (h) => setState(() => _hoverRight = h),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        // ── Action bar ──
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 2, 12, 4),
-          child: Row(
-            children: [
-              IconButton(
-                icon: Icon(
-                  io.Platform.isAndroid
-                      ? Icons.folder_copy_outlined
-                      : Icons.add_photo_alternate_outlined,
-                  size: 16,
-                ),
-                tooltip: io.Platform.isAndroid
-                    ? tr("folderImport")
-                    : tr("imageChoose"),
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                onPressed: isLoading ? null : widget.onImport,
-              ),
-              const SizedBox(width: 8),
-              const Expanded(child: RatingFlagBar(compact: true)),
-              // 胶囊监视器
-              _DotIndicator(current: _currentPage, onTap: _goToPage),
-            ],
-          ),
-        ),
+        _buildPageViewSection(params, lut, lutEnabled, curveTexture, image, isLoading, path),
+        _buildActionBar(isLoading),
       ],
+    );
+  }
+
+  Widget _buildPageViewSection(
+    AdjustmentParams params,
+    LutState lut,
+    bool lutEnabled,
+    ui.Image? curveTexture,
+    DecodedImageState? image,
+    bool isLoading,
+    String? path,
+  ) {
+    return SizedBox(
+      height: 84,
+      child: Stack(
+        children: [
+          PageView(
+            controller: _pageController,
+            onPageChanged: (p) => setState(() => _currentPage = p),
+            children: [
+              LiveHistogramPanel(
+                program: widget.program,
+                maskProgram: widget.maskProgram,
+                sourceImage: widget.sourceImage,
+                params: params,
+                lutTexture: lutEnabled ? lut.textureA : null,
+                lutSize: lutEnabled ? lut.sizeA : 0,
+                lutTextureB: lutEnabled ? lut.textureB : null,
+                lutSizeB: lutEnabled ? lut.sizeB : 0,
+                curveTexture: curveTexture,
+                height: 84,
+                margin: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+              ),
+              _buildInfoPage(context, image, isLoading, path),
+            ],
+          ),
+          if (_isDesktop)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: _buildHoverArrow(
+                isLeft: true,
+                visible: _hoverLeft && _currentPage > 0,
+                onTap: _currentPage > 0
+                    ? () => _goToPage(_currentPage - 1)
+                    : null,
+                onHover: (h) => setState(() => _hoverLeft = h),
+              ),
+            ),
+          if (_isDesktop)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: _buildHoverArrow(
+                isLeft: false,
+                visible: _hoverRight && _currentPage < 1,
+                onTap: _currentPage < 1
+                    ? () => _goToPage(_currentPage + 1)
+                    : null,
+                onHover: (h) => setState(() => _hoverRight = h),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionBar(bool isLoading) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 2, 12, 4),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(
+              io.Platform.isAndroid
+                  ? Icons.folder_copy_outlined
+                  : Icons.add_photo_alternate_outlined,
+              size: 16,
+            ),
+            tooltip: io.Platform.isAndroid
+                ? tr("folderImport")
+                : tr("imageChoose"),
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            onPressed: isLoading ? null : widget.onImport,
+          ),
+          const SizedBox(width: 8),
+          const Expanded(child: RatingFlagBar(compact: true)),
+          _DotIndicator(current: _currentPage, onTap: _goToPage),
+        ],
+      ),
     );
   }
 

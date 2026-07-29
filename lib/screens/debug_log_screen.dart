@@ -226,20 +226,7 @@ class _LogEntryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final parsed = this.parsed ?? _parseLogMessage(entry.message);
-
-    final t = entry.time;
-    final now = DateTime.now();
-    final isToday =
-        t.year == now.year && t.month == now.month && t.day == now.day;
-    final ts = isToday
-        ? '${t.hour.toString().padLeft(2, '0')}:'
-              '${t.minute.toString().padLeft(2, '0')}:'
-              '${t.second.toString().padLeft(2, '0')}'
-        : '${t.month.toString().padLeft(2, '0')}-'
-              '${t.day.toString().padLeft(2, '0')} '
-              '${t.hour.toString().padLeft(2, '0')}:'
-              '${t.minute.toString().padLeft(2, '0')}:'
-              '${t.second.toString().padLeft(2, '0')}';
+    final ts = _formatTimestamp(entry.time);
 
     Color? rowBg;
     Border? rowBorder;
@@ -280,6 +267,22 @@ class _LogEntryRow extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatTimestamp(DateTime t) {
+    final now = DateTime.now();
+    final isToday =
+        t.year == now.year && t.month == now.month && t.day == now.day;
+    if (isToday) {
+      return '${t.hour.toString().padLeft(2, '0')}:'
+          '${t.minute.toString().padLeft(2, '0')}:'
+          '${t.second.toString().padLeft(2, '0')}';
+    }
+    return '${t.month.toString().padLeft(2, '0')}-'
+        '${t.day.toString().padLeft(2, '0')} '
+        '${t.hour.toString().padLeft(2, '0')}:'
+        '${t.minute.toString().padLeft(2, '0')}:'
+        '${t.second.toString().padLeft(2, '0')}';
   }
 }
 
@@ -357,7 +360,11 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
   }
 
   void _onNewLog() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {
+        /* rebuild */
+      });
+    }
   }
 
   String _entryKey(LogEntry entry) =>
@@ -452,18 +459,10 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
   @override
   Widget build(BuildContext context) {
     final entries = _service.entries;
-
-    // Pre-parse all entries once per frame
     final parsedMap = <LogEntry, _ParsedLogEntry>{
       for (final e in entries) e: _parseLogMessage(e.message),
     };
-
-    final filtered =
-        (_filter == _Filter.all &&
-            _searchQuery.isEmpty &&
-            _timeFilterCutoff == null)
-        ? entries
-        : entries.where((e) => _matchesFilter(e, parsedMap[e]!)).toList();
+    final filtered = _applyFilters(entries, parsedMap);
     final filterCounts = _computeFilterCounts(entries, parsedMap);
 
     return Scaffold(
@@ -472,69 +471,14 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
         title: Text(tr('debugLog')),
         backgroundColor: AppColors.scaffoldBg,
         elevation: 0,
-        actions: [
-          if (entries.isNotEmpty)
-            IconButton(
-              icon: Icon(
-                _expandedKeys.length >= filtered.length
-                    ? Icons.unfold_less
-                    : Icons.unfold_more,
-                size: 20,
-              ),
-              tooltip: _expandedKeys.length >= filtered.length
-                  ? tr('debugCollapseAll')
-                  : tr('debugExpandAll'),
-              onPressed: () {
-                setState(() {
-                  if (_expandedKeys.length >= filtered.length) {
-                    _expandedKeys.clear();
-                  } else {
-                    for (final e in filtered) {
-                      _expandedKeys.add(_entryKey(e));
-                    }
-                  }
-                });
-              },
-            ),
-          if (entries.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.delete_outline, size: 20),
-              tooltip: tr('debugClear'),
-              onPressed: () {
-                setState(() {
-                  _service.clear();
-                  _expandedKeys.clear();
-                });
-              },
-            ),
-          if (entries.isNotEmpty)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.file_download_outlined, size: 20),
-              tooltip: tr('debugExport'),
-              itemBuilder: (_) => [
-                PopupMenuItem(
-                  value: 'text',
-                  child: Text(tr('debugExportText')),
-                ),
-                PopupMenuItem(
-                  value: 'json',
-                  child: Text(tr('debugExportJson')),
-                ),
-              ],
-              onSelected: (format) => _export(format),
-            ),
-        ],
+        actions: _buildAppBarActions(filtered),
       ),
       body: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             if (entries.isNotEmpty)
-              _buildFloatingCard(child: _buildSearchBar()),
-            if (entries.isNotEmpty) const SizedBox(height: 12),
-            if (entries.isNotEmpty)
-              _buildFloatingCard(child: _buildFilterBar(filterCounts)),
-            if (entries.isNotEmpty) const SizedBox(height: 12),
+              _buildSearchFilterCards(filtered, parsedMap, filterCounts),
             Expanded(
               child: filtered.isEmpty
                   ? _buildEmptyState()
@@ -547,6 +491,81 @@ class _DebugLogScreenState extends State<DebugLogScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  List<Widget> _buildAppBarActions(List<LogEntry> filtered) {
+    if (_service.entries.isEmpty) return const [];
+    return [
+      IconButton(
+        icon: Icon(
+          _expandedKeys.length >= filtered.length
+              ? Icons.unfold_less
+              : Icons.unfold_more,
+          size: 20,
+        ),
+        tooltip: _expandedKeys.length >= filtered.length
+            ? tr('debugCollapseAll')
+            : tr('debugExpandAll'),
+        onPressed: () => _toggleExpandAll(filtered),
+      ),
+      IconButton(
+        icon: const Icon(Icons.delete_outline, size: 20),
+        tooltip: tr('debugClear'),
+        onPressed: () => setState(() {
+          _service.clear();
+          _expandedKeys.clear();
+        }),
+      ),
+      PopupMenuButton<String>(
+        icon: const Icon(Icons.file_download_outlined, size: 20),
+        tooltip: tr('debugExport'),
+        itemBuilder: (_) => [
+          PopupMenuItem(value: 'text', child: Text(tr('debugExportText'))),
+          PopupMenuItem(value: 'json', child: Text(tr('debugExportJson'))),
+        ],
+        onSelected: (format) => _export(format),
+      ),
+    ];
+  }
+
+  void _toggleExpandAll(List<LogEntry> filtered) {
+    setState(() {
+      if (_expandedKeys.length >= filtered.length) {
+        _expandedKeys.clear();
+      } else {
+        for (final e in filtered) {
+          _expandedKeys.add(_entryKey(e));
+        }
+      }
+    });
+  }
+
+  List<LogEntry> _applyFilters(
+    List<LogEntry> entries,
+    Map<LogEntry, _ParsedLogEntry> parsedMap,
+  ) {
+    if (_filter == _Filter.all &&
+        _searchQuery.isEmpty &&
+        _timeFilterCutoff == null) {
+      return entries;
+    }
+    return entries.where((e) => _matchesFilter(e, parsedMap[e]!)).toList();
+  }
+
+  Widget _buildSearchFilterCards(
+    List<LogEntry> filtered,
+    Map<LogEntry, _ParsedLogEntry> parsedMap,
+    Map<_Filter, int> filterCounts,
+  ) {
+    if (_service.entries.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: [
+        _buildFloatingCard(child: _buildSearchBar()),
+        const SizedBox(height: 12),
+        _buildFloatingCard(child: _buildFilterBar(filterCounts)),
+        const SizedBox(height: 12),
+      ],
     );
   }
 

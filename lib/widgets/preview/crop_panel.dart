@@ -40,7 +40,6 @@ class _CropPanelState extends ConsumerState<CropPanel> {
     final imageState = ref.watch(imageNotifierProvider).value;
     final imgW = imageState?.uiImage.width.toDouble() ?? 0;
     final imgH = imageState?.uiImage.height.toDouble() ?? 0;
-    final draft = ref.watch(cropDraftProvider);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -49,221 +48,221 @@ class _CropPanelState extends ConsumerState<CropPanel> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
-        children: [
-          Row(
-            children: [
-              // 左：可横向滑动
-              Expanded(
-                child: SizedBox(
-                  height: 30,
-                  child: ScrollConfiguration(
-                    behavior: ScrollConfiguration.of(context).copyWith(
-                      dragDevices: {
-                        PointerDeviceKind.mouse,
-                        PointerDeviceKind.touch,
-                        PointerDeviceKind.trackpad,
-                      },
-                    ),
-                    child: Listener(
-                      onPointerSignal: (signal) {
-                        if (signal is PointerScrollEvent) {
-                          final target =
-                              _scrollController.offset + signal.scrollDelta.dy;
-                          _scrollController.jumpTo(
-                            target.clamp(
-                              0.0,
-                              _scrollController.position.maxScrollExtent,
-                            ),
-                          );
-                        }
-                      },
-                      child: ListView.separated(
-                        controller: _scrollController,
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _aspects.length,
-                        separatorBuilder: (_, _) => const SizedBox(width: 4),
-                        itemBuilder: (ctx, i) {
-                          final entry = _aspects[i];
-                          return _AspectChip(
-                            label: entry.$1,
-                            targetAspect: entry.$2,
-                            imageWidth: imgW,
-                            imageHeight: imgH,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 1,
-                height: 22,
-                color: AppColors.lightBorder,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-              ),
-              // 右：固定按钮
-              TextButton(
-                onPressed: () => ref
-                    .read(cropDraftProvider.notifier)
-                    .update(CropParams.identity),
-                style: TextButton.styleFrom(
-                  minimumSize: Size.zero,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(tr("reset"), style: AppTypography.bodyLarge),
-              ),
-              TextButton(
-                onPressed: () => cancelCrop(ref),
-                style: TextButton.styleFrom(
-                  minimumSize: Size.zero,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(tr("cancel"), style: AppTypography.bodyLarge),
-              ),
-              const SizedBox(width: 4),
-              FilledButton(
-                onPressed: () => commitCrop(ref),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(54, 28),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  visualDensity: VisualDensity.compact,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(tr("apply"), style: AppTypography.bodyLarge),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              IconButton(
-                icon: Transform.rotate(
-                  angle: math.pi / 2,
-                  child: const Icon(Icons.rotate_90_degrees_ccw, size: 16),
-                ),
-                tooltip: tr("rotate90CCW"),
-                onPressed: () => ref
-                    .read(cropDraftProvider.notifier)
-                    .update(
-                      ref
-                          .read(cropDraftProvider)
-                          .copyWith(
-                            orientation:
-                                (ref.read(cropDraftProvider).orientation - 1) %
-                                4,
-                          ),
-                    ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                visualDensity: VisualDensity.compact,
-              ),
-              const SizedBox(width: 2),
-              IconButton(
-                icon: Transform.rotate(
-                  angle: math.pi / 2,
-                  child: const Icon(Icons.rotate_90_degrees_cw, size: 16),
-                ),
-                tooltip: tr("rotate90CW"),
-                onPressed: () => ref
-                    .read(cropDraftProvider.notifier)
-                    .update(
-                      ref
-                          .read(cropDraftProvider)
-                          .copyWith(
-                            orientation:
-                                (ref.read(cropDraftProvider).orientation + 1) %
-                                4,
-                          ),
-                    ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                visualDensity: VisualDensity.compact,
-              ),
-
-              const SizedBox(width: 8),
-              IconButton(
-                icon: Transform.rotate(
-                  angle: math.pi,
-                  child: const Icon(Icons.flip, size: 16),
-                ),
-                tooltip: tr("flipHorizontal"),
-                onPressed: () => ref
-                    .read(cropDraftProvider.notifier)
-                    .update(
-                      ref
-                          .read(cropDraftProvider)
-                          .copyWith(flipH: !ref.read(cropDraftProvider).flipH),
-                    ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                visualDensity: VisualDensity.compact,
-              ),
-              const SizedBox(width: 2),
-              IconButton(
-                icon: Transform.rotate(
-                  angle: math.pi / 2,
-                  child: const Icon(Icons.flip, size: 16),
-                ),
-                tooltip: tr("flipVertical"),
-                onPressed: () => ref
-                    .read(cropDraftProvider.notifier)
-                    .update(
-                      ref
-                          .read(cropDraftProvider)
-                          .copyWith(flipV: !ref.read(cropDraftProvider).flipV),
-                    ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                visualDensity: VisualDensity.compact,
-              ),
-              Container(
-                width: 1,
-                height: 16,
-                color: AppColors.faintBorder,
-                margin: const EdgeInsets.symmetric(horizontal: 12), // 增加分割线左右间距
-              ),
-
-              Icon(Icons.straighten, size: 14, color: AppColors.faintText),
-              const SizedBox(width: 4),
-              Expanded(
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 2,
-                    thumbShape: const RoundSliderThumbShape(
-                      enabledThumbRadius: 5,
-                    ),
-                    overlayShape: const RoundSliderOverlayShape(
-                      overlayRadius: 10,
-                    ),
-                  ),
-                  child: Slider(
-                    min: -45,
-                    max: 45,
-                    value: draft.straighten.clamp(-45.0, 45.0),
-                    onChanged: (v) => ref
-                        .read(cropDraftProvider.notifier)
-                        .update(draft.copyWith(straighten: v)),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 36,
-                child: Text(
-                  '${draft.straighten.toStringAsFixed(1)}°',
-                  textAlign: TextAlign.right,
-                  style: AppTypography.labelSmall.copyWith(
-                    fontFamily: 'monospace',
-                    color: AppColors.mediumText,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        children: [_buildAspectRow(imgW, imgH), _buildRotationRow()],
       ),
+    );
+  }
+
+  Widget _buildAspectRow(double imgW, double imgH) {
+    return Row(
+      children: [
+        // 左：可横向滑动
+        Expanded(
+          child: SizedBox(
+            height: 30,
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {
+                  PointerDeviceKind.mouse,
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.trackpad,
+                },
+              ),
+              child: Listener(
+                onPointerSignal: (signal) {
+                  if (signal is PointerScrollEvent) {
+                    final target =
+                        _scrollController.offset + signal.scrollDelta.dy;
+                    _scrollController.jumpTo(
+                      target.clamp(
+                        0.0,
+                        _scrollController.position.maxScrollExtent,
+                      ),
+                    );
+                  }
+                },
+                child: ListView.separated(
+                  controller: _scrollController,
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _aspects.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 4),
+                  itemBuilder: (ctx, i) {
+                    final entry = _aspects[i];
+                    return _AspectChip(
+                      label: entry.$1,
+                      targetAspect: entry.$2,
+                      imageWidth: imgW,
+                      imageHeight: imgH,
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          width: 1,
+          height: 22,
+          color: AppColors.lightBorder,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+        ),
+        // 右：固定按钮
+        _buildActionButton(
+          tr("reset"),
+          () =>
+              ref.read(cropDraftProvider.notifier).update(CropParams.identity),
+        ),
+        _buildActionButton(tr("cancel"), () => cancelCrop(ref)),
+        const SizedBox(width: 4),
+        FilledButton(
+          onPressed: () => commitCrop(ref),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(54, 28),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: Text(tr("apply"), style: AppTypography.bodyLarge),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton(String label, VoidCallback onPressed) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        minimumSize: Size.zero,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Text(label, style: AppTypography.bodyLarge),
+    );
+  }
+
+  Widget _buildRotationRow() {
+    final draft = ref.watch(cropDraftProvider);
+    return Row(
+      children: [
+        _buildRotateIconButton(
+          angle: math.pi / 2,
+          tooltip: tr("rotate90CCW"),
+          onPressed: () => _rotateBy(-1),
+        ),
+        const SizedBox(width: 2),
+        _buildRotateIconButton(
+          angle: math.pi / 2,
+          tooltip: tr("rotate90CW"),
+          onPressed: () => _rotateBy(1),
+        ),
+        const SizedBox(width: 8),
+        _buildFlipIconButton(
+          angle: math.pi,
+          tooltip: tr("flipHorizontal"),
+          onPressed: () => _toggleFlipH(),
+        ),
+        const SizedBox(width: 2),
+        _buildFlipIconButton(
+          angle: math.pi / 2,
+          tooltip: tr("flipVertical"),
+          onPressed: () => _toggleFlipV(),
+        ),
+        Container(
+          width: 1,
+          height: 16,
+          color: AppColors.faintBorder,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+        ),
+        Icon(Icons.straighten, size: 14, color: AppColors.faintText),
+        const SizedBox(width: 4),
+        Expanded(
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 2,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+            ),
+            child: Slider(
+              min: -45,
+              max: 45,
+              value: draft.straighten.clamp(-45.0, 45.0),
+              onChanged: (v) => ref
+                  .read(cropDraftProvider.notifier)
+                  .update(draft.copyWith(straighten: v)),
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 36,
+          child: Text(
+            '${draft.straighten.toStringAsFixed(1)}°',
+            textAlign: TextAlign.right,
+            style: AppTypography.labelSmall.copyWith(
+              fontFamily: 'monospace',
+              color: AppColors.mediumText,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _rotateBy(int delta) {
+    final current = ref.read(cropDraftProvider);
+    final newOrientation = (current.orientation + delta) % 4;
+    ref
+        .read(cropDraftProvider.notifier)
+        .update(current.copyWith(orientation: newOrientation));
+  }
+
+  void _toggleFlipH() {
+    final current = ref.read(cropDraftProvider);
+    ref
+        .read(cropDraftProvider.notifier)
+        .update(current.copyWith(flipH: !current.flipH));
+  }
+
+  void _toggleFlipV() {
+    final current = ref.read(cropDraftProvider);
+    ref
+        .read(cropDraftProvider.notifier)
+        .update(current.copyWith(flipV: !current.flipV));
+  }
+
+  Widget _buildRotateIconButton({
+    required double angle,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      icon: Transform.rotate(
+        angle: angle,
+        child: const Icon(Icons.rotate_90_degrees_ccw, size: 16),
+      ),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  Widget _buildFlipIconButton({
+    required double angle,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      icon: Transform.rotate(
+        angle: angle,
+        child: const Icon(Icons.flip, size: 16),
+      ),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+      visualDensity: VisualDensity.compact,
     );
   }
 }

@@ -14,7 +14,6 @@ import '../../../../render/thumbnail_renderer.dart';
 import '../../../../services/lut/lut_library.dart';
 import '../../../../state/providers.dart';
 import '../../../../utils/debouncer.dart';
-import '../../tracked_slider.dart';
 import '../shared.dart';
 
 class LutSection extends ConsumerWidget {
@@ -125,244 +124,238 @@ class _LutSlotState extends ConsumerState<_LutSlot> {
     final selected = _findSelected();
     final missing = loaded && selected == null;
 
-    void writeLutName(String name) {
-      final p = ref.read(currentParamsNotifierProvider);
-      final np = widget.slot == 0
-          ? p.copyWith(lutNameA: name)
-          : p.copyWith(lutNameB: name);
-      ref.read(currentParamsNotifierProvider.notifier).update(np);
-    }
-
-    Future<void> onSelect(LutEntry? entry) async {
-      _menuController.close();
-      if (entry != null) {
-        await LutTextureCache.instance.load(entry.name);
-      }
-      writeLutName(entry?.name ?? '');
-    }
-
-    Future<void> onImport() async {
-      _menuController.close();
-      final entries = await ref
-          .read(lutLibraryNotifierProvider.notifier)
-          .importFromFiles();
-      if (entries.isNotEmpty) {
-        // 加载第一个 LUT 的纹理并应用
-        final first = entries.first;
-        await LutTextureCache.instance.load(first.name);
-        writeLutName(first.name);
-        // 预加载其余 LUT 的纹理
-        for (int i = 1; i < entries.length; i++) {
-          LutTextureCache.instance.load(entries[i].name);
-        }
-      }
-    }
-
-    Future<void> onDelete(LutEntry entry) async {
-      final cur = ref.read(currentParamsNotifierProvider);
-      final target = entry.name.toLowerCase();
-      var np = cur;
-      if (cur.lutNameA.toLowerCase() == target) {
-        np = np.copyWith(lutNameA: '');
-      }
-      if (cur.lutNameB.toLowerCase() == target) {
-        np = np.copyWith(lutNameB: '');
-      }
-      if (!identical(np, cur)) {
-        ref.read(currentParamsNotifierProvider.notifier).update(np);
-      }
-      LutTextureCache.instance.invalidate(entry.name);
-      await ref.read(lutLibraryNotifierProvider.notifier).delete(entry);
-    }
-
-    void onIntensityChanged(double v) {
-      final p = ref.read(currentParamsNotifierProvider);
-      final np = widget.slot == 0
-          ? p.copyWith(lutIntensity: v)
-          : p.copyWith(lutIntensityB: v);
-      ref.read(currentParamsNotifierProvider.notifier).update(np);
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 2),
-          child: Text(
-            widget.label,
-            style: AppTypography.labelSmall.copyWith(
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
-              color: AppColors.disabledText,
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: MenuAnchor(
-                  controller: _menuController,
-                  style: MenuStyle(
-                    padding: WidgetStateProperty.all(EdgeInsets.zero),
-                    minimumSize: WidgetStateProperty.all(const Size(280, 0)),
-                    maximumSize: WidgetStateProperty.all(const Size(280, 360)),
-                  ),
-                  builder: (context, controller, child) {
-                    return InkWell(
-                      onTap: () => controller.isOpen
-                          ? controller.close()
-                          : controller.open(),
-                      borderRadius: BorderRadius.circular(4),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                selected != null
-                                    ? selected.name
-                                    : (widget.library.isEmpty
-                                          ? tr("notImportedLUT")
-                                          : tr("notChosen")),
-                                style: AppTypography.bodyLarge,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_drop_down,
-                              size: 18,
-                              color: AppColors.faintText,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  menuChildren: widget.library.isEmpty
-                      ? [
-                          Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Center(
-                              child: Text(
-                                tr("notImportedLUT"),
-                                style: AppTypography.bodyLarge,
-                              ),
-                            ),
-                          ),
-                        ]
-                      : [
-                          ListTile(
-                            dense: true,
-                            title: Text(
-                              tr("notChosen"),
-                              style: AppTypography.bodyLarge.copyWith(
-                                color: AppColors.faintText,
-                              ),
-                            ),
-                            onTap: () => onSelect(null),
-                          ),
-                          ...widget.library.map((entry) {
-                            return _LutMenuItem(
-                              entry: entry,
-                              thumb: widget.thumbs['lut:${entry.name}'],
-                              isRendering: widget.rendering.contains(
-                                entry.name,
-                              ),
-                              onSelect: () => onSelect(entry),
-                              onVisible: () => widget.onItemVisible(entry),
-                            );
-                          }),
-                        ],
-                ),
-              ),
-              if (selected != null)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 16),
-                  visualDensity: VisualDensity.compact,
-                  tooltip: tr("deleteCurrentLUT"),
-                  onPressed: () =>
-                      _confirmDelete(context, ref, selected, onDelete),
-                ),
-              IconButton(
-                icon: const Icon(Icons.file_upload_outlined, size: 18),
-                visualDensity: VisualDensity.compact,
-                tooltip: tr("importCube"),
-                onPressed: onImport,
-              ),
-            ],
-          ),
-        ),
-        if (missing)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 13,
-                  color: AppColors.semanticWarning.withValues(alpha: 0.85),
-                ),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    tr('lutMissing', args: [widget.lutName!]),
-                    style: AppTypography.labelMedium.copyWith(
-                      color: AppColors.semanticWarning.withValues(alpha: 0.85),
-                    ),
-                    maxLines: 2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        if (_isVlt)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
-            child: Text(
-              tr("lutVltHint"),
-              style: AppTypography.labelMedium.copyWith(
-                color: AppColors.semanticWarning.withValues(alpha: 0.75),
-              ),
-            ),
-          ),
+        _buildLabel(context),
+        _buildSelectorRow(context, ref, selected, missing),
+        if (missing) _buildMissingWarning(context),
+        if (_isVlt) _buildVltHint(context),
         if (loaded) ...[
           const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+          _buildIntensitySlider(context),
+        ],
+      ],
+    );
+  }
+
+  void _writeLutName(String name) {
+    final p = ref.read(currentParamsNotifierProvider);
+    final np = widget.slot == 0
+        ? p.copyWith(lutNameA: name)
+        : p.copyWith(lutNameB: name);
+    ref.read(currentParamsNotifierProvider.notifier).update(np);
+  }
+
+  Future<void> _onSelect(LutEntry? entry) async {
+    _menuController.close();
+    if (entry != null) await LutTextureCache.instance.load(entry.name);
+    _writeLutName(entry?.name ?? '');
+  }
+
+  Future<void> _onImport() async {
+    _menuController.close();
+    final entries = await ref
+        .read(lutLibraryNotifierProvider.notifier)
+        .importFromFiles();
+    if (entries.isNotEmpty) {
+      final first = entries.first;
+      await LutTextureCache.instance.load(first.name);
+      _writeLutName(first.name);
+      for (int i = 1; i < entries.length; i++) {
+        LutTextureCache.instance.load(entries[i].name);
+      }
+    }
+  }
+
+  Future<void> _onDeleteEntry(LutEntry entry) async {
+    final cur = ref.read(currentParamsNotifierProvider);
+    final target = entry.name.toLowerCase();
+    var np = cur;
+    if (cur.lutNameA.toLowerCase() == target) np = np.copyWith(lutNameA: '');
+    if (cur.lutNameB.toLowerCase() == target) np = np.copyWith(lutNameB: '');
+    if (!identical(np, cur)) {
+      ref.read(currentParamsNotifierProvider.notifier).update(np);
+    }
+    LutTextureCache.instance.invalidate(entry.name);
+    await ref.read(lutLibraryNotifierProvider.notifier).delete(entry);
+  }
+
+  void _onIntensityChanged(double v) {
+    final p = ref.read(currentParamsNotifierProvider);
+    final np = widget.slot == 0
+        ? p.copyWith(lutIntensity: v)
+        : p.copyWith(lutIntensityB: v);
+    ref.read(currentParamsNotifierProvider.notifier).update(np);
+  }
+
+  Widget _buildSelectorRow(
+    BuildContext context,
+    WidgetRef ref,
+    LutEntry? selected,
+    bool missing,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(child: _buildMenuAnchor(selected, _onSelect)),
+          if (selected != null)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 16),
+              visualDensity: VisualDensity.compact,
+              tooltip: tr("deleteCurrentLUT"),
+              onPressed: () =>
+                  _confirmDelete(context, ref, selected, _onDeleteEntry),
+            ),
+          IconButton(
+            icon: const Icon(Icons.file_upload_outlined, size: 18),
+            visualDensity: VisualDensity.compact,
+            tooltip: tr("importCube"),
+            onPressed: _onImport,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIntensitySlider(BuildContext context) {
+    return DevelopSliderTile(
+      label: tr('lutIntensity'),
+      value: widget.intensity * 100,
+      min: 0,
+      max: 100,
+      suffix: '%',
+      onChanged: (v) => _onIntensityChanged(v / 100),
+    );
+  }
+
+  Widget _buildLabel(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 2),
+      child: Text(
+        widget.label,
+        style: AppTypography.labelSmall.copyWith(
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.0,
+          color: AppColors.disabledText,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuAnchor(
+    LutEntry? selected,
+    Future<void> Function(LutEntry?) onSelect,
+  ) {
+    return MenuAnchor(
+      controller: _menuController,
+      style: MenuStyle(
+        padding: WidgetStateProperty.all(EdgeInsets.zero),
+        minimumSize: WidgetStateProperty.all(const Size(280, 0)),
+        maximumSize: WidgetStateProperty.all(const Size(280, 360)),
+      ),
+      builder: (context, controller, child) {
+        return InkWell(
+          onTap: () =>
+              controller.isOpen ? controller.close() : controller.open(),
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               children: [
-                SizedBox(
-                  width: 64,
-                  child: Text(tr("intensity"), style: AppTypography.bodyMedium),
-                ),
                 Expanded(
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(trackHeight: 3),
-                    child: TrackedSlider(
-                      value: widget.intensity.clamp(0.0, 1.0),
-                      onChanged: onIntensityChanged,
-                    ),
+                  child: Text(
+                    selected != null
+                        ? selected.name
+                        : (widget.library.isEmpty
+                              ? tr("notImportedLUT")
+                              : tr("notChosen")),
+                    style: AppTypography.bodyLarge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                SizedBox(
-                  width: 36,
-                  child: Text(
-                    '${(widget.intensity * 100).round()}',
-                    textAlign: TextAlign.right,
-                    style: AppTypography.labelMedium.copyWith(
-                      fontFamily: 'monospace',
-                      color: AppColors.activeValue,
-                    ),
-                  ),
+                Icon(
+                  Icons.arrow_drop_down,
+                  size: 18,
+                  color: AppColors.faintText,
                 ),
               ],
+            ),
+          ),
+        );
+      },
+      menuChildren: widget.library.isEmpty
+          ? [
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Center(
+                  child: Text(
+                    tr("notImportedLUT"),
+                    style: AppTypography.bodyLarge,
+                  ),
+                ),
+              ),
+            ]
+          : [
+              ListTile(
+                dense: true,
+                title: Text(
+                  tr("notChosen"),
+                  style: AppTypography.bodyLarge.copyWith(
+                    color: AppColors.faintText,
+                  ),
+                ),
+                onTap: () => onSelect(null),
+              ),
+              ...widget.library.map((entry) {
+                return _LutMenuItem(
+                  entry: entry,
+                  thumb: widget.thumbs['lut:${entry.name}'],
+                  isRendering: widget.rendering.contains(entry.name),
+                  onSelect: () => onSelect(entry),
+                  onVisible: () => widget.onItemVisible(entry),
+                );
+              }),
+            ],
+    );
+  }
+
+  Widget _buildMissingWarning(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 13,
+            color: AppColors.semanticWarning.withValues(alpha: 0.85),
+          ),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              tr('lutMissing', args: [widget.lutName!]),
+              style: AppTypography.labelMedium.copyWith(
+                color: AppColors.semanticWarning.withValues(alpha: 0.85),
+              ),
+              maxLines: 2,
             ),
           ),
         ],
-      ],
+      ),
+    );
+  }
+
+  Widget _buildVltHint(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
+      child: Text(
+        tr("lutVltHint"),
+        style: AppTypography.labelMedium.copyWith(
+          color: AppColors.semanticWarning.withValues(alpha: 0.75),
+        ),
+      ),
     );
   }
 
@@ -447,16 +440,11 @@ class _LutMenuItemState extends State<_LutMenuItem> {
       key: Key('lut_menu_item_${widget.entry.name}'),
       onVisibilityChanged: (VisibilityInfo info) {
         if (!mounted) return;
-
         final visible = info.visibleFraction > 0;
-
         if (visible != _isVisible) {
           _isVisible = visible;
-          if (!_isVisible) {
-            _debouncer.cancel();
-          }
+          if (!_isVisible) _debouncer.cancel();
         }
-
         if (_isVisible && widget.thumb == null && !widget.isRendering) {
           _triggerVisible();
         }
@@ -467,27 +455,7 @@ class _LutMenuItemState extends State<_LutMenuItem> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: SizedBox(
-                  width: 40,
-                  height: 27,
-                  child: widget.thumb != null
-                      ? RawImage(image: widget.thumb, fit: BoxFit.cover)
-                      : Container(
-                          color: AppColors.subtleBorder,
-                          child: widget.isRendering
-                              ? Padding(
-                                  padding: const EdgeInsets.all(6),
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 1.5,
-                                    color: AppColors.disabledText,
-                                  ),
-                                )
-                              : null,
-                        ),
-                ),
-              ),
+              _buildThumbnail(),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -500,18 +468,46 @@ class _LutMenuItemState extends State<_LutMenuItem> {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
-                widget.entry.ext.toUpperCase(),
-                style: AppTypography.labelSmall.copyWith(
-                  fontFamily: 'monospace',
-                  color: widget.entry.ext == 'vlt'
-                      ? AppColors.semanticWarning.withValues(alpha: 0.7)
-                      : AppColors.dividerLine,
-                ),
-              ),
+              _buildExtBadge(),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnail() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(3),
+      child: SizedBox(
+        width: 40,
+        height: 27,
+        child: widget.thumb != null
+            ? RawImage(image: widget.thumb, fit: BoxFit.cover)
+            : Container(
+                color: AppColors.subtleBorder,
+                child: widget.isRendering
+                    ? Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: AppColors.disabledText,
+                        ),
+                      )
+                    : null,
+              ),
+      ),
+    );
+  }
+
+  Widget _buildExtBadge() {
+    return Text(
+      widget.entry.ext.toUpperCase(),
+      style: AppTypography.labelSmall.copyWith(
+        fontFamily: 'monospace',
+        color: widget.entry.ext == 'vlt'
+            ? AppColors.semanticWarning.withValues(alpha: 0.7)
+            : AppColors.dividerLine,
       ),
     );
   }

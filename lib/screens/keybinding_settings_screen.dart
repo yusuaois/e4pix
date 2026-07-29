@@ -31,139 +31,151 @@ class KeybindingSettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final st = ref.watch(keybindingServiceProvider);
-    final notifier = ref.read(keybindingServiceProvider.notifier);
-
-    Future<void> record(AppAction action) async {
-      final result = await showDialog(
-        context: context,
-        builder: (_) => _KeyRecordDialog(action: action),
-      );
-      if (!context.mounted) return;
-      if (result == null) return; // 取消
-      if (result == 'CLEAR') {
-        await notifier.clearBinding(action);
-        return;
-      }
-      final key = result as LogicalKeyboardKey;
-      // 冲突预览
-      final conflict = notifier.conflictFor(key, action);
-      if (conflict != null) {
-        final ok = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            backgroundColor: AppColors.elevatedBg,
-            title: Text(tr('keyConflictTitle')),
-            content: Text(
-              tr(
-                'keyConflictBody',
-                args: [keyDisplayName(key), tr(conflict.labelKey)],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text(tr('cancel')),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: Text(tr('keyConflictOverride')),
-              ),
-            ],
-          ),
-        );
-        if (!context.mounted) return;
-        if (ok != true) return;
-      }
-      await notifier.setBinding(action, key);
-    }
-
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
-      appBar: AppBar(
-        title: Text(tr('settingsKeybindings')),
-        backgroundColor: AppColors.scaffoldBg,
-        elevation: 0,
-        actions: [
-          TextButton(
-            onPressed: () async {
-              final ok = await showDialog<bool>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  backgroundColor: AppColors.elevatedBg,
-                  title: Text(tr('keyResetTitle')),
-                  content: Text(tr('keyResetBody')),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: Text(tr('cancel')),
-                    ),
-                    FilledButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: Text(tr('reset')),
-                    ),
-                  ],
-                ),
-              );
-              if (ok == true) await notifier.resetDefaults();
-            },
-            child: Text(tr('reset')),
-          ),
-        ],
-      ),
-      body: ListView(
-        children: [
-          for (final entry in _groups.entries) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
-              child: Text(
-                tr(entry.key).toUpperCase(),
-                style: AppTypography.labelSmall.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                  color: AppColors.faintText,
-                ),
+      appBar: _buildAppBar(context, ref),
+      body: _buildBody(context, ref, st),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(keybindingServiceProvider.notifier);
+    return AppBar(
+      title: Text(tr('settingsKeybindings')),
+      backgroundColor: AppColors.scaffoldBg,
+      elevation: 0,
+      actions: [
+        TextButton(
+          onPressed: () async {
+            final ok = await showDialog<bool>(
+              context: context,
+              builder: (_) => AlertDialog(
+                backgroundColor: AppColors.elevatedBg,
+                title: Text(tr('keyResetTitle')),
+                content: Text(tr('keyResetBody')),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text(tr('cancel')),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text(tr('reset')),
+                  ),
+                ],
+              ),
+            );
+            if (ok == true) await notifier.resetDefaults();
+          },
+          child: Text(tr('reset')),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBody(BuildContext context, WidgetRef ref, dynamic st) {
+    return ListView(
+      children: [
+        for (final entry in _groups.entries) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
+            child: Text(
+              tr(entry.key).toUpperCase(),
+              style: AppTypography.labelSmall.copyWith(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+                color: AppColors.faintText,
               ),
             ),
-            for (final action in entry.value)
-              ListTile(
-                dense: true,
-                title: Text(
-                  tr(action.labelKey),
-                  style: AppTypography.titleMedium,
-                ),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: st.keyFor(action) == null
-                        ? Colors.transparent
-                        : AppColors.dividerLine,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: st.keyFor(action) == null
-                          ? AppColors.semanticWarning.withValues(alpha: 0.5)
-                          : AppColors.lightBorder,
-                    ),
-                  ),
-                  child: Text(
-                    keyDisplayName(st.keyFor(action)),
-                    style: AppTypography.bodyLarge.copyWith(
-                      fontFamily: 'monospace',
-                      color: st.keyFor(action) == null
-                          ? AppColors.semanticWarning
-                          : AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                onTap: () => record(action),
+          ),
+          for (final action in entry.value)
+            ListTile(
+              dense: true,
+              title: Text(
+                tr(action.labelKey),
+                style: AppTypography.titleMedium,
               ),
-          ],
-          const SizedBox(height: 20),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: st.keyFor(action) == null
+                      ? Colors.transparent
+                      : AppColors.dividerLine,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: st.keyFor(action) == null
+                        ? AppColors.semanticWarning.withValues(alpha: 0.5)
+                        : AppColors.lightBorder,
+                  ),
+                ),
+                child: Text(
+                  keyDisplayName(st.keyFor(action)),
+                  style: AppTypography.bodyLarge.copyWith(
+                    fontFamily: 'monospace',
+                    color: st.keyFor(action) == null
+                        ? AppColors.semanticWarning
+                        : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              onTap: () => _recordBinding(context, ref, action),
+            ),
         ],
-      ),
+        const SizedBox(height: 20),
+      ],
     );
+  }
+
+  Future<void> _recordBinding(
+    BuildContext context,
+    WidgetRef ref,
+    AppAction action,
+  ) async {
+    final notifier = ref.read(keybindingServiceProvider.notifier);
+    final result = await showDialog(
+      context: context,
+      builder: (_) => _KeyRecordDialog(action: action),
+    );
+    if (!context.mounted) return;
+    if (result == null) return; // 取消
+    if (result == 'CLEAR') {
+      await notifier.clearBinding(action);
+      return;
+    }
+    final key = result as LogicalKeyboardKey;
+    // 冲突预览
+    final conflict = notifier.conflictFor(key, action);
+    if (conflict != null) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.elevatedBg,
+          title: Text(tr('keyConflictTitle')),
+          content: Text(
+            tr(
+              'keyConflictBody',
+              args: [keyDisplayName(key), tr(conflict.labelKey)],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(tr('cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(tr('keyConflictOverride')),
+            ),
+          ],
+        ),
+      );
+      if (!context.mounted) return;
+      if (ok != true) return;
+    }
+    await notifier.setBinding(action, key);
   }
 }
 
@@ -201,6 +213,51 @@ class _KeyRecordDialogState extends State<_KeyRecordDialog> {
 
   bool get _isHold => widget.action.isHold;
 
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.handled;
+    final key = event.logicalKey;
+
+    final forbidden = _isHold ? _forbiddenHold : _forbiddenNonHold;
+    if (forbidden.contains(key)) {
+      setState(() => _error = tr('keyForbidden'));
+      return KeyEventResult.handled;
+    }
+    if (!_isHold &&
+        (HardwareKeyboard.instance.isControlPressed ||
+            HardwareKeyboard.instance.isAltPressed ||
+            HardwareKeyboard.instance.isMetaPressed ||
+            HardwareKeyboard.instance.isShiftPressed)) {
+      setState(() => _error = tr('keyForbidden'));
+      return KeyEventResult.handled;
+    }
+
+    Navigator.pop(context, key);
+    return KeyEventResult.handled;
+  }
+
+  Widget _buildContent() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          tr('keyPressPrompt'),
+          style: AppTypography.bodyLarge.copyWith(color: AppColors.mediumText),
+        ),
+        const SizedBox(height: 12),
+        Icon(Icons.keyboard, size: 40, color: AppColors.disabledText),
+        if (_error != null) ...[
+          const SizedBox(height: 10),
+          Text(
+            _error!,
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.semanticWarning,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -208,60 +265,16 @@ class _KeyRecordDialogState extends State<_KeyRecordDialog> {
       title: Text(tr(widget.action.labelKey)),
       content: Focus(
         autofocus: true,
-        onKeyEvent: (node, event) {
-          if (event is! KeyDownEvent) return KeyEventResult.handled;
-          final key = event.logicalKey;
-
-          // hold 型动作：允许修饰键，只禁止 Esc/Enter
-          // 非 hold 型：禁止修饰键 + Esc/Enter
-          final forbidden = _isHold ? _forbiddenHold : _forbiddenNonHold;
-          if (forbidden.contains(key)) {
-            setState(() => _error = tr('keyForbidden'));
-            return KeyEventResult.handled;
-          }
-          // 非 hold 型：有修饰键组合时也禁止
-          if (!_isHold &&
-              (HardwareKeyboard.instance.isControlPressed ||
-                  HardwareKeyboard.instance.isAltPressed ||
-                  HardwareKeyboard.instance.isMetaPressed ||
-                  HardwareKeyboard.instance.isShiftPressed)) {
-            setState(() => _error = tr('keyForbidden'));
-            return KeyEventResult.handled;
-          }
-
-          Navigator.pop(context, key); // 返回捕获的键
-          return KeyEventResult.handled;
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              tr('keyPressPrompt'),
-              style: AppTypography.bodyLarge.copyWith(
-                color: AppColors.mediumText,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Icon(Icons.keyboard, size: 40, color: AppColors.disabledText),
-            if (_error != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                _error!,
-                style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.semanticWarning,
-                ),
-              ),
-            ],
-          ],
-        ),
+        onKeyEvent: _onKey,
+        child: _buildContent(),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context, 'CLEAR'), // 清除绑定
+          onPressed: () => Navigator.pop(context, 'CLEAR'),
           child: Text(tr('keyClear')),
         ),
         TextButton(
-          onPressed: () => Navigator.pop(context, null), // 取消
+          onPressed: () => Navigator.pop(context, null),
           child: Text(tr('cancel')),
         ),
       ],

@@ -386,21 +386,27 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         MediaQuery.of(context).orientation == Orientation.portrait;
     final landscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
+    _syncImmersiveMode(landscape);
+    final isFullscreen = ref.watch(fullscreenPreviewProvider);
+    final keys = ref.watch(keybindingServiceProvider);
+    _setupListeners(ref);
+    if (isFullscreen) return _buildFullscreen();
+    return _buildScaffold(context, ref, isVertical, keys);
+  }
+
+  void _syncImmersiveMode(bool landscape) {
     if (landscape != _immersiveOn) {
       _immersiveOn = landscape;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         SystemChrome.setEnabledSystemUIMode(
-          landscape
-              ? SystemUiMode
-                    .immersiveSticky // 横屏：隐藏状态/导航栏，下拉临时显示后自动收起
-              : SystemUiMode.edgeToEdge, // 竖屏：正常显示
+          landscape ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
         );
       });
     }
-    final isFullscreen = ref.watch(fullscreenPreviewProvider);
-    final keys = ref.watch(keybindingServiceProvider);
-    // 持久化
+  }
+
+  void _setupListeners(WidgetRef ref) {
     ref.listen(currentParamsNotifierProvider, (prev, next) {
       if (!ref.read(sidecarEnabledProvider)) return;
       final activePath = ref.read(activeShotPathProvider);
@@ -410,12 +416,11 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
           .read(sidecarWriterProvider)
           .schedule(
             activePath,
-            next, // 最新参数
+            next,
             active?.rating ?? 0,
             active?.flag ?? ShotFlag.none,
           );
     });
-    // 监听过滤条件变化
     ref.listen(filteredShotsProvider, (prev, next) {
       final active = ref.read(activeShotPathProvider);
       if (next.isEmpty) return;
@@ -425,38 +430,35 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
         ref.read(activeFilePathProvider.notifier).set(first.path);
       }
     });
-    // 监听曲线变化
     ref.listen(currentParamsNotifierProvider.select((p) => p.curves), (
       prev,
       next,
     ) {
       ref.read(curveTextureProvider.notifier).update(next);
     });
-    // 监听相机错误
     ref.listen(cameraNotifierProvider, (prev, next) {
       if (next.lastError != null && prev?.lastError != next.lastError) {
         _snack(tr('cameraError', args: [next.lastError!]));
       }
     });
-    // 图片加载/切换监听
     ref.listen(imageNotifierProvider, (prev, next) {
       final prevPath = prev?.value?.path;
       final nextPath = next.value?.path;
-
-      // 加载lensfun数据库
       if (next.value != null && prev?.value == null) {
         LensfunDatabase.instance.ensureLoaded();
       }
-
-      // 切换图片（非首次加载）→ 退出活跃画笔
       if (prevPath != null && nextPath != null && prevPath != nextPath) {
         exitCurrentTool(ref);
       }
     });
-    if (isFullscreen) {
-      return _buildFullscreen();
-    }
+  }
 
+  Widget _buildScaffold(
+    BuildContext context,
+    WidgetRef ref,
+    bool isVertical,
+    KeybindingState keys,
+  ) {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -514,7 +516,7 @@ class _DevelopScreenState extends ConsumerState<DevelopScreen> {
               Positioned(
                 top: MediaQuery.of(context).padding.top + 8,
                 right: 8,
-                child: FullscreenExitButton(),
+                child: const FullscreenExitButton(),
               ),
             ],
           ),

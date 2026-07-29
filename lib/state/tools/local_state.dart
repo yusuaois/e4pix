@@ -24,10 +24,10 @@ final selectedLocalProvider = Provider<LocalAdjustment?>((ref) {
   final id = ref.watch(selectedLocalIdProvider);
   if (id == null) return null;
   final all = ref.watch(currentParamsNotifierProvider).locals;
-  return all.cast<LocalAdjustment?>().firstWhere(
-    (l) => l!.id == id,
-    orElse: () => null,
-  );
+  for (final l in all) {
+    if (l.id == id) return l;
+  }
+  return null;
 });
 
 class LocalAdjustmentActions {

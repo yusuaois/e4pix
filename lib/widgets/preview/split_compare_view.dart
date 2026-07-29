@@ -80,183 +80,180 @@ class _SplitCompareViewState extends ConsumerState<SplitCompareView> {
           onDoubleTap: _exitSplit,
           child: Stack(
             children: [
-              Center(
-                child: SizedBox.fromSize(
-                  size: displaySize,
-                  child: Stack(
-                    children: [
-                      // 底层：完整渲染的已编辑图像（不裁剪）
-                      Positioned.fill(
-                        child: RepaintBoundary(
-                          child: MultiPassPreview(
-                            developProgram: widget.developProgram,
-                            maskProgram: widget.maskProgram,
-                            sourceImage: widget.image,
-                            params: widget.params,
-                            lutTexture: widget.lutA,
-                            lutSize: widget.lutSizeA,
-                            lutTextureB: widget.lutB,
-                            lutSizeB: widget.lutSizeB,
-                            curveTexture: widget.curve,
-                            sharpenProgram: widget.sharpenProgram,
-                            denoiseProgram: widget.denoiseProgram,
-                            perspectiveProgram: widget.perspectiveProgram,
-                            lensCorrectProgram: widget.lensCorrectProgram,
-                          ),
-                        ),
-                      ),
-
-                      // 左侧遮罩：原始图像（裁剪至分隔线左侧）
-                      ValueListenableBuilder<double>(
-                        valueListenable: _dividerNotifier,
-                        builder: (context, divider, _) {
-                          return ClipRect(
-                            clipper: _LeftClipper(divider),
-                            child: RepaintBoundary(
-                              child: MultiPassPreview(
-                                developProgram: widget.developProgram,
-                                maskProgram: widget.maskProgram,
-                                sourceImage: widget.image,
-                                params: AdjustmentParams.neutral,
-                                lutTexture: null,
-                                lutSize: 0,
-                                lutTextureB: null,
-                                lutSizeB: 0,
-                                curveTexture: null,
-                                sharpenProgram: null,
-                                denoiseProgram: null,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ── 分隔手柄 + 标签 ──
-              Center(
-                child: SizedBox.fromSize(
-                  size: displaySize,
-                  child: ValueListenableBuilder<double>(
-                    valueListenable: _dividerNotifier,
-                    builder: (context, divider, child) {
-                      return Stack(
-                        children: [
-                          // 分隔线
-                          Positioned(
-                            left: displaySize.width * divider - 1,
-                            top: 0,
-                            bottom: 0,
-                            child: IgnorePointer(
-                              child: Container(
-                                width: 2,
-                                color: AppColors.activeValue,
-                              ),
-                            ),
-                          ),
-                          // 拖拽手柄
-                          Positioned(
-                            left: displaySize.width * divider - 32,
-                            top: 0,
-                            bottom: 0,
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onHorizontalDragUpdate: (d) {
-                                _dividerNotifier.value =
-                                    (_dividerNotifier.value +
-                                            d.delta.dx / displaySize.width)
-                                        .clamp(0.02, 0.98);
-                              },
-                              onHorizontalDragEnd: (_) {
-                                ref
-                                    .read(splitDividerProvider.notifier)
-                                    .set(_dividerNotifier.value);
-                              },
-                              child: Container(
-                                width: 64,
-                                height: double.infinity,
-                                color: Colors.transparent,
-                                alignment: Alignment.center,
-                                child: Container(
-                                  width: 32,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.activeValue,
-                                    borderRadius: BorderRadius.circular(4),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Center(
-                                    child: RotatedBox(
-                                      quarterTurns: 1,
-                                      child: Icon(
-                                        Icons.unfold_more,
-                                        size: 16,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
-
-              // 标签：根据显示宽度缩放，防止窄屏下重叠
-              Center(
-                child: SizedBox.fromSize(
-                  size: displaySize,
-                  child: ValueListenableBuilder<double>(
-                    valueListenable: _dividerNotifier,
-                    builder: (context, divider, _) {
-                      final labelScale = (displaySize.width / 250).clamp(
-                        0.55,
-                        1.0,
-                      );
-                      return Stack(
-                        children: [
-                          Positioned(
-                            left: 8 * labelScale,
-                            top: 8 * labelScale,
-                            child: _Label(
-                              text: 'Original',
-                              alpha: divider > 0.3 ? 0.7 : 0.2,
-                              scale: labelScale,
-                            ),
-                          ),
-                          Positioned(
-                            right: 8 * labelScale,
-                            top: 8 * labelScale,
-                            child: _Label(
-                              text: 'Edited',
-                              alpha: divider < 0.7 ? 0.7 : 0.2,
-                              scale: labelScale,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
+              Center(child: _buildImageStack(displaySize)),
+              _buildDividerOverlay(displaySize),
+              _buildLabelOverlay(displaySize),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildImageStack(Size displaySize) {
+    return SizedBox.fromSize(
+      size: displaySize,
+      child: Stack(
+        children: [
+          Positioned.fill(child: RepaintBoundary(child: _buildEditedPreview())),
+          ValueListenableBuilder<double>(
+            valueListenable: _dividerNotifier,
+            builder: (context, divider, _) {
+              return ClipRect(
+                clipper: _LeftClipper(divider),
+                child: RepaintBoundary(child: _buildOriginalPreview()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditedPreview() {
+    return MultiPassPreview(
+      developProgram: widget.developProgram,
+      maskProgram: widget.maskProgram,
+      sourceImage: widget.image,
+      params: widget.params,
+      lutTexture: widget.lutA,
+      lutSize: widget.lutSizeA,
+      lutTextureB: widget.lutB,
+      lutSizeB: widget.lutSizeB,
+      curveTexture: widget.curve,
+      sharpenProgram: widget.sharpenProgram,
+      denoiseProgram: widget.denoiseProgram,
+      perspectiveProgram: widget.perspectiveProgram,
+      lensCorrectProgram: widget.lensCorrectProgram,
+    );
+  }
+
+  Widget _buildOriginalPreview() {
+    return MultiPassPreview(
+      developProgram: widget.developProgram,
+      maskProgram: widget.maskProgram,
+      sourceImage: widget.image,
+      params: AdjustmentParams.neutral,
+      lutTexture: null,
+      lutSize: 0,
+      lutTextureB: null,
+      lutSizeB: 0,
+      curveTexture: null,
+      sharpenProgram: null,
+      denoiseProgram: null,
+    );
+  }
+
+  Widget _buildDividerOverlay(Size displaySize) {
+    return Center(
+      child: SizedBox.fromSize(
+        size: displaySize,
+        child: ValueListenableBuilder<double>(
+          valueListenable: _dividerNotifier,
+          builder: (context, divider, child) {
+            return Stack(
+              children: [
+                // 分隔线
+                Positioned(
+                  left: displaySize.width * divider - 1,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Container(width: 2, color: AppColors.activeValue),
+                  ),
+                ),
+                // 拖拽手柄
+                Positioned(
+                  left: displaySize.width * divider - 32,
+                  top: 0,
+                  bottom: 0,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onHorizontalDragUpdate: (d) {
+                      _dividerNotifier.value =
+                          (_dividerNotifier.value +
+                                  d.delta.dx / displaySize.width)
+                              .clamp(0.02, 0.98);
+                    },
+                    onHorizontalDragEnd: (_) {
+                      ref
+                          .read(splitDividerProvider.notifier)
+                          .set(_dividerNotifier.value);
+                    },
+                    child: Container(
+                      width: 64,
+                      height: double.infinity,
+                      color: Colors.transparent,
+                      alignment: Alignment.center,
+                      child: Container(
+                        width: 32,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.activeValue,
+                          borderRadius: BorderRadius.circular(4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: RotatedBox(
+                            quarterTurns: 1,
+                            child: Icon(
+                              Icons.unfold_more,
+                              size: 16,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabelOverlay(Size displaySize) {
+    return Center(
+      child: SizedBox.fromSize(
+        size: displaySize,
+        child: ValueListenableBuilder<double>(
+          valueListenable: _dividerNotifier,
+          builder: (context, divider, _) {
+            final labelScale = (displaySize.width / 250).clamp(0.55, 1.0);
+            return Stack(
+              children: [
+                Positioned(
+                  left: 8 * labelScale,
+                  top: 8 * labelScale,
+                  child: _Label(
+                    text: 'Original',
+                    alpha: divider > 0.3 ? 0.7 : 0.2,
+                    scale: labelScale,
+                  ),
+                ),
+                Positioned(
+                  right: 8 * labelScale,
+                  top: 8 * labelScale,
+                  child: _Label(
+                    text: 'Edited',
+                    alpha: divider < 0.7 ? 0.7 : 0.2,
+                    scale: labelScale,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }

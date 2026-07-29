@@ -57,21 +57,13 @@ class _SrSectionState extends ConsumerState<SrSection> {
   Widget build(BuildContext context) {
     final p = widget.params;
     final previewEnabled = ref.watch(srPreviewEnabledProvider);
-
-    // 参数重置时同步关闭预览开关
-    if (!p.srEnabled && previewEnabled) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) ref.read(srPreviewEnabledProvider.notifier).set(false);
-      });
-    }
+    _syncPreviewOffIfDisabled(p, previewEnabled);
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionLabel(title: 'Super Resolution'),
-
-          // ── 总开关 ──
           SwitchTile.tile(
             label: tr('superResEnable'),
             value: p.srEnabled,
@@ -80,92 +72,107 @@ class _SrSectionState extends ConsumerState<SrSection> {
               if (v && !_modelLoaded) _loadModel();
             },
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          _buildHint(),
+          if (p.srEnabled) _buildEnabledContent(previewEnabled),
+        ],
+      ),
+    );
+  }
+
+  void _syncPreviewOffIfDisabled(AdjustmentParams p, bool previewEnabled) {
+    if (!p.srEnabled && previewEnabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(srPreviewEnabledProvider.notifier).set(false);
+      });
+    }
+  }
+
+  Widget _buildHint() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Text(
+        tr('superResExperimentalHint'),
+        style: AppTypography.bodySmall.copyWith(color: AppColors.disabledText),
+      ),
+    );
+  }
+
+  Widget _buildEnabledContent(bool previewEnabled) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 4),
+        _buildScaleDisplay(),
+        SwitchTile.tile(
+          label: tr('superResPreview'),
+          value: previewEnabled,
+          onChanged: (v) {
+            ref.read(srPreviewEnabledProvider.notifier).set(v);
+          },
+        ),
+        _buildModelStatusRow(),
+      ],
+    );
+  }
+
+  Widget _buildScaleDisplay() {
+    final p = widget.params;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      child: Row(
+        children: [
+          Text(tr('superResScale'), style: AppTypography.titleSmall),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.elevatedBg,
+              borderRadius: BorderRadius.circular(6),
+            ),
             child: Text(
-              tr('superResExperimentalHint'),
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.disabledText,
+              '${p.srScale}x',
+              style: AppTypography.bodyLarge.copyWith(
+                color: AppColors.activeValue,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          // ── 开启后的内容 ──
-          if (p.srEnabled) ...[
-            const SizedBox(height: 4),
-
-            // 放大倍数
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-              child: Row(
-                children: [
-                  Text(tr('superResScale'), style: AppTypography.titleSmall),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.elevatedBg,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '${p.srScale}x',
-                      style: AppTypography.bodyLarge.copyWith(
-                        color: AppColors.activeValue,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // 预览效果开关
-            SwitchTile.tile(
-              label: tr('superResPreview'),
-              value: previewEnabled,
-              onChanged: (v) {
-                ref.read(srPreviewEnabledProvider.notifier).set(v);
-              },
-            ),
-
-            // 模型状态
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                children: [
-                  Icon(
-                    _modelLoaded
-                        ? Icons.check_circle_outline
-                        : (_modelLoading
-                              ? Icons.hourglass_top
-                              : Icons.cloud_download_outlined),
-                    size: 16,
-                    color: _modelLoaded
-                        ? AppColors.semanticSuccess
-                        : (_modelLoading
-                              ? AppColors.semanticWarning
-                              : AppColors.disabledText),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _modelLoaded
-                        ? tr('superResModelLoaded')
-                        : (_modelLoading
-                              ? tr('superResModelLoading')
-                              : tr('superResModelNotLoaded')),
-                    style: AppTypography.labelMedium.copyWith(
-                      color: _modelLoaded
-                          ? AppColors.semanticSuccess
-                          : AppColors.disabledText,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+  Widget _buildModelStatusRow() {
+    IconData icon;
+    Color iconColor;
+    String label;
+    Color labelColor;
+    if (_modelLoaded) {
+      icon = Icons.check_circle_outline;
+      iconColor = AppColors.semanticSuccess;
+      label = tr('superResModelLoaded');
+      labelColor = AppColors.semanticSuccess;
+    } else if (_modelLoading) {
+      icon = Icons.hourglass_top;
+      iconColor = AppColors.semanticWarning;
+      label = tr('superResModelLoading');
+      labelColor = AppColors.disabledText;
+    } else {
+      icon = Icons.cloud_download_outlined;
+      iconColor = AppColors.disabledText;
+      label = tr('superResModelNotLoaded');
+      labelColor = AppColors.disabledText;
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: AppTypography.labelMedium.copyWith(color: labelColor),
+          ),
         ],
       ),
     );

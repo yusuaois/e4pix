@@ -29,6 +29,8 @@ class SpotHealOverlay extends ConsumerStatefulWidget {
 }
 
 class _SpotHealOverlayState extends BaseEffectOverlayState<SpotHealOverlay> {
+  static const _kCursorColor = Color(0xFFFFFFFF);
+
   // Widget 属性
   @override
   Size get imageDisplaySize => widget.imageDisplaySize;
@@ -45,7 +47,7 @@ class _SpotHealOverlayState extends BaseEffectOverlayState<SpotHealOverlay> {
   @override
   double get hardness => ref.read(spotHealStateProvider).brushHardness;
   @override
-  Color get cursorColor => const Color(0xFFFFFFFF);
+  Color get cursorColor => _kCursorColor;
   @override
   bool get isActive =>
       ref.watch(spotHealStateProvider).mode == SpotHealMode.active;

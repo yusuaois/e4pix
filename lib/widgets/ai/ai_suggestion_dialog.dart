@@ -94,114 +94,129 @@ class _AISuggestionDialogState extends State<AISuggestionDialog> {
             size: 18,
             color: Theme.of(context).colorScheme.primary,
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Text(tr("aiColorSuggestion")),
         ],
       ),
       content: SizedBox(
         width: 480,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: _intentController,
-                enabled: !_loading,
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  hintText: tr("aiColorSuggestionPrompt"),
-                  hintStyle: AppTypography.bodyMedium,
-                  isDense: true,
-                  border: const OutlineInputBorder(),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
-                  ),
-                ),
-                style: AppTypography.bodyLarge,
-                maxLines: 2,
-              ),
-              const SizedBox(height: 14),
-              if (_loading)
-                Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        SizedBox(height: 10),
-                        Text(
-                          tr("aiColorInProgress"),
-                          style: AppTypography.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else if (_error != null)
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.semanticError.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: AppColors.semanticError.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Text(
-                    _error!,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.semanticError,
-                    ),
-                  ),
-                )
-              else if (_suggestion != null)
-                _SuggestionView(suggestion: _suggestion!)
-              else
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Text(
-                    tr("aiColorSuggestionDescription"),
-                    style: AppTypography.bodyMedium.copyWith(
-                      color: AppColors.mediumText,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        child: SingleChildScrollView(child: _buildContent()),
       ),
-      actions: [
-        TextButton(
-          onPressed: _loading ? null : () => Navigator.pop(context),
-          child: Text(tr("cancel")),
-        ),
-        if (_suggestion == null)
-          FilledButton.icon(
-            onPressed: _loading ? null : _runSuggestion,
-            icon: const Icon(Icons.auto_awesome, size: 14),
-            label: Text(tr("aiColorSuggestionRequest")),
-          )
-        else ...[
-          TextButton(
-            onPressed: () => setState(() {
-              _suggestion = null;
-              _error = null;
-            }),
-            child: Text(tr("aiColorSuggestionRegenerate")),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, _suggestion),
-            child: Text(tr("aiColorSuggestionApply")),
-          ),
-        ],
+      actions: _buildActions(),
+    );
+  }
+
+  Widget _buildContent() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildIntentField(),
+        const SizedBox(height: 14),
+        if (_loading)
+          _buildLoadingIndicator()
+        else if (_error != null)
+          _buildErrorBox()
+        else if (_suggestion != null)
+          _SuggestionView(suggestion: _suggestion!)
+        else
+          _buildDescriptionHint(),
       ],
     );
+  }
+
+  Widget _buildIntentField() {
+    return TextField(
+      controller: _intentController,
+      enabled: !_loading,
+      textInputAction: TextInputAction.done,
+      decoration: InputDecoration(
+        hintText: tr("aiColorSuggestionPrompt"),
+        hintStyle: AppTypography.bodyMedium,
+        isDense: true,
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
+      ),
+      style: AppTypography.bodyLarge,
+      maxLines: 2,
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Column(
+          children: [
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(height: 10),
+            Text(tr("aiColorInProgress"), style: AppTypography.bodyMedium),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorBox() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.semanticError.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: AppColors.semanticError.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Text(
+        _error!,
+        style: AppTypography.bodySmall.copyWith(color: AppColors.semanticError),
+      ),
+    );
+  }
+
+  Widget _buildDescriptionHint() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Text(
+        tr("aiColorSuggestionDescription"),
+        style: AppTypography.bodyMedium.copyWith(color: AppColors.mediumText),
+      ),
+    );
+  }
+
+  List<Widget> _buildActions() {
+    return [
+      TextButton(
+        onPressed: _loading ? null : () => Navigator.pop(context),
+        child: Text(tr("cancel")),
+      ),
+      if (_suggestion == null)
+        FilledButton.icon(
+          onPressed: _loading ? null : _runSuggestion,
+          icon: const Icon(Icons.auto_awesome, size: 14),
+          label: Text(tr("aiColorSuggestionRequest")),
+        )
+      else ...[
+        TextButton(
+          onPressed: () => setState(() {
+            _suggestion = null;
+            _error = null;
+          }),
+          child: Text(tr("aiColorSuggestionRegenerate")),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _suggestion),
+          child: Text(tr("aiColorSuggestionApply")),
+        ),
+      ],
+    ];
   }
 }
 
@@ -223,64 +238,12 @@ class _SuggestionView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final basic = suggestion.raw.entries.where((e) => e.value != null).toList();
-    final hslRaw = suggestion.hslRaw;
-
-    final hslRows = <Widget>[];
-    if (hslRaw != null) {
-      for (final band in _hslBandNames) {
-        final m = hslRaw[band.name];
-        if (m is! Map) continue;
-        final parts = <String>[];
-        for (final field in ['h', 's', 'l']) {
-          final v = m[field];
-          if (v is num) {
-            parts.add('${field.toUpperCase()} ${v > 0 ? '+' : ''}${v.toInt()}');
-          }
-        }
-        if (parts.isEmpty) continue;
-        hslRows.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 1.5),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(band.name, style: AppTypography.bodySmall),
-                ),
-                Text(
-                  parts.join('  '),
-                  style: AppTypography.labelMedium.copyWith(
-                    fontFamily: 'monospace',
-                    color: AppColors.activeValue,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-    }
+    final hslRows = _buildHslRows();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (suggestion.mood.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Text(
-              suggestion.mood,
-              style: AppTypography.labelSmall.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
+        if (suggestion.mood.isNotEmpty) _buildMoodBadge(context),
         const SizedBox(height: 8),
         if (suggestion.reasoning.isNotEmpty)
           Text(
@@ -288,67 +251,8 @@ class _SuggestionView extends StatelessWidget {
             style: AppTypography.bodyLarge.copyWith(height: 1.4),
           ),
         const SizedBox(height: 12),
-
-        // —— 基础滑块 ——
-        if (basic.isNotEmpty)
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surfaceBg,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Column(
-              children: basic
-                  .map(
-                    (e) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(e.key, style: AppTypography.bodySmall),
-                          ),
-                          Text(
-                            _fmt(e.key, e.value!),
-                            style: AppTypography.bodySmall.copyWith(
-                              fontFamily: 'monospace',
-                              color: AppColors.activeValue,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-
-        // —— HSL ——
-        if (hslRows.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surfaceBg,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'HSL',
-                  style: AppTypography.labelSmall.copyWith(
-                    letterSpacing: 1.2,
-                    color: AppColors.faintText,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                ...hslRows,
-              ],
-            ),
-          ),
-        ],
-
+        if (basic.isNotEmpty) _buildBasicTable(basic),
+        if (hslRows.isNotEmpty) _buildHslTable(hslRows),
         if (basic.isEmpty && hslRows.isEmpty)
           Text(
             tr("aiColorSuggestionNone"),
@@ -358,6 +262,125 @@ class _SuggestionView extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  Widget _buildMoodBadge(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        suggestion.mood,
+        style: AppTypography.labelSmall.copyWith(
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBasicTable(List<MapEntry<String, num?>> basic) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceBg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Column(
+        children: basic
+            .map(
+              (e) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(e.key, style: AppTypography.bodySmall),
+                    ),
+                    Text(
+                      _fmt(e.key, e.value!),
+                      style: AppTypography.bodySmall.copyWith(
+                        fontFamily: 'monospace',
+                        color: AppColors.activeValue,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildHslTable(List<Widget> hslRows) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceBg,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'HSL',
+                style: AppTypography.labelSmall.copyWith(
+                  letterSpacing: 1.2,
+                  color: AppColors.faintText,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              ...hslRows,
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildHslRows() {
+    final rows = <Widget>[];
+    final hslRaw = suggestion.hslRaw;
+    if (hslRaw == null) return rows;
+
+    for (final band in _hslBandNames) {
+      final m = hslRaw[band.name];
+      if (m is! Map) continue;
+      final parts = <String>[];
+      for (final field in ['h', 's', 'l']) {
+        final v = m[field];
+        if (v is num) {
+          parts.add('${field.toUpperCase()} ${v > 0 ? '+' : ''}${v.toInt()}');
+        }
+      }
+      if (parts.isEmpty) continue;
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 1.5),
+          child: Row(
+            children: [
+              Expanded(child: Text(band.name, style: AppTypography.bodySmall)),
+              Text(
+                parts.join('  '),
+                style: AppTypography.labelMedium.copyWith(
+                  fontFamily: 'monospace',
+                  color: AppColors.activeValue,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return rows;
   }
 }
 

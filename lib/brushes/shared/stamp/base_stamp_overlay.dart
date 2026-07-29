@@ -121,7 +121,11 @@ abstract class BaseStampOverlayState<
       shaderKey: shaderKey,
       isMounted: () => mounted,
       onNeedsRebuild: () {
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {
+            /* rebuild */
+          });
+        }
       },
     );
 
@@ -142,7 +146,11 @@ abstract class BaseStampOverlayState<
       scaleRadius: (r) => r / zoomScale,
       screenToSource: _compositor.screenToSource,
       onNeedsSetState: () {
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {
+            /* rebuild */
+          });
+        }
       },
       onStrokeStarted: () {
         _compositor.reset();
@@ -185,7 +193,11 @@ abstract class BaseStampOverlayState<
         _compositor.disposeComposited();
         _compositor.compositedCount = 0;
         ref.read(persistedStampProvider.notifier).clear();
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {
+            /* rebuild */
+          });
+        }
       }
     });
   }
@@ -199,7 +211,11 @@ abstract class BaseStampOverlayState<
     _compositor.compositedCount = 0;
     _compositor.compositing = false;
     ref.read(persistedStampProvider.notifier).clear();
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {
+        /* rebuild */
+      });
+    }
   }
 
   // 手势处理——委托给 StampGestureHandler
@@ -223,7 +239,11 @@ abstract class BaseStampOverlayState<
   void _onPanUpdate(Offset pos, WidgetRef ref) {
     cursorPos = pos;
     _gestureHandler.onPanUpdate(pos, ref);
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {
+        /* rebuild */
+      });
+    }
   }
 
   void _onPanEnd(WidgetRef ref) {

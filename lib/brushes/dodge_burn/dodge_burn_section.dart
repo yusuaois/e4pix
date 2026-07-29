@@ -10,13 +10,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../widgets/develop/sections/shared.dart';
 
-/// 加深减淡设置面板（对齐 Photoshop）
-///
-/// - 激活切换
-/// - 减淡/加深模式切换
-/// - 阴影/中间调/高光范围选择
-/// - 曝光/半径/硬度滑块
-/// - 清除全部按钮
+/// 加深减淡设置面板
 class DodgeBurnSection extends ConsumerWidget {
   final AdjustmentParams params;
   final ValueChanged<AdjustmentParams> onChanged;
@@ -39,7 +33,7 @@ class DodgeBurnSection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionLabel(title: 'dodgeBurn'),
+          const SectionLabel(title: 'dodgeBurn'),
 
           // ── 激活切换 ──
           SwitchTile.tile(
@@ -65,108 +59,126 @@ class DodgeBurnSection extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
 
-            // Dodge / Burn mode switch
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  PillChip(
-                    icon: Icons.light_mode,
-                    label: tr('dodgeBurnDodge'),
-                    isActive: state.mode == DodgeBurnMode.dodge,
-                    onTap: () => notifier.setMode(DodgeBurnMode.dodge),
-                  ),
-                  const SizedBox(width: 8),
-                  PillChip(
-                    icon: Icons.dark_mode,
-                    label: tr('dodgeBurnBurn'),
-                    isActive: state.mode == DodgeBurnMode.burn,
-                    onTap: () => notifier.setMode(DodgeBurnMode.burn),
-                  ),
-                ],
-              ),
-            ),
+            _buildModeSwitch(state, notifier),
             const SizedBox(height: 4),
-
-            // Shadows / Midtones / Highlights range selector
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  PillChip(
-                    icon: Icons.contrast,
-                    label: tr('dodgeBurnShadows'),
-                    isActive: state.range == DodgeBurnRange.shadows,
-                    onTap: () => notifier.setRange(DodgeBurnRange.shadows),
-                  ),
-                  const SizedBox(width: 4),
-                  PillChip(
-                    icon: Icons.contrast,
-                    label: tr('dodgeBurnMidtones'),
-                    isActive: state.range == DodgeBurnRange.midtones,
-                    onTap: () => notifier.setRange(DodgeBurnRange.midtones),
-                  ),
-                  const SizedBox(width: 4),
-                  PillChip(
-                    icon: Icons.contrast,
-                    label: tr('dodgeBurnHighlights'),
-                    isActive: state.range == DodgeBurnRange.highlights,
-                    onTap: () => notifier.setRange(DodgeBurnRange.highlights),
-                  ),
-                ],
-              ),
-            ),
+            _buildRangeSelector(state, notifier),
             const SizedBox(height: 8),
-
-            DevelopSliderTile(
-              label: tr('dodgeBurnExposure'),
-              value: state.exposure * 100,
-              min: 1,
-              max: 100,
-              fractionDigits: 0,
-              suffix: '%',
-              onChanged: (v) => notifier.setExposure(v / 100),
-            ),
-            DevelopSliderTile(
-              label: tr('dodgeBurnRadius'),
-              value: state.brushRadius,
-              min: 2,
-              max: 100,
-              fractionDigits: 0,
-              suffix: '‰',
-              onChanged: (v) => notifier.setBrushRadius(v),
-            ),
-            DevelopSliderTile(
-              label: tr('dodgeBurnHardness'),
-              value: state.brushHardness * 100,
-              min: 0,
-              max: 100,
-              fractionDigits: 0,
-              suffix: '%',
-              onChanged: (v) => notifier.setBrushHardness(v / 100),
-            ),
+            _buildBrushSliders(state, notifier),
           ],
 
           // ── 清除全部 ──
-          if (isActive && marks.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: notifier.clearAll,
-                  icon: const Icon(Icons.delete_outline, size: 16),
-                  label: Text(tr('ClearAll')),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.semanticError,
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                ),
-              ),
-            ),
+          if (isActive && marks.isNotEmpty) _buildClearButton(notifier),
         ],
       ),
+    );
+  }
+
+  Widget _buildClearButton(DodgeBurnNotifier notifier) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: TextButton.icon(
+          onPressed: notifier.clearAll,
+          icon: const Icon(Icons.delete_outline, size: 16),
+          label: Text(tr('ClearAll')),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.semanticError,
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── 减淡/加深 模式切换 ──
+  Widget _buildModeSwitch(DodgeBurnState state, DodgeBurnNotifier notifier) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          PillChip(
+            icon: Icons.light_mode,
+            label: tr('dodgeBurnDodge'),
+            isActive: state.mode == DodgeBurnMode.dodge,
+            onTap: () => notifier.setMode(DodgeBurnMode.dodge),
+          ),
+          const SizedBox(width: 8),
+          PillChip(
+            icon: Icons.dark_mode,
+            label: tr('dodgeBurnBurn'),
+            isActive: state.mode == DodgeBurnMode.burn,
+            onTap: () => notifier.setMode(DodgeBurnMode.burn),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 阴影/中间调/高光 范围选择 ──
+  Widget _buildRangeSelector(DodgeBurnState state, DodgeBurnNotifier notifier) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          PillChip(
+            icon: Icons.contrast,
+            label: tr('dodgeBurnShadows'),
+            isActive: state.range == DodgeBurnRange.shadows,
+            onTap: () => notifier.setRange(DodgeBurnRange.shadows),
+          ),
+          const SizedBox(width: 4),
+          PillChip(
+            icon: Icons.contrast,
+            label: tr('dodgeBurnMidtones'),
+            isActive: state.range == DodgeBurnRange.midtones,
+            onTap: () => notifier.setRange(DodgeBurnRange.midtones),
+          ),
+          const SizedBox(width: 4),
+          PillChip(
+            icon: Icons.contrast,
+            label: tr('dodgeBurnHighlights'),
+            isActive: state.range == DodgeBurnRange.highlights,
+            onTap: () => notifier.setRange(DodgeBurnRange.highlights),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 曝光/半径/硬度 滑块 ──
+  Widget _buildBrushSliders(DodgeBurnState state, DodgeBurnNotifier notifier) {
+    return Column(
+      children: [
+        DevelopSliderTile(
+          label: tr('dodgeBurnExposure'),
+          value: state.exposure * 100,
+          min: 1,
+          max: 100,
+          fractionDigits: 0,
+          suffix: '%',
+          onChanged: (v) => notifier.setExposure(v / 100),
+        ),
+        DevelopSliderTile(
+          label: tr('dodgeBurnRadius'),
+          value: state.brushRadius,
+          min: 2,
+          max: 100,
+          fractionDigits: 0,
+          suffix: '‰',
+          onChanged: (v) => notifier.setBrushRadius(v),
+        ),
+        DevelopSliderTile(
+          label: tr('dodgeBurnHardness'),
+          value: state.brushHardness * 100,
+          min: 0,
+          max: 100,
+          fractionDigits: 0,
+          suffix: '%',
+          onChanged: (v) => notifier.setBrushHardness(v / 100),
+        ),
+      ],
     );
   }
 }

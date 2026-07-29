@@ -25,98 +25,107 @@ class BrushControls extends ConsumerWidget {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: SegmentedButton<BrushMode>(
-            segments: [
-              ButtonSegment(
-                value: BrushMode.paint,
-                label: Text(tr("brush"), style: AppTypography.labelSmall),
-                icon: Icon(Icons.brush, size: 14),
-              ),
-              ButtonSegment(
-                value: BrushMode.wand,
-                label: Text(
-                  tr("localBrushIntellgentArea"),
-                  style: AppTypography.labelSmall,
-                ),
-                icon: Icon(Icons.auto_fix_high, size: 14),
-              ),
-              ButtonSegment(
-                value: BrushMode.subject,
-                label: Text(
-                  tr("localBrushSubject"),
-                  style: AppTypography.labelSmall,
-                ),
-                icon: Icon(Icons.center_focus_strong, size: 14),
-              ),
-            ],
-            selected: {mode},
-            showSelectedIcon: false,
-            style: const ButtonStyle(visualDensity: VisualDensity.compact),
-            onSelectionChanged: (s) {
-              ref.read(brushSettingsProvider.notifier).setMode(s.first);
-              if (s.first != BrushMode.subject) {
-                SamSession.instance.resetPoints();
-              }
-            },
-          ),
-        ),
-        if (mode == BrushMode.wand)
-          _wandControls(ref, busy)
-        else if (mode == BrushMode.subject)
-          _subjectControls(ref, local.id)
-        else
-          _paintControls(ref),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${tr("localBrushStroke", args: ["${mask.strokes.length}"])}${mask.baseRaster != null ? tr("localBrushIntellgentAreaChosen") : ""}',
-                    style: AppTypography.labelMedium.copyWith(
-                      color: AppColors.disabledText,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (mask.baseRaster != null)
-                  TextButton(
-                    onPressed: () {
-                      LocalAdjustmentActions(ref).clearBaseRaster(local.id);
-                      SamSession.instance.resetPoints();
-                    },
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                    child: Text(
-                      tr("localBrushIntellgentAreaClear"),
-                      style: AppTypography.labelSmall,
-                    ),
-                  ),
-                if (mask.strokes.isNotEmpty)
-                  TextButton(
-                    onPressed: () =>
-                        LocalAdjustmentActions(ref).clearBrushStrokes(local.id),
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                    child: Text(
-                      tr("localBrushStrokeClear"),
-                      style: AppTypography.labelSmall,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
+        _buildModeSelector(ref, mode),
+        _buildModeControls(ref, mode, busy),
+        _buildStrokeFooter(ref, mask),
       ],
+    );
+  }
+
+  Widget _buildModeSelector(WidgetRef ref, BrushMode mode) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: SegmentedButton<BrushMode>(
+        segments: [
+          ButtonSegment(
+            value: BrushMode.paint,
+            label: Text(tr("brush"), style: AppTypography.labelSmall),
+            icon: const Icon(Icons.brush, size: 14),
+          ),
+          ButtonSegment(
+            value: BrushMode.wand,
+            label: Text(
+              tr("localBrushIntellgentArea"),
+              style: AppTypography.labelSmall,
+            ),
+            icon: const Icon(Icons.auto_fix_high, size: 14),
+          ),
+          ButtonSegment(
+            value: BrushMode.subject,
+            label: Text(
+              tr("localBrushSubject"),
+              style: AppTypography.labelSmall,
+            ),
+            icon: const Icon(Icons.center_focus_strong, size: 14),
+          ),
+        ],
+        selected: {mode},
+        showSelectedIcon: false,
+        style: const ButtonStyle(visualDensity: VisualDensity.compact),
+        onSelectionChanged: (s) {
+          ref.read(brushSettingsProvider.notifier).setMode(s.first);
+          if (s.first != BrushMode.subject) {
+            SamSession.instance.resetPoints();
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildModeControls(WidgetRef ref, BrushMode mode, bool busy) {
+    if (mode == BrushMode.wand) return _wandControls(ref, busy);
+    if (mode == BrushMode.subject) return _subjectControls(ref, local.id);
+    return _paintControls(ref);
+  }
+
+  Widget _buildStrokeFooter(WidgetRef ref, BrushMask mask) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${tr("localBrushStroke", args: ["${mask.strokes.length}"])}${mask.baseRaster != null ? tr("localBrushIntellgentAreaChosen") : ""}',
+                style: AppTypography.labelMedium.copyWith(
+                  color: AppColors.disabledText,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (mask.baseRaster != null)
+              TextButton(
+                onPressed: () {
+                  LocalAdjustmentActions(ref).clearBaseRaster(local.id);
+                  SamSession.instance.resetPoints();
+                },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: Text(
+                  tr("localBrushIntellgentAreaClear"),
+                  style: AppTypography.labelSmall,
+                ),
+              ),
+            if (mask.strokes.isNotEmpty)
+              TextButton(
+                onPressed: () =>
+                    LocalAdjustmentActions(ref).clearBrushStrokes(local.id),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: Text(
+                  tr("localBrushStrokeClear"),
+                  style: AppTypography.labelSmall,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -226,7 +235,7 @@ class BrushControls extends ConsumerWidget {
                   tr("localBrushSubjectExcludeAdd"),
                   style: AppTypography.labelSmall,
                 ),
-                icon: Icon(Icons.add, size: 14),
+                icon: const Icon(Icons.add, size: 14),
               ),
               ButtonSegment(
                 value: true,
@@ -234,7 +243,7 @@ class BrushControls extends ConsumerWidget {
                   tr("localBrushSubjectExcludeSubtract"),
                   style: AppTypography.labelSmall,
                 ),
-                icon: Icon(Icons.remove, size: 14),
+                icon: const Icon(Icons.remove, size: 14),
               ),
             ],
             selected: {negative},
@@ -301,7 +310,7 @@ class BrushControls extends ConsumerWidget {
                         tr("localBrushModePaint"),
                         style: AppTypography.labelSmall,
                       ),
-                      icon: Icon(Icons.add, size: 14),
+                      icon: const Icon(Icons.add, size: 14),
                     ),
                     ButtonSegment(
                       value: true,
@@ -309,7 +318,7 @@ class BrushControls extends ConsumerWidget {
                         tr("localBrushModeErase"),
                         style: AppTypography.labelSmall,
                       ),
-                      icon: Icon(Icons.remove, size: 14),
+                      icon: const Icon(Icons.remove, size: 14),
                     ),
                   ],
                   selected: {erase},

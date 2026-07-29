@@ -741,66 +741,81 @@ class _CenterMessage extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: color),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
+            _buildIconHeader(),
             const SizedBox(height: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: SelectableText(
-                body,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.mediumText,
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ),
+            _buildBodyText(),
             const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: () async {
-                if (Platform.isAndroid) {
-                  final navigator = Navigator.of(context);
-                  final notifier = ref.read(shotsNotifierProvider.notifier);
-                  final paths = await openFolderImport(navigator);
-                  if (paths != null && paths.isNotEmpty) {
-                    notifier.addFiles(paths);
-                  }
-                } else {
-                  final notifier = ref.read(shotsNotifierProvider.notifier);
-                  final result = await FilePicker.pickFiles();
-                  if (result == null || result.files.isEmpty) return;
-                  final paths = result.files
-                      .map((f) => f.path)
-                      .whereType<String>()
-                      .toList();
-                  if (paths.isNotEmpty) {
-                    notifier.addFiles(paths);
-                  }
-                }
-              },
-              icon: Icon(
-                Platform.isAndroid
-                    ? Icons.folder_copy_outlined
-                    : Icons.folder_open,
-              ),
-              label: Text(
-                Platform.isAndroid ? tr("folderImport") : tr("imageChoose"),
-              ),
-            ),
+            _buildOpenButton(context, ref),
             const SizedBox(height: 8),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildIconHeader() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 48, color: color),
+        const SizedBox(height: 16),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBodyText() {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 600),
+      child: SelectableText(
+        body,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 12,
+          color: AppColors.mediumText,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildOpenButton(BuildContext context, WidgetRef ref) {
+    return FilledButton.icon(
+      onPressed: () => _pickAndOpen(context, ref),
+      icon: Icon(
+        Platform.isAndroid ? Icons.folder_copy_outlined : Icons.folder_open,
+      ),
+      label: Text(Platform.isAndroid ? tr("folderImport") : tr("imageChoose")),
+    );
+  }
+
+  static Future<void> _pickAndOpen(BuildContext context, WidgetRef ref) async {
+    if (Platform.isAndroid) {
+      final navigator = Navigator.of(context);
+      final notifier = ref.read(shotsNotifierProvider.notifier);
+      final paths = await openFolderImport(navigator);
+      if (paths != null && paths.isNotEmpty) {
+        notifier.addFiles(paths);
+      }
+    } else {
+      final notifier = ref.read(shotsNotifierProvider.notifier);
+      final result = await FilePicker.pickFiles();
+      if (result == null || result.files.isEmpty) return;
+      final paths = result.files
+          .map((f) => f.path)
+          .whereType<String>()
+          .toList();
+      if (paths.isNotEmpty) {
+        notifier.addFiles(paths);
+      }
+    }
   }
 }
 
@@ -840,7 +855,9 @@ class _ZoomableViewState extends State<_ZoomableView> {
 
   void _reset() {
     _tc.value = Matrix4.identity();
-    setState(() {});
+    setState(() {
+      /* rebuild */
+    });
   }
 
   @override
@@ -861,7 +878,9 @@ class _ZoomableViewState extends State<_ZoomableView> {
         panEnabled: _panEnabled,
         scaleEnabled: true,
         clipBehavior: Clip.hardEdge,
-        onInteractionEnd: (_) => setState(() {}),
+        onInteractionEnd: (_) => setState(() {
+          /* rebuild */
+        }),
         child: widget.child,
       ),
     );

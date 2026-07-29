@@ -64,47 +64,56 @@ class _SrPreviewOverlayState extends ConsumerState<SrPreviewOverlay> {
     final size = _previewSize * scale;
 
     return GestureDetector(
-      onTapDown: (d) {
-        final size =
-            _previewSize * (widget.displaySize.width / 600).clamp(0.4, 1.0);
-        _focusNorm = Offset(
-          (d.localPosition.dx / size).clamp(0.0, 1.0),
-          (d.localPosition.dy / size).clamp(0.0, 1.0),
-        );
-        _runInference();
-      },
+      onTapDown: (d) => _handleTapDown(d, size),
       child: Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          color: AppColors.elevatedBg,
-          borderRadius: BorderRadius.circular(8 * scale),
-          border: Border.all(color: AppColors.faintBorder, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 8 * scale,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+        decoration: _buildOverlayDecoration(scale),
         clipBehavior: Clip.antiAlias,
-        child: _srResult != null
-            ? RawImage(image: _srResult, fit: BoxFit.cover)
-            : Center(
-                child: _loading
-                    ? SizedBox(
-                        width: 24 * scale,
-                        height: 24 * scale,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(
-                        Icons.auto_awesome,
-                        color: AppColors.disabledText.withValues(alpha: 0.4),
-                        size: 28 * scale,
-                      ),
-              ),
+        child: _buildOverlayContent(scale),
       ),
+    );
+  }
+
+  void _handleTapDown(TapDownDetails d, double size) {
+    _focusNorm = Offset(
+      (d.localPosition.dx / size).clamp(0.0, 1.0),
+      (d.localPosition.dy / size).clamp(0.0, 1.0),
+    );
+    _runInference();
+  }
+
+  BoxDecoration _buildOverlayDecoration(double scale) {
+    return BoxDecoration(
+      color: AppColors.elevatedBg,
+      borderRadius: BorderRadius.circular(8 * scale),
+      border: Border.all(color: AppColors.faintBorder, width: 1),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.3),
+          blurRadius: 8 * scale,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOverlayContent(double scale) {
+    if (_srResult != null) {
+      return RawImage(image: _srResult, fit: BoxFit.cover);
+    }
+    return Center(
+      child: _loading
+          ? SizedBox(
+              width: 24 * scale,
+              height: 24 * scale,
+              child: const CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(
+              Icons.auto_awesome,
+              color: AppColors.disabledText.withValues(alpha: 0.4),
+              size: 28 * scale,
+            ),
     );
   }
 

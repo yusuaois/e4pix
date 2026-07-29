@@ -39,81 +39,90 @@ class _PresetBarState extends ConsumerState<PresetBar> {
     return asyncList.when(
       loading: () => const SizedBox(height: 40),
       error: (e, _) => Text(tr('presetLoadFailed', namedArgs: {'error': '$e'})),
-      data: (presets) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.style, size: 16, color: AppColors.mediumText),
-            const SizedBox(width: 8),
-            Expanded(
-              child: SizedBox(
-                height: 28,
-                child: ScrollConfiguration(
-                  behavior: ScrollConfiguration.of(context).copyWith(
-                    dragDevices: {
-                      PointerDeviceKind.mouse,
-                      PointerDeviceKind.touch,
-                      PointerDeviceKind.trackpad,
-                    },
-                  ),
-                  child: Listener(
-                    onPointerSignal: (signal) {
-                      if (signal is PointerScrollEvent) {
-                        final offset = signal.scrollDelta.dy;
-                        final target = _scrollController.offset + offset;
-                        _scrollController.jumpTo(
-                          target.clamp(
-                            0.0,
-                            _scrollController.position.maxScrollExtent,
-                          ),
-                        );
-                      }
-                    },
-                    child: ListView.separated(
-                      controller: _scrollController,
-                      scrollDirection: Axis.horizontal,
-                      itemCount: presets.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 6),
-                      itemBuilder: (ctx, i) => PresetChip(
-                        preset: presets[i],
-                        onTap: () => notifier.apply(presets[i].id),
-                      ),
+      data: (presets) => _buildBarData(context, ref, presets, notifier),
+    );
+  }
+
+  Widget _buildBarData(
+    BuildContext context,
+    WidgetRef ref,
+    List<Preset> presets,
+    dynamic notifier,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.style, size: 16, color: AppColors.mediumText),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SizedBox(
+              height: 28,
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.trackpad,
+                  },
+                ),
+                child: Listener(
+                  onPointerSignal: (signal) {
+                    if (signal is PointerScrollEvent) {
+                      final offset = signal.scrollDelta.dy;
+                      final target = _scrollController.offset + offset;
+                      _scrollController.jumpTo(
+                        target.clamp(
+                          0.0,
+                          _scrollController.position.maxScrollExtent,
+                        ),
+                      );
+                    }
+                  },
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    scrollDirection: Axis.horizontal,
+                    itemCount: presets.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 6),
+                    itemBuilder: (ctx, i) => PresetChip(
+                      preset: presets[i],
+                      onTap: () => notifier.apply(presets[i].id),
                     ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            IconButton(
-              icon: const Icon(Icons.add, size: 18),
-              tooltip: tr("saveCurrentAsPreset"),
-              onPressed: () => showSavePresetDialog(context, notifier),
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-            ),
-            IconButton(
-              icon: const Icon(Icons.input, size: 18),
-              tooltip: tr("xmpImport"),
-              onPressed: () => importXmpPreset(context, ref),
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-            ),
-            IconButton(
-              icon: const Icon(Icons.file_download_outlined, size: 18),
-              tooltip: tr("exportPreset"),
-              onPressed: () => exportXmpPreset(context, ref),
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 6),
+          IconButton(
+            icon: const Icon(Icons.add, size: 18),
+            tooltip: tr("saveCurrentAsPreset"),
+            onPressed: () => showSavePresetDialog(context, notifier),
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          ),
+          IconButton(
+            icon: const Icon(Icons.input, size: 18),
+            tooltip: tr("xmpImport"),
+            onPressed: () => importXmpPreset(context, ref),
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined, size: 18),
+            tooltip: tr("exportPreset"),
+            onPressed: () => exportXmpPreset(context, ref),
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          ),
+        ],
       ),
     );
   }
@@ -134,101 +143,126 @@ class PresetGrid extends ConsumerWidget {
     return asyncList.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('$e')),
-      data: (presets) {
-        for (final p in presets) {
-          cacheNotifier.request(p.id, p.params);
-        }
+      data: (presets) => _buildGridData(
+        context,
+        ref,
+        presets,
+        notifier,
+        primary,
+        thumbs,
+        cacheNotifier,
+      ),
+    );
+  }
 
-        return SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SectionLabel(title: 'Preset'),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                        ),
-                        onPressed: () =>
-                            showSavePresetDialog(context, notifier),
-                        child: Text(
-                          tr("saveCurrentAsPreset"),
-                          style: AppTypography.labelSmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                        ),
-                        onPressed: () => importXmpPreset(context, ref),
-                        child: Text(
-                          tr("xmpImport"),
-                          style: AppTypography.labelSmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                        ),
-                        onPressed: () => exportXmpPreset(context, ref),
-                        child: Text(
-                          tr("exportPreset"),
-                          style: AppTypography.labelSmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.4,
-                ),
-                itemCount: presets.length,
-                itemBuilder: (ctx, i) => _PresetCard(
-                  preset: presets[i],
-                  primary: primary,
-                  thumb: thumbs['preset:${presets[i].id}'],
-                  onTap: () => notifier.apply(presets[i].id),
-                  onLongPress: presets[i].isBuiltin
-                      ? null
-                      : () => showPresetOptions(context, ref, presets[i]),
-                ),
-              ),
-            ],
+  Widget _buildGridData(
+    BuildContext context,
+    WidgetRef ref,
+    List<Preset> presets,
+    PresetNotifier notifier,
+    Color primary,
+    Map<String, ui.Image> thumbs,
+    dynamic cacheNotifier,
+  ) {
+    for (final p in presets) {
+      cacheNotifier.request(p.id, p.params);
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionLabel(title: 'Preset'),
+          _buildGridActionButtons(context, ref, notifier),
+          const SizedBox(height: 4),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.4,
+            ),
+            itemCount: presets.length,
+            itemBuilder: (ctx, i) => _PresetCard(
+              preset: presets[i],
+              primary: primary,
+              thumb: thumbs['preset:${presets[i].id}'],
+              onTap: () => notifier.apply(presets[i].id),
+              onLongPress: presets[i].isBuiltin
+                  ? null
+                  : () => showPresetOptions(context, ref, presets[i]),
+            ),
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGridActionButtons(
+    BuildContext context,
+    WidgetRef ref,
+    PresetNotifier notifier,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+              ),
+              onPressed: () => showSavePresetDialog(context, notifier),
+              child: Text(
+                tr("saveCurrentAsPreset"),
+                style: AppTypography.labelSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+              ),
+              onPressed: () => importXmpPreset(context, ref),
+              child: Text(
+                tr("xmpImport"),
+                style: AppTypography.labelSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+              ),
+              onPressed: () => exportXmpPreset(context, ref),
+              child: Text(
+                tr("exportPreset"),
+                style: AppTypography.labelSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -262,50 +296,52 @@ class _PresetCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: thumb != null
-                    ? RawImage(
-                        image: thumb,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      )
-                    : Container(
-                        width: double.infinity,
-                        color: Colors.black.withValues(alpha: 0.2),
-                        alignment: Alignment.center,
-                        child: Icon(
-                          Icons.style,
-                          size: 20,
-                          color: primary.withValues(alpha: 0.2),
-                        ),
-                      ),
-              ),
-            ),
+            Expanded(child: _buildThumbnail()),
             const SizedBox(height: 5),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    preset.name,
-                    style: AppTypography.labelMedium.copyWith(color: primary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (preset.isBuiltin)
-                  Icon(
-                    Icons.lock,
-                    size: 9,
-                    color: primary.withValues(alpha: 0.4),
-                  ),
-              ],
-            ),
+            _buildLabelRow(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildThumbnail() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(3),
+      child: thumb != null
+          ? RawImage(
+              image: thumb,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            )
+          : Container(
+              width: double.infinity,
+              color: Colors.black.withValues(alpha: 0.2),
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.style,
+                size: 20,
+                color: primary.withValues(alpha: 0.2),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildLabelRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            preset.name,
+            style: AppTypography.labelMedium.copyWith(color: primary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (preset.isBuiltin)
+          Icon(Icons.lock, size: 9, color: primary.withValues(alpha: 0.4)),
+      ],
     );
   }
 }
@@ -402,7 +438,7 @@ Future<void> showPresetOptions(
             leading: const Icon(Icons.delete, color: AppColors.semanticError),
             title: Text(
               tr("delete"),
-              style: TextStyle(color: AppColors.semanticError),
+              style: const TextStyle(color: AppColors.semanticError),
             ),
             onTap: () => Navigator.pop(ctx, 'delete'),
           ),

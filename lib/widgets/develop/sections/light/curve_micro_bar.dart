@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/models/rgb_curves.dart';
 import '../../../../core/models/tone_curve.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -21,7 +22,6 @@ class CurveMicroBar extends ConsumerWidget {
     final curves = ref.watch(
       currentParamsNotifierProvider.select((p) => p.curves),
     );
-
     final curve = switch (channel) {
       1 => curves.red,
       2 => curves.green,
@@ -29,105 +29,124 @@ class CurveMicroBar extends ConsumerWidget {
       4 => curves.luminance,
       _ => curves.master,
     };
-
-    final lineColor = switch (channel) {
-      1 => AppColors.curveRed,
-      2 => AppColors.curveGreen,
-      3 => AppColors.curveBlue,
-      4 => AppColors.curveLum,
-      _ => Theme.of(context).colorScheme.primary,
-    };
-
-    void resetCurve() {
-      final next = switch (channel) {
-        1 => curves.copyWith(red: ToneCurve.identity),
-        2 => curves.copyWith(green: ToneCurve.identity),
-        3 => curves.copyWith(blue: ToneCurve.identity),
-        4 => curves.copyWith(luminance: ToneCurve.identity),
-        _ => curves.copyWith(master: ToneCurve.identity),
-      };
-      final params = ref.read(currentParamsNotifierProvider);
-      ref
-          .read(currentParamsNotifierProvider.notifier)
-          .update(params.copyWith(curves: next));
-    }
+    final lineColor = _lineColor(context, channel);
 
     return Container(
       color: AppColors.panelBg,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-            child: Row(
-              children: [
-                Text(
-                  'CURVE',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.disabledText,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: onDone,
-                  child: Text(
-                    tr('done'),
-                    style: AppTypography.bodyLarge.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ],
+          _buildHeader(context),
+          _buildChannelRow(context, ref, lineColor),
+          _buildFooter(context, ref, channel, curves, curve),
+        ],
+      ),
+    );
+  }
+
+  Color _lineColor(BuildContext context, int channel) => switch (channel) {
+    1 => AppColors.curveRed,
+    2 => AppColors.curveGreen,
+    3 => AppColors.curveBlue,
+    4 => AppColors.curveLum,
+    _ => Theme.of(context).colorScheme.primary,
+  };
+
+  void _resetCurve(WidgetRef ref, int channel, RgbCurves curves) {
+    final next = switch (channel) {
+      1 => curves.copyWith(red: ToneCurve.identity),
+      2 => curves.copyWith(green: ToneCurve.identity),
+      3 => curves.copyWith(blue: ToneCurve.identity),
+      4 => curves.copyWith(luminance: ToneCurve.identity),
+      _ => curves.copyWith(master: ToneCurve.identity),
+    };
+    final params = ref.read(currentParamsNotifierProvider);
+    ref
+        .read(currentParamsNotifierProvider.notifier)
+        .update(params.copyWith(curves: next));
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+      child: Row(
+        children: [
+          Text(
+            'CURVE',
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.disabledText,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sectionHorizontal,
+          const Spacer(),
+          TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: Row(
-              children: [
-                _chTab(context, ref, 'RGB', 0, lineColor),
-                _chTab(context, ref, 'R', 1, AppColors.curveRed),
-                _chTab(context, ref, 'G', 2, AppColors.curveGreen),
-                _chTab(context, ref, 'B', 3, AppColors.curveBlue),
-                _chTab(context, ref, tr('lum'), 4, AppColors.curveLum),
-              ],
+            onPressed: onDone,
+            child: Text(
+              tr('done'),
+              style: AppTypography.bodyLarge.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, AppSpacing.sm, 20, 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  tr('curveHint'),
-                  style: AppTypography.labelMedium.copyWith(
-                    color: AppColors.disabledText,
-                  ),
-                ),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: curve.isIdentity ? null : resetCurve,
-                  child: Text(tr('reset'), style: AppTypography.bodyLarge),
-                ),
-              ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChannelRow(
+    BuildContext context,
+    WidgetRef ref,
+    Color lineColor,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sectionHorizontal,
+      ),
+      child: Row(
+        children: [
+          _chTab(context, ref, 'RGB', 0, lineColor),
+          _chTab(context, ref, 'R', 1, AppColors.curveRed),
+          _chTab(context, ref, 'G', 2, AppColors.curveGreen),
+          _chTab(context, ref, 'B', 3, AppColors.curveBlue),
+          _chTab(context, ref, tr('lum'), 4, AppColors.curveLum),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(
+    BuildContext context,
+    WidgetRef ref,
+    int channel,
+    RgbCurves curves,
+    ToneCurve curve,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, AppSpacing.sm, 20, 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            tr('curveHint'),
+            style: AppTypography.labelMedium.copyWith(
+              color: AppColors.disabledText,
             ),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: curve.isIdentity
+                ? null
+                : () => _resetCurve(ref, channel, curves),
+            child: Text(tr('reset'), style: AppTypography.bodyLarge),
           ),
         ],
       ),

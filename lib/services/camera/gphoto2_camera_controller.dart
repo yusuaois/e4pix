@@ -167,4 +167,14 @@ class Gphoto2CameraController implements CameraController {
     }
     _active = false;
   }
+
+  /// 同步清理资源（Fire-and-forget，不等待异步完成）
+  void dispose() {
+    _stdoutSub?.cancel();
+    _stderrSub?.cancel();
+    _stdoutSub = null;
+    _stderrSub = null;
+    _process?.kill(ProcessSignal.sigterm);
+    _active = false;
+  }
 }

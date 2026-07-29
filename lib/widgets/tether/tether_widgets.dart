@@ -108,7 +108,7 @@ class TetherStatusBar extends ConsumerWidget {
       decoration: const BoxDecoration(color: Colors.transparent),
       child: Row(
         children: [
-          _PulsingDot(color: AppColors.semanticSuccess),
+          const _PulsingDot(color: AppColors.semanticSuccess),
           const SizedBox(width: 10),
           Text(
             'Tether',
@@ -305,164 +305,159 @@ class _TetherThumbStripState extends State<TetherThumbStrip> {
             // vertical: 54 + 8 = 62, horizontal: 110 + 8 = 118
             itemExtent: vertical ? 62 : 118,
             itemCount: widget.shots.length,
-            itemBuilder: (ctx, i) {
-              final idx = vertical ? i : widget.shots.length - 1 - i;
-              final shot = widget.shots[idx];
-              final isActive = shot == widget.activeShot;
-              final isPicked = widget.selectedShots.contains(shot);
+            itemBuilder: (ctx, i) => _buildItem(i, vertical),
+          ),
+        ),
+      ),
+    );
+  }
 
-              return Padding(
-                padding: vertical
-                    ? const EdgeInsets.symmetric(vertical: 4)
-                    : const EdgeInsets.symmetric(horizontal: 4),
-                child: GestureDetector(
-                  onTap: () => widget.onSelect(shot),
+  Widget _buildItem(int i, bool vertical) {
+    final idx = vertical ? i : widget.shots.length - 1 - i;
+    final shot = widget.shots[idx];
+    final isActive = shot == widget.activeShot;
+    final isPicked = widget.selectedShots.contains(shot);
+
+    return Padding(
+      padding: vertical
+          ? const EdgeInsets.symmetric(vertical: 4)
+          : const EdgeInsets.symmetric(horizontal: 4),
+      child: GestureDetector(
+        onTap: () => widget.onSelect(shot),
+        child: Stack(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: isPicked
+                      ? Theme.of(context).colorScheme.primary
+                      : (isActive && !widget.multiSelectMode
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.transparent),
+                  width: 2,
+                ),
+              ),
+              padding: const EdgeInsets.all(2),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: SizedBox(
+                  width: vertical ? 76 : 110,
+                  height: vertical ? 54 : 70,
                   child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 120),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: isPicked
-                                ? Theme.of(context).colorScheme.primary
-                                : (isActive && !widget.multiSelectMode
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Colors.transparent),
-                            width: 2,
-                          ),
+                      if (shot.thumbnail != null)
+                        RawImage(image: shot.thumbnail, fit: BoxFit.cover)
+                      else
+                        Container(
+                          color: AppColors.subtleBorder,
+                          alignment: Alignment.center,
+                          child: shot.error != null
+                              ? Icon(
+                                  Icons.broken_image_outlined,
+                                  size: 18,
+                                  color: AppColors.semanticError.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                )
+                              : const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                  ),
+                                ),
                         ),
-                        padding: const EdgeInsets.all(2),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: SizedBox(
-                            width: vertical ? 76 : 110,
-                            height: vertical ? 54 : 70,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                if (shot.thumbnail != null)
-                                  RawImage(
-                                    image: shot.thumbnail,
-                                    fit: BoxFit.cover,
-                                  )
-                                else
-                                  Container(
-                                    color: AppColors.subtleBorder,
-                                    alignment: Alignment.center,
-                                    child: shot.error != null
-                                        ? Icon(
-                                            Icons.broken_image_outlined,
-                                            size: 18,
-                                            color: AppColors.semanticError
-                                                .withValues(alpha: 0.6),
-                                          )
-                                        : const SizedBox(
-                                            width: 14,
-                                            height: 14,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 1.5,
-                                            ),
-                                          ),
-                                  ),
-                                if (widget.multiSelectMode && !isPicked)
-                                  Container(
-                                    color: Colors.black.withValues(alpha: 0.35),
-                                  ),
-                                if (shot.rating > 0)
-                                  Positioned(
-                                    left: 3,
-                                    bottom: 3,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: List.generate(
-                                        shot.rating,
-                                        (_) => const Icon(
-                                          Icons.star,
-                                          size: 9,
-                                          color: AppColors.semanticWarning,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                if (shot.flag != ShotFlag.none)
-                                  Positioned(
-                                    top: 3,
-                                    right: 3,
-                                    child: Icon(
-                                      shot.flag == ShotFlag.pick
-                                          ? Icons.flag
-                                          : Icons.flag_outlined,
-                                      size: 12,
-                                      color: shot.flag == ShotFlag.pick
-                                          ? AppColors.semanticSuccess
-                                          : AppColors.semanticError,
-                                    ),
-                                  ),
-                                if (widget.multiSelectMode && isActive)
-                                  Positioned(
-                                    left: 4,
-                                    bottom: 4,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 5,
-                                        vertical: 1,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.6,
-                                        ),
-                                        borderRadius: BorderRadius.circular(2),
-                                      ),
-                                      child: Text(
-                                        'Now',
-                                        style: AppTypography.labelSmall
-                                            .copyWith(
-                                              color: AppColors.textPrimary,
-                                              letterSpacing: 0.5,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (widget.multiSelectMode)
+                      if (widget.multiSelectMode && !isPicked)
+                        Container(color: Colors.black.withValues(alpha: 0.35)),
+                      if (shot.rating > 0)
                         Positioned(
-                          top: 4,
-                          right: 4,
-                          child: Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              color: isPicked
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Colors.black.withValues(alpha: 0.55),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isPicked
-                                    ? AppColors.textPrimary
-                                    : AppColors.mediumText,
-                                width: 1.5,
+                          left: 3,
+                          bottom: 3,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              shot.rating,
+                              (_) => const Icon(
+                                Icons.star,
+                                size: 9,
+                                color: AppColors.semanticWarning,
                               ),
                             ),
-                            child: isPicked
-                                ? const Icon(
-                                    Icons.check,
-                                    size: 11,
-                                    color: AppColors.textPrimary,
-                                  )
-                                : null,
+                          ),
+                        ),
+                      if (shot.flag != ShotFlag.none)
+                        Positioned(
+                          top: 3,
+                          right: 3,
+                          child: Icon(
+                            shot.flag == ShotFlag.pick
+                                ? Icons.flag
+                                : Icons.flag_outlined,
+                            size: 12,
+                            color: shot.flag == ShotFlag.pick
+                                ? AppColors.semanticSuccess
+                                : AppColors.semanticError,
+                          ),
+                        ),
+                      if (widget.multiSelectMode && isActive)
+                        Positioned(
+                          left: 4,
+                          bottom: 4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: Text(
+                              'Now',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.textPrimary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                           ),
                         ),
                     ],
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            ),
+            if (widget.multiSelectMode)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: isPicked
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.black.withValues(alpha: 0.55),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isPicked
+                          ? AppColors.textPrimary
+                          : AppColors.mediumText,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: isPicked
+                      ? const Icon(
+                          Icons.check,
+                          size: 11,
+                          color: AppColors.textPrimary,
+                        )
+                      : null,
+                ),
+              ),
+          ],
         ),
       ),
     );

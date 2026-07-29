@@ -36,46 +36,16 @@ class _HistoryPanelSheetState extends ConsumerState<_HistoryPanelSheet> {
     final notifier = ref.read(historyPanelProvider.notifier);
     final maxH = MediaQuery.of(context).size.height * 0.7;
 
-    // 监听缩略图状态变化以驱动自动刷新
     final thumbState = ref.watch(thumbnailRendererProvider);
     final thumbNotifier = ref.read(thumbnailRendererProvider.notifier);
-
-    Future.microtask(() {
-      if (!mounted) return;
-      for (final entry in entries) {
-        thumbNotifier.requestFull('history', entry.id, entry.params);
-      }
-    });
+    _requestThumbnails(thumbNotifier, entries);
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxH),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-            child: Row(
-              children: [
-                Text(tr('history'), style: AppTypography.titleMedium),
-                const Spacer(),
-                if (entries.isNotEmpty)
-                  TextButton(
-                    onPressed: () {
-                      notifier.clear();
-                      Navigator.pop(context);
-                    },
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      foregroundColor: AppColors.semanticError,
-                    ),
-                    child: Text(
-                      tr('ClearAll'),
-                      style: AppTypography.labelSmall,
-                    ),
-                  ),
-              ],
-            ),
-          ),
+          _buildHeader(entries, notifier),
           const Divider(height: 1),
           if (entries.isEmpty)
             Padding(
@@ -89,47 +59,102 @@ class _HistoryPanelSheetState extends ConsumerState<_HistoryPanelSheet> {
             )
           else
             Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 4,
-                  horizontal: 12,
-                ),
-                itemCount: entries.length,
-                separatorBuilder: (_, b) => const SizedBox(height: 2),
-                itemBuilder: (_, index) {
-                  final entry = entries[index];
-                  final isSelected = selectedIndex == index;
-                  final isBrushSource = brushSourceIndex == index;
-
-                  return _HistoryRow(
-                    entry: entry,
-                    index: index,
-                    isSelected: isSelected,
-                    isBrushSource: isBrushSource,
-                    thumbState: thumbState,
-                    onTap: () {
-                      notifier.revertTo(index);
-                      Navigator.pop(context);
-                    },
-                    onSetSource: () => notifier.selectBrushSource(index),
-                    onClearSource: () => notifier.clearBrushSource(),
-                  );
-                },
+              child: _buildEntryList(
+                entries,
+                selectedIndex,
+                brushSourceIndex,
+                notifier,
+                thumbState,
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-            child: Text(
-              tr('historyHint'),
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textTertiary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
+          _buildHint(),
         ],
       ),
+    );
+  }
+
+  void _requestThumbnails(dynamic thumbNotifier, List<HistoryEntry> entries) {
+    Future.microtask(() {
+      if (!mounted) return;
+      for (final entry in entries) {
+        thumbNotifier.requestFull('history', entry.id, entry.params);
+      }
+    });
+  }
+
+  Widget _buildEntryList(
+    List<HistoryEntry> entries,
+    int? selectedIndex,
+    int? brushSourceIndex,
+    HistoryPanelNotifier notifier,
+    ThumbnailRenderState thumbState,
+  ) {
+    return ListView.separated(
+      shrinkWrap: true,
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+      itemCount: entries.length,
+      separatorBuilder: (_, b) => const SizedBox(height: 2),
+      itemBuilder: (_, index) {
+        final entry = entries[index];
+        return _HistoryRow(
+          entry: entry,
+          index: index,
+          isSelected: selectedIndex == index,
+          isBrushSource: brushSourceIndex == index,
+          thumbState: thumbState,
+          onTap: () {
+            notifier.revertTo(index);
+            Navigator.pop(context);
+          },
+          onSetSource: () => notifier.selectBrushSource(index),
+          onClearSource: () => notifier.clearBrushSource(),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader(
+    List<HistoryEntry> entries,
+    HistoryPanelNotifier notifier,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      child: Row(
+        children: [
+          Text(tr('history'), style: AppTypography.titleMedium),
+          const Spacer(),
+          if (entries.isNotEmpty)
+            TextButton(
+              onPressed: () {
+                notifier.clear();
+                Navigator.pop(context);
+              },
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: AppColors.semanticError,
+              ),
+              child: Text(tr('ClearAll'), style: AppTypography.labelSmall),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHint() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+          child: Text(
+            tr('historyHint'),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 }
@@ -167,8 +192,6 @@ class _HistoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final thumbKey = 'history:${entry.id}';
     final thumb = thumbState.thumbs[thumbKey];
-    final label = entry.label;
-    final timestamp = entry.timestamp;
 
     return Material(
       color: isSelected ? AppColors.activeBg : AppColors.surfaceBg,
@@ -181,84 +204,87 @@ class _HistoryRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
           child: Row(
             children: [
-              // 缩略图
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: SizedBox(
-                  width: 60,
-                  height: 40,
-                  child: thumb != null
-                      ? RawImage(image: thumb, fit: BoxFit.cover)
-                      : Container(
-                          color: AppColors.subtleBorder,
-                          child: Center(
-                            child: Icon(
-                              Icons.image_outlined,
-                              size: 16,
-                              color: AppColors.faintText,
-                            ),
-                          ),
-                        ),
-                ),
-              ),
+              _buildThumbnail(thumb),
               const SizedBox(width: 10),
-              // 标签 + 时间戳
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      label,
-                      style: AppTypography.bodyLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _relativeTime(timestamp, context),
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // 画笔源指示器
-              if (isBrushSource)
-                IconButton(
-                  icon: Icon(
-                    Icons.brush,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  tooltip: tr('historyBrushSourceActive'),
-                  onPressed: onClearSource,
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                )
-              else
-                IconButton(
-                  icon: Icon(
-                    Icons.brush_outlined,
-                    size: 16,
-                    color: AppColors.textTertiary,
-                  ),
-                  tooltip: tr('historySetBrushSource'),
-                  onPressed: onSetSource,
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                ),
+              _buildInfoColumn(context),
+              _buildBrushSourceButton(context),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildThumbnail(dynamic thumb) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: SizedBox(
+        width: 60,
+        height: 40,
+        child: thumb != null
+            ? RawImage(image: thumb, fit: BoxFit.cover)
+            : Container(
+                color: AppColors.subtleBorder,
+                child: Center(
+                  child: Icon(
+                    Icons.image_outlined,
+                    size: 16,
+                    color: AppColors.faintText,
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildInfoColumn(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            entry.label,
+            style: AppTypography.bodyLarge,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _relativeTime(entry.timestamp, context),
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBrushSourceButton(BuildContext context) {
+    if (isBrushSource) {
+      return IconButton(
+        icon: Icon(
+          Icons.brush,
+          size: 16,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        tooltip: tr('historyBrushSourceActive'),
+        onPressed: onClearSource,
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      );
+    }
+    return IconButton(
+      icon: const Icon(
+        Icons.brush_outlined,
+        size: 16,
+        color: AppColors.textTertiary,
+      ),
+      tooltip: tr('historySetBrushSource'),
+      onPressed: onSetSource,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
     );
   }
 }
