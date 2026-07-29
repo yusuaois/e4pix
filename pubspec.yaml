@@ -1,7 +1,7 @@
 name: e4pix
 description: "e4pix (easy for pixel) - A high-performance camera tethering and RAW image adjustment workflow editor built with Flutter."
 publish_to: "none"
-version: 2.10.0+96
+version: 2.10.1+97
 
 environment:
   sdk: ^3.11.0
@@ -11,7 +11,7 @@ msix_config:
   display_name: e4pix
   publisher_display_name: yusuaois
   identity_name: com.yusuaois.e4pix
-  msix_version: 2.10.0.96
+  msix_version: 2.10.1.97
   logo_path: assets\icon\icon.png
   install_certificate: false
 
