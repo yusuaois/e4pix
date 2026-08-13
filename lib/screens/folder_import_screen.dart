@@ -12,8 +12,14 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_typography.dart';
 import '../core/constants/raw_formats.dart';
 import '../native/raw_bridge.dart';
+import '../services/permission/storage_permission_service.dart';
 
 Future<List<String>?> openFolderImport(NavigatorState navigator) async {
+  // Android：RAW 按文件路径读取需要「所有文件访问」权限
+  if (Platform.isAndroid &&
+      !await StoragePermissionService.requestAllFilesAccess()) {
+    return null;
+  }
   final dir = await FilePicker.getDirectoryPath(
     dialogTitle: tr('folderImportPickDir'),
   );
@@ -78,6 +84,9 @@ class _FolderImportScreenState extends State<_FolderImportScreen> {
     }
   }
 
+  /// 手动下拉刷新：重新扫描目录
+  Future<void> _refresh() => _scan();
+
   void _toggle(String path) {
     setState(() {
       if (!_selected.remove(path)) _selected.add(path);
@@ -123,28 +132,31 @@ class _FolderImportScreenState extends State<_FolderImportScreen> {
     if (_loading) {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            _error!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.semanticWarning),
-          ),
-        ),
-      );
-    }
-    if (_rawPaths.isEmpty) {
-      return Center(
-        child: Text(
-          tr('folderImportEmpty'),
-          style: TextStyle(color: AppColors.faintText),
-        ),
-      );
-    }
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: _error != null
+          ? _buildScrollableMessage(
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.semanticWarning),
+              ),
+            )
+          : _rawPaths.isEmpty
+          ? _buildScrollableMessage(
+              Text(
+                tr('folderImportEmpty'),
+                style: TextStyle(color: AppColors.faintText),
+              ),
+            )
+          : _buildGrid(),
+    );
+  }
+
+  Widget _buildGrid() {
     return GridView.builder(
       padding: const EdgeInsets.all(8),
+      physics: const AlwaysScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 160,
         childAspectRatio: 1.1,
@@ -159,6 +171,21 @@ class _FolderImportScreenState extends State<_FolderImportScreen> {
           path: path,
           selected: _selected.contains(path),
           onTap: () => _toggle(path),
+        );
+      },
+    );
+  }
+
+  /// 让空/错误态也能下拉刷新
+  Widget _buildScrollableMessage(Widget child) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(child: child),
+          ),
         );
       },
     );

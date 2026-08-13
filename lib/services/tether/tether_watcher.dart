@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:watcher/watcher.dart';
 
 import '../../core/constants/raw_formats.dart';
+import '../permission/storage_permission_service.dart';
 
 // 监听文件夹
 class TetherWatcher {
@@ -48,15 +48,8 @@ class TetherWatcher {
   }
 
   Future<bool> _requestAndroidPermission() async {
-    // 检查是否已经授权
-    var status = await Permission.manageExternalStorage.status;
-    if (status.isGranted) return true;
-    // 尝试请求
-    status = await Permission.manageExternalStorage.request();
-    if (!status.isGranted) {
-      return false;
-    }
-    return true;
+    // 与导入共用同一权限服务（「所有文件访问」）
+    return StoragePermissionService.requestAllFilesAccess();
   }
 
   Future<void> _onEvent(WatchEvent ev) async {

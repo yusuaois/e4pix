@@ -1,6 +1,7 @@
-import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:easy_localization/easy_localization.dart';
+
+import '../permission/notification_permission_service.dart';
 
 /// 导出完成/失败通知服务
 class ExportNotificationService {
@@ -40,13 +41,7 @@ class ExportNotificationService {
     await _plugin.initialize(settings: settings);
 
     // Android 13+ 运行时申请通知权限
-    if (Platform.isAndroid) {
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.requestNotificationsPermission();
-    }
+    await NotificationPermissionService.requestNotificationPermission(_plugin);
 
     _initialized = true;
   }
