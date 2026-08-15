@@ -5,6 +5,7 @@ export 'export/export_queue_state.dart';
 // 图像
 export 'image/image_state.dart';
 export 'image/image_cache_state.dart';
+export 'image/hi_res_source_state.dart';
 
 // LUT
 export 'lut/lut_library_state.dart';
@@ -19,6 +20,7 @@ export 'params/sidecar_writer.dart';
 // 渲染
 export 'render/render_state.dart';
 export 'render/quality_state.dart';
+export 'render/hi_res_render_state.dart';
 
 // 联机
 export 'tether/tether_state.dart';

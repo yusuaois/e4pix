@@ -139,86 +139,65 @@ class ImageNotifier extends AsyncNotifier<DecodedImageState?> {
       return _buildStandard(path, gen);
     }
 
-    // RAW 阶段1：快速预览
+    // RAW：单次全分辨率解码（消除「先糊后清」的二次预览跳变）
+    // decoded 保留全尺寸 raw，供超清渲染零重解码复用
     final sw1 = Stopwatch()..start();
-    final fastDecoded = await RawBridge.decodePreviewFast(path);
+    final decoded = await RawBridge.decodePreview(path);
     sw1.stop();
     if (gen != _generation) return null;
 
     final sw2 = Stopwatch()..start();
-    final fastImage = await rawToUiImage(fastDecoded);
+    final image = await rawToUiImage(decoded);
     sw2.stop();
     if (gen != _generation) {
-      _scheduleDispose(fastImage);
+      _scheduleDispose(image);
       return null;
     }
 
-    _swapHeld(fastImage);
-    final fastState = DecodedImageState(
-      path: path,
-      uiImage: fastImage,
-      width: fastDecoded.width,
-      height: fastDecoded.height,
-      bitsPerChannel: fastDecoded.bitsPerChannel,
-      metadata: fastDecoded.metadata,
-      decodeTime: sw1.elapsed,
-      convertTime: sw2.elapsed,
-      isPreliminary: true,
-      decoded: fastDecoded,
+    _swapHeld(image);
+    _cache.put(
+      path,
+      CachedDecode(
+        image: image,
+        metadata: decoded.metadata,
+        width: decoded.width,
+        height: decoded.height,
+        bitsPerChannel: decoded.bitsPerChannel,
+      ),
     );
 
-    _runPhase2(path, gen);
-    return fastState;
+    return DecodedImageState(
+      path: path,
+      uiImage: image,
+      width: decoded.width,
+      height: decoded.height,
+      bitsPerChannel: decoded.bitsPerChannel,
+      metadata: decoded.metadata,
+      decodeTime: sw1.elapsed,
+      convertTime: sw2.elapsed,
+      isPreliminary: false,
+      decoded: decoded,
+    );
   }
 
-  Future<void> _runPhase2(String path, int gen) async {
-    await Future.delayed(const Duration(milliseconds: 16));
-    if (gen != _generation) return;
-
-    try {
-      final sw1 = Stopwatch()..start();
-      final fullDecoded = await RawBridge.decodePreview(path);
-      sw1.stop();
-      if (gen != _generation) return;
-
-      final sw2 = Stopwatch()..start();
-      final fullImage = await rawToUiImage(fullDecoded);
-      sw2.stop();
-      if (gen != _generation) {
-        _scheduleDispose(fullImage);
-        return;
-      }
-
-      _swapHeld(fullImage);
-      // HD 图存入缓存
-      _cache.put(
-        path,
-        CachedDecode(
-          image: fullImage,
-          metadata: fullDecoded.metadata,
-          width: fullDecoded.width,
-          height: fullDecoded.height,
-          bitsPerChannel: fullDecoded.bitsPerChannel,
-        ),
-      );
-
-      state = AsyncData(
-        DecodedImageState(
-          path: path,
-          uiImage: fullImage,
-          width: fullDecoded.width,
-          height: fullDecoded.height,
-          bitsPerChannel: fullDecoded.bitsPerChannel,
-          metadata: fullDecoded.metadata,
-          decodeTime: sw1.elapsed,
-          convertTime: sw2.elapsed,
-          isPreliminary: false,
-          decoded: fullDecoded,
-        ),
-      );
-    } catch (e) {
-      debugPrint('[ImageNotifier] Phase2 decode failed: $e');
-    }
+  /// 释放已解码的全尺寸 raw（供超清源转换完成后回收内存）
+  void releaseDecoded() {
+    final cur = state.value;
+    if (cur == null || cur.decoded == null) return;
+    state = AsyncData(
+      DecodedImageState(
+        path: cur.path,
+        uiImage: cur.uiImage,
+        width: cur.width,
+        height: cur.height,
+        bitsPerChannel: cur.bitsPerChannel,
+        metadata: cur.metadata,
+        decodeTime: cur.decodeTime,
+        convertTime: cur.convertTime,
+        isPreliminary: cur.isPreliminary,
+        decoded: null,
+      ),
+    );
   }
 
   Future<DecodedImageState?> _buildStandard(String path, int gen) async {

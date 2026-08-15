@@ -21,6 +21,7 @@ import 'crop_panel.dart';
 import '../develop/sections/local/local_mask_overlay.dart';
 import '../../brushes/brush_manifest.dart';
 import 'multi_pass_preview.dart';
+import 'hi_res_tile_layer.dart';
 import 'split_compare_view.dart';
 import 'sr_preview_overlay.dart';
 import 'watermark_preview.dart';
@@ -374,6 +375,8 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
           params,
           lut,
           lutEnabled,
+          enableHiResTiles: true,
+          viewportSize: constraints.biggest,
         );
       },
     );
@@ -541,8 +544,26 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
     DecodedImageState state,
     AdjustmentParams params,
     LutState lut,
-    bool lutEnabled,
-  ) {
+    bool lutEnabled, {
+    bool enableHiResTiles = false,
+    Size? viewportSize,
+  }) {
+    // 高清瓦片层：底图之上、画笔 overlay 之下
+    if (enableHiResTiles && viewportSize != null) {
+      content = SizedBox.fromSize(
+        size: displaySize,
+        child: Stack(
+          children: [
+            content,
+            HiResTileLayer(
+              displaySize: displaySize,
+              viewportSize: viewportSize,
+            ),
+          ],
+        ),
+      );
+    }
+
     // 画笔 overlay
     for (final m in brushManifests) {
       final overlay = _buildOverlayIfActive(m, ref, displaySize, state, params);
