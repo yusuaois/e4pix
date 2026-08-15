@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import '../native/raw_bridge.dart';
+import '../../native/raw_bridge.dart';
 
 /// 缓存的解码结果：preview 级 ui.Image + 元数据 + 尺寸信息
 ///

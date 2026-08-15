@@ -6,8 +6,8 @@ import '../../core/theme/app_colors.dart';
 
 import '../../core/theme/app_typography.dart';
 import '../../render/cpu_denoise.dart';
-import '../../render/export_template.dart';
-import '../../render/exporter.dart';
+import '../../render/export/export_template.dart';
+import '../../render/export/exporter.dart';
 
 /// 导出对话框的返回结果
 class ExportDialogResult {

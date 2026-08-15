@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:e4pix/render/hi_res_tile_grid.dart';
+import 'package:e4pix/render/hi_res/hi_res_tile_grid.dart';
 
 void main() {
   group('computeGridTiles', () {

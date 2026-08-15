@@ -7,10 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../brushes/brush_manifest.dart';
 import '../core/models/adjustment_params.dart';
-import 'brush_layer_provider.dart';
-import 'brush_layer_registry.dart';
+import 'brush/brush_layer_provider.dart';
+import 'brush/brush_layer_registry.dart';
 import 'full_pipeline_renderer.dart';
-import 'lut_texture_cache.dart';
+import 'cache/lut_texture_cache.dart';
 import 'render_engine.dart';
 import '../services/lut/lut_library.dart';
 import '../state/image/image_state.dart';

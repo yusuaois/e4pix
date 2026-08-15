@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../brushes/brush_manifest.dart';
 import '../../core/models/crop_params.dart';
-import '../../render/brush_rasterizer.dart';
+import '../../render/brush/brush_rasterizer.dart';
 import '../../render/render_engine.dart';
 import '../../state/providers.dart';
 

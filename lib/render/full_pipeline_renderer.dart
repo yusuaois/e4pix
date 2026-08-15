@@ -11,13 +11,13 @@ import '../core/models/local_adjustment.dart';
 import '../core/models/mask_shape.dart';
 import '../state/providers.dart';
 import '../utils/shader_pass_util.dart';
-import 'brush_layer_provider.dart';
-import 'brush_layer_registry.dart';
-import 'brush_rasterizer.dart';
+import 'brush/brush_layer_provider.dart';
+import 'brush/brush_layer_registry.dart';
+import 'brush/brush_rasterizer.dart';
 import 'crop_transform.dart';
 import 'homography.dart';
-import 'lut_texture_cache.dart';
-import 'mask_cache.dart';
+import 'cache/lut_texture_cache.dart';
+import 'cache/mask_cache.dart';
 import 'pass_config.dart';
 import 'render_engine.dart';
 

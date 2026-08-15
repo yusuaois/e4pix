@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../render/decoded_image_cache.dart';
+import '../../render/cache/decoded_image_cache.dart';
 
 /// 预览解码缓存的容量（张数），0 = 禁用缓存
 class ImageCacheCapacityNotifier extends Notifier<int> {

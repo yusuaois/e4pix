@@ -7,12 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../brushes/brush_manifest.dart';
 import '../../core/models/adjustment_params.dart';
-import '../../render/brush_layer_provider.dart';
-import '../../render/brush_layer_registry.dart';
+import '../../render/brush/brush_layer_provider.dart';
+import '../../render/brush/brush_layer_registry.dart';
 import '../../render/full_pipeline_renderer.dart';
 import '../../render/gpu_warmup.dart';
 import '../../render/homography.dart';
-import '../../render/mask_cache.dart';
+import '../../render/cache/mask_cache.dart';
 import '../../state/providers.dart';
 import '../../utils/shader_pass_util.dart';
 

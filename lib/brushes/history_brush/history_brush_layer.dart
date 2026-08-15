@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/models/adjustment_params.dart';
 import '../../core/models/brush_layer.dart';
-import '../../render/brush_layer_provider.dart';
-import '../../render/incremental_render_cache.dart';
+import '../../render/brush/brush_layer_provider.dart';
+import '../../render/cache/incremental_render_cache.dart';
 import '../../state/params/history_panel_state.dart';
 import '../shared/brush_hashes.dart';
 import '../shared/brush_layer_mixin.dart';

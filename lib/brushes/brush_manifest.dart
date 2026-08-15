@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/adjustment_params.dart';
 import '../core/models/crop_params.dart';
-import '../render/brush_layer_provider.dart';
+import '../render/brush/brush_layer_provider.dart';
 import '../state/providers.dart';
 
 import 'clone_stamp/clone_stamp_layer.dart';

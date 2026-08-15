@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:e4pix/render/hi_res_pyramid.dart';
+import 'package:e4pix/render/hi_res/hi_res_pyramid.dart';
 
 void main() {
   group('pyramidLevelCount', () {

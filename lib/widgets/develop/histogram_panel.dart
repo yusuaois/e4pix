@@ -9,7 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/models/adjustment_params.dart';
 import '../../render/full_pipeline_renderer.dart';
-import '../../render/mask_cache.dart';
+import '../../render/cache/mask_cache.dart';
 import '../../utils/debouncer.dart';
 import '../../utils/shader_pass_util.dart';
 import '../../state/providers.dart';

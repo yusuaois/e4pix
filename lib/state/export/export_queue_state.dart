@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../brushes/brush_manifest.dart';
 import '../../core/models/export_job.dart';
-import '../../render/brush_layer_registry.dart';
-import '../../render/exporter.dart';
-import '../../render/lut_texture_cache.dart';
+import '../../render/brush/brush_layer_registry.dart';
+import '../../render/export/exporter.dart';
+import '../../render/cache/lut_texture_cache.dart';
 import '../../services/app/app_settings.dart';
 import '../../services/notifications/export_notification_service.dart';
 import '../providers.dart';

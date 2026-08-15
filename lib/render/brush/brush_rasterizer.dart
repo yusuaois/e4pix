@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import '../core/models/crop_params.dart';
-import '../core/models/mask_shape.dart';
+import '../../core/models/crop_params.dart';
+import '../../core/models/mask_shape.dart';
 
 /// 蒙版光栅化调度：无 auto/base 走 GPU 几何路径，否则走 CPU 路径
 ///

@@ -7,9 +7,9 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../render/crop_transform.dart';
-import '../../render/hi_res_geometry.dart';
-import '../../render/hi_res_pyramid.dart';
-import '../../render/hi_res_tile_grid.dart';
+import '../../render/hi_res/hi_res_geometry.dart';
+import '../../render/hi_res/hi_res_pyramid.dart';
+import '../../render/hi_res/hi_res_tile_grid.dart';
 import '../../state/providers.dart';
 import '../../utils/debouncer.dart';
 
@@ -44,7 +44,7 @@ class _HiResTileGridLayerState extends ConsumerState<HiResTileGridLayer> {
 
   @override
   Widget build(BuildContext context) {
-    final renderState = ref.watch(hiResCroppedImageProvider);
+    final renderState = ref.watch(hiResRenderProvider);
     final levels = renderState.levels;
     final src = ref.watch(hiResSourceProvider);
     final zoom = ref.watch(zoomScaleProvider);

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:e4pix/render/hi_res_geometry.dart';
+import 'package:e4pix/render/hi_res/hi_res_geometry.dart';
 
 void main() {
   // 统一场景：视口 1000×800，显示图 800×600（居中偏移 centerDx=100, centerDy=100），

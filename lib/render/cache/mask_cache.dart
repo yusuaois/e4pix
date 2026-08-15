@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import '../core/models/crop_params.dart';
-import '../core/models/mask_shape.dart';
-import 'brush_rasterizer.dart';
+import '../../core/models/crop_params.dart';
+import '../../core/models/mask_shape.dart';
+import '../brush/brush_rasterizer.dart';
 
 /// Develop pass 多条目 LRU 缓存：避免 undo/redo 导致缓存颠簸
 class DevelopPassCache {

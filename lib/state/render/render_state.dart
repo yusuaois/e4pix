@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../brushes/brush_manifest.dart';
 import '../../core/models/rgb_curves.dart';
 import '../../render/curve_baker.dart';
-import '../../render/lut_texture_cache.dart';
+import '../../render/cache/lut_texture_cache.dart';
 import '../providers.dart';
 import 'texture_notifier.dart';
 

@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/crop_params.dart';
 import '../../../../core/models/local_adjustment.dart';
 import '../../../../core/models/mask_shape.dart';
-import '../../../../render/brush_rasterizer.dart';
+import '../../../../render/brush/brush_rasterizer.dart';
 import '../../../../services/local/smart_region_service.dart';
 import '../../../../services/local/segmentation_service.dart';
 import '../../../../state/providers.dart';

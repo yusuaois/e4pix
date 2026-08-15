@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../render/crop_transform.dart';
 import '../../render/full_pipeline_renderer.dart';
-import '../../render/hi_res_pyramid.dart';
+import '../../render/hi_res/hi_res_pyramid.dart';
 import '../../utils/debouncer.dart';
 import '../providers.dart';
 
@@ -14,8 +14,7 @@ import '../providers.dart';
 class HiResRenderState {
   /// 各层级渲染出的裁剪后输出（key = 层级，0 = 全尺寸）
   final Map<int, ui.Image> levels;
-  final bool rendering;
-  const HiResRenderState({this.levels = const {}, this.rendering = false});
+  const HiResRenderState({this.levels = const {}});
 }
 
 /// 超清按需分辨率渲染：按 zoom 所需层级跑管线（target = src ~/ 2^k），缓存各层级
@@ -116,7 +115,7 @@ class HiResRenderNotifier extends Notifier<HiResRenderState> {
       final old = levels[targetLevel];
       levels[targetLevel] = result.finalImage;
       if (old != null) _disposeLater(old);
-      state = HiResRenderState(levels: levels, rendering: false);
+      state = HiResRenderState(levels: levels);
       _renderedParamsHash = params.hashCode;
     } catch (e) {
       debugPrint('[HiResRender] failed: $e');
@@ -162,7 +161,7 @@ class HiResRenderNotifier extends Notifier<HiResRenderState> {
   }
 }
 
-final hiResCroppedImageProvider =
+final hiResRenderProvider =
     NotifierProvider<HiResRenderNotifier, HiResRenderState>(
       HiResRenderNotifier.new,
     );

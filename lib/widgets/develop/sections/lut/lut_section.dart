@@ -9,7 +9,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../../core/constants/lut_formats.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../render/lut_texture_cache.dart';
+import '../../../../render/cache/lut_texture_cache.dart';
 import '../../../../render/thumbnail_renderer.dart';
 import '../../../../services/lut/lut_library.dart';
 import '../../../../state/providers.dart';

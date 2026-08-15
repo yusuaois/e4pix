@@ -9,21 +9,21 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:image/image.dart' as img_pkg;
 import 'package:path/path.dart' as p;
 
-import '../services/sr/sr_service.dart';
+import '../../services/sr/sr_service.dart';
 
-import '../core/constants/raw_formats.dart';
-import '../core/models/adjustment_params.dart';
-import '../core/models/watermark_config.dart';
-import '../native/raw_bridge.dart';
-import '../services/image/image_loader.dart';
-import 'cpu_denoise.dart';
-import 'curve_baker.dart';
+import '../../core/constants/raw_formats.dart';
+import '../../core/models/adjustment_params.dart';
+import '../../core/models/watermark_config.dart';
+import '../../native/raw_bridge.dart';
+import '../../services/image/image_loader.dart';
+import '../cpu_denoise.dart';
+import '../curve_baker.dart';
 import 'exif_writer.dart';
 import 'export_template.dart';
-import 'brush_layer_registry.dart';
-import 'full_pipeline_renderer.dart';
-import 'pass_config.dart';
-import 'pixel_convert.dart';
+import '../brush/brush_layer_registry.dart';
+import '../full_pipeline_renderer.dart';
+import '../pass_config.dart';
+import '../pixel_convert.dart';
 import 'watermark_exporter.dart';
 
 enum ExportFormat { png, jpeg }

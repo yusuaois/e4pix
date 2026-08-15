@@ -10,6 +10,7 @@
 ## 🛠️ 底层改进 (Under the Hood)
 * 新增 `StoragePermissionService` / `NotificationPermissionService` 集中权限申请
 * 选图导入与 tether 监听共用「所有文件访问」权限请求
+* `lib/render` 语义拆分为 hi_res/cache/export/brush 四个子目录
 
 ## 🐛 问题修复 (Bug Fixes)
 * 修复手机从文件夹导入时新移入的 RAW 文件不显示（缺「所有文件访问」权限）

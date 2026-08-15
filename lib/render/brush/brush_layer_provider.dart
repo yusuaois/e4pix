@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
-import '../core/models/adjustment_params.dart';
-import '../core/models/brush_layer.dart';
+import '../../core/models/adjustment_params.dart';
+import '../../core/models/brush_layer.dart';
 
 /// 画笔图层提供者接口
 ///

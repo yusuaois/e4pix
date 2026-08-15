@@ -1,4 +1,4 @@
-import '../native/raw_bridge.dart';
+import '../../native/raw_bridge.dart';
 
 /// 导出文件名模板工具
 ///

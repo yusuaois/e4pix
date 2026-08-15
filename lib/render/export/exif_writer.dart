@@ -1,5 +1,5 @@
 import 'package:image/image.dart' as img_pkg;
-import '../native/raw_bridge.dart';
+import '../../native/raw_bridge.dart';
 
 /// 把 RAW 拍摄信息写入 image 包的 Image 的 EXIF（JPEG）
 void writeExifToImage(img_pkg.Image image, RawMetadata m) {

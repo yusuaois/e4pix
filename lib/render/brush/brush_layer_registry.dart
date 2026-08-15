@@ -1,4 +1,4 @@
-import '../core/models/adjustment_params.dart';
+import '../../core/models/adjustment_params.dart';
 import 'brush_layer_provider.dart';
 
 /// 画笔图层有序注册表
