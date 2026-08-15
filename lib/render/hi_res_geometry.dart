@@ -11,9 +11,6 @@ import 'package:flutter/material.dart';
 /// - `viewportTransform` 是 InteractiveViewer 的 child→viewport 变换矩阵
 ///   （即 `viewportTransformProvider` 的值，与 `_ColorReadout` 用法对称）
 
-/// 瓦片长边上限（防单瓦片内存失控）
-const int kHiResTileMaxEdge = 4096;
-
 /// 视口可见区域 → 全尺寸裁剪后输出图的源矩形 + displaySize 坐标的目标矩形
 ///
 /// 返回 null 表示当前无可见区域（如空交集）：
@@ -62,33 +59,6 @@ const int kHiResTileMaxEdge = 4096;
     src: Rect.fromLTRB(left * sx, top * sy, right * sx, bottom * sy),
     dst: Rect.fromLTRB(left, top, right, bottom),
   );
-}
-
-/// 瓦片分辨率：min(源矩形像素, 屏上物理像素 × oversample)，封顶 [kHiResTileMaxEdge]
-///
-/// 这样 zoom 较低时瓦片不会切出整张全尺寸图（省内存），
-/// 而 zoom 到 100%（真实像素）时瓦片像素 = 源像素，达成「看到真实像素」。
-({int w, int h}) tileResolution({
-  required Rect src,
-  required Rect dst,
-  required double zoom,
-  required double devicePixelRatio,
-  double oversample = 2.0,
-}) {
-  final onScreenW = dst.width * zoom * devicePixelRatio;
-  final onScreenH = dst.height * zoom * devicePixelRatio;
-
-  final w = math
-      .min(src.width, onScreenW * oversample)
-      .ceil()
-      .clamp(1, kHiResTileMaxEdge)
-      .toInt();
-  final h = math
-      .min(src.height, onScreenH * oversample)
-      .ceil()
-      .clamp(1, kHiResTileMaxEdge)
-      .toInt();
-  return (w: w, h: h);
 }
 
 /// 从全尺寸裁剪后输出图切出 [src] 区域，缩放到 [w]×[h]

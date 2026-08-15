@@ -54,7 +54,8 @@ void main() {
     });
 
     test('平移后越界：dst clamp 到 displaySize 边界', () {
-      final pan = Matrix4.identity()..translateByDouble(-200.0, -100.0, 0.0, 1.0);
+      final pan = Matrix4.identity()
+        ..translateByDouble(-200.0, -100.0, 0.0, 1.0);
       final r = computeTileRects(
         viewportTransform: pan,
         viewportSize: viewport,
@@ -89,47 +90,6 @@ void main() {
         fullOutSize: fullOut,
       );
       expect(r, isNull);
-    });
-  });
-
-  group('tileResolution', () {
-    const src = Rect.fromLTWH(0, 0, 4000, 3000);
-    const dst = Rect.fromLTWH(0, 0, 800, 600);
-
-    test('低 zoom：瓦片 ≈ 屏上物理像素 × oversample', () {
-      // zoom 1.5, dpr 3, oversample 2 → 800*1.5*3*2 = 7200 → min(src=4000) = 4000
-      final r = tileResolution(
-        src: src,
-        dst: dst,
-        zoom: 1.5,
-        devicePixelRatio: 3.0,
-      );
-      expect(r.w, 4000);
-      expect(r.h, 3000);
-    });
-
-    test('低 zoom + 大屏像素：受 src 尺寸封顶', () {
-      final r = tileResolution(
-        src: src,
-        dst: dst,
-        zoom: 1.0,
-        devicePixelRatio: 2.0,
-      );
-      // 800*1*2*2 = 3200 < 4000 → 3200
-      expect(r.w, 3200);
-      expect(r.h, 2400);
-    });
-
-    test('长边封顶 kHiResTileMaxEdge', () {
-      const huge = Rect.fromLTWH(0, 0, 10000, 8000);
-      final r = tileResolution(
-        src: huge,
-        dst: const Rect.fromLTWH(0, 0, 5000, 4000),
-        zoom: 8.0,
-        devicePixelRatio: 3.0,
-      );
-      expect(r.w, lessThanOrEqualTo(kHiResTileMaxEdge));
-      expect(r.h, lessThanOrEqualTo(kHiResTileMaxEdge));
     });
   });
 }

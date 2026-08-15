@@ -4,22 +4,23 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../render/crop_transform.dart';
 import '../../render/full_pipeline_renderer.dart';
+import '../../render/hi_res_pyramid.dart';
 import '../../utils/debouncer.dart';
 import '../providers.dart';
 
 @immutable
 class HiResRenderState {
-  final ui.Image? image; // 全尺寸裁剪后输出；null = 未就绪/已逐出
+  /// 各层级渲染出的裁剪后输出（key = 层级，0 = 全尺寸）
+  final Map<int, ui.Image> levels;
   final bool rendering;
-  const HiResRenderState({this.image, this.rendering = false});
+  const HiResRenderState({this.levels = const {}, this.rendering = false});
 }
 
-/// 超清渲染：zoom 超阈值且参数稳定后，后台把全尺寸源跑一遍完整管线，
-/// 产出「全尺寸裁剪后输出图」供显示层按视口切瓦片。
+/// 超清按需分辨率渲染：按 zoom 所需层级跑管线（target = src ~/ 2^k），缓存各层级
 ///
-/// 不写 developOutputProvider / composeGuideProvider / renderedPreviewGenerationProvider，
-/// 避免污染画笔 overlay 与选区服务（这些副作用只属于低清 MultiPassPreview）。
+/// 不写 developOutputProvider / composeGuideProvider / renderedPreviewGenerationProvider
 class HiResRenderNotifier extends Notifier<HiResRenderState> {
   int _gen = 0;
   bool _rendering = false;
@@ -36,7 +37,6 @@ class HiResRenderNotifier extends Notifier<HiResRenderState> {
     });
     ref.listen(hiResSourceProvider, (_, _) => _triggerRender());
     ref.listen(zoomScaleProvider, (prev, next) {
-      // 缩放过程中持续重置 settle，停止 200ms 后才渲染，避免和缩放帧抢 GPU
       if (prev != next && ref.read(hiResActiveProvider)) _triggerRender();
     });
     ref.listen(isUserDraggingSliderProvider, (prev, next) {
@@ -45,8 +45,8 @@ class HiResRenderNotifier extends Notifier<HiResRenderState> {
     ref.listen(debouncedParamsProvider, (prev, next) {
       if (!ref.read(hiResActiveProvider)) return;
       if (next == prev) return;
-      // 参数（含 crop）变了：先退旧图防陈旧错位，再 settle 后重渲
-      if (next.hashCode != _renderedParamsHash && state.image != null) {
+      // 参数（含 crop）变了：清空所有已渲染层级防陈旧错位，再 settle 后重渲
+      if (next.hashCode != _renderedParamsHash && state.levels.isNotEmpty) {
         _evict(immediate: true);
       }
       _triggerRender();
@@ -54,7 +54,7 @@ class HiResRenderNotifier extends Notifier<HiResRenderState> {
     ref.onDispose(() {
       _disposed = true;
       _settle.dispose();
-      _disposeImage();
+      _disposeLevels(state.levels);
     });
     return const HiResRenderState();
   }
@@ -74,18 +74,34 @@ class HiResRenderNotifier extends Notifier<HiResRenderState> {
     if (ref.read(isUserDraggingSliderProvider)) return;
     final src = ref.read(hiResSourceProvider);
     if (src == null) return;
+    final displaySize = ref.read(hiResDisplaySizeProvider);
+    if (displaySize == null) return;
+
+    final params = ref.read(debouncedParamsProvider);
+    final zoom = ref.read(zoomScaleProvider);
+    final dpr = ui.PlatformDispatcher.instance.views.first.devicePixelRatio;
+    final fullOutSize = cropOutputSize(params.crop, src.width, src.height);
+    final targetLevel = selectPyramidLevel(
+      zoom: zoom,
+      devicePixelRatio: dpr,
+      displaySize: displaySize,
+      fullOutSize: fullOutSize,
+    );
+
+    // 该层级已渲染（且参数未变）→ 复用
+    if (state.levels.containsKey(targetLevel)) return;
 
     _rendering = true;
     _pending = false;
     final gen = ++_gen;
     try {
-      final params = ref.read(debouncedParamsProvider);
+      final scale = 1 << targetLevel;
       final result = await FullPipelineRenderer.renderFromRef(
         ref,
         sourceImage: src,
         params: params,
-        targetWidth: src.width,
-        targetHeight: src.height,
+        targetWidth: src.width ~/ scale,
+        targetHeight: src.height ~/ scale,
         includeBrushLayers: true,
       );
       if (_disposed) return;
@@ -95,8 +111,12 @@ class HiResRenderNotifier extends Notifier<HiResRenderState> {
         return;
       }
       if (result == null) return; // shader 未就绪，下次触发再试
-      _disposeImage();
-      state = HiResRenderState(image: result.finalImage, rendering: false);
+
+      final levels = Map<int, ui.Image>.from(state.levels);
+      final old = levels[targetLevel];
+      levels[targetLevel] = result.finalImage;
+      if (old != null) _disposeLater(old);
+      state = HiResRenderState(levels: levels, rendering: false);
       _renderedParamsHash = params.hashCode;
     } catch (e) {
       debugPrint('[HiResRender] failed: $e');
@@ -111,25 +131,29 @@ class HiResRenderNotifier extends Notifier<HiResRenderState> {
 
   void _evict({required bool immediate}) {
     if (immediate) {
-      _disposeImage();
+      _disposeLevels(state.levels);
       state = const HiResRenderState();
       return;
     }
-    final img = state.image;
-    if (img == null) return;
+    final levels = state.levels;
+    if (levels.isEmpty) return;
     // 缩回低阈值后延迟逐出（2s 宽限，避免来回缩放反复重渲）
     Future.delayed(const Duration(seconds: 2), () {
       if (_disposed) return;
-      if (!ref.read(hiResActiveProvider) && identical(state.image, img)) {
-        _disposeImage();
+      if (!ref.read(hiResActiveProvider) && identical(state.levels, levels)) {
+        _disposeLevels(state.levels);
         state = const HiResRenderState();
       }
     });
   }
 
-  void _disposeImage() {
-    final img = state.image;
-    if (img == null) return;
+  void _disposeLevels(Map<int, ui.Image> levels) {
+    for (final img in levels.values) {
+      _disposeLater(img);
+    }
+  }
+
+  void _disposeLater(ui.Image img) {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       try {
         img.dispose();

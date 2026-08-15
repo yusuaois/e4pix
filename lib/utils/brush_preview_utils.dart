@@ -16,6 +16,53 @@ void canvasApplyCrop(Canvas canvas, Offset center, CropParams crop) {
   }
 }
 
+/// 把「裁剪前」源图按 crop 画到「裁剪后」显示区，镜像 applyCropTransform
+///
+/// image 归一化内容与源图一致，像素尺寸不同；sourceWidth/Height 为原始全图尺寸
+void drawSourceImageCropped({
+  required Canvas canvas,
+  required Image image,
+  required CropParams crop,
+  required int sourceWidth,
+  required int sourceHeight,
+  required Size displaySize,
+  required Paint paint,
+}) {
+  if (crop.isIdentity) {
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+      Rect.fromLTWH(0, 0, displaySize.width, displaySize.height),
+      paint,
+    );
+    return;
+  }
+
+  final swap = crop.orientationSwapsAxes;
+  final orientedW = (swap ? sourceHeight : sourceWidth).toDouble();
+  final orientedH = (swap ? sourceWidth : sourceHeight).toDouble();
+  final cropW = crop.width * orientedW;
+  final cropH = crop.height * orientedH;
+
+  canvas.save();
+  // 逆序构建「源图坐标 → 裁剪后显示坐标」的 canvas 变换（等价 applyCropTransform 两步）
+  canvas.scale(displaySize.width / cropW, displaySize.height / cropH);
+  canvas.translate(-crop.x * orientedW, -crop.y * orientedH);
+  canvas.translate(orientedW / 2, orientedH / 2);
+  canvas.rotate(
+    crop.orientation * math.pi / 2 + crop.straighten * math.pi / 180,
+  );
+  canvas.scale(crop.flipH ? -1.0 : 1.0, crop.flipV ? -1.0 : 1.0);
+  canvas.translate(-sourceWidth / 2, -sourceHeight / 2);
+  canvas.drawImageRect(
+    image,
+    Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+    Rect.fromLTWH(0, 0, sourceWidth.toDouble(), sourceHeight.toDouble()),
+    paint,
+  );
+  canvas.restore();
+}
+
 /// 计算 OOB（Out-of-Bounds）比例映射矩形
 ///
 /// 当采样源矩形部分超出图像边界时，计算采样区域与图像边界的交集，
@@ -79,7 +126,6 @@ void canvasApplyCrop(Canvas canvas, Offset center, CropParams crop) {
 ///
 /// 用于在 GPU 编码前预过滤——[_packFloat16] 夹持归一化坐标到 [0,1]，
 /// shader OOB 守卫无法区分"真 OOB"和"被夹持到边缘的值"
-///
 /// 使用 AABB 近似（保守检查）：零假阳性，角落假阴性由 shader per-pixel 处理
 /// [sourceX]/[sourceY] 归一化 [0..1] 坐标（可越界）
 /// [radius] 归一化半径，按 [imageWidth] 换算到像素

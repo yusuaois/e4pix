@@ -67,16 +67,14 @@ abstract class BaseStampPainter<T extends StampMark> extends CustomPainter {
     final offscreen = Canvas(recorder);
 
     if (hasComposited && compositedImage != null) {
-      offscreen.drawImageRect(
-        compositedImage!,
-        Rect.fromLTWH(
-          0,
-          0,
-          compositedImage!.width.toDouble(),
-          compositedImage!.height.toDouble(),
-        ),
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        _imagePaint,
+      drawSourceImageCropped(
+        canvas: offscreen,
+        image: compositedImage!,
+        crop: crop,
+        sourceWidth: sourceWidth,
+        sourceHeight: sourceHeight,
+        displaySize: size,
+        paint: _imagePaint,
       );
 
       if (strokeMarks.isNotEmpty) {
@@ -96,7 +94,11 @@ abstract class BaseStampPainter<T extends StampMark> extends CustomPainter {
         (hasComposited && compositedImage != null) || srcImg != null;
     if (didDraw) {
       final picture = recorder.endRecording();
+      canvas.save();
+      // clip 到显示区，避免裁剪框外内容（负/溢出坐标）重新显现
+      canvas.clipRect(Offset.zero & size);
       canvas.drawPicture(picture);
+      canvas.restore();
       picture.dispose();
     } else {
       recorder.endRecording().dispose();

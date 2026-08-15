@@ -3,6 +3,19 @@ import 'dart:ui' as ui;
 
 import '../core/models/crop_params.dart';
 
+/// 计算裁剪后输出尺寸，镜像 applyCropTransform 的尺寸逻辑（纯函数）
+///
+/// 尺寸仅由 width/height × orientation 轴交换后尺寸决定，与 x/y/straighten/flip 无关
+ui.Size cropOutputSize(CropParams crop, int srcW, int srcH) {
+  final swap = crop.orientationSwapsAxes;
+  final orientedW = swap ? srcH : srcW;
+  final orientedH = swap ? srcW : srcH;
+  return ui.Size(
+    (crop.width * orientedW).roundToDouble(),
+    (crop.height * orientedH).roundToDouble(),
+  );
+}
+
 /// 应用 crop 变换（orientation + flip + straighten + 裁剪框）
 /// 返回新 ui.Image 用于 export / histogram 等
 Future<ui.Image> applyCropTransform(ui.Image src, CropParams crop) async {

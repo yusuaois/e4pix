@@ -21,6 +21,7 @@ export 'params/sidecar_writer.dart';
 export 'render/render_state.dart';
 export 'render/quality_state.dart';
 export 'render/hi_res_render_state.dart';
+export 'render/hi_res_display_size_state.dart';
 
 // 联机
 export 'tether/tether_state.dart';

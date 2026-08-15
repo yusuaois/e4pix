@@ -21,7 +21,7 @@ import 'crop_panel.dart';
 import '../develop/sections/local/local_mask_overlay.dart';
 import '../../brushes/brush_manifest.dart';
 import 'multi_pass_preview.dart';
-import 'hi_res_tile_layer.dart';
+import 'hi_res_tile_grid_layer.dart';
 import 'split_compare_view.dart';
 import 'sr_preview_overlay.dart';
 import 'watermark_preview.dart';
@@ -350,6 +350,10 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
           Size(outAspect, 1.0),
           constraints.biggest,
         ).destination;
+        // hi-res 按需渲染需要 displaySize 选层级（build 期间改 provider 会重入，故 microtask 延迟）
+        Future.microtask(() {
+          ref.read(hiResDisplaySizeProvider.notifier).set(box);
+        });
         final preview = MultiPassPreview(
           developProgram: develop,
           maskProgram: maskProgram,
@@ -555,7 +559,7 @@ class _PreviewContentState extends ConsumerState<_PreviewContent> {
         child: Stack(
           children: [
             content,
-            HiResTileLayer(
+            HiResTileGridLayer(
               displaySize: displaySize,
               viewportSize: viewportSize,
             ),
